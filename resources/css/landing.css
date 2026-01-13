@@ -1,0 +1,84 @@
+.hero-gradient {
+                background: linear-gradient(135deg, rgba(139, 115, 85, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+            }
+
+            .treatment-card {
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .treatment-card:hover {
+                transform: translateY(-8px);
+            }
+
+            .stat-number {
+                font-family: 'Playfair Display', serif;
+            }
+
+            .testimonial-card {
+                backdrop-filter: blur(10px);
+                background: rgba(255, 255, 255, 0.9);
+            }
+
+            .dark .testimonial-card {
+                background: rgba(26, 26, 26, 0.9);
+            }
+
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-15px); }
+            }
+
+            .section-divider {
+                height: 1px;
+                background: linear-gradient(90deg, transparent, rgba(139, 115, 85, 0.3), transparent);
+            }
+
+            .nav-glass {
+                backdrop-filter: blur(12px);
+                background: rgba(255, 255, 255, 0.95);
+                border-bottom: 1px solid rgba(139, 115, 85, 0.1);
+            }
+
+            .dark .nav-glass {
+                background: rgba(10, 10, 10, 0.95);
+                border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+            }
+
+            .booking-btn {
+                background: linear-gradient(135deg, #8B7355 0%, #6F5430 100%);
+                transition: all 0.3s ease;
+            }
+
+            .booking-btn:hover {
+                background: linear-gradient(135deg, #6F5430 0%, #5A4526 100%);
+                transform: scale(1.05);
+                box-shadow: 0 10px 25px rgba(139, 115, 85, 0.3);
+            }
+
+            .elegant-underline {
+                position: relative;
+            }
+
+            .elegant-underline::after {
+                content: '';
+                position: absolute;
+                bottom: -4px;
+                left: 0;
+                width: 50px;
+                height: 2px;
+                background: #8B7355;
+                transition: width 0.3s ease;
+            }
+
+            .elegant-underline:hover::after {
+                width: 100%;
+            }
+
+            .feature-icon {
+                transition: all 0.3s ease;
+            }
+
+            .feature-card:hover .feature-icon {
+                transform: scale(1.1);
+                color: #8B7355;
+            }
