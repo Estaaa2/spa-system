@@ -2,25 +2,75 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Post;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Attributes\Middleware;
 
-// #[Middleware('auth')]
+
 class PostController extends Controller
 {
-    // #[Middleware('permission:create posts')]
-    public function create() {}
+    public function create()
+    {
+        return view('posts.create');
+    }
 
-    // #[Middleware('permission:create posts')]
-    public function store(Request $request) {}
 
-    // #[Middleware('permission:edit posts')]
-    public function edit() {}
 
-    // #[Middleware('permission:edit posts')]
-    public function update(Request $request) {}
+    public function store(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+        ]);
 
-    // #[Middleware('permission:delete posts')]
-    public function destroy() {}
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'body' => 'required|string',
+        ]);
+
+        Post::create($data);
+
+
+        Post::create([
+            'title' => $request->title,
+        ]);
+
+        return redirect()->route('posts.index')
+            ->with('success', 'Post created successfully');
+    }
+
+    public function index()
+    {
+        $posts = Post::latest()->get();
+        $posts = Post::paginate(10); // or Post::simplePaginate(10)
+
+        return view('posts.index', compact('posts'));
+    }
+
+    public function edit($id)
+    {
+        try {
+            $post = Post::findOrFail($id);
+            return view('posts.edit', compact('post'));
+        } catch (\Exception $e) {
+            dd($e->getMessage()); // Show the actual error
+        }
+    }
+
+    public function update(Request $request, Post $post)
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'body' => 'required|string',
+        ]);
+
+        $post->update($data);
+
+        return redirect()->route('posts.index')->with('success', 'Post updated successfully!');
+    }
+
+    public function destroy(Post $post)
+    {
+        $post->delete();
+
+        return redirect()->route('posts.index')->with('success', 'Post deleted successfully!');
+    }
 }
-

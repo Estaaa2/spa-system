@@ -1,0 +1,56 @@
+/* Prevent body scroll when modal is open */
+    body.overflow-hidden {
+        overflow: hidden;
+    }
+
+    /* Modal animation */
+    #filterModal > div:last-child {
+        animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Scrollbar styling */
+    .overflow-x-auto::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .overflow-x-auto::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .overflow-x-auto::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+    }
+
+    .dark .overflow-x-auto::-webkit-scrollbar-track {
+        background: #374151;
+    }
+
+    .dark .overflow-x-auto::-webkit-scrollbar-thumb {
+        background: #6b7280;
+    }
+
+    .dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+
+    /* Gradient avatars */
+    .bg-gradient-to-br {
+        background-size: 200% 200%;
+    }

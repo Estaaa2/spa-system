@@ -1,80 +1,171 @@
-<x-app-layout>
+@extends('layouts.app')
 
-    <div class="min-h-screen flex">
-        <div class="flex-1">
-            <!-- Dashboard Content -->
-            <main class="p-8">
-                <div class="max-w-7xl mx-auto">
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    </div>
+@section('content')
+<div class="mx-auto max-w-7xl">
 
-                    <!-- Add more dashboard widgets/content below -->
-                    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <!-- Example Widget 1 -->
-                        <div class="bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg p-6 text-white shadow-lg">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm opacity-90">Total Appointments</p>
-                                    <p class="text-3xl font-bold mt-2">12</p>
-                                </div>
-                                <div class="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+    <!-- Dashboard Header -->
+    <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+    <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">
+        Dashboard
+    </h1>
 
-                        <!-- Example Widget 2 -->
-                        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm text-gray-600">Services Available</p>
-                                    <p class="text-3xl font-bold text-gray-800 mt-2">8</p>
-                                </div>
-                                <div class="h-12 w-12 bg-[#8B7355]/10 rounded-full flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-[#8B7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+        <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
+                <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
+            </div>
 
-                        <!-- Example Widget 3 -->
-                        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm text-gray-600">Members</p>
-                                    <p class="text-3xl font-bold text-gray-800 mt-2">45</p>
-                                </div>
-                                <div class="h-12 w-12 bg-[#8B7355]/10 rounded-full flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-[#8B7355]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 4.5V21m-4.5-4.5H21" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
+            <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
+
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
+                <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Cards -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+        <!-- Total Appointment -->
+        <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">TOTAL</p>
+            <p class="text-lg font-semibold text-gray-800 dark:text-white">APPOINTMENTS</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">0</p>
         </div>
 
+        <!-- Completed Appointment -->
+        <div class="p-6 rounded-lg shadow-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430] text-white">
+            <p class="text-xs tracking-widest opacity-80">COMPLETED</p>
+            <p class="text-lg font-semibold">APPOINTMENTS</p>
+            <p class="mt-2 text-3xl font-bold">0</p>
+        </div>
 
-        @php
-                        // Retrieve the first role name assigned to the authenticated user
-                        $role = auth()->user()->getRoleNames()->first();
-                    @endphp
+        <!-- Pending Appointment -->
+        <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">PENDING</p>
+            <p class="text-lg font-semibold text-gray-800 dark:text-white">APPOINTMENTS</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">0</p>
+        </div>
 
-         @if($role)
-                        <p class="mt-4">
-                            {{ __("You're logged in as") }}
-                            <strong class="text-green-600">{{ ucfirst($role) }}</strong>!
-                        </p>
-                    @else
-                        <p class="mt-4 text-red-600">
-                            {{ __("You're logged in but no role has been assigned.") }}
-                        </p>
-                    @endif
+        <!-- Revenue Today -->
+        <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">REVENUE</p>
+            <p class="text-lg font-semibold text-gray-800 dark:text-white">TODAY</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">$0.00</p>
+        </div>
+
+        <!-- Top Service Today -->
+        <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">TOP SERVICE</p>
+            <p class="text-lg font-semibold text-gray-800 dark:text-white">TODAY</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">N/A</p>
+        </div>
 
     </div>
-</x-app-layout>
+
+    <!-- TABLE 1 -->
+    <div class="mt-10">
+        <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Therapist Available</h2>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+                <thead>
+                    <tr class="text-left">
+                        <th class="px-4 py-3 border-b dark:border-gray-700">Therapist Name</th>
+                        <th class="px-4 py-3 border-b dark:border-gray-700">Status</th>
+                        <th class="px-4 py-3 border-b dark:border-gray-700">Today's App.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-4 py-3 border-b dark:border-gray-700">Sarah Rebate</td>
+                        <td class="px-4 py-3 border-b dark:border-gray-700">Active</td>
+                        <td class="px-4 py-3 border-b dark:border-gray-700">2</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TABLE 2 -->
+    <div class="mt-10">
+        <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Today's Appointment</h2>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+                <thead>
+                    <tr class="text-left">
+                        <th class="px-4 py-3 border-b dark:border-gray-700">Time</th>
+                        <th class="px-4 py-3 border-b dark:border-gray-700">Customer</th>
+                        <th class="px-4 py-3 border-b dark:border-gray-700">Service</th>
+                        <th class="px-4 py-3 border-b dark:border-gray-700">Therapist</th>
+                        <th class="px-4 py-3 border-b dark:border-gray-700">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-4 py-3 border-b dark:border-gray-700">08:00 AM</td>
+                        <td class="px-4 py-3 border-b dark:border-gray-700">Cedie Heyrosa</td>
+                        <td class="px-4 py-3 border-b dark:border-gray-700">Massage</td>
+                        <td class="px-4 py-3 border-b dark:border-gray-700">Sarah Rebate</td>
+                        <td class="px-4 py-3 border-b dark:border-gray-700">Pending</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ALERTS / NOTIFICATIONS -->
+    <div class="mt-10">
+        <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Alerts / Notifications</h2>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+
+            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
+                <p class="text-sm font-semibold text-center text-gray-700 dark:text-gray-200">Late Appointment</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
+                <p class="text-sm font-semibold text-center text-gray-700 dark:text-gray-200">No-Shows</p>
+            </div>
+
+            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
+                <p class="text-sm font-semibold text-center text-gray-700 dark:text-gray-200">Overbooked Slots</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+<script>
+    function updateClock() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+
+        const todayDateElement = document.getElementById('todayDate');
+        const realTimeClockElement = document.getElementById('realTimeClock');
+
+        if (todayDateElement) {
+            todayDateElement.innerText = now.toLocaleDateString('en-US', options);
+        }
+
+        if (realTimeClockElement) {
+            realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+    }
+
+    // Initialize and start the clock
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize clock immediately
+        updateClock();
+
+        // Update clock every second
+        setInterval(updateClock, 1000);
+    });
+</script>
+@endsection
