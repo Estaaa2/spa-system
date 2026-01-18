@@ -49,18 +49,12 @@ class SetupController extends Controller
 
         $validated = $request->validate([
             'spa_name' => ['required', 'string', 'max:255'],
-            'spa_email' => ['nullable', 'email', 'max:255'],
-            'spa_phone' => ['nullable', 'string', 'max:20'],
-            'spa_description' => ['nullable', 'string'],
         ]);
 
         // Create spa
         $spa = Spa::create([
             'owner_id' => $user->id,
             'name' => $validated['spa_name'],
-            'email' => $validated['spa_email'],
-            'phone' => $validated['spa_phone'],
-            'description' => $validated['spa_description'],
         ]);
 
         // Update user with spa
@@ -153,21 +147,31 @@ class SetupController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'hours' => ['required', 'array'],
-            'hours.*.id' => ['required', 'integer'],
-            'hours.*.opening_time' => ['required', 'date_format:H:i'],
-            'hours.*.closing_time' => ['required', 'date_format:H:i'],
-            'hours.*.is_closed' => ['boolean'],
-        ]);
+        // Get the raw request data to build conditional validation
+        $hoursData = $request->input('hours', []);
+        
+        // Build validation rules conditionally
+        foreach ($hoursData as $index => $hour) {
+            $isClosed = isset($hour['is_closed']) && $hour['is_closed'] == '1';
+            
+            if (!$isClosed) {
+                // Only validate times if not closed
+                if (empty($hour['opening_time']) || empty($hour['closing_time'])) {
+                    return back()->withErrors(["hours.$index.opening_time" => "Opening and closing times are required unless the day is marked as closed."]);
+                }
+            }
+        }
 
-        foreach ($validated['hours'] as $hourData) {
+        // Update each operating hour
+        foreach ($hoursData as $index => $hourData) {
+            $isClosed = isset($hourData['is_closed']) && $hourData['is_closed'] == '1';
+            
             OperatingHours::where('id', $hourData['id'])
                 ->where('branch_id', $branch->id)
                 ->update([
-                    'opening_time' => $hourData['opening_time'],
-                    'closing_time' => $hourData['closing_time'],
-                    'is_closed' => $hourData['is_closed'] ?? false,
+                    'opening_time' => $hourData['opening_time'] ?? '09:00',
+                    'closing_time' => $hourData['closing_time'] ?? '18:00',
+                    'is_closed' => $isClosed ? true : false,
                 ]);
         }
 

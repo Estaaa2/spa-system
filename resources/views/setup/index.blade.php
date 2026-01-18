@@ -61,59 +61,6 @@
                     @enderror
                 </div>
 
-                <!-- Email -->
-                <div>
-                    <label for="spa_email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Spa Email Address
-                    </label>
-                    <input
-                        type="email"
-                        id="spa_email"
-                        name="spa_email"
-                        value="{{ old('spa_email') }}"
-                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-[#8B7355] focus:outline-none"
-                        placeholder="business@example.com"
-                    />
-                    @error('spa_email')
-                        <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <!-- Phone -->
-                <div>
-                    <label for="spa_phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Spa Phone Number
-                    </label>
-                    <input
-                        type="tel"
-                        id="spa_phone"
-                        name="spa_phone"
-                        value="{{ old('spa_phone') }}"
-                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-[#8B7355] focus:outline-none"
-                        placeholder="+1 (555) 000-0000"
-                    />
-                    @error('spa_phone')
-                        <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <!-- Description -->
-                <div>
-                    <label for="spa_description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Business Description
-                    </label>
-                    <textarea
-                        id="spa_description"
-                        name="spa_description"
-                        rows="4"
-                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-[#8B7355] focus:outline-none"
-                        placeholder="Tell us about your spa..."
-                    >{{ old('spa_description') }}</textarea>
-                    @error('spa_description')
-                        <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                    @enderror
-                </div>
-
                 <!-- Submit Button -->
                 <div class="pt-6">
                     <button

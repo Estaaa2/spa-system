@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('branches', function (Blueprint $table) {
-            $table->dropColumn(['phone', 'email', 'address', 'latitude', 'longitude']);
+        Schema::table('spas', function (Blueprint $table) {
+            $table->dropColumn(['phone', 'email', 'description', 'logo']);
         });
     }
 
@@ -21,12 +21,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('branches', function (Blueprint $table) {
+        Schema::table('spas', function (Blueprint $table) {
             $table->string('phone')->nullable();
             $table->string('email')->nullable();
-            $table->text('address')->nullable();
-            $table->decimal('latitude', 10, 8)->nullable();
-            $table->decimal('longitude', 11, 8)->nullable();
+            $table->text('description')->nullable();
+            $table->string('logo')->nullable();
         });
     }
 };

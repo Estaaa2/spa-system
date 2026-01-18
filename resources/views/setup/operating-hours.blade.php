@@ -19,6 +19,17 @@
                     Set Operating Hours
                 </h3>
 
+                @if ($errors->any())
+                    <div class="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                        <p class="text-red-700 dark:text-red-400 font-medium mb-2">There were errors with your submission:</p>
+                        <ul class="text-red-600 dark:text-red-300 text-sm">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <form method="POST" action="{{ route('setup.update-operating-hours', $branch) }}" class="space-y-6">
                     @csrf
                     @method('PUT')
@@ -43,8 +54,7 @@
                                         id="opening_{{ $hour->id }}"
                                         name="hours[{{ $loop->index }}][opening_time]"
                                         value="{{ $hour->opening_time }}"
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:outline-none"
-                                        {{ $hour->is_closed ? 'disabled' : '' }}
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:outline-none disabled:bg-gray-200 dark:disabled:bg-gray-600 disabled:opacity-50"
                                     />
                                 </div>
 
@@ -58,14 +68,18 @@
                                         id="closing_{{ $hour->id }}"
                                         name="hours[{{ $loop->index }}][closing_time]"
                                         value="{{ $hour->closing_time }}"
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:outline-none"
-                                        {{ $hour->is_closed ? 'disabled' : '' }}
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:outline-none disabled:bg-gray-200 dark:disabled:bg-gray-600 disabled:opacity-50"
                                     />
                                 </div>
 
                                 <!-- Closed Checkbox (right column, second row) -->
                                 <div class="flex items-center justify-end">
                                     <label class="flex items-center cursor-pointer">
+                                        <input
+                                            type="hidden"
+                                            name="hours[{{ $loop->index }}][is_closed]"
+                                            value="0"
+                                        />
                                         <input
                                             type="checkbox"
                                             name="hours[{{ $loop->index }}][is_closed]"
@@ -102,11 +116,17 @@
             const closingInput = document.getElementById(closingId);
             
             if (checkbox.checked) {
-                openingInput.disabled = true;
-                closingInput.disabled = true;
+                openingInput.classList.add('disabled:bg-gray-200', 'dark:disabled:bg-gray-600', 'disabled:opacity-50');
+                closingInput.classList.add('disabled:bg-gray-200', 'dark:disabled:bg-gray-600', 'disabled:opacity-50');
+                openingInput.style.opacity = '0.5';
+                closingInput.style.opacity = '0.5';
+                openingInput.style.backgroundColor = '#e5e7eb';
             } else {
-                openingInput.disabled = false;
-                closingInput.disabled = false;
+                openingInput.classList.remove('disabled:bg-gray-200', 'dark:disabled:bg-gray-600', 'disabled:opacity-50');
+                closingInput.classList.remove('disabled:bg-gray-200', 'dark:disabled:bg-gray-600', 'disabled:opacity-50');
+                openingInput.style.opacity = '1';
+                closingInput.style.opacity = '1';
+                openingInput.style.backgroundColor = '';
             }
         }
     </script>
