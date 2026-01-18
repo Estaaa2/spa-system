@@ -30,8 +30,12 @@
         <div class="lg:col-span-2">
             <div class="h-full p-6 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
                 <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Booking Details</h2>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Fill in all required information to schedule an appointment</p>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Booking Details</h2>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Fill in all required information to schedule an appointment</p>
+                        </div>
+                    </div>
                 </div>
 
                 <form action="{{ route('bookings.store') }}" method="POST">
@@ -67,9 +71,9 @@
                             <label for="therapist" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Therapist</label>
                             <select class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" id="therapist" name="therapist">
                                 <option selected disabled>Select Therapist</option>
-                                <option value="john">Cedie Heyrosa</option>
-                                <option value="jane">Marjo Catibod</option>
-                                <option value="mike">Piolo Lingo</option>
+                                <option value="Cedie Heyrosa">Cedie Heyrosa</option>
+                                <option value="Marjo Catibod">Marjo Catibod</option>
+                                <option value="Piolo Lingo">Piolo Lingo</option>
                             </select>
                         </div>
 
@@ -278,6 +282,7 @@
         if (dateInput) dateInput.addEventListener('change', updateSummary);
         if (timeSelect) timeSelect.addEventListener('change', updateSummary);
     });
+
 </script>
 
 @if (session('success'))

@@ -32,21 +32,21 @@
         <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
             <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">TOTAL</p>
             <p class="text-lg font-semibold text-gray-800 dark:text-white">APPOINTMENTS</p>
-            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">0</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">{{ $total }}</p>
         </div>
 
         <!-- Completed Appointment -->
         <div class="p-6 rounded-lg shadow-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430] text-white">
             <p class="text-xs tracking-widest opacity-80">COMPLETED</p>
             <p class="text-lg font-semibold">APPOINTMENTS</p>
-            <p class="mt-2 text-3xl font-bold">0</p>
+            <p class="mt-2 text-3xl font-bold">{{ $completed }}</p>
         </div>
 
         <!-- Pending Appointment -->
         <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
             <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">PENDING</p>
             <p class="text-lg font-semibold text-gray-800 dark:text-white">APPOINTMENTS</p>
-            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">0</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">{{ $pending }}</p>
         </div>
 
         <!-- Revenue Today -->
