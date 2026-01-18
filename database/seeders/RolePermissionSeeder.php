@@ -18,15 +18,46 @@ class RolePermissionSeeder extends Seeder
         Permission::create(['name' => 'create posts']);
         Permission::create(['name' => 'edit posts']);
         Permission::create(['name' => 'delete posts']);
+        Permission::create(['name' => 'manage spa']);
+        Permission::create(['name' => 'manage branches']);
+        Permission::create(['name' => 'manage staff']);
+        Permission::create(['name' => 'view dashboard']);
+        Permission::create(['name' => 'manage bookings']);
 
         // Create roles
+        $owner = Role::create(['name' => 'owner']);
+        $manager = Role::create(['name' => 'manager']);
+        $receptionist = Role::create(['name' => 'receptionist']);
         $admin = Role::create(['name' => 'admin']);
         $editor = Role::create(['name' => 'editor']);
         $viewer = Role::create(['name' => 'viewer']);
 
-        // Assign permissions to roles
+        // Assign all permissions to owner
+        $owner->givePermissionTo(Permission::all());
+
+        // Manager permissions
+        $manager->givePermissionTo([
+            'view dashboard',
+            'manage branches',
+            'manage staff',
+            'manage bookings',
+            'view posts',
+        ]);
+
+        // Receptionist permissions
+        $receptionist->givePermissionTo([
+            'view dashboard',
+            'manage bookings',
+            'view posts',
+        ]);
+
+        // Admin permissions
         $admin->givePermissionTo(Permission::all());
+
+        // Editor permissions
         $editor->givePermissionTo(['view posts', 'create posts', 'edit posts']);
+
+        // Viewer permissions
         $viewer->givePermissionTo(['view posts']);
 
         $user = Role::create(['name' => 'user']);

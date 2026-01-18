@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -22,6 +24,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'spa_id',
+        'branch_id',
+        'is_owner',
+        'temp_password',
+        'password_reset_required',
     ];
 
     /**
@@ -44,6 +51,23 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_owner' => 'boolean',
+            'password_reset_required' => 'boolean',
         ];
+    }
+
+    public function spa(): BelongsTo
+    {
+        return $this->belongsTo(Spa::class);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function ownedSpas(): HasMany
+    {
+        return $this->hasMany(Spa::class, 'owner_id');
     }
 }
