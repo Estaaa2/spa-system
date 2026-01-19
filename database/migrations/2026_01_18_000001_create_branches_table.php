@@ -18,10 +18,11 @@ return new class extends Migration
             $table->string('location');
             $table->string('phone')->nullable();
             $table->string('email')->nullable();
-            $table->text('address')->nullable();
-            $table->decimal('latitude', 10, 8)->nullable();
-            $table->decimal('longitude', 11, 8)->nullable();
             $table->timestamps();
+        });
+
+        Schema::table('users', function (Blueprint $table) {
+            $table->foreignId('branch_id')->nullable()->constrained('branches')->onDelete('cascade');
         });
     }
 

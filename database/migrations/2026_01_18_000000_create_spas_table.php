@@ -15,11 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('owner_id')->constrained('users')->onDelete('cascade');
             $table->string('name');
-            $table->string('phone')->nullable();
-            $table->string('email')->nullable();
-            $table->text('description')->nullable();
-            $table->string('logo')->nullable();
             $table->timestamps();
+        });
+
+        Schema::table('users', function (Blueprint $table) {
+            $table->foreignId('spa_id')->nullable()->constrained('spas')->onDelete('cascade');
         });
     }
 
