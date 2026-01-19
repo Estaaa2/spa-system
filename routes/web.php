@@ -57,6 +57,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/appointments', [BookingController::class, 'adminIndex'])
         ->name('appointments.index');
 
+    Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
+
     // Reserve / approve booking
     Route::post('/appointments/{booking}/reserve', [BookingController::class, 'reserve'])
         ->name('appointments.reserve');

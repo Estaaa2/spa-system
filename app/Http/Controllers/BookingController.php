@@ -80,8 +80,16 @@ class BookingController extends Controller
     {
         $bookings = Booking::orderBy('date', 'desc')
             ->orderBy('time', 'desc')
-            ->paginate(10);
+            ->paginate(5);
 
         return view('appointments.index', compact('bookings'));
+    }
+
+    public function destroy($id)
+    {
+        $booking = Booking::findOrFail($id);
+        $booking->delete();
+
+        return redirect()->back()->with('success', 'Appointment deleted successfully!');
     }
 }

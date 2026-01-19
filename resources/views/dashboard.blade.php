@@ -42,11 +42,17 @@
             <p class="mt-2 text-3xl font-bold">{{ $completed }}</p>
         </div>
 
-        <!-- Pending Appointment -->
         <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">PENDING</p>
+            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">TODAY</p>
             <p class="text-lg font-semibold text-gray-800 dark:text-white">APPOINTMENTS</p>
-            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">{{ $pending }}</p>
+            {{-- <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">{{ $pending }}</p> --}}
+        </div>
+
+        <!-- Pending Appointment -->
+        <div class="p-6 rounded-lg shadow-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430] text-white">
+            <p class="text-xs tracking-widest opacity-80">PENDING</p>
+            <p class="text-lg font-semibold text-white dark:text-white">APPOINTMENTS</p>
+            <p class="mt-2 text-3xl font-bold text-white dark:text-white">{{ $pending }}</p>
         </div>
 
         <!-- Revenue Today -->
@@ -57,10 +63,10 @@
         </div>
 
         <!-- Top Service Today -->
-        <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">TOP SERVICE</p>
-            <p class="text-lg font-semibold text-gray-800 dark:text-white">TODAY</p>
-            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white">N/A</p>
+        <div class="p-6 rounded-lg shadow-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430] text-white ">
+            <p class="text-xs tracking-widest opacity-80">TOP SERVICE</p>
+            <p class="text-lg font-semibold text-white dark:text-white">TODAY</p>
+            <p class="mt-2 text-3xl font-bold text-white dark:text-white">N/A</p>
         </div>
 
     </div>
@@ -123,16 +129,22 @@
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 
-            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
-                <p class="text-sm font-semibold text-center text-gray-700 dark:text-gray-200">Late Appointment</p>
+            <div class="p-6 rounded-lg shadow-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430] text-white">
+                <p class="text-xs tracking-widest opacity-80">LATE</p>
+                <p class="text-lg font-semibold">APPOINTMENTS</p>
+                <p class="mt-2 text-3xl font-bold">{{ $completed }}</p>
             </div>
 
-            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
-                <p class="text-sm font-semibold text-center text-gray-700 dark:text-gray-200">No-Shows</p>
+            <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
+                <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">NO</p>
+                <p class="text-lg font-semibold text-gray-800 dark:text-white">SHOWS</p>
+                <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-white"></p>
             </div>
 
-            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
-                <p class="text-sm font-semibold text-center text-gray-700 dark:text-gray-200">Overbooked Slots</p>
+            <div class="p-6 rounded-lg shadow-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430] text-white">
+                <p class="text-xs tracking-widest opacity-80">OVERBOOKED</p>
+                <p class="text-lg font-semibold">SLOTS</p>
+                <p class="mt-2 text-3xl font-bold"></p>
             </div>
         </div>
     </div>

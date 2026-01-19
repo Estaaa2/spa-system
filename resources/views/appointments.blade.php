@@ -21,7 +21,8 @@
         </div>
     </div>
 
-    <div class="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
+    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-900">
                 <tr>
@@ -81,17 +82,16 @@
 
                         <td class="px-6 py-4 text-center">
                             <div class="flex justify-center gap-2">
-                                <form action="{{ route('appointments.reserve', $booking->id) }}" method="POST">
-                                    @csrf
-                                    <button
-                                        onclick="openEditModal(@json($booking))"
-                                        class="px-4 py-2 text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                        Edit
-                                    </button>
-                                </form>
+                                <button
+                                    onclick="openEditModal(@json($booking))"
+                                    class="px-3 py-2 text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                    Edit
+                                </button>
 
-                                <button onclick="showDetailsModal({{ $booking->id }})" class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700">
-                                    Details
+                                <!-- DELETE BUTTON -->
+                                <button onclick="openDeleteModal({{ $booking->id }})"
+                                    class="px-3 py-2 text-white bg-red-600 rounded hover:bg-red-700">
+                                    Delete
                                 </button>
                             </div>
                         </td>
@@ -99,13 +99,103 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
+
+        <!-- EDIT MODAL -->
+        <div id="editModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+            <div class="w-full max-w-lg p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800 dark:text-white">
+                    Edit Appointment
+                </h2>
+
+                <form id="editForm" method="POST">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="mb-3">
+                        <label class="text-sm text-gray-600 dark:text-gray-300">Full Name</label>
+                        <input id="edit_fullname" name="fullname" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-sm text-gray-600 dark:text-gray-300">Service</label>
+                        <input id="edit_service" name="service_type" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-sm text-gray-600 dark:text-gray-300">Treatment</label>
+                        <input id="edit_treatment" name="treatment" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-sm text-gray-600 dark:text-gray-300">Therapist</label>
+                        <input id="edit_therapist" name="therapist" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-sm text-gray-600 dark:text-gray-300">Date</label>
+                        <input type="date" id="edit_date" name="date" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-sm text-gray-600 dark:text-gray-300">Time</label>
+                        <input type="time" id="edit_time" name="time" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="text-sm text-gray-600 dark:text-gray-300">Status</label>
+                        <select id="edit_status" name="status" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                        </select>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-gray-700 bg-gray-200 rounded">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 text-white bg-green-600 rounded">
+                            Update
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- DELETE CONFIRMATION MODAL -->
+        <div id="deleteModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+            <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
+                <h2 class="mb-4 text-xl font-semibold text-gray-800 dark:text-white">
+                    Confirm Delete
+                </h2>
+
+                <p class="text-gray-500 dark:text-gray-400">
+                    Are you sure you want to delete this appointment?
+                </p>
+
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="closeDeleteModal()"
+                        class="px-4 py-2 text-gray-700 bg-gray-200 rounded">
+                        Cancel
+                    </button>
+
+                    <form id="deleteForm" method="POST">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit"
+                            class="px-4 py-2 text-white bg-red-600 rounded">
+                            Yes, Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <!-- PAGINATION -->
         <div class="px-4 py-3 bg-white border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700">
             {{ $bookings->links() }}
         </div>
     </div>
-
 </div>
 
 <script>
@@ -129,10 +219,78 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         updateClock();
         setInterval(updateClock, 1000);
     });
+
+    function openEditModal(booking) {
+        document.getElementById('edit_fullname').value = booking.fullname;
+        document.getElementById('edit_service').value = booking.service_type;
+        document.getElementById('edit_treatment').value = booking.treatment;
+        document.getElementById('edit_therapist').value = booking.therapist;
+        document.getElementById('edit_date').value = booking.date;
+        document.getElementById('edit_time').value = booking.time;
+        document.getElementById('edit_status').value = booking.status;
+
+        document.getElementById('editForm').action = '/appointments/' + booking.id;
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    // Delete Modal Functions
+    function openDeleteModal(id) {
+        document.getElementById('deleteForm').action = '/appointments/' + id;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+
 </script>
+
+@if (session('success'))
+    <script>
+        // Check if toast has already been shown
+        if (!window.successToastShown) {
+            window.successToastShown = true;
+
+            document.addEventListener('DOMContentLoaded', function() {
+                Toastify({
+                    text: "{{ session('success') }}",
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "#22c55e",
+                    close: true
+                }).showToast();
+            });
+        }
+    </script>
+@endif
+
+@if ($errors->any())
+    <script>
+        // Check if error toast has already been shown
+        if (!window.errorToastShown) {
+            window.errorToastShown = true;
+
+            document.addEventListener('DOMContentLoaded', function() {
+                Toastify({
+                    text: "{{ $errors->first() }}",
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "#ef4444",
+                    close: true
+                }).showToast();
+            });
+        }
+    </script>
+@endif
 
 @endsection

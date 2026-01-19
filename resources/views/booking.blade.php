@@ -32,7 +32,7 @@
                 <div class="mb-6">
                     <div class="flex items-start justify-between">
                         <div>
-                            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Booking Details</h2>
+                            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Appointment Details</h2>
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Fill in all required information to schedule an appointment</p>
                         </div>
                     </div>
@@ -47,10 +47,10 @@
                             <label for="service_type" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Service Type</label>
                             <select class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" id="service_type" name="service_type">
                                 <option selected disabled>Select Service Type</option>
-                                <option value="hair">Hair Service</option>
-                                <option value="spa">Spa Treatment</option>
-                                <option value="massage">Massage</option>
-                                <option value="nails">Nails</option>
+                                <option value="Hair">Hair Service</option>
+                                <option value="Spa">Spa Treatment</option>
+                                <option value="Massage">Massage</option>
+                                <option value="Nails">Nails</option>
                             </select>
                         </div>
 
@@ -59,10 +59,10 @@
                             <label for="treatment" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Select Treatment</label>
                             <select class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" id="treatment" name="treatment">
                                 <option selected disabled>Select Treatment</option>
-                                <option value="haircut">Haircut</option>
-                                <option value="coloring">Coloring</option>
-                                <option value="facial">Facial</option>
-                                <option value="body_massage">Body Massage</option>
+                                <option value="Haircut">Haircut</option>
+                                <option value="Facial">Facial</option>
+                                <option value="Body Massage">Body Massage</option>
+                                <option value="Nail Care">Nail Care</option>
                             </select>
                         </div>
 
