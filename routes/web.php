@@ -2,14 +2,14 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\SetupController;
 
 /*
 |--------------------------------------------------------------------------
-| Public
+| Public Routes
 |--------------------------------------------------------------------------
 */
 Route::get('/', function () {
@@ -21,9 +21,31 @@ Route::get('/', function () {
 | Dashboard
 |--------------------------------------------------------------------------
 */
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
+});
+
+/*
+|--------------------------------------------------------------------------
+| User Booking Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth')->group(function () {
+
+    // Booking form page
+    Route::get('/booking', function () {
+        return view('booking');
+    })->name('booking');
+
+    // Store booking
+    Route::post('/booking', [BookingController::class, 'store'])
+        ->name('bookings.store');
+
+    // Booking history (AJAX)
+    Route::get('/booking/history', [BookingController::class, 'history'])
+        ->name('bookings.history');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -45,6 +67,29 @@ Route::middleware(['auth', 'owner-only'])->group(function () {
 /*
 |--------------------------------------------------------------------------
 | Admin / Posts (KEEP)
+| Admin Appointments / Bookings
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin'])->group(function () {
+
+    // Appointments table
+    Route::get('/appointments', [BookingController::class, 'adminIndex'])
+        ->name('appointments.index');
+
+    Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
+
+    // Reserve / approve booking
+    Route::post('/appointments/{booking}/reserve', [BookingController::class, 'reserve'])
+        ->name('appointments.reserve');
+
+    // Update booking status (optional future use)
+    Route::put('/appointments/{booking}/status', [BookingController::class, 'updateStatus'])
+        ->name('appointments.updateStatus');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Posts (KEEP)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:admin'])->group(function () {
@@ -56,70 +101,33 @@ Route::middleware(['auth', 'permission:create posts'])->group(function () {
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
 });
 
-Route::middleware(['auth'])->get('/posts', [PostController::class, 'index'])->name('posts.index');
+Route::middleware('auth')->get('/posts', [PostController::class, 'index'])->name('posts.index');
 Route::get('/posts/{id}/edit', [PostController::class, 'edit'])->name('posts.edit');
 
-Route::get('/bookings', [BookingController::class, 'index']);
-Route::post('/bookings', [BookingController::class, 'store'])->name('bookings.store');
-
 /*
 |--------------------------------------------------------------------------
-| Bookings
+| Sidebar Pages
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->group(function () {
-    // Book an Appointment - View form
-    Route::get('/booking', function () {
-        return view('booking');
-    })->name('booking');
+Route::middleware('auth')->group(function () {
 
-    // Handle form submission
-    Route::post('/booking', function () {
-        // For now, just redirect back with success message
-        // You can add your booking logic here later
-        return redirect()->route('booking')
-            ->with('success', 'Booking submitted successfully!');
-    })->name('bookings.store');
-});
+    Route::get('/customers', fn () => view('customers'))
+        ->name('customers.index');
 
-/*
-|--------------------------------------------------------------------------
-| Other Sidebar Pages
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth'])->group(function () {
-    // Appointments
-    Route::get('/appointments', function () {
-        return view('appointments');
-    })->name('appointments.index');
+    Route::get('/staff', fn () => view('staff'))
+        ->name('staff.index');
 
-    // Customers
-    Route::get('/customers', function () {
-        return view('customers');
-    })->name('customers.index');
+    Route::get('/services', fn () => view('services'))
+        ->name('services');
 
-    Route::get('/staff', function () {
-        return view('staff');
-    })->name('staff.index');
+    Route::get('/reports', fn () => view('reports'))
+        ->name('reports.index');
 
-    // Services (KEEP)
-    Route::get('/services', function () {
-        return view('services');
-    })->name('services');
+    Route::get('/insights', fn () => view('insights'))
+        ->name('insights.index');
 
-    // Reports (KEEP)
-    Route::get('/reports', function () {
-        return view('reports');
-    })->name('reports.index');
-
-    // Insights
-    Route::get('/insights', function () {
-        return view('insights');
-    })->name('insights.index');
-
-    Route::get('/more', function () {
-        return view('more');
-    })->name('more.index');
+    Route::get('/more', fn () => view('more'))
+        ->name('more.index');
 });
 
 /*
@@ -133,4 +141,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__.'/auth.php';
+/*
+|--------------------------------------------------------------------------
+| Auth Routes (Laravel Breeze / UI)
+|--------------------------------------------------------------------------
+*/
+require __DIR__ . '/auth.php';

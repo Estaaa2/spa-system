@@ -46,7 +46,7 @@
                     <x-nav-link :href="route('booking')" :active="request()->routeIs('booking')">
                         Book an Appointment
                     </x-nav-link>
-
+                    
                     <x-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
                         Appointments
                     </x-nav-link>
