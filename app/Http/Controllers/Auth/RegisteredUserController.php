@@ -39,12 +39,16 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'is_owner' => true, // Each registered user is an owner of their own spa business
         ]);
+
+        // Assign owner role
+        $user->assignRole('owner');
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect(route('setup.index', absolute: false));
     }
 }
