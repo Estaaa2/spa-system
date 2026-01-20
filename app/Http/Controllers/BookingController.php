@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\User;
 use App\Models\Booking;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class BookingController extends Controller
@@ -13,28 +14,35 @@ class BookingController extends Controller
         $validated = $request->validate([
             'service_type' => 'required',
             'treatment'    => 'required',
-            'therapist'    => 'required',
-            'phone'        => 'required',
-            'fullname'     => 'required',
-            'address'      => 'required',
-            'email'        => 'required|email',
-            'date'         => 'required|date|after_or_equal:today',
-            'time'         => 'required',
+            'therapist_id' => 'required',       // therapist_id (foreign key)
+            'customer_phone'   => 'required',
+            'customer_name'    => 'required',
+            'customer_address' => 'required',
+            'customer_email'   => 'required|email',
+            'appointment_date' => 'required|date|after_or_equal:today',
+            'appointment_time' => 'required',
         ]);
 
-        $exists = Booking::where('date', $validated['date'])
-            ->where('time', $validated['time'])
-            ->where('therapist', $validated['therapist'])
+        $exists = Booking::where('appointment_date', $validated['appointment_date'])
+            ->where('appointment_time', $validated['appointment_time'])
+            ->where('therapist_id', $validated['therapist_id'])
+            ->whereIn('status', ['reserved', 'confirmed'])
             ->exists();
 
         if ($exists) {
-            return back()->withErrors(['This time slot is already booked.']);
+            return back()->withErrors([
+                'appointment_time' => 'This therapist is already booked for this time.'
+            ])->withInput();
         }
 
+        
         Booking::create([
             ...$validated,
-            'user_id' => Auth::id(),
-            'status'  => 'pending',
+            'spa_id' => $request->spa_id ?? 1,
+            'branch_id' => $request->branch_id ?? 1,
+            'created_by_user_id' => Auth::id(),
+            // 'booking_source' => $request->booking_source ?? 'online',
+            'status' => 'reserved',
         ]);
 
         return redirect()
@@ -45,8 +53,8 @@ class BookingController extends Controller
     // ADMIN VIEW WITH PAGINATION
     public function adminIndex()
     {
-        $bookings = Booking::orderBy('date', 'desc')
-            ->orderBy('time', 'desc')
+        $bookings = Booking::orderBy('appointment_date', 'desc')
+            ->orderBy('appointment_time', 'desc')
             ->paginate(5); // <-- pagination
 
         return view('appointments', compact('bookings'));
@@ -78,11 +86,11 @@ class BookingController extends Controller
     // USER VIEW WITH PAGINATION (if you use this)
     public function index()
     {
-        $bookings = Booking::orderBy('date', 'desc')
-            ->orderBy('time', 'desc')
+        $bookings = Booking::orderBy('appointment_date', 'desc')
+            ->orderBy('appointment_time', 'desc')
             ->paginate(5);
 
-        return view('appointments.index', compact('bookings'));
+        return view('appointments', compact('bookings'));
     }
 
     public function destroy($id)
@@ -91,5 +99,12 @@ class BookingController extends Controller
         $booking->delete();
 
         return redirect()->back()->with('success', 'Appointment deleted successfully!');
+    }
+
+    public function create()
+    {
+        $therapists = User::role('therapist')->get();
+
+        return view('booking', compact('therapists'));
     }
 }

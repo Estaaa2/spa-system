@@ -34,7 +34,12 @@ class RolePermissionSeeder extends Seeder
             'book services',
         ];
 
-        foreach (array_merge($systemPermissions, $spaPermissions, $customerPermissions) as $permission) {
+        $therapistPermissions = [
+            'view assigned bookings',
+            'update booking status',
+        ];
+
+        foreach (array_merge($systemPermissions, $spaPermissions, $customerPermissions, $therapistPermissions) as $permission) {
             Permission::firstOrCreate(['name' => $permission]);
         }
 
@@ -43,6 +48,7 @@ class RolePermissionSeeder extends Seeder
         $owner = Role::firstOrCreate(['name' => 'owner']);
         $manager = Role::firstOrCreate(['name' => 'manager']);
         $receptionist = Role::firstOrCreate(['name' => 'receptionist']);
+        $therapist = Role::firstOrCreate(['name' => 'therapist']);
         $customer = Role::firstOrCreate(['name' => 'customer']);
 
         // Assign permissions
@@ -66,6 +72,11 @@ class RolePermissionSeeder extends Seeder
         $receptionist->syncPermissions([
             'view spa dashboard',
             'manage bookings',
+        ]);
+
+        $therapist->syncPermissions([
+            'view assigned bookings',
+            'update booking status',
         ]);
 
         $customer->syncPermissions([

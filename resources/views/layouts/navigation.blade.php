@@ -26,7 +26,7 @@
                     <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
                     <div>
                         <span class="text-xl font-semibold text-gray-800 dark:text-white font-['Playfair_Display']">
-                            Levictas
+                            {{ Auth::user()->spa->name }}
                         </span>
                         <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">
                             SPA & WELLNESS

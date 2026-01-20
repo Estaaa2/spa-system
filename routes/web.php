@@ -34,9 +34,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware('auth')->group(function () {
 
     // Booking form page
-    Route::get('/booking', function () {
-        return view('booking');
-    })->name('booking');
+    Route::get('/booking', [BookingController::class, 'create'])
+        ->name('booking');
 
     // Store booking
     Route::post('/booking', [BookingController::class, 'store'])
@@ -66,11 +65,10 @@ Route::middleware(['auth', 'owner-only'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Admin / Posts (KEEP)
 | Admin Appointments / Bookings
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'role:owner'])->group(function () {
 
     // Appointments table
     Route::get('/appointments', [BookingController::class, 'adminIndex'])

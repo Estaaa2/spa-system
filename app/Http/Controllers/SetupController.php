@@ -208,7 +208,7 @@ class SetupController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users'],
-            'role' => ['required', 'in:manager,receptionist'],
+            'role' => ['required', 'in:manager,receptionist,therapist'],
         ]);
 
         // Generate temporary password

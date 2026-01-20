@@ -72,6 +72,7 @@
                                     <option value="">Select a role</option>
                                     <option value="manager">Manager</option>
                                     <option value="receptionist">Receptionist</option>
+                                    <option value="therapist">Therapist</option>
                                 </select>
                                 @error('role')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>

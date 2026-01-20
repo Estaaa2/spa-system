@@ -17,14 +17,6 @@ class Branch extends Model
         'location',
         'phone',
         'email',
-        'address',
-        'latitude',
-        'longitude',
-    ];
-
-    protected $casts = [
-        'latitude' => 'decimal:8',
-        'longitude' => 'decimal:8',
     ];
 
     public function spa(): BelongsTo
