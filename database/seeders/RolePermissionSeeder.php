@@ -11,70 +11,65 @@ class RolePermissionSeeder extends Seeder
 {
     public function run()
     {
-        // Clear cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Define permissions
-        Permission::create(['name' => 'view posts']);
-        Permission::create(['name' => 'create posts']);
-        Permission::create(['name' => 'edit posts']);
-        Permission::create(['name' => 'delete posts']);
-        Permission::create(['name' => 'manage spa']);
-        Permission::create(['name' => 'manage branches']);
-        Permission::create(['name' => 'manage staff']);
-        Permission::create(['name' => 'view dashboard']);
-        Permission::create(['name' => 'manage bookings']);
+        // System-level permissions
+        $systemPermissions = [
+            'manage spas',
+            'manage all branches',
+            'view system dashboard',
+        ];
 
-        // Create roles
-        $owner = Role::create(['name' => 'owner']);
-        $manager = Role::create(['name' => 'manager']);
-        $receptionist = Role::create(['name' => 'receptionist']);
-        $admin = Role::create(['name' => 'admin']);
-        $editor = Role::create(['name' => 'editor']);
-        $viewer = Role::create(['name' => 'viewer']);
-
-        // Assign all permissions to owner
-        $owner->givePermissionTo(Permission::all());
-
-        // Manager permissions
-        $manager->givePermissionTo([
-            'view dashboard',
+        // Spa-level permissions
+        $spaPermissions = [
+            'view spa dashboard',
+            'manage spa',
             'manage branches',
             'manage staff',
             'manage bookings',
-            'view posts',
-        ]);
+        ];
 
-        // Receptionist permissions
-        $receptionist->givePermissionTo([
-            'view dashboard',
-            'manage bookings',
-            'view posts',
-        ]);
+        // Customer permissions
+        $customerPermissions = [
+            'book services',
+        ];
 
-        // Admin permissions
-        app()[PermissionRegistrar::class]->forgetCachedPermissions();
-
-        // Permissions
-        Permission::firstOrCreate(['name' => 'view posts']);
-        Permission::firstOrCreate(['name' => 'create posts']);
-        Permission::firstOrCreate(['name' => 'edit posts']);
-        Permission::firstOrCreate(['name' => 'delete posts']);
-        Permission::firstOrCreate(['name' => 'reserve bookings']);
+        foreach (array_merge($systemPermissions, $spaPermissions, $customerPermissions) as $permission) {
+            Permission::firstOrCreate(['name' => $permission]);
+        }
 
         // Roles
-        $admin  = Role::firstOrCreate(['name' => 'admin']);
-        $editor = Role::firstOrCreate(['name' => 'editor']);
-        $viewer = Role::firstOrCreate(['name' => 'viewer']);
-        $user   = Role::firstOrCreate(['name' => 'user']);
+        $admin = Role::firstOrCreate(['name' => 'admin']);
+        $owner = Role::firstOrCreate(['name' => 'owner']);
+        $manager = Role::firstOrCreate(['name' => 'manager']);
+        $receptionist = Role::firstOrCreate(['name' => 'receptionist']);
+        $customer = Role::firstOrCreate(['name' => 'customer']);
 
         // Assign permissions
-        $admin->givePermissionTo(Permission::all());
+        $admin->syncPermissions(Permission::all());
 
-        // Editor permissions
-        $editor->givePermissionTo(['view posts', 'create posts', 'edit posts']);
+        $owner->syncPermissions([
+            'view spa dashboard',
+            'manage spa',
+            'manage branches',
+            'manage staff',
+            'manage bookings',
+        ]);
 
-        // Viewer permissions
-        $viewer->givePermissionTo(['view posts']);
+        $manager->syncPermissions([
+            'view spa dashboard',
+            'manage branches',
+            'manage staff',
+            'manage bookings',
+        ]);
+
+        $receptionist->syncPermissions([
+            'view spa dashboard',
+            'manage bookings',
+        ]);
+
+        $customer->syncPermissions([
+            'book services',
+        ]);
     }
 }
