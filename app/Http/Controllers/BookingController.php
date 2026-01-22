@@ -12,21 +12,45 @@ class BookingController extends Controller
 {
     public function create()
     {
-        // Fetch therapists from Staff model
-        $therapists = Staff::where('roles', 'therapist')
-                           ->where('status', 'active')
-                           ->orderBy('name')
-                           ->get();
+        $user = Auth::user();
+
+        if ($user->hasRole('owner')) {
+            $branchId = session('current_branch_id') ?? $user->branches()->first()->id;
+            $therapists = User::role('therapist')
+                ->whereHas('staff', function($q) use ($user, $branchId) {
+                    $q->where('spa_id', $user->spa_id)
+                    ->where('branch_id', $branchId)
+                    ->where('employment_status', 'active');
+                })
+                ->orderBy('name')
+                ->get();
+        } else {
+            // Managers or therapists: only show their own branch
+            $therapists = User::role('therapist')
+                ->whereHas('staff', function($q) use ($user) {
+                    $q->where('spa_id', $user->spa_id)
+                    ->where('branch_id', $user->branch_id)
+                    ->where('employment_status', 'active');
+                })
+                ->orderBy('name')
+                ->get();
+        }
 
         return view('booking', compact('therapists'));
     }
 
     public function store(Request $request)
     {
+        $user = Auth::user();
+
+        // Determine spa_id and branch_id
+        $spaId = $user->spa_id;
+        $branchId = $request->branch_id ?? session('current_branch_id') ?? $user->branch_id;
+
         $validated = $request->validate([
             'service_type' => 'required',
             'treatment'    => 'required',
-            'therapist_id' => 'required|exists:staff,id',
+            'therapist_id' => 'required|exists:users,id',
             'customer_phone'   => 'required',
             'customer_name'    => 'required',
             'customer_address' => 'required',
@@ -35,9 +59,12 @@ class BookingController extends Controller
             'appointment_time' => 'required',
         ]);
 
+        // Check therapist availability within the same spa & branch
         $exists = Booking::where('appointment_date', $validated['appointment_date'])
             ->where('appointment_time', $validated['appointment_time'])
             ->where('therapist_id', $validated['therapist_id'])
+            ->where('spa_id', $spaId)
+            ->where('branch_id', $branchId)
             ->whereIn('status', ['reserved', 'confirmed'])
             ->exists();
 
@@ -49,9 +76,9 @@ class BookingController extends Controller
 
         Booking::create([
             ...$validated,
-            'spa_id' => $request->spa_id ?? 1,
-            'branch_id' => $request->branch_id ?? 1,
-            'created_by_user_id' => Auth::id(),
+            'spa_id' => $spaId,
+            'branch_id' => $branchId,
+            'created_by_user_id' => $user->id,
             'status' => 'reserved',
         ]);
 
@@ -63,16 +90,35 @@ class BookingController extends Controller
     // ADMIN VIEW WITH PAGINATION
     public function adminIndex()
     {
-        $bookings = Booking::with('therapist')
-            ->orderBy('appointment_date', 'desc')
-            ->orderBy('appointment_time', 'desc')
-            ->paginate(10);
+        $user = Auth::user();
 
-        // Get therapists from Staff model
-        $therapists = Staff::where('roles', 'therapist')
-                           ->where('status', 'active')
-                           ->orderBy('name')
-                           ->get();
+        $query = Booking::with('therapist', 'branch');
+
+        if ($user->hasRole('owner')) {
+            $branchId = session('current_branch_id') ?? null;
+            $query->where('spa_id', $user->spa_id);
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
+            }
+        } elseif ($user->hasRole('manager')) {
+            $query->where('spa_id', $user->spa_id)
+                ->where('branch_id', $user->branch_id);
+        } elseif ($user->hasRole('therapist')) {
+            $query->where('spa_id', $user->spa_id)
+                ->where('branch_id', $user->branch_id)
+                ->where('therapist_id', $user->id);
+        }
+
+        $bookings = $query->orderBy('appointment_date', 'desc')
+                        ->orderBy('appointment_time', 'desc')
+                        ->paginate(10);
+
+        $therapists = User::role('therapist')
+                        ->whereHas('staff', function($q) use ($user) {
+                            $q->where('spa_id', $user->spa_id);
+                        })
+                        ->orderBy('name')
+                        ->get();
 
         return view('appointments', compact('bookings', 'therapists'));
     }
@@ -80,10 +126,20 @@ class BookingController extends Controller
     public function edit(Booking $booking)
     {
         // Get therapists from Staff model - KEEP THIS ONE
-        $therapists = Staff::where('roles', 'therapist')
-                           ->where('status', 'active')
-                           ->orderBy('name')
-                           ->get();
+        $user = Auth::user();
+
+        $therapistsQuery = User::role('therapist')->where('status', 'active');
+
+        if ($user->hasRole('owner')) {
+            // Owner: all therapists in their spa
+            $therapistsQuery->where('spa_id', $user->spa_id);
+        } else {
+            // Manager/Receptionist/Therapist: only their branch
+            $therapistsQuery->where('branch_id', $user->branch_id)
+                            ->where('spa_id', $user->spa_id);
+        }
+
+        $therapists = $therapistsQuery->orderBy('name')->get();
 
         return view('appointments.edit', compact('booking', 'therapists'));
     }
@@ -95,7 +151,7 @@ class BookingController extends Controller
             'customer_email' => 'required|email',
             'service_type' => 'required|string',
             'treatment' => 'required|string',
-            'therapist_id' => 'required|exists:staff,id',
+            'therapist_id' => 'required|exists:users,id',
             'appointment_date' => 'required|date',
             'appointment_time' => 'required',
             'status' => 'required|string|in:pending,reserved,confirmed,completed,cancelled',

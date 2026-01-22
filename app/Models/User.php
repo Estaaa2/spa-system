@@ -66,6 +66,19 @@ class User extends Authenticatable
         return $this->belongsTo(Branch::class);
     }
 
+    public function branches()
+    {
+        // If the user is an owner, get all branches of their owned spas
+        return $this->hasManyThrough(
+            Branch::class,   // The model you want to get
+            Spa::class,      // The intermediate model
+            'owner_id',      // Foreign key on Spa table linking to User (owner)
+            'spa_id',        // Foreign key on Branch table linking to Spa
+            'id',            // Local key on User table
+            'id'             // Local key on Spa table
+        );
+    }
+
     public function ownedSpas(): HasMany
     {
         return $this->hasMany(Spa::class, 'owner_id');
@@ -74,5 +87,10 @@ class User extends Authenticatable
     public function assignedBookings()
     {
         return $this->hasMany(Booking::class, 'therapist_id');
+    }
+
+    public function staff()
+    {
+        return $this->hasOne(Staff::class, 'user_id');
     }
 }

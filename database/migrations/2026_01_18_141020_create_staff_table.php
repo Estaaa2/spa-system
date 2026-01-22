@@ -20,7 +20,7 @@ return new class extends Migration
             $table->date('hire_date')->nullable();
             $table->timestamps();
         });
-    }
+        }
 
     /**
      * Reverse the migrations.

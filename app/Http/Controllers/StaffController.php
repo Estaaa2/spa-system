@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Staff;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use App\Models\Staff;
 use App\Models\Branch;
+use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class StaffController extends Controller
 {
@@ -36,58 +39,47 @@ class StaffController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email',
-            'phone' => 'required|string|max:20|unique:staff,phone',
+            'email' => 'required|email|unique:users,email',
             'branch_id' => 'required|exists:branches,id',
-            'roles' => 'required|in:therapist,receptionist,manager,admin',
-            'status' => 'required|in:active,pending,inactive',
+            'roles' => 'required|in:therapist,receptionist,manager',
         ]);
 
-        try {
-            // Check if user already exists
-            $user = User::where('email', $validated['email'])->first();
+        $currentUser = Auth::user();
 
-            if (!$user) {
-                // Create user if doesn't exist
-                $user = User::create([
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
-                    'password' => bcrypt(Str::random(10)),
-                    'password_reset_required' => true,
-                    'temp_password' => Str::random(8),
-                ]);
-            } else {
-                // Update existing user's name
-                $user->update(['name' => $validated['name']]);
+        DB::transaction(function () use ($validated, $currentUser) {
 
-                // Check if staff record already exists for this user
-                $existingStaff = Staff::where('user_id', $user->id)->first();
+            // 1️⃣ Create user
+            $tempPassword = Str::random(12);
 
-                if ($existingStaff) {
-                    return redirect()->back()
-                        ->withInput()
-                        ->with('error', 'This staff member already exists! Please edit the existing record instead.');
-                }
-            }
-
-            // Create staff record
-            $staff = Staff::create([
+            $user = User::create([
                 'name' => $validated['name'],
-                'phone' => $validated['phone'],
-                'employment_status' => $validated['status'],
-                'roles' => $validated['roles'],
+                'email' => $validated['email'],
+                'password' => Hash::make($tempPassword),
+                'spa_id' => $currentUser->spa_id,
                 'branch_id' => $validated['branch_id'],
-                'user_id' => $user->id,
+                'temp_password' => $tempPassword,
+                'password_reset_required' => true,
             ]);
 
-            return redirect()->route('staff.index')
-                ->with('success', 'Staff member added successfully!');
+            // 2️⃣ Assign role via Spatie
+            $user->assignRole($validated['roles']);
 
-        } catch (\Exception $e) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Error adding staff: ' . $e->getMessage());
-        }
+            // 3️⃣ Create staff record
+            Staff::create([
+                'user_id' => $user->id,
+                'spa_id' => $currentUser->spa_id,
+                'branch_id' => $validated['branch_id'],
+                'employment_status' => 'active',
+                'hire_date' => now(),
+            ]);
+
+            // 4️⃣ Optional: email credentials
+            // Mail::to($user->email)->send(...)
+        });
+
+        return redirect()
+            ->route('staff.index')
+            ->with('success', 'Staff member added successfully.');
     }
 
     /**
