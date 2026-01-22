@@ -99,7 +99,7 @@
                                     <span class="relative z-10">Book an Appointment</span>
                                     <i class="ml-3 transition-transform fas fa-arrow-right group-hover:translate-x-1"></i>
                                 </a>
-                                <a href="{{ route('services') }}" class="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-[#8B7355] border-2 border-[#8B7355] hover:bg-[#8B7355] hover:text-white rounded-full transition-all duration-300">
+                                <a href="" class="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-[#8B7355] border-2 border-[#8B7355] hover:bg-[#8B7355] hover:text-white rounded-full transition-all duration-300">
                                     <span>View Services</span>
                                     <i class="ml-3 transition-transform fas fa-arrow-right group-hover:translate-x-1"></i>
                                 </a>
@@ -184,9 +184,6 @@
                             </div>
                             <h3 class="text-2xl font-semibold text-[#2D3748] dark:text-white mb-4 group-hover:text-[#8B7355] transition-colors duration-300">Therapeutic Massage</h3>
                             <p class="mb-6 leading-relaxed text-gray-600 dark:text-gray-300">Deep tissue and Swedish techniques to release tension and restore muscular balance.</p>
-                            <a href="{{ route('services') }}" class="inline-flex items-center text-[#8B7355] font-medium group-hover:text-[#6F5430] transition-colors duration-300">
-                                <i class="mr-2 fas fa-arrow-right"></i> Learn more
-                            </a>
                         </div>
 
                         <!-- Treatment Card 2 -->
@@ -197,7 +194,7 @@
                             </div>
                             <h3 class="text-2xl font-semibold text-[#2D3748] dark:text-white mb-4 group-hover:text-[#8B7355] transition-colors duration-300">Holistic Facials</h3>
                             <p class="mb-6 leading-relaxed text-gray-600 dark:text-gray-300">Customized skincare treatments using organic products for radiant, healthy skin.</p>
-                            <a href="{{ route('services') }}" class="inline-flex items-center text-[#8B7355] font-medium group-hover:text-[#6F5430] transition-colors duration-300">
+                            <a href="" class="inline-flex items-center text-[#8B7355] font-medium group-hover:text-[#6F5430] transition-colors duration-300">
                                 <i class="mr-2 fas fa-arrow-right"></i> Learn more
                             </a>
                         </div>
@@ -210,7 +207,7 @@
                             </div>
                             <h3 class="text-2xl font-semibold text-[#2D3748] dark:text-white mb-4 group-hover:text-[#8B7355] transition-colors duration-300">Energy Healing</h3>
                             <p class="mb-6 leading-relaxed text-gray-600 dark:text-gray-300">Reiki and crystal therapy to balance your energy centers and promote deep relaxation.</p>
-                            <a href="{{ route('services') }}" class="inline-flex items-center text-[#8B7355] font-medium group-hover:text-[#6F5430] transition-colors duration-300">
+                            <a href="" class="inline-flex items-center text-[#8B7355] font-medium group-hover:text-[#6F5430] transition-colors duration-300">
                                 <i class="mr-2 fas fa-arrow-right"></i> Learn more
                             </a>
                         </div>
