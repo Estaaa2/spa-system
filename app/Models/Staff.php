@@ -10,13 +10,11 @@ class Staff extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name',
-        'phone',
-        'status',
-        'roles',
         'user_id',
+        'spa_id',
         'branch_id',
-        'specialization',
+        'employment_status',
+        'hire_date',
     ];
 
     // Relationship with User

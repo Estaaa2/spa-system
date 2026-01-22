@@ -74,7 +74,7 @@ class StaffController extends Controller
             $staff = Staff::create([
                 'name' => $validated['name'],
                 'phone' => $validated['phone'],
-                'status' => $validated['status'],
+                'employment_status' => $validated['status'],
                 'roles' => $validated['roles'],
                 'branch_id' => $validated['branch_id'],
                 'user_id' => $user->id,
@@ -129,7 +129,8 @@ class StaffController extends Controller
             return redirect()->route('staff.index')
                 ->with('success', 'Staff member updated successfully!');
 
-        } catch (\Exception $e) {
+        } 
+        catch (\Exception $e) {
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Error updating staff: ' . $e->getMessage());

@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Branch;
-use App\Models\OperatingHours;
 use App\Models\Spa;
 use App\Models\User;
-use Illuminate\Http\RedirectResponse;
+use App\Models\Staff;
+use App\Models\Branch;
+use Illuminate\View\View;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use App\Models\OperatingHours;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
-use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class SetupController extends Controller
 {
@@ -211,39 +213,38 @@ class SetupController extends Controller
             'role' => ['required', 'in:manager,receptionist,therapist'],
         ]);
 
-        // Generate temporary password
-        $tempPassword = Str::random(12);
+        DB::transaction(function () use ($validated, $user, $branch) {
 
-        // Create user
-        $newUser = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($tempPassword),
-            'spa_id' => $user->spa_id,
-            'branch_id' => $branch->id,
-            'temp_password' => $tempPassword,
-            'password_reset_required' => true,
-        ]);
+            // Generate temporary password
+            $tempPassword = Str::random(12);
 
-        // Assign role
-        $newUser->assignRole($validated['role']);
+            // Create user
+            $newUser = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($tempPassword),
+                'spa_id' => $user->spa_id,
+                'branch_id' => $branch->id,
+                'temp_password' => $tempPassword,
+                'password_reset_required' => true,
+            ]);
 
-        // ===== ADD THIS: CREATE STAFF RECORD =====
-        \App\Models\Staff::create([
-            'user_id' => $newUser->id,
-            'name' => $validated['name'],
-            'phone' => '', // Will be filled later via profile
-            'roles' => $validated['role'],
-            'status' => 'active', // Or 'pending' if they need to be activated
-            'branch_id' => $branch->id,
-            'specialization' => null,
-        ]);
-        // =========================================
+            // Assign role
+            $newUser->assignRole($validated['role']);
 
-        // Send email with credentials
-        $this->sendStaffCredentials($newUser, $tempPassword);
-
-        return redirect()->route('setup.staff', $branch)->with('success', 'Staff member created and credentials sent');
+            // Create staff record
+            Staff::create([
+                'user_id' => $newUser->id,
+                'spa_id' => $user->spa_id,
+                'branch_id' => $branch->id,
+                'employment_status' => 'active',
+                'hire_date' => now(),
+            ]);
+            // Send email with credentials
+            $this->sendStaffCredentials($newUser, $tempPassword);
+        });
+        
+            return redirect()->route('setup.staff', $branch)->with('success', 'Staff member created and credentials sent');
     }
 
     /**

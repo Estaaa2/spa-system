@@ -36,13 +36,11 @@ class DashboardController extends Controller
             ->first();
 
         // Get therapists from Staff model
-        $therapists = Staff::where('roles', 'therapist')
-            ->where('status', 'active')
-            ->withCount(['bookings as assigned_bookings_count' => function($query) {
-                $query->whereDate('appointment_date', today())
-                      ->whereIn('status', ['reserved', 'confirmed']);
-            }])
-            ->get();
+        $therapists = Staff::where('employment_status', 'active')->whereHas('user', function ($query) {
+            $query->role('therapist'); // Spatie helper
+        })->with(['user'])->withCount(['bookings as assigned_bookings_count' => function ($query) {
+            $query->whereDate('appointment_date', today())->whereIn('status', ['reserved', 'confirmed']);
+        }])->get();
 
         // Late appointments
         $lateAppointments = Booking::whereDate('appointment_date', today())
