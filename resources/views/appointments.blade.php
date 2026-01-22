@@ -46,8 +46,8 @@
                                     <i class="fas fa-user"></i>
                                 </div>
                                 <div>
-                                    <p class="font-medium text-gray-900 dark:text-white">{{ $booking->fullname }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $booking->email }}</p>
+                                    <p class="font-medium text-gray-900 dark:text-white">{{ $booking->customer_name ?? 'Walk-in Customer' }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $booking->customer_email ?? 'No email' }}</p>
                                 </div>
                             </div>
                         </td>
@@ -61,36 +61,42 @@
                         </td>
 
                         <td class="px-6 py-4">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $booking->therapist }}</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">
+                                {{ $booking->therapist->name ?? 'Not Assigned' }}
+                            </span>
                         </td>
 
                         <td class="px-6 py-4">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $booking->date }}</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">
+                                {{ $booking->appointment_date ? \Carbon\Carbon::parse($booking->appointment_date)->format('M d, Y') : 'No Date' }}
+                            </span>
                         </td>
 
                         <td class="px-6 py-4">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $booking->time }}</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">
+                                {{ $booking->appointment_time ? \Carbon\Carbon::parse($booking->appointment_time)->format('h:i A') : 'No Time' }}
+                            </span>
                         </td>
 
                         <td class="px-6 py-4">
                             <span class="px-3 py-1.5 text-xs font-medium rounded-full
                                 {{ $booking->status == 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
-                                   'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' }}">
+                                ($booking->status == 'reserved' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                                'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300') }}">
                                 {{ ucfirst($booking->status) }}
                             </span>
                         </td>
 
                         <td class="px-6 py-4 text-center">
                             <div class="flex justify-center gap-2">
-                                <button
-                                    onclick="openEditModal(@json($booking))"
-                                    class="px-3 py-2 text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                <a href="{{ route('appointments.edit', $booking) }}"
+                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                     Edit
-                                </button>
+                                </a>
 
                                 <!-- DELETE BUTTON -->
                                 <button onclick="openDeleteModal({{ $booking->id }})"
-                                    class="px-3 py-2 text-white bg-red-600 rounded hover:bg-red-700">
+                                    class="px-3 text-sm text-white bg-red-600 rounded hover:bg-red-700">
                                     Delete
                                 </button>
                             </div>
@@ -101,66 +107,17 @@
         </table>
         </div>
 
-        <!-- EDIT MODAL -->
-        <div id="editModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
-            <div class="w-full max-w-lg p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800 dark:text-white">
-                    Edit Appointment
-                </h2>
-
-                <form id="editForm" method="POST">
-                    @csrf
-                    @method('PUT')
-
-                    <div class="mb-3">
-                        <label class="text-sm text-gray-600 dark:text-gray-300">Full Name</label>
-                        <input id="edit_fullname" name="fullname" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="text-sm text-gray-600 dark:text-gray-300">Service</label>
-                        <input id="edit_service" name="service_type" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="text-sm text-gray-600 dark:text-gray-300">Treatment</label>
-                        <input id="edit_treatment" name="treatment" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="text-sm text-gray-600 dark:text-gray-300">Therapist</label>
-                        <input id="edit_therapist" name="therapist" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="text-sm text-gray-600 dark:text-gray-300">Date</label>
-                        <input type="date" id="edit_date" name="date" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="text-sm text-gray-600 dark:text-gray-300">Time</label>
-                        <input type="time" id="edit_time" name="time" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="text-sm text-gray-600 dark:text-gray-300">Status</label>
-                        <select id="edit_status" name="status" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                        </select>
-                    </div>
-
-                    <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-gray-700 bg-gray-200 rounded">
-                            Cancel
-                        </button>
-                        <button type="submit" class="px-4 py-2 text-white bg-green-600 rounded">
-                            Update
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        {{-- <div style="display: none;">
+            @foreach($bookings as $booking)
+                Booking ID: {{ $booking->id }}<br>
+                Customer: {{ $booking->customer_name }}<br>
+                Therapist ID from DB: {{ $booking->therapist_id }}<br>
+                Therapist relationship loaded: {{ $booking->relationLoaded('therapist') ? 'Yes' : 'No' }}<br>
+                Therapist object: {{ $booking->therapist ? 'Exists' : 'NULL' }}<br>
+                Therapist name via relationship: {{ $booking->therapist->name ?? 'NULL' }}<br>
+                <hr>
+            @endforeach
+        </div> --}}
 
         <!-- DELETE CONFIRMATION MODAL -->
         <div id="deleteModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
@@ -225,16 +182,23 @@
     });
 
     function openEditModal(booking) {
-        document.getElementById('edit_fullname').value = booking.fullname;
-        document.getElementById('edit_service').value = booking.service_type;
-        document.getElementById('edit_treatment').value = booking.treatment;
-        document.getElementById('edit_therapist').value = booking.therapist;
-        document.getElementById('edit_date').value = booking.date;
-        document.getElementById('edit_time').value = booking.time;
-        document.getElementById('edit_status').value = booking.status;
+    // Update to use correct field names
+    document.getElementById('edit_customer_name').value = booking.customer_name || '';
+    document.getElementById('edit_customer_email').value = booking.customer_email || '';
+    document.getElementById('edit_service_type').value = booking.service_type || '';
+    document.getElementById('edit_treatment').value = booking.treatment || '';
 
-        document.getElementById('editForm').action = '/appointments/' + booking.id;
-        document.getElementById('editModal').classList.remove('hidden');
+    // For therapist - use therapist_id from the booking
+    document.getElementById('edit_therapist_id').value = booking.therapist_id || '';
+
+    // For date and time - use the correct field names
+    document.getElementById('edit_appointment_date').value = booking.appointment_date || '';
+    document.getElementById('edit_appointment_time').value = booking.appointment_time || '';
+    document.getElementById('edit_status').value = booking.status || 'reserved';
+
+    // Update the form action
+    document.getElementById('editForm').action = '/appointments/' + booking.id;
+    document.getElementById('editModal').classList.remove('hidden');
     }
 
     function closeEditModal() {

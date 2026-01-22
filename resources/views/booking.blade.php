@@ -44,7 +44,7 @@
             {{-- Automatically set spa and branch based on logged-in user --}}
             <input type="hidden" name="spa_id" value="{{ Auth::user()->spa_id }}">
             <input type="hidden" name="branch_id" value="{{ Auth::user()->branch_id }}">
-            
+
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <!-- Service Type -->
                 <div>
@@ -149,28 +149,28 @@
         <div class="space-y-4">
             <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
                 <p class="text-sm text-gray-500 dark:text-gray-400">Service Type</p>
-                <p id="summary-service" class="text-lg font-semibold text-gray-800 dark:text-white">-</p>
+                <p id="summary-service" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
             </div>
 
             <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
                 <p class="text-sm text-gray-500 dark:text-gray-400">Treatment</p>
-                <p id="summary-treatment" class="text-lg font-semibold text-gray-800 dark:text-white">-</p>
+                <p id="summary-treatment" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
             </div>
 
             <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
                 <p class="text-sm text-gray-500 dark:text-gray-400">Therapist</p>
-                <p id="summary-therapist" class="text-lg font-semibold text-gray-800 dark:text-white">-</p>
+                <p id="summary-therapist" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
                     <p class="text-sm text-gray-500 dark:text-gray-400">Date</p>
-                    <p id="summary-date" class="text-lg font-semibold text-gray-800 dark:text-white">-</p>
+                    <p id="summary-date" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
                 </div>
 
                 <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
                     <p class="text-sm text-gray-500 dark:text-gray-400">Time</p>
-                    <p id="summary-time" class="text-lg font-semibold text-gray-800 dark:text-white">-</p>
+                    <p id="summary-time" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
                 </div>
             </div>
         </div>
@@ -227,67 +227,85 @@
 
         // Update clock every second
         setInterval(updateClock, 1000);
-    });
 
-    // Set minimum date to today and update summary
-    document.addEventListener('DOMContentLoaded', function() {
+        // CORRECTED SUMMARY UPDATE FUNCTION
+        function updateSummary() {
+            // Get form elements with YOUR ACTUAL IDs
+            const serviceType = document.getElementById('service_type');
+            const treatment = document.getElementById('treatment');
+            const therapist = document.querySelector('select[name="therapist_id"]');
+            const dateInput = document.getElementById('appointment_date');
+            const timeSelect = document.getElementById('appointment_time');
+
+            // Update service type summary - ONLY IF SELECTED
+            if (serviceType && serviceType.value && serviceType.value !== "") {
+                document.getElementById('summary-service').textContent =
+                    serviceType.options[serviceType.selectedIndex].text;
+            } else {
+                document.getElementById('summary-service').textContent = "";
+            }
+
+            // Update treatment summary - ONLY IF SELECTED
+            if (treatment && treatment.value && treatment.value !== "") {
+                document.getElementById('summary-treatment').textContent =
+                    treatment.options[treatment.selectedIndex].text;
+            } else {
+                document.getElementById('summary-treatment').textContent = "";
+            }
+
+            // Update therapist summary - ONLY IF SELECTED
+            if (therapist && therapist.value && therapist.value !== "") {
+                document.getElementById('summary-therapist').textContent =
+                    therapist.options[therapist.selectedIndex].text;
+            } else {
+                document.getElementById('summary-therapist').textContent = "";
+            }
+
+            // Update date summary - ONLY IF SELECTED
+            if (dateInput && dateInput.value) {
+                const date = new Date(dateInput.value);
+                document.getElementById('summary-date').textContent =
+                    date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+            } else {
+                document.getElementById('summary-date').textContent = "";
+            }
+
+            // Update time summary - ONLY IF SELECTED (not the default disabled option)
+            if (timeSelect && timeSelect.value && timeSelect.value !== "") {
+                document.getElementById('summary-time').textContent =
+                    timeSelect.options[timeSelect.selectedIndex].text;
+            } else {
+                document.getElementById('summary-time').textContent = "";
+            }
+        }
+
+        // Set minimum date to today
         const today = new Date().toISOString().split('T')[0];
-        const dateInput = document.getElementById('date');
+        const dateInput = document.getElementById('appointment_date');
         if (dateInput) {
             dateInput.min = today;
         }
 
-        // Update summary function
-        function updateSummary() {
-            const serviceType = document.getElementById('service_type');
-            const treatment = document.getElementById('treatment');
-            const therapist = document.getElementById('therapist');
-            const dateInput = document.getElementById('date');
-            const timeSelect = document.getElementById('time');
-
-            if (serviceType && serviceType.value) {
-                document.getElementById('summary-service').textContent = serviceType.options[serviceType.selectedIndex].text;
-            }
-
-            if (treatment && treatment.value) {
-                document.getElementById('summary-treatment').textContent = treatment.options[treatment.selectedIndex].text;
-            }
-
-            if (therapist && therapist.value) {
-                document.getElementById('summary-therapist').textContent = therapist.options[therapist.selectedIndex].text;
-            }
-
-            if (dateInput && dateInput.value) {
-                const date = new Date(dateInput.value);
-                document.getElementById('summary-date').textContent = date.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                });
-            }
-
-            if (timeSelect && timeSelect.value) {
-                const time = timeSelect.value;
-                const [hours, minutes] = time.split(':');
-                const ampm = hours >= 12 ? 'PM' : 'AM';
-                const hour12 = hours % 12 || 12;
-                document.getElementById('summary-time').textContent = `${hour12}:${minutes} ${ampm}`;
-            }
-        }
-
-        // Add event listeners
+        // Add event listeners to YOUR ACTUAL ELEMENTS
         const serviceType = document.getElementById('service_type');
         const treatment = document.getElementById('treatment');
-        const therapist = document.getElementById('therapist');
-        const timeSelect = document.getElementById('time');
+        const therapist = document.querySelector('select[name="therapist_id"]');
+        const dateInputElem = document.getElementById('appointment_date');
+        const timeSelect = document.getElementById('appointment_time');
 
         if (serviceType) serviceType.addEventListener('change', updateSummary);
         if (treatment) treatment.addEventListener('change', updateSummary);
         if (therapist) therapist.addEventListener('change', updateSummary);
-        if (dateInput) dateInput.addEventListener('change', updateSummary);
+        if (dateInputElem) dateInputElem.addEventListener('change', updateSummary);
         if (timeSelect) timeSelect.addEventListener('change', updateSummary);
-    });
 
+        // Initial update - CLEAR ALL DEFAULTS
+        updateSummary();
+    });
 </script>
 
 @if (session('success'))
@@ -303,7 +321,6 @@
                     gravity: "top",
                     position: "right",
                     backgroundColor: "#22c55e",
-                    close: true
                 }).showToast();
             });
         }
@@ -323,7 +340,6 @@
                     gravity: "top",
                     position: "right",
                     backgroundColor: "#ef4444",
-                    close: true
                 }).showToast();
             });
         }

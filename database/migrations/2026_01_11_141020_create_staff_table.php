@@ -19,6 +19,9 @@ return new class extends Migration
             $table->string('roles')->default('therapist');
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->timestamps();
+            $table->string('phone')->unique();
+            $table->foreignId('branch_id')->nullable()->constrained()->onDelete('set null');
+            $table->string('specialization')->nullable()->after('roles');
         });
     }
 

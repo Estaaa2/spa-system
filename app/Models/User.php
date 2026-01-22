@@ -71,4 +71,8 @@ class User extends Authenticatable
         return $this->hasMany(Spa::class, 'owner_id');
     }
 
+    public function assignedBookings()
+    {
+        return $this->hasMany(Booking::class, 'therapist_id');
+    }
 }

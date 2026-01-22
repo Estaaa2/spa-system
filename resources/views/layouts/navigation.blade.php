@@ -1,6 +1,10 @@
 <div x-data="{
     open: false,
-    showLogoutModal: false
+    showLogoutModal: false,
+    operationsOpen: false,
+    managementOpen: false,
+    insightsOpen: false,
+    administrationOpen: false
 }" class="flex min-h-screen bg-gray-100 dark:bg-gray-900">
 
     <!-- MOBILE TOPBAR -->
@@ -26,7 +30,7 @@
                     <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
                     <div>
                         <span class="text-xl font-semibold text-gray-800 dark:text-white font-['Playfair_Display']">
-                            {{ Auth::user()->spa->name }}
+                            {{ Auth::user()->spa->name ?? 'Spa Management' }}
                         </span>
                         <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">
                             SPA & WELLNESS
@@ -37,45 +41,103 @@
 
             <!-- Navigation -->
             <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-                <div class="space-y-1">
-
+                <!-- 1. Dashboard -->
+                <div class="mb-2">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         Dashboard
                     </x-nav-link>
-
-                    <x-nav-link :href="route('booking')" :active="request()->routeIs('booking')">
-                        Book an Appointment
-                    </x-nav-link>
-                    
-                    <x-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
-                        Appointments
-                    </x-nav-link>
-
-                    <x-nav-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">
-                        Customers
-                    </x-nav-link>
-
-                    <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
-                        Staff
-                    </x-nav-link>
-
-                    <x-nav-link :href="route('services')" :active="request()->routeIs('services')">
-                        Services
-                    </x-nav-link>
-
-                    <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
-                        Reports
-                    </x-nav-link>
-
-                    <x-nav-link :href="route('insights.index')" :active="request()->routeIs('insights.*')">
-                        Insights
-                    </x-nav-link>
-
-                    <x-nav-link :href="route('more.index')" :active="request()->routeIs('more.*')">
-                        More
-                    </x-nav-link>
-
                 </div>
+
+                <!-- 2. Operations -->
+                <div class="mb-2">
+                    <button @click="operationsOpen = !operationsOpen"
+                            class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <span>Operations</span>
+                        <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                           :class="operationsOpen ? 'transform rotate-180' : ''"></i>
+                    </button>
+
+                    <div x-show="operationsOpen" x-collapse class="ml-4 space-y-1">
+                        <x-nav-link :href="route('booking')" :active="request()->routeIs('booking')">
+                            Book an Appointment
+                        </x-nav-link>
+                        <x-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
+                            Appointments
+                        </x-nav-link>
+                        <x-nav-link :href="route('schedule.index')" :active="request()->routeIs('schedule.*')">
+                            Schedule
+                        </x-nav-link>
+                        <x-nav-link :href="route('staff-availability.index')" :active="request()->routeIs('staff-availability.*')">
+                            Staff Availability
+                        </x-nav-link>
+                    </div>
+                </div>
+
+                <!-- 3. Management -->
+                <div class="mb-2">
+                    <button @click="managementOpen = !managementOpen"
+                            class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <span>Management</span>
+                        <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                           :class="managementOpen ? 'transform rotate-180' : ''"></i>
+                    </button>
+
+                    <div x-show="managementOpen" x-collapse class="ml-4 space-y-1">
+                        <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')">
+                            Services
+                        </x-nav-link>
+                        <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
+                            Staff
+                        </x-nav-link>
+                        <x-nav-link :href="route('branches.index')" :active="request()->routeIs('branches.*')">
+                            Branches
+                        </x-nav-link>
+                    </div>
+                </div>
+
+                <!-- 4. Insights -->
+                <div class="mb-2">
+                    <button @click="insightsOpen = !insightsOpen"
+                            class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <span>Insights</span>
+                        <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                           :class="insightsOpen ? 'transform rotate-180' : ''"></i>
+                    </button>
+
+                    <div x-show="insightsOpen" x-collapse class="ml-4 space-y-1">
+                        <x-nav-link :href="route('decision-support.index')" :active="request()->routeIs('decision-support.*')">
+                            Decision Support
+                        </x-nav-link>
+                        <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
+                            Reports
+                        </x-nav-link>
+                    </div>
+                </div>
+
+                <!-- 5. Administration (Owner/Admin Only) -->
+                @can('view-admin-section')
+                <div class="mb-2">
+                    <button @click="administrationOpen = !administrationOpen"
+                            class="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <span>Administration</span>
+                        <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                           :class="administrationOpen ? 'transform rotate-180' : ''"></i>
+                    </button>
+
+                    <div x-show="administrationOpen" x-collapse class="ml-4 space-y-1">
+                        <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
+                            Users
+                        </x-nav-link>
+                        <x-nav-link :href="route('roles-permissions.index')" :active="request()->routeIs('roles-permissions.*')">
+                            Roles & Permissions
+                        </x-nav-link>
+                        <x-nav-link :href="route('settings.index')" :active="request()->routeIs('settings.*')">
+                            Settings
+                        </x-nav-link>
+                    </div>
+                </div>
+                @endcan
+
             </nav>
 
             <!-- User Info and Logout - Fixed at bottom -->
@@ -182,4 +244,60 @@
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 150ms;
     }
+
+    /* Dropdown animation */
+    [x-collapse] {
+        overflow: hidden;
+        transition: all 0.3s ease-in-out;
+    }
 </style>
+
+<script>
+    // Initialize collapse functionality if not using Alpine.js x-collapse
+    document.addEventListener('alpine:init', () => {
+        if (!Alpine.hasPlugin('collapse')) {
+            Alpine.plugin('collapse', (Alpine) => {
+                Alpine.directive('collapse', (el, { modifiers }) => {
+                    let duration = modifiers.includes('slow') ? 500 :
+                                   modifiers.includes('fast') ? 150 : 300;
+
+                    let hide = () => {
+                        el.style.height = el.scrollHeight + 'px';
+                        el.offsetHeight; // force reflow
+                        el.style.height = '0px';
+                        el.style.opacity = '0';
+                    };
+
+                    let show = () => {
+                        el.style.height = '0px';
+                        el.offsetHeight; // force reflow
+                        el.style.height = el.scrollHeight + 'px';
+                        el.style.opacity = '1';
+
+                        setTimeout(() => {
+                            if (getComputedStyle(el).height !== '0px') {
+                                el.style.height = 'auto';
+                            }
+                        }, duration);
+                    };
+
+                    el.style.transition = `height ${duration}ms ease, opacity ${duration}ms ease`;
+
+                    if (!el._x_isShown) {
+                        hide();
+                    }
+
+                    el._x_isShown = Alpine.reactive({ value: el._x_isShown });
+
+                    Alpine.effect(() => {
+                        if (el._x_isShown.value) {
+                            show();
+                        } else {
+                            hide();
+                        }
+                    });
+                });
+            });
+        }
+    });
+</script>

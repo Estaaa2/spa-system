@@ -149,11 +149,11 @@ class SetupController extends Controller
 
         // Get the raw request data to build conditional validation
         $hoursData = $request->input('hours', []);
-        
+
         // Build validation rules conditionally
         foreach ($hoursData as $index => $hour) {
             $isClosed = isset($hour['is_closed']) && $hour['is_closed'] == '1';
-            
+
             if (!$isClosed) {
                 // Only validate times if not closed
                 if (empty($hour['opening_time']) || empty($hour['closing_time'])) {
@@ -165,7 +165,7 @@ class SetupController extends Controller
         // Update each operating hour
         foreach ($hoursData as $index => $hourData) {
             $isClosed = isset($hourData['is_closed']) && $hourData['is_closed'] == '1';
-            
+
             OperatingHours::where('id', $hourData['id'])
                 ->where('branch_id', $branch->id)
                 ->update([
@@ -227,6 +227,18 @@ class SetupController extends Controller
 
         // Assign role
         $newUser->assignRole($validated['role']);
+
+        // ===== ADD THIS: CREATE STAFF RECORD =====
+        \App\Models\Staff::create([
+            'user_id' => $newUser->id,
+            'name' => $validated['name'],
+            'phone' => '', // Will be filled later via profile
+            'roles' => $validated['role'],
+            'status' => 'active', // Or 'pending' if they need to be activated
+            'branch_id' => $branch->id,
+            'specialization' => null,
+        ]);
+        // =========================================
 
         // Send email with credentials
         $this->sendStaffCredentials($newUser, $tempPassword);
