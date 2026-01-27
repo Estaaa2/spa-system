@@ -10,10 +10,11 @@ return new class extends Migration
     {
         Schema::create('packages', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('spa_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->integer('duration'); // in minutes
+            $table->integer('total_duration')->nullable(); // optional
             $table->decimal('price', 10, 2);
-            $table->json('included_treatments')->nullable(); // IDs of included treatments
             $table->text('description')->nullable();
             $table->timestamps();
         });

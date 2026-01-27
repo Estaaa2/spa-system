@@ -12,19 +12,28 @@ public function create()
     return view('treatments.create');
 }
 
-public function store(Request $request)
-{
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'duration' => 'required|integer',
-        'price' => 'required|numeric',
-        'service_type' => 'required|string',
-        'description' => 'nullable|string',
-    ]);
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'duration' => 'required|integer|min:1',
+            'price' => 'required|numeric|min:0',
+            'service_type' => 'required|in:in_branch_only,in_branch_and_home',
+            'description' => 'nullable|string',
+        ]);
 
-    Treatment::create($request->all());
+        Treatment::create([
+            'spa_id' => auth()->user()->spa_id,
+            'branch_id' => auth()->user()->branch_id,
+            'name' => $validated['name'],
+            'duration' => $validated['duration'],
+            'price' => $validated['price'],
+            'service_type' => $validated['service_type'],
+            'description' => $validated['description'] ?? null,
+        ]);
 
-    return redirect()->route('services.index')
-        ->with('success', 'Treatment created successfully.');
-}
+        return redirect()
+            ->route('services.index')
+            ->with('success', 'Treatment created successfully.');
+    }
 }

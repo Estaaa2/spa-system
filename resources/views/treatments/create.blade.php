@@ -60,18 +60,17 @@
                 <label for="service_type" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
                     Service Type *
                 </label>
-                <select id="service_type" name="service_type"
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]"
-                        required>
-                    <option value="">Select a service type</option>
-                    <option value="Hair">Hair</option>
-                    <option value="Massage">Massage</option>
-                    <option value="Facial">Facial</option>
-                    <option value="Nails">Nails</option>
-                    <option value="Body">Body</option>
-                    <option value="Spa">Spa</option>
-                    <option value="Wellness">Wellness</option>
-                    <option value="Other">Other</option>
+                <select id="service_type" name="service_type" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]" required>
+
+                    <option value="">Select service availability</option>
+
+                    <option value="in_branch_only">
+                        In-Branch Only
+                    </option>
+
+                    <option value="in_branch_and_home">
+                        Home Service & In-Branch
+                    </option>
                 </select>
             </div>
 
