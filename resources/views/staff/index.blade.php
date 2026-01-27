@@ -277,16 +277,6 @@ function editStaff(staffId) {
                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
         </div>
         <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Branch *</label>
-            <select name="branch_id" required
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-                <option value="">Select Branch</option>
-                @foreach($branches ?? [] as $branch)
-                    <option value="{{ $branch->id }}">{{ $branch->name }} - {{ $branch->location }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div>
             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
             <select name="roles" required
                     class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
