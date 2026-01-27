@@ -54,23 +54,6 @@
                         @enderror
                     </div>
 
-                    <!-- Branch Selection -->
-                    <div>
-                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Branch *</label>
-                        <select name="branch_id" required
-                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-                            <option value="">Select Branch</option>
-                            @foreach($branches ?? [] as $branch)
-                                <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
-                                    {{ $branch->name }} - {{ $branch->location }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('branch_id')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
                     <!-- Role -->
                     <div>
                         <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
@@ -127,7 +110,7 @@
                                         <i class="fas fa-user"></i>
                                     </div>
                                     <div>
-                                        <p class="font-medium text-gray-900 dark:text-white">{{ $member->name }}</p>
+                                        <p class="font-medium text-gray-900 dark:text-white">{{ $member->user->name }}</p>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">
                                             {{ $member->user->email ?? 'No email' }}
                                         </p>
@@ -135,9 +118,19 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4">
-                                <span class="px-3 py-1 text-xs font-medium rounded-full {{ $member->role_color }}">
-                                    {{ ucfirst($member->roles) }}
-                                </span>
+                                @php
+                                    $role = $member->user?->getRoleNames()->first();
+                                @endphp
+
+                                @if($role)
+                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                        {{ ucfirst($role) }}
+                                    </span>
+                                @else
+                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-500">
+                                        No role
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-6 py-4">
                                 @if($member->branch)
@@ -275,7 +268,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- JavaScript -->
 <script>
-// Edit Staff Modal
+//Edit Staff Modal.
 function editStaff(staffId) {
     const formContent = `
         <div>

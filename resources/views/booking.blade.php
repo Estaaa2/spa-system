@@ -41,10 +41,6 @@
         <form action="{{ route('bookings.store') }}" method="POST">
             @csrf
 
-            {{-- Automatically set spa and branch based on logged-in user --}}
-            <input type="hidden" name="spa_id" value="{{ Auth::user()->spa_id }}">
-            <input type="hidden" name="branch_id" value="{{ Auth::user()->branch_id }}">
-
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <!-- Service Type -->
                 <div>

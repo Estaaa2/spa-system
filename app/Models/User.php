@@ -93,4 +93,13 @@ class User extends Authenticatable
     {
         return $this->hasOne(Staff::class, 'user_id');
     }
+
+    public function currentBranchId(): ?int
+    {
+        if ($this->hasRole('manager')) {
+            return $this->branch_id;
+        }
+
+        return session('current_branch_id');
+    }
 }

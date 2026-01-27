@@ -3,7 +3,7 @@
         <div class="relative mb-10 text-center">
             <!-- Back Button -->
             <a
-                href="{{ url('/') }}"
+                href="{{ url('setup/branches/') }}"
                 class="absolute left-0 top-1/2 -translate-y-1/2 inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200"
             >
                 <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
@@ -18,7 +18,7 @@
 
             <!-- Title -->
             <h2 class="mt-4 text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
-                Staff – {{ $branch->name }}
+                Staff - {{ $branch->name }}
             </h2>
         </div>
 

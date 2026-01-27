@@ -81,14 +81,22 @@
                                     ₱{{ number_format($treatment->price, 2) }}
                                 </span>
                             </td>
+                            <td class="px-6 py-4">
+                                <span class="font-medium text-gray-800 dark:text-white">
+                                    {{ $treatment->service_type_label }}
+                                </span>
+                            </td>
                             <td class="px-6 py-4 text-end">
-                                <div class="flex items-center justify-end gap-2">
-                                    <a href="{{ route('treatments.edit', $treatment->id) }}"
-                                       class="p-2 text-gray-600 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600">
+                                <div class="flex items-center gap-2">
+                                    <!-- Edit Button -->
+                                    <button onclick="editTreatment({{ $treatment->id }})"
+                                            class="p-2 text-gray-600 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600">
                                         <i class="w-4 h-4 fas fa-edit"></i>
-                                    </a>
+                                    </button>
+
+                                    <!-- Delete Form -->
                                     <form action="{{ route('treatments.destroy', $treatment->id) }}" method="POST"
-                                          onsubmit="return confirm('Delete this treatment?')">
+                                        onsubmit="return confirm('Delete this treatment?')">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit"
@@ -319,6 +327,48 @@
     </div>
 </div>
 
+<!-- Edit Treatment Modal -->
+<div id="editTreatmentModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
+
+        <!-- Modal panel -->
+        <div class="inline-block w-full max-w-md my-8 overflow-hidden text-left align-middle transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800">
+            <form id="editTreatmentForm" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Edit Treatment</h3>
+                        <button type="button" onclick="closeEditTreatmentModal()"
+                                class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                    <div class="space-y-4" id="editTreatmentFormContent">
+                        <!-- Form fields will be injected here via JS. -->
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900">
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="closeEditTreatmentModal()"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-md hover:bg-[#7A6348]">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Success Toast Notification -->
 @if(session('success'))
 <div class="fixed bottom-0 right-0 z-50 p-4" id="toast-container">
@@ -345,33 +395,83 @@
 @endif
 
 <script>
-    function updateClock() {
-        const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+// Edit Treatment Modal.
+function editTreatment(treatmentId) {
+    // Inject form fields
+    document.getElementById('editTreatmentFormContent').innerHTML = `
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Name *</label>
+            <input type="text" name="name" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+        </div>
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Duration *</label>
+            <input type="number" name="duration" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+        </div>
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Price *</label>
+            <input type="number" name="price" step="0.01" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+        </div>
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Service Type *</label>
+            <select name="service_type" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+                <option value="in_branch_only">In Branch Only</option>
+                <option value="in_branch_and_home">In Branch & Home</option>
+            </select>
+        </div>
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Description</label>
+            <textarea name="description" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]"></textarea>
+        </div>
+    `;
 
-        const todayDateElement = document.getElementById('todayDate');
-        const realTimeClockElement = document.getElementById('realTimeClock');
+    const form = document.getElementById('editTreatmentForm');
+    form.action = `/treatments/${treatmentId}`;
 
-        if (todayDateElement) {
-            todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-        }
+    // Fetch current treatment data
+    fetch(`/treatments/${treatmentId}`) // <-- use show() route
+        .then(response => response.json())
+        .then(data => {
+            form.querySelector('[name="name"]').value = data.name;
+            form.querySelector('[name="duration"]').value = data.duration;
+            form.querySelector('[name="price"]').value = data.price;
+            form.querySelector('[name="service_type"]').value = data.service_type;
+            form.querySelector('[name="description"]').value = data.description || '';
+        });
 
-        if (realTimeClockElement) {
-            realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
-        }
+    document.getElementById('editTreatmentModal').classList.remove('hidden');
+}
+
+function closeEditTreatmentModal() {
+    document.getElementById('editTreatmentModal').classList.add('hidden');
+}
+
+function updateClock() {
+    const now = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+
+    const todayDateElement = document.getElementById('todayDate');
+    const realTimeClockElement = document.getElementById('realTimeClock');
+
+    if (todayDateElement) {
+        todayDateElement.innerText = now.toLocaleDateString('en-US', options);
     }
 
-    // Initialize and start the clock
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize clock immediately
-        updateClock();
+    if (realTimeClockElement) {
+        realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    }
+}
 
-        // Update clock every second
-        setInterval(updateClock, 1000);
-    });
+// Initialize and start the clock
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize clock immediately
+    updateClock();
+
+    // Update clock every second
+    setInterval(updateClock, 1000);
+});
 </script>
 @endsection

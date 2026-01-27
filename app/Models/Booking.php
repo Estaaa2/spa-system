@@ -42,7 +42,7 @@ class Booking extends Model
     // Assigned therapist
     public function therapist()
     {
-        return $this->belongsTo(Staff::class, 'therapist_id');
+        return $this->belongsTo(User::class, 'therapist_id');
     }
 
     // If you ever link a customer as a registered user

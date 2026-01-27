@@ -34,14 +34,13 @@ class Treatment extends Model
         return $this->belongsToMany(Package::class)
                     ->withPivot('quantity');
     }
-
-    public function isInBranchOnly(): bool
+    
+    public function getServiceTypeLabelAttribute()
     {
-        return $this->service_type === 'in_branch_only';
-    }
-
-    public function isHomeServiceAvailable(): bool
-    {
-        return $this->service_type === 'in_branch_and_home';
+        return match($this->service_type) {
+            'in_branch_only' => 'In Branch Only',
+            'in_branch_and_home' => 'In Branch & Home',
+            default => ucfirst(str_replace('_', ' ', $this->service_type)),
+        };
     }
 }

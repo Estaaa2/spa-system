@@ -18,17 +18,22 @@ class StaffController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Staff::with(['user', 'branch', 'branch.spa'])->latest();
+        $user = Auth::user();
 
-        // Filter by branch if requested
-        if ($request->has('branch_id') && $request->branch_id) {
+        $query = Staff::with(['user.roles', 'branch'])->where('spa_id', $user->spa_id);
+
+        if ($user->branch_id) {
+            $query->where('branch_id', $user->branch_id);
+        }
+
+        if ($request->filled('branch_id')) {
             $query->where('branch_id', $request->branch_id);
         }
 
-        // Use the query we built
-        $staff = $query->get();
-        $branches = Branch::all();
+        $staff = $query->latest()->get();
 
+        $branches = Branch::where('spa_id', $user->spa_id)->get();
+        
         return view('staff.index', compact('staff', 'branches'));
     }
 
@@ -42,15 +47,20 @@ class StaffController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'branch_id' => 'required|exists:branches,id',
             'roles' => 'required|in:therapist,receptionist,manager',
         ]);
 
         $currentUser = Auth::user();
 
-        DB::transaction(function () use ($validated, $currentUser) {
+        $branchId = $currentUser->currentBranchId();
 
-            // 1️⃣ Create user
+        if (!$branchId) {
+            return back()->with('error', 'No branch selected.');
+        }
+
+        DB::transaction(function () use ($validated, $currentUser, $branchId) {
+
+            //Create the user.
             $tempPassword = Str::random(12);
 
             $user = User::create([
@@ -58,25 +68,22 @@ class StaffController extends Controller
                 'email' => $validated['email'],
                 'password' => Hash::make($tempPassword),
                 'spa_id' => $currentUser->spa_id,
-                'branch_id' => $validated['branch_id'],
+                'branch_id' => $branchId,
                 'temp_password' => $tempPassword,
                 'password_reset_required' => true,
             ]);
 
-            // 2️⃣ Assign role via Spatie
+            //Assign role.
             $user->assignRole($validated['roles']);
 
-            // 3️⃣ Create staff record
+            //Create staff record.
             Staff::create([
                 'user_id' => $user->id,
                 'spa_id' => $currentUser->spa_id,
-                'branch_id' => $validated['branch_id'],
+                'branch_id' => $branchId,
                 'employment_status' => 'active',
                 'hire_date' => now(),
             ]);
-
-            // 4️⃣ Optional: email credentials
-            // Mail::to($user->email)->send(...)
         });
 
         return redirect()

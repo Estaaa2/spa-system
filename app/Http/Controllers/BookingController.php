@@ -44,8 +44,12 @@ class BookingController extends Controller
         $user = Auth::user();
 
         // Determine spa_id and branch_id
-        $spaId = $user->spa_id;
-        $branchId = $request->branch_id ?? session('current_branch_id') ?? $user->branch_id;
+        $spaId = $user->spa_id; // same as before
+        $branchId = $user->currentBranchId();
+
+        if (!$branchId) {
+            return back()->with('error', 'No branch selected.');
+        }
 
         $validated = $request->validate([
             'service_type' => 'required',
@@ -109,8 +113,8 @@ class BookingController extends Controller
                 ->where('therapist_id', $user->id);
         }
 
-        $bookings = $query->orderBy('appointment_date', 'desc')
-                        ->orderBy('appointment_time', 'desc')
+        $bookings = $query->orderBy('appointment_date', 'asc')
+                        ->orderBy('appointment_time', 'asc')
                         ->paginate(10);
 
         $therapists = User::role('therapist')

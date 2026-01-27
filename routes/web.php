@@ -111,7 +111,7 @@ Route::middleware('auth')->group(function () {
 */
 Route::middleware(['auth'])->group(function () {
     Route::resource('treatments', TreatmentController::class)
-        ->except(['index', 'show']);
+        ->except(['index']);
 
     Route::resource('packages', PackageController::class)
         ->except(['index', 'show']);
