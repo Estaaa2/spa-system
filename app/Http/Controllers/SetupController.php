@@ -105,6 +105,9 @@ class SetupController extends Controller
             'location' => $validated['location'],
         ]);
 
+        // **UPDATE USER WITH BRANCH ID**
+        $user->update(['branch_id' => $branch->id]);
+
         // Create default operating hours (9 AM to 6 PM, Monday-Sunday)
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         foreach ($days as $day) {
@@ -119,6 +122,7 @@ class SetupController extends Controller
 
         return redirect()->route('setup.branches')->with('success', 'Branch added successfully');
     }
+
 
     /**
      * Show operating hours setup page
@@ -243,7 +247,7 @@ class SetupController extends Controller
             // Send email with credentials
             $this->sendStaffCredentials($newUser, $tempPassword);
         });
-        
+
             return redirect()->route('setup.staff', $branch)->with('success', 'Staff member created and credentials sent');
     }
 

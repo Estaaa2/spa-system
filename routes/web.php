@@ -11,6 +11,9 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\PackageController;
+use App\Http\Controllers\StaffAvailabilityController;
+use App\Http\Controllers\ScheduleController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -33,6 +36,54 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
+| Branch Page
+|--------------------------------------------------------------------------
+*/
+
+
+
+/*
+|--------------------------------------------------------------------------
+| Staff Availability Section
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/staff-availability', [StaffAvailabilityController::class, 'index'])
+        ->name('staff.availability');
+
+    Route::post('/staff-availability', [StaffAvailabilityController::class, 'store'])
+        ->name('staff.availability.store');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Branch Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+    // Branch switcher (singular)
+    Route::post('/branch/switch', [BranchController::class, 'switch'])->name('branch.switch');
+    Route::get('/branch/current', [BranchController::class, 'getCurrentBranch'])->name('branch.current');
+
+    // Branch management (plural)
+    Route::prefix('branches')->group(function () {
+        Route::get('/', [BranchController::class, 'index'])->name('branches.index');
+        Route::post('/', [BranchController::class, 'store'])->name('branches.store');
+        Route::put('/{branch}', [BranchController::class, 'update'])->name('branches.update');
+        Route::delete('/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
+        Route::get('/{branch}', [BranchController::class, 'show'])->name('branches.show');
+    });
+
+    // If you want a create view
+    // Route::get('/branches/create', function () {
+    //     $spa = Auth::user()->spa;
+    //     return view('branches.create', compact('spa'));
+    // })->name('branches.create');
+});
+
+/*
+|--------------------------------------------------------------------------
 | Operations Section
 |--------------------------------------------------------------------------
 */
@@ -50,14 +101,7 @@ Route::middleware('auth')->group(function () {
         ->name('bookings.history');
 
     // Schedule
-    Route::get('/schedule', function () {
-        return view('schedule');
-    })->name('schedule.index');
-
-    // Staff Availability
-    Route::get('/staff-availability', function () {
-        return view('staff-availability');
-    })->name('staff-availability.index');
+    Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
 });
 
 /*
@@ -67,14 +111,12 @@ Route::middleware('auth')->group(function () {
 */
 Route::middleware(['auth'])->group(function () {
     Route::resource('treatments', TreatmentController::class)
-    ->except(['index', 'show']); // We don't need separate index page
+        ->except(['index', 'show']);
 
-// Packages CRUD
-Route::resource('packages', PackageController::class)
-    ->except(['index', 'show']); // We don't need separate index page
+    Route::resource('packages', PackageController::class)
+        ->except(['index', 'show']);
 
-// Services main page
-Route::get('/services', [ServiceController::class, 'index'])->name('services.index');
+    Route::get('/services', [ServiceController::class, 'index'])->name('services.index');
 
     // Staff
     Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
@@ -95,12 +137,10 @@ Route::get('/services', [ServiceController::class, 'index'])->name('services.ind
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:owner,admin'])->group(function () {
-    // Decision Support
     Route::get('/decision-support', function () {
         return view('decision-support');
     })->name('decision-support.index');
 
-    // Reports
     Route::get('/reports', function () {
         return view('reports');
     })->name('reports.index');
@@ -112,26 +152,23 @@ Route::middleware(['auth', 'role:owner,admin'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:owner'])->group(function () {
-    // Users
     Route::get('/users', function () {
         return view('users');
     })->name('users.index');
 
-    // Roles & Permissions
     Route::get('/roles-permissions', function () {
         return view('roles-permissions');
     })->name('roles-permissions.index');
 
-    // Settings
     Route::get('/settings', function () {
         return view('settings');
     })->name('settings.index');
 
-    // Appointments management
     Route::get('/appointments', [BookingController::class, 'adminIndex'])
         ->name('appointments.index');
 
-    Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
+    Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])
+        ->name('appointments.destroy');
 
     Route::post('/appointments/{booking}/reserve', [BookingController::class, 'reserve'])
         ->name('appointments.reserve');
@@ -140,7 +177,7 @@ Route::middleware(['auth', 'role:owner'])->group(function () {
         ->name('appointments.updateStatus');
 
     Route::put('/appointments/{booking}', [BookingController::class, 'update'])
-    ->name('appointments.update');
+        ->name('appointments.update');
 
     Route::get('/appointments/{booking}/edit', [BookingController::class, 'edit'])
         ->name('appointments.edit');

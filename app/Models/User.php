@@ -63,7 +63,7 @@ class User extends Authenticatable
 
     public function branch(): BelongsTo
     {
-        return $this->belongsTo(Branch::class);
+        return $this->belongsTo(Branch::class, 'current_branch_id');
     }
 
     public function branches()

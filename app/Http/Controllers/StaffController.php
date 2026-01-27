@@ -25,11 +25,13 @@ class StaffController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
-        $staff = Staff::with(['user', 'branch'])->latest()->get();
+        // Use the query we built
+        $staff = $query->get();
         $branches = Branch::all();
 
         return view('staff.index', compact('staff', 'branches'));
     }
+
 
     /**
      * Store a newly created staff in storage.
@@ -121,7 +123,7 @@ class StaffController extends Controller
             return redirect()->route('staff.index')
                 ->with('success', 'Staff member updated successfully!');
 
-        } 
+        }
         catch (\Exception $e) {
             return redirect()->back()
                 ->withInput()

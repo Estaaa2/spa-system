@@ -17,6 +17,11 @@ class Branch extends Model
         'location',
         'phone',
         'email',
+        'is_main', // ADD THIS
+    ];
+
+    protected $casts = [
+        'is_main' => 'boolean', // ADD THIS
     ];
 
     public function spa(): BelongsTo
@@ -32,5 +37,13 @@ class Branch extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    // ADD THIS METHOD for staff count
+    public function staff()
+    {
+        return $this->hasMany(User::class)->whereHas('roles', function($q) {
+            $q->whereIn('name', ['staff', 'therapist', 'admin']);
+        });
     }
 }

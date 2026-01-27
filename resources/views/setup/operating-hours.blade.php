@@ -1,6 +1,9 @@
 <x-guest-layout>
-    <div class="max-w-6xl px-4 mx-auto">
-        <div class="mb-10 text-center">
+    <div class="px-4 mx-auto max-w-7xl">
+        <div class="relative mb-10 text-center">
+            <a href="{{ url('/') }}" class="absolute left-0 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
+                    <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
+                </a>
             <img
                 src="{{ asset('images/1.png') }}"
                 alt="Levictas"
@@ -8,9 +11,7 @@
             />
 
             <div class="flex items-center justify-between mb-6">
-                <a href="{{ route('setup.branches') }}" class="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
-                    <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
-                </a>
+
 
                 <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
                     Operating Hours - {{ $branch->name }}

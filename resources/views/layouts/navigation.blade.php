@@ -1,11 +1,4 @@
-<div x-data="{
-    open: false,
-    showLogoutModal: false,
-    operationsOpen: false,
-    managementOpen: false,
-    insightsOpen: false,
-    administrationOpen: false
-}" class="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+<div x-data="sidebar()" class="flex min-h-screen bg-gray-100 dark:bg-gray-900">
 
     <!-- MOBILE TOPBAR -->
     <div class="fixed top-0 z-40 flex items-center justify-between w-full px-4 py-3 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
@@ -13,9 +6,67 @@
             <i class="text-xl fa-solid fa-bars"></i>
         </button>
 
-        <span class="text-lg font-semibold text-gray-800 dark:text-white">
-            <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
-        </span>
+        <!-- Mobile Branch Switcher -->
+        <div class="relative">
+            <button @click="mobileBranchesOpen = !mobileBranchesOpen"
+                    class="flex items-center space-x-2 text-gray-700 dark:text-gray-200">
+                <span class="text-sm font-medium truncate max-w-[120px]" x-text="selectedBranch"></span>
+                <i class="text-xs fa-solid fa-chevron-down" :class="mobileBranchesOpen ? 'rotate-180' : ''"></i>
+            </button>
+
+            <!-- Mobile Dropdown -->
+            <div x-show="mobileBranchesOpen"
+                 @click.outside="mobileBranchesOpen = false"
+                 x-transition:enter="transition ease-out duration-100"
+                 x-transition:enter-start="transform opacity-0 scale-95"
+                 x-transition:enter-end="transform opacity-100 scale-100"
+                 x-transition:leave="transition ease-in duration-75"
+                 x-transition:leave-start="transform opacity-100 scale-100"
+                 x-transition:leave-end="transform opacity-0 scale-95"
+                 class="absolute right-0 z-50 w-56 mt-2 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
+                <div class="py-1" role="menu" aria-orientation="vertical">
+                    <!-- Current Branch Indicator -->
+                    <div class="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                        SWITCH BRANCH
+                    </div>
+
+                    @foreach(Auth::user()->spa->branches ?? [] as $branch)
+                        <button @click="
+                            selectedBranch = '{{ addslashes($branch->name) }}';
+                            selectedBranchId = {{ $branch->id }};
+                            mobileBranchesOpen = false;
+                            switchBranch({{ $branch->id }});
+                        "
+                        :class="selectedBranchId == {{ $branch->id }} ? 'bg-gray-100 dark:bg-gray-700' : ''"
+                        class="flex items-center w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                            @if($branch->is_main)
+                                <i class="w-4 mr-2 text-yellow-500 fa-solid fa-crown" title="Main Branch"></i>
+                            @else
+                                <i class="w-4 mr-2 text-gray-400 fa-solid fa-store"></i>
+                            @endif
+                            <div class="flex-1 min-w-0">
+                                <span class="truncate">{{ $branch->name }}</span>
+                                @if($branch->location)
+                                <p class="text-xs text-gray-500 truncate dark:text-gray-400">
+                                    {{ Str::limit($branch->location, 20) }}
+                                </p>
+                                @endif
+                            </div>
+                            <span x-show="selectedBranchId == {{ $branch->id }}" class="ml-2 text-blue-600 dark:text-blue-400">
+                                <i class="fa-solid fa-check"></i>
+                            </span>
+                        </button>
+                    @endforeach
+
+                    <div class="px-4 py-2 text-xs text-gray-500 border-t dark:text-gray-400 dark:border-gray-700">
+                        <a href="{{ route('branches.index') }}" class="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                            <i class="w-4 mr-1 fa-solid fa-cog"></i>
+                            Manage Branches
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- SIDEBAR -->
@@ -24,19 +75,150 @@
         :class="open ? 'translate-x-0' : '-translate-x-screen'"
     >
         <div class="flex flex-col h-full">
-            <!-- Brand -->
-            <div class="flex-shrink-0 px-6 py-5 border-b dark:border-gray-700">
-                <a href="{{ url('/') }}" class="flex items-center space-x-3">
-                    <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
-                    <div>
-                        <span class="text-xl font-semibold text-gray-800 dark:text-white font-['Playfair_Display']">
-                            {{ Auth::user()->spa->name ?? 'Spa Management' }}
-                        </span>
-                        <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">
-                            SPA & WELLNESS
-                        </p>
+            <!-- Brand with Branch Switcher -->
+            <div class="flex-shrink-0 border-b dark:border-gray-700">
+                <!-- Spa Brand -->
+                <div class="px-6 py-4">
+                    <a href="{{ url('/') }}" class="flex items-center space-x-3">
+                        <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
+                        <div>
+                            <span class="text-2xl font-semibold text-[#8B7355] dark:text-white font-['Playfair_Display']">
+                                {{ Auth::user()->spa->name ?? 'Spa Management' }}
+                            </span>
+                            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">
+                                SPA & WELLNESS
+                            </p>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- BRANCH SWITCHER -->
+                @if(Auth::user()->spa->branches->count() > 0)
+                <div class="px-6 pb-4">
+                    <div class="relative">
+                        <!-- Branch Switcher Button -->
+                        <button @click="branchesDropdown = !branchesDropdown"
+                                class="flex items-center justify-between w-full px-4 py-3 text-sm text-left transition-colors rounded-lg bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/50 dark:hover:bg-gray-700 dark:text-gray-200">
+                            <div class="flex items-center flex-1 min-w-0">
+                                <i class="flex-shrink-0 mr-3 text-gray-500 fa-solid fa-location-dot dark:text-gray-400"></i>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium truncate" x-text="selectedBranch"></p>
+                                    <p class="text-xs text-gray-500 truncate dark:text-gray-400">
+                                        {{ Auth::user()->spa->branches->count() }}
+                                        {{ Str::plural('branch', Auth::user()->spa->branches->count()) }} available
+                                    </p>
+                                </div>
+                            </div>
+                            <i class="flex-shrink-0 ml-2 text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                               :class="branchesDropdown ? 'transform rotate-180' : ''"></i>
+                        </button>
+
+                        <!-- Branch Switcher Dropdown -->
+                        <div x-show="branchesDropdown"
+                             @click.outside="branchesDropdown = false"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute left-0 right-0 z-50 mx-6 mt-1 overflow-y-auto origin-top bg-white rounded-lg shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5 max-h-96">
+                            <div class="py-2">
+                                <!-- Dropdown Header -->
+                                <div class="flex items-center justify-between px-4 py-2 border-b dark:border-gray-700">
+                                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        SELECT BRANCH
+                                    </span>
+                                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                                        {{ Auth::user()->spa->branches->count() }} total
+                                    </span>
+                                </div>
+
+                                <!-- Branches List -->
+                                <div class="py-1">
+                                    @foreach(Auth::user()->spa->branches as $branch)
+                                        <button @click="
+                                            selectedBranch = '{{ addslashes($branch->name) }}';
+                                            selectedBranchId = {{ $branch->id }};
+                                            branchesDropdown = false;
+                                            switchBranch({{ $branch->id }});
+                                        "
+                                        class="flex items-center w-full px-4 py-3 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-700 group"
+                                        :class="selectedBranchId == {{ $branch->id }} ? 'bg-blue-50 dark:bg-blue-900/20' : ''">
+                                            <div class="flex items-center flex-1 min-w-0">
+                                                <div class="flex-shrink-0 mr-3">
+                                                    @if($branch->is_main)
+                                                        <div class="relative">
+                                                            <i class="text-yellow-500 fa-solid fa-store" title="Main Branch"></i>
+                                                            <i class="absolute text-xs -top-1 -right-1 fa-solid fa-crown"></i>
+                                                        </div>
+                                                    @else
+                                                        <i class="text-gray-400 fa-solid fa-store"></i>
+                                                    @endif
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="font-medium text-gray-900 truncate dark:text-white"
+                                                       :class="selectedBranchId == {{ $branch->id }} ? 'text-blue-600 dark:text-blue-400' : ''">
+                                                        {{ $branch->name }}
+                                                    </p>
+                                                    @if($branch->location)
+                                                    <p class="text-xs text-gray-500 truncate dark:text-gray-400">
+                                                        {{ Str::limit($branch->location, 25) }}
+                                                    </p>
+                                                    @endif
+                                                    @if($branch->phone)
+                                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                        {{ $branch->phone }}
+                                                    </p>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="flex flex-col items-end">
+                                                <span x-show="selectedBranchId == {{ $branch->id }}" class="text-blue-600 dark:text-blue-400">
+                                                    <i class="fa-solid fa-check"></i>
+                                                </span>
+                                                <span class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                                                    @php
+                                                        $userCount = $branch->users()->count();
+                                                    @endphp
+                                                    {{ $userCount }} {{ Str::plural('user', $userCount) }}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    @endforeach
+                                </div>
+
+                                <!-- Branch Management Link -->
+                                <div class="pt-1 mt-1 border-t dark:border-gray-700">
+                                    <a href="{{ route('branches.index') }}"
+                                       class="flex items-center justify-center px-4 py-2 text-sm text-center text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700">
+                                        <i class="w-4 mr-2 fa-solid fa-cog"></i>
+                                        Manage All Branches
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </a>
+                </div>
+                @else
+                <!-- No branches message -->
+                <div class="px-6 pb-4">
+                    <div class="px-4 py-3 text-sm text-center rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                        <p class="text-yellow-800 dark:text-yellow-200">
+                            <i class="mr-2 fa-solid fa-exclamation-triangle"></i>
+                            No branches set up
+                        </p>
+                        <p class="mt-1 text-xs text-yellow-700 dark:text-yellow-300">
+                            You need to create at least one branch to use the system
+                        </p>
+                        <a href="{{ route('branches.create') }}"
+                           class="inline-flex items-center justify-center w-full px-3 py-2 mt-2 text-xs font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600">
+                            <i class="mr-1 fa-solid fa-plus"></i>
+                            Create First Branch
+                        </a>
+                    </div>
+                </div>
+                @endif
             </div>
 
             <!-- Navigation -->
@@ -67,7 +249,7 @@
                         <x-nav-link :href="route('schedule.index')" :active="request()->routeIs('schedule.*')">
                             Schedule
                         </x-nav-link>
-                        <x-nav-link :href="route('staff-availability.index')" :active="request()->routeIs('staff-availability.*')">
+                        <x-nav-link :href="route('staff.availability')" :active="request()->routeIs('staff.availability')">
                             Staff Availability
                         </x-nav-link>
                     </div>
@@ -137,15 +319,15 @@
                     </div>
                 </div>
                 @endcan
-
             </nav>
 
-            <!-- User Info and Logout - Fixed at bottom -->
+            <!-- User Info and Logout -->
             <div class="flex-shrink-0 p-3 border-t dark:border-gray-700">
                 <div class="flex items-center justify-between">
                     <div class="flex-1">
                         <p class="text-sm font-medium text-gray-800 dark:text-white">{{ Auth::user()->name }}</p>
                         <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500"></p>
                     </div>
 
                     <!-- Logout Button -->
@@ -224,7 +406,7 @@
         </div>
     </div>
 
-    <!-- MAIN CONTENT - Scrollable only this area -->
+    <!-- MAIN CONTENT -->
     <main class="flex-1 overflow-y-auto">
         <div class="p-4 pt-16 md:p-4 md:pt-4">
             @yield('content')
@@ -233,9 +415,135 @@
 
 </div>
 
+<script>
+// Function to handle branch switching
+function switchBranch(branchId) {
+    // Show loading state
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    button.disabled = true;
+
+    // Make AJAX request to switch branch - using SINGULAR '/branch/switch' route
+    fetch('/branch/switch', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ branch_id: branchId })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showToast('Branch switched successfully', 'success');
+
+            // Reload the page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        } else {
+            showToast(data.message || 'Failed to switch branch', 'error');
+            button.innerHTML = originalContent;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred. Please try again.', 'error');
+        button.innerHTML = originalContent;
+        button.disabled = false;
+    });
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Remove existing toasts
+    const existingToasts = document.querySelectorAll('.branch-toast');
+    existingToasts.forEach(toast => toast.remove());
+
+    const toast = document.createElement('div');
+    toast.className = `branch-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-0 ${
+        type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+        type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+        'bg-blue-100 text-blue-800 border border-blue-200'
+    }`;
+
+    toast.innerHTML = `
+        <div class="flex items-center">
+            <i class="mr-2 fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Sidebar Alpine.js component
+function sidebar() {
+    return {
+        open: false,
+        showLogoutModal: false,
+        operationsOpen: false,
+        managementOpen: false,
+        insightsOpen: false,
+        administrationOpen: false,
+        branchesDropdown: false,
+        mobileBranchesOpen: false,
+        selectedBranch: @json(session('current_branch_id') ?
+            Auth::user()->spa->branches->firstWhere('id', session('current_branch_id'))?->name :
+            (Auth::user()->spa->branches->first()?->name ?? 'Select Branch')),
+        selectedBranchId: @json(session('current_branch_id', Auth::user()->spa->branches->first()->id ?? null))
+    };
+}
+
+// Initialize Alpine.js properly
+document.addEventListener('alpine:init', () => {
+    // Make switchBranch function available globally
+    window.switchBranch = switchBranch;
+    window.showToast = showToast;
+});
+</script>
+
 <style>
     [x-cloak] {
         display: none !important;
+    }
+
+    /* Custom scrollbar for branches dropdown */
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    .dark .overflow-y-auto::-webkit-scrollbar-track {
+        background: #374151;
+    }
+
+    .dark .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #6b7280;
     }
 
     /* Smooth transitions */
@@ -250,54 +558,26 @@
         overflow: hidden;
         transition: all 0.3s ease-in-out;
     }
-</style>
 
-<script>
-    // Initialize collapse functionality if not using Alpine.js x-collapse
-    document.addEventListener('alpine:init', () => {
-        if (!Alpine.hasPlugin('collapse')) {
-            Alpine.plugin('collapse', (Alpine) => {
-                Alpine.directive('collapse', (el, { modifiers }) => {
-                    let duration = modifiers.includes('slow') ? 500 :
-                                   modifiers.includes('fast') ? 150 : 300;
+    /* Toast animation */
+    .branch-toast {
+        animation: slideIn 0.3s ease-out;
+    }
 
-                    let hide = () => {
-                        el.style.height = el.scrollHeight + 'px';
-                        el.offsetHeight; // force reflow
-                        el.style.height = '0px';
-                        el.style.opacity = '0';
-                    };
-
-                    let show = () => {
-                        el.style.height = '0px';
-                        el.offsetHeight; // force reflow
-                        el.style.height = el.scrollHeight + 'px';
-                        el.style.opacity = '1';
-
-                        setTimeout(() => {
-                            if (getComputedStyle(el).height !== '0px') {
-                                el.style.height = 'auto';
-                            }
-                        }, duration);
-                    };
-
-                    el.style.transition = `height ${duration}ms ease, opacity ${duration}ms ease`;
-
-                    if (!el._x_isShown) {
-                        hide();
-                    }
-
-                    el._x_isShown = Alpine.reactive({ value: el._x_isShown });
-
-                    Alpine.effect(() => {
-                        if (el._x_isShown.value) {
-                            show();
-                        } else {
-                            hide();
-                        }
-                    });
-                });
-            });
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
         }
-    });
-</script>
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Main branch icon styling */
+    .relative .fa-crown {
+        font-size: 0.5rem;
+        filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+    }
+</style>

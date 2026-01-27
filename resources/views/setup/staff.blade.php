@@ -1,24 +1,32 @@
 <x-guest-layout>
     <div class="max-w-4xl mx-auto">
-        <div class="text-center mb-10">
-            <div class="flex justify-between items-center mb-6">
-                <a href="{{ route('setup.branches') }}" class="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    Back to Branches
-                </a>
-                <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
-                    Staff - {{ $branch->name }}
-                </h2>
-                <div class="w-20"></div>
-            </div>
+        <div class="relative mb-10 text-center">
+            <!-- Back Button -->
+            <a
+                href="{{ url('/') }}"
+                class="absolute left-0 top-1/2 -translate-y-1/2 inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200"
+            >
+                <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
+            </a>
+
+            <!-- Logo -->
+            <img
+                src="{{ asset('images/1.png') }}"
+                alt="Levictas"
+                class="h-16 mx-auto rounded-md"
+            />
+
+            <!-- Title -->
+            <h2 class="mt-4 text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
+                Staff – {{ $branch->name }}
+            </h2>
         </div>
+
             <div class="grid grid-cols-1 gap-6">
                 <!-- Add Staff Card -->
                 <div>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+                    <div class="p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
+                        <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">
                             Add New Staff
                         </h3>
 
@@ -26,7 +34,7 @@
                             @csrf
 
                             <div>
-                                <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                <label for="name" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Full Name *
                                 </label>
                                 <input
@@ -43,7 +51,7 @@
                             </div>
 
                             <div>
-                                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                <label for="email" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Email Address *
                                 </label>
                                 <input
@@ -60,7 +68,7 @@
                             </div>
 
                             <div>
-                                <label for="role" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                <label for="role" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Role *
                                 </label>
                                 <select
@@ -95,8 +103,8 @@
 
                 <!-- Staff List -->
                 <div>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+                    <div class="p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
+                        <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">
                             Branch Staff
                         </h3>
 
@@ -107,8 +115,8 @@
                         @else
                             <div class="space-y-3">
                                 @foreach($branchUsers as $user)
-                                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                                        <div class="flex justify-between items-start">
+                                    <div class="p-4 border border-gray-200 rounded-lg dark:border-gray-700">
+                                        <div class="flex items-start justify-between">
                                             <div>
                                                 <h4 class="font-semibold text-gray-800 dark:text-white">
                                                     {{ $user->name }}
@@ -116,7 +124,7 @@
                                                 <p class="text-sm text-gray-600 dark:text-gray-400">
                                                     {{ $user->email }}
                                                 </p>
-                                                <div class="mt-2 flex gap-2">
+                                                <div class="flex gap-2 mt-2">
                                                     @forelse($user->getRoleNames() as $role)
                                                         <span class="inline-block px-2 py-1 text-xs font-semibold text-white bg-[#8B7355] rounded">
                                                             {{ ucfirst($role) }}
