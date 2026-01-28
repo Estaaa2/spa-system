@@ -1,4 +1,4 @@
-<div x-data="sidebar()" class="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+<div x-data="sidebar()" class="flex h-screen bg-gray-100 dark:bg-gray-900">
 
     <!-- MOBILE TOPBAR -->
     <div class="fixed top-0 z-40 flex items-center justify-between w-full px-4 py-3 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
@@ -25,7 +25,6 @@
                  x-transition:leave-end="transform opacity-0 scale-95"
                  class="absolute right-0 z-50 w-56 mt-2 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
                 <div class="py-1" role="menu" aria-orientation="vertical">
-                    <!-- Current Branch Indicator -->
                     <div class="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
                         SWITCH BRANCH
                     </div>
@@ -71,8 +70,8 @@
 
     <!-- SIDEBAR -->
     <aside
-        class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r md:relative md:translate-x-0 dark:bg-gray-800 dark:border-gray-700"
-        :class="open ? 'translate-x-0' : '-translate-x-screen'"
+        class="fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 transform bg-white border-r dark:bg-gray-800 dark:border-gray-700 md:translate-x-0"
+        :class="open ? 'translate-x-0' : '-translate-x-full'"
     >
         <div class="flex flex-col h-full">
             <!-- Brand with Branch Switcher -->
@@ -215,16 +214,16 @@
                 @endif
             </div>
 
-            <!-- Navigation -->
+            <!-- Navigation (scrollable) -->
             <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-                <!-- 1. Dashboard -->
+                <!-- Dashboard -->
                 <div class="mb-2">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         Dashboard
                     </x-nav-link>
                 </div>
 
-                <!-- 2. Operations -->
+                <!-- Operations -->
                 <div class="mb-2">
                     <button @click="operationsOpen = !operationsOpen"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
@@ -249,7 +248,7 @@
                     </div>
                 </div>
 
-                <!-- 3. Management -->
+                <!-- Management -->
                 <div class="mb-2">
                     <button @click="managementOpen = !managementOpen"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
@@ -271,7 +270,7 @@
                     </div>
                 </div>
 
-                <!-- 4. Insights -->
+                <!-- Insights -->
                 <div class="mb-2">
                     <button @click="insightsOpen = !insightsOpen"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
@@ -290,7 +289,7 @@
                     </div>
                 </div>
 
-                <!-- 5. Administration (Owner/Admin Only) -->
+                <!-- Administration -->
                 @can('view-admin-section')
                 <div class="mb-2">
                     <button @click="administrationOpen = !administrationOpen"
@@ -315,7 +314,7 @@
                 @endcan
             </nav>
 
-            <!-- User Info and Logout -->
+            <!-- USER INFO pinned at bottom -->
             <div class="flex-shrink-0 p-3 border-t dark:border-gray-700">
                 <div class="flex items-center justify-between">
                     <div class="flex-1">
@@ -323,7 +322,6 @@
                         <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</p>
                     </div>
 
-                    <!-- Logout Button -->
                     <button type="button"
                             @click="showLogoutModal = true"
                             class="flex items-center justify-center text-gray-600 transition-colors rounded-full w-9 h-9 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -332,14 +330,15 @@
                     </button>
                 </div>
             </div>
+
         </div>
     </aside>
 
-    <!-- OVERLAY for Mobile Menu -->
+    <!-- OVERLAY for Mobile -->
     <div
         x-show="open"
         @click="open = false"
-        class="fixed inset-0 z-40 bg-black bg-opacity-40 md:hidden"
+        class="fixed inset-0 z-30 bg-black bg-opacity-40 md:hidden"
     ></div>
 
     <!-- Logout Confirmation Modal -->
@@ -354,7 +353,6 @@
              x-transition:leave-start="opacity-100 transform scale-100"
              x-transition:leave-end="opacity-0 transform scale-95">
 
-            <!-- Modal Header -->
             <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     Confirm Logout
@@ -365,7 +363,6 @@
                 </button>
             </div>
 
-            <!-- Modal Body -->
             <div class="px-6 py-6">
                 <div class="flex items-start">
                     <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 rounded-full dark:bg-red-900/30">
@@ -380,7 +377,6 @@
                 </div>
             </div>
 
-            <!-- Modal Footer -->
             <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
                 <div class="flex justify-end space-x-3">
                     <button @click="showLogoutModal = false"
@@ -399,8 +395,8 @@
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
-    <main class="flex-1 overflow-y-auto">
+    <!-- MAIN CONTENT (only this scrolls) -->
+    <main class="flex-1 h-screen overflow-y-auto md:ml-64">
         <div class="p-4 pt-16 md:p-4 md:pt-4">
             @yield('content')
         </div>
@@ -409,15 +405,12 @@
 </div>
 
 <script>
-// Function to handle branch switching
 function switchBranch(branchId) {
-    // Show loading state
     const button = event.target.closest('button');
     const originalContent = button.innerHTML;
     button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     button.disabled = true;
 
-    // Make AJAX request to switch branch - using SINGULAR '/branch/switch' route
     fetch('/branch/switch', {
         method: 'POST',
         headers: {
@@ -428,20 +421,13 @@ function switchBranch(branchId) {
         body: JSON.stringify({ branch_id: branchId })
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
+        if (!response.ok) throw new Error('Network response was not ok');
         return response.json();
     })
     .then(data => {
         if (data.success) {
-            // Show success message
             showToast('Branch switched successfully', 'success');
-
-            // Reload the page after a short delay
-            setTimeout(() => {
-                window.location.reload();
-            }, 800);
+            setTimeout(() => window.location.reload(), 800);
         } else {
             showToast(data.message || 'Failed to switch branch', 'error');
             button.innerHTML = originalContent;
@@ -456,9 +442,7 @@ function switchBranch(branchId) {
     });
 }
 
-// Toast notification function
 function showToast(message, type = 'info') {
-    // Remove existing toasts
     const existingToasts = document.querySelectorAll('.branch-toast');
     existingToasts.forEach(toast => toast.remove());
 
@@ -478,14 +462,12 @@ function showToast(message, type = 'info') {
 
     document.body.appendChild(toast);
 
-    // Auto remove after 3 seconds
     setTimeout(() => {
         toast.style.transform = 'translateX(100%)';
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
 
-// Sidebar Alpine.js component
 function sidebar() {
     return {
         open: false,
@@ -503,74 +485,41 @@ function sidebar() {
     };
 }
 
-// Initialize Alpine.js properly
 document.addEventListener('alpine:init', () => {
-    // Make switchBranch function available globally
     window.switchBranch = switchBranch;
     window.showToast = showToast;
 });
 </script>
 
 <style>
-    [x-cloak] {
-        display: none !important;
-    }
+[x-cloak] { display: none !important; }
 
-    /* Custom scrollbar for branches dropdown */
-    .overflow-y-auto::-webkit-scrollbar {
-        width: 6px;
-    }
+.overflow-y-auto::-webkit-scrollbar { width: 6px; }
+.overflow-y-auto::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+.overflow-y-auto::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+.dark .overflow-y-auto::-webkit-scrollbar-track { background: #374151; }
+.dark .overflow-y-auto::-webkit-scrollbar-thumb { background: #6b7280; }
 
-    .overflow-y-auto::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-    }
+.transition {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
 
-    .overflow-y-auto::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 3px;
-    }
+[x-collapse] {
+    overflow: hidden;
+    transition: all 0.3s ease-in-out;
+}
 
-    .dark .overflow-y-auto::-webkit-scrollbar-track {
-        background: #374151;
-    }
+.branch-toast { animation: slideIn 0.3s ease-out; }
 
-    .dark .overflow-y-auto::-webkit-scrollbar-thumb {
-        background: #6b7280;
-    }
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
 
-    /* Smooth transitions */
-    .transition {
-        transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 150ms;
-    }
-
-    /* Dropdown animation */
-    [x-collapse] {
-        overflow: hidden;
-        transition: all 0.3s ease-in-out;
-    }
-
-    /* Toast animation */
-    .branch-toast {
-        animation: slideIn 0.3s ease-out;
-    }
-
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-
-    /* Main branch icon styling */
-    .relative .fa-crown {
-        font-size: 0.5rem;
-        filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
-    }
+.relative .fa-crown {
+    font-size: 0.5rem;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+}
 </style>
