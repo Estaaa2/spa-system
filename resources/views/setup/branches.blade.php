@@ -1,7 +1,7 @@
 <x-guest-layout>
-    <div class="max-w-5xl px-4 mx-auto lg:px-0">
+    <div class="max-w-5xl mx-auto lg:px-0">
         <!-- Header -->
-        <div class="relative mb-10 text-center">
+        <div class="relative mb-5 text-center">
             <a href="{{ url('/') }}" class="absolute left-0 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
                     <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
                 </a>
@@ -25,7 +25,7 @@
             <!-- Add New Branch (LEFT) -->
             <div class="w-full">
                 <div class="w-full p-6 bg-white rounded-lg shadow-lg dark:bg-gray-800">
-                    <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">
+                    <h3 class="mb-2 text-lg font-semibold text-gray-800 dark:text-white">
                         Add New Branch
                     </h3>
 

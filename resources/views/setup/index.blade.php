@@ -1,7 +1,11 @@
 <x-guest-layout>
     <div class="max-w-2xl mx-auto">
         <!-- Header -->
-        <div class="mb-10 text-center">
+        <div class="relative mb-10 text-center">
+            <a href="{{ url('/') }}" class="absolute left-0 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
+                    <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
+                </a>
+
             <img
                 src="{{ asset('images/1.png') }}"
                 alt="Levictas"

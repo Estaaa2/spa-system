@@ -58,7 +58,7 @@
                     <div class="font-semibold">
                         {{ $startOfWeek->format('F d, Y') }} - {{ $startOfWeek->copy()->endOfWeek()->format('F d, Y') }}
                     </div>
-                    <button class="px-4 py-2 text-white bg-blue-500 rounded">+ Set Availability</button>
+                    <button class="px-4 py-2 text-sm text-white rounded-lg bg-[#8B7355]">+ Set Availability</button>
                 </div>
 
                 <div class="grid grid-cols-7 gap-2">

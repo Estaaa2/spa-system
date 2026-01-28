@@ -1,25 +1,25 @@
 <x-guest-layout>
     <div class="px-4 mx-auto max-w-7xl">
-        <div class="relative mb-10 text-center">
-            <a href="{{ url('/') }}" class="absolute left-0 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
-                    <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
-                </a>
-            <img
-                src="{{ asset('images/1.png') }}"
-                alt="Levictas"
-                class="h-16 mx-auto mt-10 rounded-md"
-            />
+        <div class="relative mb-10">
+    <!-- Back Button - Now outside the centered content -->
+    <a href="{{ url('/') }}" class="absolute left-0 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200 z-10">
+        <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
+    </a>
 
-            <div class="flex items-center justify-between mb-6">
+    <!-- Centered Content -->
+    <div class="text-center">
+        <img
+            src="{{ asset('images/1.png') }}"
+            alt="Levictas"
+            class="h-16 m-10 mx-auto mt-10 rounded-md"
+        />
 
-
-                <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
-                    Operating Hours - {{ $branch->name }}
-                </h2>
-
-                <div class="w-20"></div>
-            </div>
-        </div>
+        <h2 class="mt-3 text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
+            Operating Hours
+        </h2>
+        <p class="text-lg font-medium text-gray-700 dark:text-gray-300">{{ $branch->name }}</p>
+    </div>
+</div>
 
         <!-- MAIN CARD (unchanged) -->
         <div class="w-full p-8 bg-white rounded-lg shadow-lg dark:bg-gray-800">

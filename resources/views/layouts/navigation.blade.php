@@ -79,7 +79,7 @@
             <div class="flex-shrink-0 border-b dark:border-gray-700">
                 <!-- Spa Brand -->
                 <div class="px-6 py-4">
-                    <a href="{{ url('/') }}" class="flex items-center space-x-3">
+                    <a href="{{ url('/dashboard') }}" class="flex items-center space-x-3">
                         <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
                         <div>
                             <span class="text-2xl font-semibold text-[#8B7355] dark:text-white font-['Playfair_Display']">
@@ -173,15 +173,9 @@
                                                     @endif
                                                 </div>
                                             </div>
-                                            <div class="flex flex-col items-end">
+                                            <div class="flex items-end">
                                                 <span x-show="selectedBranchId == {{ $branch->id }}" class="text-blue-600 dark:text-blue-400">
                                                     <i class="fa-solid fa-check"></i>
-                                                </span>
-                                                <span class="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                                                    @php
-                                                        $userCount = $branch->users()->count();
-                                                    @endphp
-                                                    {{ $userCount }} {{ Str::plural('user', $userCount) }}
                                                 </span>
                                             </div>
                                         </button>
@@ -268,7 +262,7 @@
                         <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')">
                             Services
                         </x-nav-link>
-                        <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
+                        <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.index*')">
                             Staff
                         </x-nav-link>
                         <x-nav-link :href="route('branches.index')" :active="request()->routeIs('branches.*')">
@@ -327,7 +321,6 @@
                     <div class="flex-1">
                         <p class="text-sm font-medium text-gray-800 dark:text-white">{{ Auth::user()->name }}</p>
                         <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</p>
-                        <p class="text-xs text-gray-400 dark:text-gray-500"></p>
                     </div>
 
                     <!-- Logout Button -->

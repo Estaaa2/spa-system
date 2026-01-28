@@ -123,11 +123,11 @@
                                 @endphp
 
                                 @if($role)
-                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                    <span class="px-3 py-1 text-xs font-medium text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-200">
                                         {{ ucfirst($role) }}
                                     </span>
                                 @else
-                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-500">
+                                    <span class="px-3 py-1 text-xs font-medium text-gray-500 bg-gray-200 rounded-full">
                                         No role
                                     </span>
                                 @endif
@@ -148,8 +148,8 @@
                                 <div class="flex items-center gap-2">
                                     <!-- Edit Button -->
                                     <button onclick="editStaff({{ $member->id }})"
-                                            class="p-2 text-gray-600 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600">
-                                        <i class="w-4 h-4 fas fa-edit"></i>
+                                        class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                        Edit
                                     </button>
 
                                     <!-- Delete Form -->
@@ -158,8 +158,8 @@
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit"
-                                                class="p-2 text-red-600 transition-colors bg-red-100 rounded-lg hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50">
-                                            <i class="w-4 h-4 fas fa-trash"></i>
+                                        class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                            Delete
                                         </button>
                                     </form>
                                 </div>
