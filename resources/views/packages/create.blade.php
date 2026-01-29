@@ -30,6 +30,26 @@
                        required>
             </div>
 
+            <!-- Included Treatments -->
+            <div class="mb-6">
+                <label for="included_treatments" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                    Included Treatments
+                </label>
+                <select id="included_treatments" name="included_treatments[]" multiple
+                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+                    @foreach($treatments as $treatment)
+                        <option value="{{ $treatment->id }}"
+                                data-duration="{{ $treatment->duration }}"
+                                data-price="{{ $treatment->price }}">
+                            {{ $treatment->name }} ({{ $treatment->duration }} mins - ₱{{ number_format($treatment->price, 2) }})
+                        </option>
+                    @endforeach
+                </select>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Hold <kbd class="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Ctrl</kbd> or <kbd class="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Cmd</kbd> to select multiple treatments
+                </p>
+            </div>
+            
             <!-- Duration & Price -->
             <div class="grid grid-cols-1 gap-6 mb-6 md:grid-cols-2">
                 <!-- Duration -->
@@ -53,24 +73,6 @@
                            placeholder="e.g., 3500.00"
                            required>
                 </div>
-            </div>
-
-            <!-- Included Treatments -->
-            <div class="mb-6">
-                <label for="included_treatments" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                    Included Treatments
-                </label>
-                <select id="included_treatments" name="included_treatments[]" multiple
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-                    @foreach($treatments as $treatment)
-                        <option value="{{ $treatment->id }}">
-                            {{ $treatment->name }} ({{ $treatment->duration }} mins - ₱{{ number_format($treatment->price, 2) }})
-                        </option>
-                    @endforeach
-                </select>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Hold <kbd class="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Ctrl</kbd> or <kbd class="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Cmd</kbd> to select multiple treatments
-                </p>
             </div>
 
             <!-- Description -->
@@ -97,4 +99,34 @@
         </form>
     </div>
 </div>
+
+// JavaScript to auto-calculate total duration and price based on selected treatments.
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const treatmentSelect = document.getElementById('included_treatments');
+    const durationInput = document.getElementById('duration');
+    const priceInput = document.getElementById('price');
+
+    function updateTotals() {
+        let totalDuration = 0;
+        let totalPrice = 0;
+
+        [...treatmentSelect.selectedOptions].forEach(option => {
+            totalDuration += parseInt(option.dataset.duration) || 0;
+            totalPrice += parseFloat(option.dataset.price) || 0;
+        });
+
+        // Update the input fields as guidance
+        durationInput.value = totalDuration;
+        priceInput.value = totalPrice.toFixed(2);
+    }
+
+    // Listen for changes
+    treatmentSelect.addEventListener('change', updateTotals);
+
+    // Optional: initialize totals if some treatments are pre-selected
+    updateTotals();
+});
+</script>
+
 @endsection

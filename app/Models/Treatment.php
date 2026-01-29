@@ -31,8 +31,9 @@ class Treatment extends Model
 
     public function packages()
     {
-        return $this->belongsToMany(Package::class)
-                    ->withPivot('quantity');
+        return $this->belongsToMany(Package::class, 'package_treatment')
+                    ->withPivot('quantity')
+                    ->withTimestamps();
     }
     
     public function getServiceTypeLabelAttribute()

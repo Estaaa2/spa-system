@@ -61,6 +61,7 @@ class BookingController extends Controller
             'customer_email'   => 'required|email',
             'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required',
+            'status' => 'required|string|in:pending,reserved,confirmed,completed,cancelled',
         ]);
 
         // Check therapist availability within the same spa & branch
@@ -83,7 +84,6 @@ class BookingController extends Controller
             'spa_id' => $spaId,
             'branch_id' => $branchId,
             'created_by_user_id' => $user->id,
-            'status' => 'reserved',
         ]);
 
         return redirect()

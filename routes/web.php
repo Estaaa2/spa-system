@@ -110,12 +110,11 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
+    // Treatments and Packages (Inside Services)
     Route::resource('treatments', TreatmentController::class)
         ->except(['index']);
-
     Route::resource('packages', PackageController::class)
-        ->except(['index', 'show']);
-
+        ->except(['index']);
     Route::get('/services', [ServiceController::class, 'index'])->name('services.index');
 
     // Staff

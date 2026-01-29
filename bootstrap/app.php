@@ -19,6 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'owner-only' => \App\Http\Middleware\OwnerOnly::class,
         ]);
     })
+    ->withMiddleware(function ($middleware) {
+        $middleware->web(append: [
+            \App\Http\Middleware\EnsureCurrentBranch::class,
+        ]);
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();

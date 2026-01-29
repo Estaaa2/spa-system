@@ -209,10 +209,10 @@
                             </td>
                             <td class="px-6 py-4 text-end">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="{{ route('packages.edit', $package->id) }}"
-                                       class="p-2 text-gray-600 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600">
+                                    <button onclick="editPackage({{ $package->id }})"
+                                        class="p-2 text-gray-600 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600">
                                         <i class="w-4 h-4 fas fa-edit"></i>
-                                    </a>
+                                    </button>
                                     <form action="{{ route('packages.destroy', $package->id) }}" method="POST"
                                           onsubmit="return confirm('Delete this package?')">
                                         @csrf
@@ -369,6 +369,51 @@
     </div>
 </div>
 
+<!-- Edit Package Modal -->
+<div id="editPackageModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
+
+        <!-- Modal panel -->
+        <div class="inline-block w-full max-w-2xl my-8 overflow-hidden text-left align-middle transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800">
+            <form id="editPackageForm" method="POST">
+                @csrf
+                @method('PUT')
+
+                <div class="px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Edit Package</h3>
+                        <button type="button" onclick="closeEditPackageModal()"
+                                class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                    <div class="space-y-4" id="editPackageFormContent">
+                        <!-- Form fields will be injected via JS -->
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900">
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="closeEditPackageModal()"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-md hover:bg-[#7A6348]">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Success Toast Notification -->
 @if(session('success'))
 <div class="fixed bottom-0 right-0 z-50 p-4" id="toast-container">
@@ -443,6 +488,100 @@ function editTreatment(treatmentId) {
 
 function closeEditTreatmentModal() {
     document.getElementById('editTreatmentModal').classList.add('hidden');
+}
+
+// Edit Package Modal.
+function editPackage(packageId) {
+    const form = document.getElementById('editPackageForm');
+    const formContent = document.getElementById('editPackageFormContent');
+
+    // Inject form fields
+    formContent.innerHTML = `
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Package Name *</label>
+            <input type="text" name="name" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+        </div>
+
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Included Treatments</label>
+            <select name="included_treatments[]" id="editIncludedTreatments" multiple class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+                @foreach($treatments as $treatment)
+                <option value="{{ $treatment->id }}" data-duration="{{ $treatment->duration }}" data-price="{{ $treatment->price }}">
+                    {{ $treatment->name }} ({{ $treatment->duration }} mins - ₱{{ number_format($treatment->price, 2) }})
+                </option>
+                @endforeach
+            </select>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Hold Ctrl / Cmd to select multiple treatments
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Duration (mins) *</label>
+                <input type="number" name="duration" id="editDuration" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+            </div>
+            <div>
+                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Price (₱) *</label>
+                <input type="number" name="price" id="editPrice" step="0.01" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+            </div>
+        </div>
+
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Description</label>
+            <textarea name="description" rows="3" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]"></textarea>
+        </div>
+    `;
+
+    form.action = `/packages/${packageId}`;
+
+    // Fetch package data
+    fetch(`/packages/${packageId}`) // should return JSON with package info
+        .then(res => res.json())
+        .then(data => {
+            form.querySelector('[name="name"]').value = data.name;
+            form.querySelector('[name="duration"]').value = data.duration;
+            form.querySelector('[name="price"]').value = data.price;
+            form.querySelector('[name="description"]').value = data.description || '';
+
+            // Pre-select treatments
+            const select = document.getElementById('editIncludedTreatments');
+            [...select.options].forEach(option => {
+                option.selected = data.included_treatments.includes(parseInt(option.value));
+            });
+
+            // Optional: update duration/price if you want auto-sum like create form
+            updateEditPackageTotals();
+        });
+
+    document.getElementById('editPackageModal').classList.remove('hidden');
+
+    // Listen for treatment changes
+    const select = document.getElementById('editIncludedTreatments');
+    select.addEventListener('change', updateEditPackageTotals);
+}
+
+// Close modal
+function closeEditPackageModal() {
+    document.getElementById('editPackageModal').classList.add('hidden');
+}
+
+// Auto-calculate totals
+function updateEditPackageTotals() {
+    const select = document.getElementById('editIncludedTreatments');
+    const durationInput = document.getElementById('editDuration');
+    const priceInput = document.getElementById('editPrice');
+
+    let totalDuration = 0;
+    let totalPrice = 0;
+
+    [...select.selectedOptions].forEach(opt => {
+        totalDuration += parseInt(opt.dataset.duration) || 0;
+        totalPrice += parseFloat(opt.dataset.price) || 0;
+    });
+
+    durationInput.value = totalDuration;
+    priceInput.value = totalPrice.toFixed(2);
 }
 
 function updateClock() {

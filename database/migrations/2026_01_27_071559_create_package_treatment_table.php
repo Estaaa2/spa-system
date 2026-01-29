@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('treatment_id')->constrained()->cascadeOnDelete();
             $table->integer('quantity')->default(1);
             $table->unique(['package_id', 'treatment_id']);
+            $table->timestamps();
         });
     }
 

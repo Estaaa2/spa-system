@@ -150,9 +150,9 @@
                                 Date *
                             </label>
                             <input type="date" id="appointment_date" name="appointment_date"
-                                   value="{{ old('appointment_date', $booking->appointment_date) }}"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
-                                   required>
+                                value="{{ old('appointment_date', $booking->appointment_date->format('Y-m-d')) }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
+                                required>
                             @error('appointment_date')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
@@ -166,12 +166,12 @@
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
                                     required>
                                 <option value="">Select Time</option>
-                                <option value="09:00" {{ old('appointment_time', $booking->appointment_time) == '09:00' ? 'selected' : '' }}>09:00 AM</option>
-                                <option value="10:00" {{ old('appointment_time', $booking->appointment_time) == '10:00' ? 'selected' : '' }}>10:00 AM</option>
-                                <option value="11:00" {{ old('appointment_time', $booking->appointment_time) == '11:00' ? 'selected' : '' }}>11:00 AM</option>
-                                <option value="14:00" {{ old('appointment_time', $booking->appointment_time) == '14:00' ? 'selected' : '' }}>02:00 PM</option>
-                                <option value="15:00" {{ old('appointment_time', $booking->appointment_time) == '15:00' ? 'selected' : '' }}>03:00 PM</option>
-                                <option value="16:00" {{ old('appointment_time', $booking->appointment_time) == '16:00' ? 'selected' : '' }}>04:00 PM</option>
+                                <option value="09:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '09:00' ? 'selected' : '' }}>09:00 AM</option>
+                                <option value="10:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '10:00' ? 'selected' : '' }}>10:00 AM</option>
+                                <option value="11:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '11:00' ? 'selected' : '' }}>11:00 AM</option>
+                                <option value="14:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '14:00' ? 'selected' : '' }}>02:00 PM</option>
+                                <option value="15:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '15:00' ? 'selected' : '' }}>03:00 PM</option>
+                                <option value="16:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '16:00' ? 'selected' : '' }}>04:00 PM</option>
                             </select>
                             @error('appointment_time')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -185,9 +185,9 @@
                             <select id="status" name="status"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
                                     required>
-                                <option value="pending" {{ old('status', $booking->status) == 'pending' ? 'selected' : '' }}>Pending</option>
                                 <option value="reserved" {{ old('status', $booking->status) == 'reserved' ? 'selected' : '' }}>Reserved</option>
                                 <option value="confirmed" {{ old('status', $booking->status) == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
+                                <option value="ongoing" {{ old('status', $booking->status) == 'ongoing' ? 'selected' : '' }}>Ongoing</option>
                                 <option value="completed" {{ old('status', $booking->status) == 'completed' ? 'selected' : '' }}>Completed</option>
                                 <option value="cancelled" {{ old('status', $booking->status) == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                             </select>

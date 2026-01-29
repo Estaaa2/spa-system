@@ -20,20 +20,20 @@ class StaffController extends Controller
     {
         $user = Auth::user();
 
-        $query = Staff::with(['user.roles', 'branch'])->where('spa_id', $user->spa_id);
+        $branchId = session('current_branch_id');
 
-        if ($user->branch_id) {
-            $query->where('branch_id', $user->branch_id);
+        if (! $branchId) {
+            abort(409, 'Branch context not initialized');
         }
 
-        if ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
-        }
-
-        $staff = $query->latest()->get();
+        $staff = Staff::with(['user.roles', 'branch'])
+            ->where('spa_id', $user->spa_id)
+            ->where('branch_id', $branchId)
+            ->latest()
+            ->get();
 
         $branches = Branch::where('spa_id', $user->spa_id)->get();
-        
+
         return view('staff.index', compact('staff', 'branches'));
     }
 

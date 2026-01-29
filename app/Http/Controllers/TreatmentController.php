@@ -7,10 +7,10 @@ use Illuminate\Http\Request;
 
 class TreatmentController extends Controller
 {
-public function create()
-{
-    return view('treatments.create');
-}
+    public function create()
+    {
+        return view('treatments.create');
+    }
 
     public function store(Request $request)
     {

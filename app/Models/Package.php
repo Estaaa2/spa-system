@@ -10,15 +10,34 @@ class Package extends Model
     use HasFactory;
 
     protected $fillable = [
+        'spa_id',
+        'branch_id',
         'name',
-        'duration',
+        'total_duration',
         'price',
-        'included_treatments',
         'description',
     ];
 
-    // Cast JSON field to array
-    protected $casts = [
-        'included_treatments' => 'array',
-    ];
+    // Treatments included in this package
+    public function treatments()
+    {
+        return $this->belongsToMany(Treatment::class, 'package_treatment')
+                    ->withPivot('quantity')
+                    ->withTimestamps();
+    }
+
+    // Optional helper: get total duration
+    public function getDurationAttribute()
+    {
+        if ($this->total_duration) {
+            return $this->total_duration;
+        }
+        return $this->treatments->sum('duration');
+    }
+
+    // Optional helper: get treatment IDs easily
+    public function getIncludedTreatmentsAttribute()
+    {
+        return $this->treatments->pluck('id')->toArray();
+    }
 }
