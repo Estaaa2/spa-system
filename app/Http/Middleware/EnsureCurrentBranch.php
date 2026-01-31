@@ -3,17 +3,10 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCurrentBranch
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle($request, Closure $next)
     {
         $user = Auth::user();
@@ -30,12 +23,20 @@ class EnsureCurrentBranch
 
         // Owner: ensure session exists, otherwise pick first branch
         if ($user->hasRole('owner') && ! session()->has('current_branch_id')) {
-            $firstBranch = $user->spa->branches->first();
-            if ($firstBranch) {
-                session(['current_branch_id' => $firstBranch->id]);
+
+            // Owner may not have a spa yet (setup flow)
+            $spa = $user->ownedSpas()->first();
+
+            if ($spa) {
+                $firstBranch = $spa->branches()->first();
+
+                if ($firstBranch) {
+                    session(['current_branch_id' => $firstBranch->id]);
+                }
             }
         }
 
+        // ✅ ALWAYS continue the request
         return $next($request);
     }
 }

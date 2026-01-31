@@ -90,15 +90,20 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-                        @forelse($therapists as $therapist)
+                        @php
+                            // Only show therapists that are "Available" (appointmentCount < 6)
+                            $availableTherapists = $therapists->filter(function ($t) {
+                                return ($t->assigned_bookings_count ?? 0) < 6;
+                            });
+                        @endphp
+
+                        @forelse($availableTherapists->filter(fn($t) => !empty($t->name)) as $therapist)
                             @php
-                                $appointmentCount = $therapist->assigned_bookings_count;
-                                $availability = $appointmentCount >= 8 ? 'Fully Booked' :
-                                               ($appointmentCount >= 6 ? 'Limited' : 'Available');
-                                $statusColor = $appointmentCount >= 8 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
-                                              ($appointmentCount >= 6 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
-                                              'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300');
+                                $appointmentCount = $therapist->assigned_bookings_count ?? 0;
+                                $availability = 'Available';
+                                $statusColor = 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
                             @endphp
+
                             <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
@@ -111,27 +116,41 @@
                                         </div>
                                     </div>
                                 </td>
+
                                 <td class="px-6 py-4">
                                     <span class="px-3 py-1.5 text-xs font-medium rounded-full {{ $statusColor }}">
                                         {{ $availability }}
                                     </span>
                                 </td>
+
                                 <td class="px-6 py-4">
                                     <span class="text-sm text-gray-700 dark:text-gray-300">
                                         {{ $appointmentCount }} appointments
                                     </span>
                                 </td>
+
                                 <td class="px-6 py-4">
+                                    @php
+                                        $capacity = 8; // max appointments per therapist per day
+                                        $bookedPct = (int) round(min((($appointmentCount / $capacity) * 100), 100));
+                                        $availablePct = 100 - $bookedPct;
+                                    @endphp
+
                                     <div class="flex items-center gap-3">
                                         <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                                            <div class="h-2.5 rounded-full
-                                                {{ $appointmentCount >= 8 ? 'bg-red-600' :
-                                                   ($appointmentCount >= 6 ? 'bg-yellow-500' : 'bg-green-600') }}"
-                                                 style="width: {{ min($appointmentCount * 12.5, 100) }}%">
+                                            <div
+                                                class="h-2.5 rounded-full
+                                                    {{ $appointmentCount >= 8
+                                                        ? 'bg-red-600'
+                                                        : ($appointmentCount >= 6
+                                                            ? 'bg-yellow-500'
+                                                            : 'bg-green-600') }}"
+                                                style="width: {{ $availablePct }}%">
                                             </div>
                                         </div>
+
                                         <span class="text-xs text-gray-500 dark:text-gray-400">
-                                            {{ min($appointmentCount * 12.5, 100) }}%
+                                            {{ $availablePct }}%
                                         </span>
                                     </div>
                                 </td>

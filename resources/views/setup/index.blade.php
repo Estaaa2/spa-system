@@ -2,8 +2,8 @@
     <div class="max-w-2xl mx-auto">
         <!-- Header -->
         <div class="relative mb-10 text-center">
-            <a href="{{ url('/') }}" class="absolute left-0 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
-                    <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
+            <a href="{{ url('/register') }}" class="absolute left-0 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
+                    <i class="fa-solid fa-circle-chevron-left text-3xl text-[#8B7355]"></i>
                 </a>
 
             <img
@@ -63,8 +63,7 @@
         </div>
 
         <!-- Business Info Form -->
-        <div class="p-8 bg-white rounded-lg shadow-lg dark:bg-gray-800">
-            <form method="POST" action="{{ route('setup.store-spa') }}" class="space-y-6">
+            <form method="POST" action="{{ route('setup.store-spa') }}" class="mb-6 space-y-6">
                 @csrf
 
                 <!-- Spa Name -->
@@ -98,6 +97,5 @@
                     </button>
                 </div>
             </form>
-        </div>
     </div>
 </x-guest-layout>

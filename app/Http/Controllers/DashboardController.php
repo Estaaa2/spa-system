@@ -3,59 +3,98 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
-use App\Models\Staff;
-use Carbon\Carbon;
+use App\Models\User;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // Total appointments
-        $total = Booking::count();
+        $currentBranchId = session('current_branch_id');
 
-        // Completed appointments
-        $completed = Booking::where('status', 'completed')->count();
+        // If branch not set, show safe empty dashboard (prevents wrong/global data)
+        if (! $currentBranchId) {
+            return view('dashboard', [
+                'total' => 0,
+                'completed' => 0,
+                'todayCount' => 0,
+                'pending' => 0,
+                'todayAppointments' => collect(),
+                'topServiceToday' => null,
+                'therapists' => collect(),
+                'lateAppointments' => 0,
+                'noShows' => 0,
+                'overbookedSlots' => 0,
+            ]);
+        }
 
-        // Today's appointments count
-        $todayCount = Booking::whereDate('appointment_date', today())->count();
+        // Base query: everything scoped to current branch
+        $baseBookings = Booking::query()->where('branch_id', $currentBranchId);
 
-        // Pending appointments
-        $pending = Booking::where('status', 'pending')->count();
+        // Total appointments (per branch)
+        $total = (clone $baseBookings)->count();
 
-        // Today's appointments
-        $todayAppointments = Booking::whereDate('appointment_date', today())
+        // Completed appointments (per branch)
+        $completed = (clone $baseBookings)->where('status', 'completed')->count();
+
+        // Today's appointments count (per branch)
+        $todayCount = (clone $baseBookings)->whereDate('appointment_date', today())->count();
+
+        // Pending appointments (per branch)
+        $pending = (clone $baseBookings)->whereIn('status', ['pending', 'reserved'])->count();
+
+        // Today's appointments list (per branch)
+        $todayAppointments = (clone $baseBookings)
+            ->whereDate('appointment_date', today())
             ->orderBy('appointment_time')
-            ->with('therapist')
+            ->with('therapist') // Booking::therapist should be belongsTo(User::class, 'therapist_id')
             ->get();
 
-        // Top service today (without DB facade)
-        $topServiceToday = Booking::whereDate('appointment_date', today())
+        // Top service today (per branch)
+        $topServiceToday = (clone $baseBookings)
+            ->whereDate('appointment_date', today())
             ->selectRaw('service_type, COUNT(*) as count')
             ->groupBy('service_type')
             ->orderByDesc('count')
             ->first();
 
-        // Get therapists from Staff model
-        $therapists = Staff::where('employment_status', 'active')->whereHas('user', function ($query) {
-            $query->role('therapist'); // Spatie helper
-        })->with(['user'])->withCount(['bookings as assigned_bookings_count' => function ($query) {
-            $query->whereDate('appointment_date', today())->whereIn('status', ['reserved', 'confirmed']);
-        }])->get();
+        /**
+         * ✅ THERAPIST AVAILABILITY (PER BRANCH)
+         * We fetch from USERS because bookings.therapist_id references users.id.
+         * We also ensure the therapist belongs to this branch using staff.branch_id.
+         */
+        $therapists = User::query()
+            ->role('therapist') // Spatie role
+            ->whereHas('staff', function ($q) use ($currentBranchId) {
+                $q->where('branch_id', $currentBranchId)
+                  ->where('employment_status', 'active');
+            })
+            ->select(['id', 'name', 'email'])
+            ->withCount([
+                'assignedBookings as assigned_bookings_count' => function ($q) use ($currentBranchId) {
+                    $q->where('branch_id', $currentBranchId)
+                      ->whereDate('appointment_date', today())
+                      // include statuses you consider "counting for today"
+                      ->whereIn('status', ['reserved', 'confirmed']);
+                }
+            ])
+            ->get();
 
-        // Late appointments
-        $lateAppointments = Booking::whereDate('appointment_date', today())
+        // Late appointments (per branch)
+        $lateAppointments = (clone $baseBookings)
+            ->whereDate('appointment_date', today())
             ->where('status', 'confirmed')
             ->whereTime('appointment_time', '<', now()->format('H:i:s'))
             ->count();
 
-        // No shows
-        $noShows = Booking::whereDate('appointment_date', today())
+        // No shows (per branch)
+        $noShows = (clone $baseBookings)
+            ->whereDate('appointment_date', today())
             ->where('status', 'cancelled')
             ->count();
 
-        // Overbooked therapists
-        $overbookedSlots = $therapists->filter(function($therapist) {
-            return $therapist->assigned_bookings_count > 8;
+        // Overbooked therapists (rule: more than 8 today)
+        $overbookedSlots = $therapists->filter(function ($therapist) {
+            return ($therapist->assigned_bookings_count ?? 0) > 8;
         })->count();
 
         return view('dashboard', compact(

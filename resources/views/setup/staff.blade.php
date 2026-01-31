@@ -6,14 +6,14 @@
                 href="{{ url('setup/branches/') }}"
                 class="absolute left-0 top-1/2 -translate-y-1/2 inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200"
             >
-                <i class="fa-solid fa-arrow-left text-2xl text-[#8B7355]"></i>
+                <i class="fa-solid fa-circle-chevron-left text-3xl text-[#8B7355]"></i>
             </a>
 
             <!-- Logo -->
             <img
                 src="{{ asset('images/1.png') }}"
                 alt="Levictas"
-                class="h-16 mx-auto rounded-md"
+                class="h-16 mx-auto mt-10 rounded-md"
             />
 
             <!-- Title -->

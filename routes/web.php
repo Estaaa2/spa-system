@@ -36,11 +36,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Branch Page
+| Schdule Section
 |--------------------------------------------------------------------------
 */
 
-
+Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
+Route::get('/schedule/data', [ScheduleController::class, 'data'])->name('schedule.data');
 
 /*
 |--------------------------------------------------------------------------

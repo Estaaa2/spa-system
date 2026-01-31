@@ -86,12 +86,13 @@ class User extends Authenticatable
 
     public function assignedBookings()
     {
-        return $this->hasMany(Booking::class, 'therapist_id');
+        return $this->hasMany(\App\Models\Booking::class, 'therapist_id');
     }
+
 
     public function staff()
     {
-        return $this->hasOne(Staff::class, 'user_id');
+        return $this->hasOne(\App\Models\Staff::class, 'user_id');
     }
 
     public function currentBranchId(): ?int

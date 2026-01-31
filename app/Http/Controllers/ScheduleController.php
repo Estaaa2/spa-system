@@ -1,79 +1,104 @@
 <?php
-// app/Http/Controllers/ScheduleController.php
+
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Staff;
-use App\Models\StaffAvailability;
-use App\Models\User;
+use App\Models\Booking;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
 {
     public function index(Request $request)
     {
-        // Get the requested week or default to current week
-        $week = $request->input('week');
+        $currentBranchId = session('current_branch_id');
 
-        if ($week) {
-            $startOfWeek = Carbon::parse($week)->startOfWeek();
-        } else {
-            $startOfWeek = Carbon::now()->startOfWeek();
-        }
+        // Week start (Monday)
+        $weekParam = $request->query('week');
+        $startOfWeek = $weekParam
+            ? Carbon::parse($weekParam)->startOfWeek(Carbon::MONDAY)
+            : now()->startOfWeek(Carbon::MONDAY);
 
-        // Calculate end of week
-        $endOfWeek = $startOfWeek->copy()->endOfWeek();
+        $endOfWeek = $startOfWeek->copy()->addDays(6);
 
-        // Get staff with their availabilities for the week
-        $staff = Staff::with(['user.roles', 'branch'])
-            ->whereHas('user')
-            ->where('employment_status', 'active')
+        // ✅ Use 24-hour keys for matching
+        $timeSlotKeys = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
+
+        // Get bookings for the week (per branch)
+        $bookings = Booking::query()
+            ->where('branch_id', $currentBranchId)
+            ->whereBetween('appointment_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->orderBy('appointment_date')
+            ->orderBy('appointment_time')
             ->get();
 
-        // Get availabilities for the week
-        $availabilities = StaffAvailability::whereBetween('date', [$startOfWeek, $endOfWeek])
-            ->get()
-            ->groupBy('user_id');
+        // Build grid: [YYYY-MM-DD][HH:MM] => [bookings...]
+        $grid = [];
+        foreach ($bookings as $b) {
+            $dateKey = Carbon::parse($b->appointment_date)->toDateString();
+            $timeKey = Carbon::parse($b->appointment_time)->format('H:i');
 
-        return view('schedule', [
-            'startOfWeek' => $startOfWeek,
-            'endOfWeek' => $endOfWeek,
-            'staff' => $staff,
-            'availabilities' => $availabilities,
-        ]);
+            // Only place bookings that match your shown time slots
+            if (!in_array($timeKey, $timeSlotKeys, true)) {
+                continue;
+            }
+
+            $grid[$dateKey][$timeKey][] = $b;
+        }
+
+        $prevWeek = $startOfWeek->copy()->subWeek()->toDateString();
+        $nextWeek = $startOfWeek->copy()->addWeek()->toDateString();
+
+        return view('schedule', compact(
+            'startOfWeek',
+            'endOfWeek',
+            'prevWeek',
+            'nextWeek',
+            'timeSlotKeys',
+            'grid'
+        ));
     }
 
-    public function create()
+    // Optional realtime endpoint (returns JSON for the current week)
+    public function data(Request $request)
     {
-        $staff = Staff::with('user')->where('employment_status', 'active')->get();
-        return view('schedules.create', compact('staff'));
-    }
+        $currentBranchId = session('current_branch_id');
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'date' => 'required|date',
-            'start_time' => 'required',
-            'end_time' => 'required',
-            'status' => 'required|in:available,unavailable',
+        $weekParam = $request->query('week');
+        $startOfWeek = $weekParam
+            ? Carbon::parse($weekParam)->startOfWeek(Carbon::MONDAY)
+            : now()->startOfWeek(Carbon::MONDAY);
+
+        $endOfWeek = $startOfWeek->copy()->addDays(6);
+
+        $timeSlotKeys = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
+
+        $bookings = Booking::query()
+            ->where('branch_id', $currentBranchId)
+            ->whereBetween('appointment_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->orderBy('appointment_date')
+            ->orderBy('appointment_time')
+            ->get(['id','appointment_date','appointment_time','status','service_type','treatment','customer_name','customer_phone','therapist_id']);
+
+        $grid = [];
+        foreach ($bookings as $b) {
+            $dateKey = Carbon::parse($b->appointment_date)->toDateString();
+            $timeKey = Carbon::parse($b->appointment_time)->format('H:i');
+
+            if (!in_array($timeKey, $timeSlotKeys, true)) continue;
+
+            $grid[$dateKey][$timeKey][] = [
+                'id' => $b->id,
+                'status' => $b->status,
+                'service_type' => $b->service_type,
+                'treatment' => $b->treatment,
+                'customer_name' => $b->customer_name,
+                'customer_phone' => $b->customer_phone,
+            ];
+        }
+
+        return response()->json([
+            'startOfWeek' => $startOfWeek->toDateString(),
+            'grid' => $grid,
         ]);
-
-        StaffAvailability::create([
-            'user_id' => $request->user_id,
-            'branch_id' => auth()->user()->branch_id,
-            'date' => $request->date,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'status' => $request->status,
-        ]);
-
-        return redirect()->route('schedule.index')->with('success', 'Schedule added successfully');
-    }
-
-    public function show($id)
-    {
-        $availability = StaffAvailability::with('user', 'branch')->findOrFail($id);
-        return view('schedules.show', compact('availability'));
     }
 }
