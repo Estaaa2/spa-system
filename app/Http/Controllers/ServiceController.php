@@ -23,3 +23,4 @@ class ServiceController extends Controller
         return view('services.index', compact('treatments', 'packages'));
     }
 }
+
