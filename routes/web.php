@@ -103,6 +103,21 @@ Route::middleware('auth')->group(function () {
 
     // Schedule
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
+    
+    // API route: get operating hours for a branch/day
+    Route::get('/api/operating-hours/{branch}/{day}', function($branchId, $day) {
+        $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
+            ->where('day_of_week', $day)
+            ->first();
+
+        if (!$hours) return response()->json(['is_closed' => true]);
+
+        return response()->json([
+            'is_closed' => $hours->is_closed,
+            'opening_time' => $hours->opening_time,
+            'closing_time' => $hours->closing_time,
+        ]);
+    })->name('api.operating-hours');
 });
 
 /*

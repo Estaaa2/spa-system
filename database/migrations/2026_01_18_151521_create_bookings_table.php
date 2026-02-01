@@ -25,7 +25,8 @@ return new class extends Migration
             $table->string('customer_address')->nullable(); //address if walk-in.
             $table->string('customer_email')->nullable(); //email for contacting walk-in.
             $table->date('appointment_date');
-            $table->time('appointment_time');
+            $table->time('start_time');
+            $table->time('end_time');
             $table->foreignId('therapist_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });

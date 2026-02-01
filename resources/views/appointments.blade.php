@@ -27,7 +27,7 @@
             <thead class="bg-gray-50 dark:bg-gray-900">
                 <tr>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Customer</th>
-                    <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Service</th>
+                    <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Service Type</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Treatment</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Therapist</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Date</th>
@@ -53,11 +53,15 @@
                         </td>
 
                         <td class="px-6 py-4">
-                            <span class="text-sm font-medium text-gray-800 dark:text-white">{{ ucfirst($booking->service_type) }}</span>
+                            <span class="text-sm font-medium text-gray-800 dark:text-white">
+                                {{ $booking->service_type_label }}
+                            </span>
                         </td>
 
                         <td class="px-6 py-4">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ ucfirst($booking->treatment) }}</span>
+                            <span class="text-sm text-gray-700 dark:text-gray-300">
+                                {{ $booking->treatment_label }}
+                            </span>
                         </td>
 
                         <td class="px-6 py-4">

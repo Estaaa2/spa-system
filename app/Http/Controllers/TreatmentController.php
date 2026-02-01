@@ -39,21 +39,15 @@ class TreatmentController extends Controller
 
     public function show(Treatment $treatment)
     {
-        // Optionally ensure user can only access their own spa/branch
-        if ($treatment->spa_id !== auth()->user()->spa_id) {
-            abort(403);
-        }
-
+        // $this->authorize('view', $treatment);
         return response()->json($treatment);
     }
 
     // Update an existing treatment
+
     public function update(Request $request, Treatment $treatment)
     {
-        // Optionally ensure user can only edit their own spa/branch
-        if ($treatment->spa_id !== auth()->user()->spa_id) {
-            abort(403);
-        }
+        // $this->authorize('update', $treatment);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -73,10 +67,7 @@ class TreatmentController extends Controller
     // Delete a treatment
     public function destroy(Treatment $treatment)
     {
-        // Optionally ensure user can only delete their own spa/branch
-        if ($treatment->spa_id !== auth()->user()->spa_id) {
-            abort(403);
-        }
+        // $this->authorize('delete', $treatment);
 
         $treatment->delete();
 
