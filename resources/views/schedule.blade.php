@@ -114,7 +114,8 @@
                                         data-service="{{ ucfirst($b->service_type) }}"
                                         data-treatment="{{ $b->treatment }}"
                                         data-date="{{ \Carbon\Carbon::parse($b->appointment_date)->format('F d, Y') }}"
-                                        data-time="{{ \Carbon\Carbon::parse($b->appointment_time)->format('h:i A') }}"
+                                        data-time="{{ \Carbon\Carbon::parse($b->start_time)->format('h:i A') }} -
+                                                    {{ \Carbon\Carbon::parse($b->end_time)->format('h:i A') }}"
                                         data-status="{{ ucfirst($b->status) }}"
                                     >
                                         <div class="flex items-center justify-between gap-2">

@@ -45,7 +45,7 @@ class DashboardController extends Controller
         // Today's appointments list (per branch)
         $todayAppointments = (clone $baseBookings)
             ->whereDate('appointment_date', today())
-            ->orderBy('appointment_time')
+            ->orderBy('start_time')
             ->with('therapist') // Booking::therapist should be belongsTo(User::class, 'therapist_id')
             ->get();
 
@@ -83,7 +83,8 @@ class DashboardController extends Controller
         $lateAppointments = (clone $baseBookings)
             ->whereDate('appointment_date', today())
             ->where('status', 'confirmed')
-            ->whereTime('appointment_time', '<', now()->format('H:i:s'))
+            ->whereTime('start_time', '<', now())
+            ->whereTime('end_time', '>', now())
             ->count();
 
         // No shows (per branch)

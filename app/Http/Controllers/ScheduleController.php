@@ -28,14 +28,14 @@ class ScheduleController extends Controller
             ->where('branch_id', $currentBranchId)
             ->whereBetween('appointment_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
             ->orderBy('appointment_date')
-            ->orderBy('appointment_time')
+            ->orderBy('start_time')
             ->get();
 
         // Build grid: [YYYY-MM-DD][HH:MM] => [bookings...]
         $grid = [];
         foreach ($bookings as $b) {
             $dateKey = Carbon::parse($b->appointment_date)->toDateString();
-            $timeKey = Carbon::parse($b->appointment_time)->format('H:i');
+            $timeKey = Carbon::parse($b->start_time)->format('H:i');
 
             // Only place bookings that match your shown time slots
             if (!in_array($timeKey, $timeSlotKeys, true)) {
@@ -76,13 +76,13 @@ class ScheduleController extends Controller
             ->where('branch_id', $currentBranchId)
             ->whereBetween('appointment_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
             ->orderBy('appointment_date')
-            ->orderBy('appointment_time')
-            ->get(['id','appointment_date','appointment_time','status','service_type','treatment','customer_name','customer_phone','therapist_id']);
+            ->orderBy('start_time')
+            ->get(['id','appointment_date','start_time','status','service_type','treatment','customer_name','customer_phone','therapist_id']);
 
         $grid = [];
         foreach ($bookings as $b) {
             $dateKey = Carbon::parse($b->appointment_date)->toDateString();
-            $timeKey = Carbon::parse($b->appointment_time)->format('H:i');
+            $timeKey = Carbon::parse($b->start_time)->format('H:i');
 
             if (!in_array($timeKey, $timeSlotKeys, true)) continue;
 

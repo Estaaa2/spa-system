@@ -53,10 +53,14 @@
                                 class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
                                 <option selected disabled>Select Treatment or Package</option>
                                 @foreach($treatments as $t)
-                                    <option value="treatment_{{ $t->id }}">Treatment: {{ $t->name }}</option>
+                                    <option value="treatment_{{ $t->id }}" data-duration="{{ $t->duration }}">
+                                        Treatment: {{ $t->name }}
+                                    </option>
                                 @endforeach
                                 @foreach($packages as $p)
-                                    <option value="package_{{ $p->id }}">Package: {{ $p->name }}</option>
+                                    <option value="package_{{ $p->id }}" data-duration="{{ $p->duration }}">
+                                        Package: {{ $p->name }}
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -273,7 +277,7 @@
             const treatment = document.getElementById('treatment');
             const therapist = document.querySelector('select[name="therapist_id"]');
             const dateInput = document.getElementById('appointment_date');
-            const timeSelect = document.getElementById('appointment_time');
+            const timeInput = document.getElementById('start_time');
 
             // Update service type summary - ONLY IF SELECTED
             if (serviceType && serviceType.value && serviceType.value !== "") {
@@ -313,9 +317,33 @@
             }
 
             // Update time summary - ONLY IF SELECTED (not the default disabled option)
-            if (timeSelect && timeSelect.value && timeSelect.value !== "") {
+            if (timeInput && timeInput.value) {
+                let startTime = timeInput.value; // format "HH:MM"
+                let duration = 0;
+
+                // Get selected treatment's duration
+                const treatmentSelect = document.getElementById('treatment');
+                if (treatmentSelect && treatmentSelect.selectedOptions[0]) {
+                    duration = parseInt(treatmentSelect.selectedOptions[0].dataset.duration) || 0;
+                }
+
+                // Calculate end time
+                const [hours, minutes] = startTime.split(':').map(Number);
+                const startDate = new Date();
+                startDate.setHours(hours, minutes);
+
+                const endDate = new Date(startDate.getTime() + duration * 60000); // duration in ms
+
+                const formatTime = date => {
+                    let h = date.getHours();
+                    const m = date.getMinutes().toString().padStart(2, '0');
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    h = h % 12 || 12;
+                    return `${h}:${m} ${ampm}`;
+                }
+
                 document.getElementById('summary-time').textContent =
-                    timeSelect.options[timeSelect.selectedIndex].text;
+                    `${formatTime(startDate)} - ${formatTime(endDate)}`;
             } else {
                 document.getElementById('summary-time').textContent = "";
             }
@@ -333,7 +361,7 @@
         const treatment = document.getElementById('treatment');
         const therapist = document.querySelector('select[name="therapist_id"]');
         const dateInputElem = document.getElementById('appointment_date');
-        const timeSelect = document.getElementById('appointment_time');
+        const timeSelect = document.getElementById('start_time');
 
         if (serviceType) serviceType.addEventListener('change', updateSummary);
         if (treatment) treatment.addEventListener('change', updateSummary);

@@ -31,7 +31,7 @@
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Treatment</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Therapist</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Date</th>
-                    <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Time</th>
+                    <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Time Range</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
                     <th class="px-6 py-3 text-xs font-medium text-center text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -78,7 +78,9 @@
 
                         <td class="px-6 py-4">
                             <span class="text-sm text-gray-700 dark:text-gray-300">
-                                {{ $booking->appointment_time ? \Carbon\Carbon::parse($booking->appointment_time)->format('h:i A') : 'No Time' }}
+                                {{ \Carbon\Carbon::parse($booking->start_time)->format('h:i A') }}
+                                -
+                                {{ \Carbon\Carbon::parse($booking->end_time)->format('h:i A') }}
                             </span>
                         </td>
 
@@ -197,7 +199,7 @@
 
     // For date and time - use the correct field names
     document.getElementById('edit_appointment_date').value = booking.appointment_date || '';
-    document.getElementById('edit_appointment_time').value = booking.appointment_time || '';
+    document.getElementById('edit_start_time').value = booking.start_time || '';
     document.getElementById('edit_status').value = booking.status || 'reserved';
 
     // Update the form action

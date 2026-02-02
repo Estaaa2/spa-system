@@ -207,7 +207,9 @@
                             <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
                                 <td class="px-6 py-4">
                                     <span class="text-sm font-medium text-gray-800 dark:text-white">
-                                        {{ \Carbon\Carbon::parse($appointment->appointment_time)->format('h:i A') }}
+                                        {{ \Carbon\Carbon::parse($appointment->start_time)->format('h:i A') }}
+                                         - 
+                                        {{ \Carbon\Carbon::parse($appointment->end_time)->format('h:i A') }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4">
