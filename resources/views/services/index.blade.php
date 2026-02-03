@@ -181,26 +181,18 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4">
-                                @if($package->included_treatments && count($package->included_treatments) > 0)
+                                @if($package->treatments->count() > 0)
                                     <div class="flex flex-wrap gap-1">
-                                        @php
-                                            $treatmentNames = [];
-                                            foreach($package->included_treatments as $treatmentId) {
-                                                $treatment = App\Models\Treatment::find($treatmentId);
-                                                if($treatment) {
-                                                    $treatmentNames[] = $treatment->name;
-                                                }
-                                            }
-                                        @endphp
-                                        @foreach(array_slice($treatmentNames, 0, 3) as $name)
-                                        <span class="px-2 py-1 text-xs text-blue-800 bg-blue-100 rounded dark:bg-blue-900 dark:text-blue-300">
-                                            {{ $name }}
-                                        </span>
+                                        @foreach($package->treatments->take(3) as $treatment)
+                                            <span class="px-2 py-1 text-xs text-blue-800 bg-blue-100 rounded dark:bg-blue-900 dark:text-blue-300">
+                                                {{ $treatment->name }}
+                                            </span>
                                         @endforeach
-                                        @if(count($treatmentNames) > 3)
-                                        <span class="px-2 py-1 text-xs text-gray-800 bg-gray-100 rounded dark:bg-gray-700 dark:text-gray-300">
-                                            +{{ count($treatmentNames) - 3 }} more
-                                        </span>
+
+                                        @if($package->treatments->count() > 3)
+                                            <span class="px-2 py-1 text-xs text-gray-800 bg-gray-100 rounded dark:bg-gray-700 dark:text-gray-300">
+                                                +{{ $package->treatments->count() - 3 }} more
+                                            </span>
                                         @endif
                                     </div>
                                 @else

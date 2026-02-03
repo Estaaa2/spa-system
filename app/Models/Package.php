@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Package extends Model
@@ -39,5 +40,15 @@ class Package extends Model
     public function getIncludedTreatmentsAttribute()
     {
         return $this->treatments->pluck('id')->toArray();
+    }
+    
+    protected static function booted()
+    {
+        static::addGlobalScope('spa_branch', function (Builder $query) {
+            if (auth()->check()) {
+                $query->where('spa_id', auth()->user()->spa_id)
+                    ->where('branch_id', auth()->user()->branch_id);
+            }
+        });
     }
 }

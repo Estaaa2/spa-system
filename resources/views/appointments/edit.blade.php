@@ -88,13 +88,14 @@
                                 Service Type *
                             </label>
                             <select id="service_type" name="service_type"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
+                                    class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
                                     required>
-                                <option value="">Select Service Type</option>
-                                <option value="Hair" {{ old('service_type', $booking->service_type) == 'Hair' ? 'selected' : '' }}>Hair Service</option>
-                                <option value="Spa" {{ old('service_type', $booking->service_type) == 'Spa' ? 'selected' : '' }}>Spa Treatment</option>
-                                <option value="Massage" {{ old('service_type', $booking->service_type) == 'Massage' ? 'selected' : '' }}>Massage</option>
-                                <option value="Nails" {{ old('service_type', $booking->service_type) == 'Nails' ? 'selected' : '' }}>Nails</option>
+                                <option value="in_branch" {{ old('service_type', $booking->service_type) === 'in_branch' ? 'selected' : '' }}>
+                                    In Branch
+                                </option>
+                                <option value="in_home" {{ old('service_type', $booking->service_type) === 'in_home' ? 'selected' : '' }}>
+                                    In Home
+                                </option>
                             </select>
                             @error('service_type')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -106,13 +107,23 @@
                                 Treatment *
                             </label>
                             <select id="treatment" name="treatment"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
+                                    class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
                                     required>
-                                <option value="">Select Treatment</option>
-                                <option value="Haircut" {{ old('treatment', $booking->treatment) == 'Haircut' ? 'selected' : '' }}>Haircut</option>
-                                <option value="Facial" {{ old('treatment', $booking->treatment) == 'Facial' ? 'selected' : '' }}>Facial</option>
-                                <option value="Body Massage" {{ old('treatment', $booking->treatment) == 'Body Massage' ? 'selected' : '' }}>Body Massage</option>
-                                <option value="Nail Care" {{ old('treatment', $booking->treatment) == 'Nail Care' ? 'selected' : '' }}>Nail Care</option>
+                                <option disabled>Select Treatment or Package</option>
+
+                                @foreach($treatments as $t)
+                                    <option value="treatment_{{ $t->id }}"
+                                        {{ old('treatment', $booking->treatment) === "treatment_{$t->id}" ? 'selected' : '' }}>
+                                        Treatment: {{ $t->name }} ({{ $t->duration }} mins)
+                                    </option>
+                                @endforeach
+
+                                @foreach($packages as $p)
+                                    <option value="package_{{ $p->id }}"
+                                        {{ old('treatment', $booking->treatment) === "package_{$p->id}" ? 'selected' : '' }}>
+                                        Package: {{ $p->name }}
+                                    </option>
+                                @endforeach
                             </select>
                             @error('treatment')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -143,7 +154,7 @@
 
                 <!-- Appointment Details -->
                 <div class="md:col-span-2">
-                    <h3 class="mb-4 text-lg font-medium text-gray-800 dark:text-white">Appointment Details</h3>
+                    <h3 class="mb-4 text-lg font-medium text-gray-800 dark:text-white">Schedule Details</h3>
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label for="appointment_date" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -159,23 +170,40 @@
                         </div>
 
                         <div>
-                            <label for="appointment_time" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Time *
+                            <label for="start_time" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Start Time *
                             </label>
-                            <select id="appointment_time" name="appointment_time"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
-                                    required>
-                                <option value="">Select Time</option>
-                                <option value="09:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '09:00' ? 'selected' : '' }}>09:00 AM</option>
-                                <option value="10:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '10:00' ? 'selected' : '' }}>10:00 AM</option>
-                                <option value="11:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '11:00' ? 'selected' : '' }}>11:00 AM</option>
-                                <option value="14:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '14:00' ? 'selected' : '' }}>02:00 PM</option>
-                                <option value="15:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '15:00' ? 'selected' : '' }}>03:00 PM</option>
-                                <option value="16:00" {{ old('appointment_time', $booking->appointment_time->format('H:i')) == '16:00' ? 'selected' : '' }}>04:00 PM</option>
-                            </select>
-                            @error('appointment_time')
+                            <input
+                                type="time"
+                                id="start_time"
+                                name="start_time"
+                                value="{{ old('start_time', optional($booking->start_time)->format('H:i')) }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                                    dark:bg-gray-700 dark:border-gray-600 dark:text-white
+                                    focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
+                                required
+                            >
+                            @error('start_time')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
+                        </div>
+
+                        <div>
+                            <label for="end_time" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                End Time
+                            </label>
+                            <input
+                                type="time"
+                                id="end_time"
+                                value="{{ optional($booking->end_time)->format('H:i') }}"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg
+                                    bg-gray-100 dark:bg-gray-600 dark:border-gray-500
+                                    dark:text-gray-200 cursor-not-allowed"
+                                disabled
+                            >
+                            <p class="mt-1 text-xs text-gray-500">
+                                Automatically calculated based on treatment duration
+                            </p>
                         </div>
 
                         <div>

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use App\Models\Spa;
 
 class RegisteredUserController extends Controller
 {
@@ -49,6 +50,13 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('setup.index', absolute: false));
+        // If owner, force setup flow
+        if ($user->hasRole('owner')) {
+            return redirect()->route('setup.index');
+        }
+
+        // Fallback (admin or others)
+        return redirect(RouteServiceProvider::HOME);
+
     }
 }

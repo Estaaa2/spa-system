@@ -1,12 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\Package;
-use App\Models\Treatment;
-
-use Illuminate\Http\Request;
-
-namespace App\Http\Controllers;
 
 use App\Models\Package;
 use App\Models\Treatment;
@@ -24,34 +18,42 @@ class PackageController extends Controller
 
     public function create()
     {
+        // $this->authorize('create', Package::class);
+
         $treatments = Treatment::all();
         return view('packages.create', compact('treatments'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        // $this->authorize('create', Package::class);
+
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'duration' => 'nullable|integer|min:5',
             'price' => 'required|numeric|min:0',
             'included_treatments' => 'nullable|array',
+            'included_treatments.*' => 'exists:treatments,id',
             'description' => 'nullable|string',
         ]);
 
         $package = Package::create([
-            'spa_id' => Auth::user()->spa_id,  // assuming spa_id is on user
-            'branch_id' => Auth::user()->branch_id, // assuming branch_id is on user
-            'name' => $request->name,
-            'total_duration' => $request->duration,
-            'price' => $request->price,
-            'description' => $request->description,
+            'spa_id' => auth()->user()->spa_id,
+            'branch_id' => auth()->user()->branch_id,
+            'name' => $validated['name'],
+            'total_duration' => $validated['duration'] ?? null,
+            'price' => $validated['price'],
+            'description' => $validated['description'] ?? null,
         ]);
 
-        if ($request->filled('included_treatments')) {
-            $package->treatments()->attach($request->included_treatments);
+        if (!empty($validated['included_treatments'])) {
+            // treatments are already branch-scoped
+            $package->treatments()->sync($validated['included_treatments']);
         }
 
-        return redirect()->route('services.index')->with('success', 'Package created successfully!');
+        return redirect()
+            ->route('services.index')
+            ->with('success', 'Package created successfully!');
     }
 
     public function show(Package $package)
@@ -62,13 +64,16 @@ class PackageController extends Controller
             'duration' => $package->total_duration,
             'price' => $package->price,
             'description' => $package->description,
-            'included_treatments' => $package->included_treatments ?? [],
+            'included_treatments' => $package->treatments->pluck('id'),
         ]);
     }
 
+
     public function update(Request $request, Package $package)
     {
-        $data = $request->validate([
+        // $this->authorize('update', $package);
+
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'duration' => 'required|integer|min:1',
             'price' => 'required|numeric|min:0',
@@ -77,15 +82,28 @@ class PackageController extends Controller
             'included_treatments.*' => 'exists:treatments,id',
         ]);
 
-        $package->update($data);
-        $package->treatments()->sync($request->included_treatments ?? []);
+        $package->update([
+            'name' => $validated['name'],
+            'total_duration' => $validated['duration'],
+            'price' => $validated['price'],
+            'description' => $validated['description'] ?? null,
+        ]);
 
-        return redirect()->back()->with('success', 'Package updated successfully!');
+        $package->treatments()->sync($validated['included_treatments'] ?? []);
+
+        return redirect()
+            ->back()
+            ->with('success', 'Package updated successfully!');
     }
 
     public function destroy(Package $package)
     {
+        // $this->authorize('delete', $package);
+
         $package->delete();
-        return redirect()->route('services.index')->with('success', 'Package deleted successfully!');
+
+        return redirect()
+            ->route('services.index')
+            ->with('success', 'Package deleted successfully!');
     }
 }
