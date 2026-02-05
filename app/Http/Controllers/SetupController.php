@@ -270,14 +270,12 @@ class SetupController extends Controller
     /**
      * Complete setup and redirect to dashboard
      */
-    public function complete(): RedirectResponse
+    public function complete()
     {
-        $user = Auth::user();
-
-        if (!$user->is_owner || !$user->spa_id || !$user->spa->branches()->exists()) {
-            return redirect()->route('setup.branches');
-        }
+        $spa = auth()->user()->spa;
+        $spa->update(['is_setup_complete' => true]);
 
         return redirect()->route('dashboard');
     }
+
 }

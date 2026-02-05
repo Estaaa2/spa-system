@@ -34,11 +34,13 @@
                     <span class="text-sm text-gray-500 dark:text-gray-400">
                         {{ $treatments->count() }} treatment(s) available
                     </span>
-                    <a href="{{ route('treatments.create') }}"
-                       class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
-                        <i class="fas fa-plus"></i>
-                        Add Treatment
-                    </a>
+                    @can('create treatments')
+                        <a href="{{ route('treatments.create') }}"
+                        class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
+                            <i class="fas fa-plus"></i>
+                            Add Treatment
+                        </a>
+                    @endcan
                 </div>
             </div>
 
@@ -89,21 +91,25 @@
                             <td class="px-6 py-4 text-end">
                                 <div class="flex items-center gap-2">
                                     <!-- Edit Button -->
-                                    <button onclick="editTreatment({{ $treatment->id }})"
-                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                        Edit
-                                    </button>
+                                    @can('edit treatments')
+                                        <button onclick="editTreatment({{ $treatment->id }})"
+                                        class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                            Edit
+                                        </button>
+                                    @endcan
 
                                     <!-- Delete Form -->
-                                    <form action="{{ route('treatments.destroy', $treatment->id) }}" method="POST"
-                                        onsubmit="return confirm('Delete this treatment?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                            Delete
-                                        </button>
-                                    </form>
+                                    @can('delete treatments')
+                                        <form action="{{ route('treatments.destroy', $treatment->id) }}" method="POST"
+                                            onsubmit="return confirm('Delete this treatment?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -202,16 +208,16 @@
                             <td class="px-6 py-4 text-end">
                                 <div class="flex items-center justify-end gap-2">
                                     <button onclick="editPackage({{ $package->id }})"
-                                        class="p-2 text-gray-600 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600">
-                                        <i class="w-4 h-4 fas fa-edit"></i>
+                                        class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                            Edit
                                     </button>
                                     <form action="{{ route('packages.destroy', $package->id) }}" method="POST"
                                           onsubmit="return confirm('Delete this package?')">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit"
-                                                class="p-2 text-red-600 transition-colors bg-red-100 rounded-lg hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50">
-                                            <i class="w-4 h-4 fas fa-trash"></i>
+                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                                Delete
                                         </button>
                                     </form>
                                 </div>
@@ -406,31 +412,6 @@
     </div>
 </div>
 
-<!-- Success Toast Notification -->
-@if(session('success'))
-<div class="fixed bottom-0 right-0 z-50 p-4" id="toast-container">
-    <div class="flex items-center w-full max-w-xs p-4 mb-4 text-gray-500 bg-white rounded-lg shadow-lg dark:text-gray-400 dark:bg-gray-800" role="alert">
-        <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-green-500 bg-green-100 rounded-lg dark:bg-green-800 dark:text-green-200">
-            <i class="fas fa-check"></i>
-        </div>
-        <div class="text-sm font-normal ms-3">{{ session('success') }}</div>
-        <button type="button" class="ms-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 dark:text-gray-500 dark:hover:text-white dark:bg-gray-800 dark:hover:bg-gray-700" onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
-</div>
-
-<script>
-    // Auto-hide toast after 5 seconds
-    setTimeout(() => {
-        const toast = document.getElementById('toast-container');
-        if (toast) {
-            toast.remove();
-        }
-    }, 5000);
-</script>
-@endif
-
 <script>
 // Edit Treatment Modal.
 function editTreatment(treatmentId) {
@@ -605,4 +586,73 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateClock, 1000);
 });
 </script>
+
+@if (session('success'))
+<script>
+    if (!window.successToastShown) {
+        window.successToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-green-600 fa-solid fa-check-circle"></i>
+                        <span class="text-gray-800">{{ session('success') }}</span>
+                    </div>
+                `,
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ REQUIRED
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #16a34a",
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
+
+@if ($errors->any())
+<script>
+    if (!window.errorToastShown) {
+        window.errorToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-red-600 fa-solid fa-circle-xmark"></i>
+                        <span class="text-gray-800">
+                            {{ $errors->first() }}
+                        </span>
+                    </div>
+                `,
+                duration: 4000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ allow icon HTML
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #dc2626",   // red-600
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
+
 @endsection
