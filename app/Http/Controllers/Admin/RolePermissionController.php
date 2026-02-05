@@ -45,7 +45,8 @@ class RolePermissionController extends Controller
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         return redirect()
-            ->route('roles-permissions.index')
-            ->with('success', "Permissions updated for role: {$role->name}");
+            ->route('roles-permissions.edit', $role)
+            ->with('success', 'Permissions updated successfully.');
+
     }
 }

@@ -29,8 +29,11 @@
     <div class="mb-6">
         <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
             <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Add New Staff Member</h2>
+
+            @can('create staff')
             <form action="{{ route('staff.store') }}" method="POST" id="addStaffForm">
                 @csrf
+
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <!-- Email -->
                     <div>
@@ -78,6 +81,7 @@
                     </button>
                 </div>
             </form>
+            @endcan
         </div>
     </div>
 
@@ -101,6 +105,7 @@
                             <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Actions</th>
                         </tr>
                     </thead>
+
                     <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                         @forelse($staff as $member)
                         <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
@@ -117,10 +122,9 @@
                                     </div>
                                 </div>
                             </td>
+
                             <td class="px-6 py-4">
-                                @php
-                                    $role = $member->user?->getRoleNames()->first();
-                                @endphp
+                                @php $role = $member->user?->getRoleNames()->first(); @endphp
 
                                 @if($role)
                                     <span class="px-3 py-1 text-xs font-medium text-gray-800 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-200">
@@ -132,6 +136,7 @@
                                     </span>
                                 @endif
                             </td>
+
                             <td class="px-6 py-4">
                                 @if($member->branch)
                                     <div class="text-sm text-gray-800 dark:text-white">
@@ -144,24 +149,23 @@
                                     <span class="text-sm text-gray-400 dark:text-gray-500">No branch assigned</span>
                                 @endif
                             </td>
+
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-2">
-                                    <!-- Edit Button -->
+                                    @can('edit staff')
                                     <button onclick="editStaff({{ $member->id }})"
                                         class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                         Edit
                                     </button>
+                                    @endcan
 
-                                    <!-- Delete Form -->
-                                    <form action="{{ route('staff.destroy', $member->id) }}" method="POST"
-                                          onsubmit="return confirm('Delete this staff member?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
+                                    @can('delete staff')
+                                    <button type="button"
+                                        onclick="openDeleteModal({{ $member->id }}, @json($member->user->name))"
                                         class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                            Delete
-                                        </button>
-                                    </form>
+                                        Delete
+                                    </button>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -186,14 +190,13 @@
 <!-- Edit Modal -->
 <div id="editModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
         <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
 
-        <!-- Modal panel -->
         <div class="inline-block w-full max-w-md my-8 overflow-hidden text-left align-middle transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800">
             <form id="editStaffForm" method="POST">
                 @csrf
                 @method('PUT')
+
                 <div class="px-6 py-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-medium text-gray-900 dark:text-white">Edit Staff Member</h3>
@@ -203,11 +206,11 @@
                         </button>
                     </div>
                 </div>
+
                 <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="space-y-4" id="editFormContent">
-                        <!-- Form fields will be loaded here -->
-                    </div>
+                    <div class="space-y-4" id="editFormContent"></div>
                 </div>
+
                 <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900">
                     <div class="flex justify-end gap-3">
                         <button type="button" onclick="closeEditModal()"
@@ -225,102 +228,38 @@
     </div>
 </div>
 
-<!-- Toastify Notifications -->
-@if(session('success'))
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    Toastify({
-        text: "{{ session('success') }}",
-        duration: 5000,
-        gravity: "top",
-        position: "right",
-        style: {
-            background: "#22c55e",
-            borderRadius: "8px",
-            fontWeight: "500",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
-        },
-        onClick: function(){}
-    }).showToast();
-});
-</script>
-@endif
+@can('delete staff')
+<!-- DELETE CONFIRMATION MODAL (Appointments style) -->
+<div id="deleteModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
+        <h2 class="mb-4 text-xl font-semibold text-gray-800 dark:text-white">
+            Confirm Delete
+        </h2>
 
-@if(session('error'))
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    Toastify({
-        text: "{{ session('error') }}",
-        duration: 5000,
-        gravity: "top",
-        position: "right",
-        style: {
-            background: "#ef4444",
-            borderRadius: "8px",
-            fontWeight: "500",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
-        },
-        onClick: function(){}
-    }).showToast();
-});
-</script>
-@endif
+        <p class="text-gray-500 dark:text-gray-400" id="deleteModalText">
+            Are you sure you want to delete this staff member?
+        </p>
 
-<!-- JavaScript -->
-<script>
-//Edit Staff Modal.
-function editStaff(staffId) {
-    const formContent = `
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name *</label>
-            <input type="text" name="name" required
-                   class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+        <div class="flex justify-end gap-2 mt-4">
+            <button type="button" onclick="closeDeleteModal()"
+                class="px-4 py-2 text-gray-700 bg-gray-200 rounded">
+                Cancel
+            </button>
+
+            <form id="deleteForm" method="POST">
+                @csrf
+                @method('DELETE')
+                <button type="submit"
+                    class="px-4 py-2 text-white bg-red-600 rounded">
+                    Yes, Delete
+                </button>
+            </form>
         </div>
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
-            <select name="roles" required
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-                <option value="therapist">Therapist</option>
-                <option value="receptionist">Receptionist</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
-            </select>
-        </div>
-    `;
+    </div>
+</div>
+@endcan
 
-    document.getElementById('editFormContent').innerHTML = formContent;
-    document.getElementById('editStaffForm').action = `/staff/${staffId}`;
-
-    // Show modal
-    document.getElementById('editModal').classList.remove('hidden');
-
-    // Fetch current data and populate form
-    fetch(`/staff/${staffId}`)
-        .then(response => response.json())
-        .then(data => {
-            const form = document.getElementById('editStaffForm');
-            form.querySelector('[name="name"]').value = data.name;
-            form.querySelector('[name="branch_id"]').value = data.branch_id || '';
-            form.querySelector('[name="roles"]').value = data.roles;
-            form.querySelector('[name="status"]').value = data.status;
-        })
-        .catch(error => {
-            console.error('Error fetching staff data:', error);
-        });
-}
-
-function closeEditModal() {
-    document.getElementById('editModal').classList.add('hidden');
-}
-
-// Close modal when clicking outside
-document.getElementById('editModal').addEventListener('click', function(e) {
-    if (e.target.id === 'editModal') {
-        closeEditModal();
-    }
-});
-
-// Clock Function
+<script>
 function updateClock() {
     const now = new Date();
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -341,10 +280,140 @@ function updateClock() {
     }
 }
 
-// Initialize clock on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     updateClock();
     setInterval(updateClock, 1000);
 });
+
+@can('delete staff')
+function openDeleteModal(id, name) {
+    document.getElementById('deleteModalText').textContent = `Are you sure you want to delete "${name}"?`;
+
+    // Use your named route base (avoids prefix issues)
+    const base = @json(url('/staff'));
+    document.getElementById('deleteForm').action = `${base}/${id}`;
+
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+}
+@endcan
+
+function editStaff(staffId) {
+    const formContent = `
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name *</label>
+            <input type="text" name="name" required
+                   class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+        </div>
+        <div>
+            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
+            <select name="roles" required
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
+                <option value="therapist">Therapist</option>
+                <option value="receptionist">Receptionist</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+    `;
+
+    document.getElementById('editFormContent').innerHTML = formContent;
+
+    const base = @json(url('/staff'));
+    document.getElementById('editStaffForm').action = `${base}/${staffId}`;
+
+    document.getElementById('editModal').classList.remove('hidden');
+
+    fetch(`${base}/${staffId}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const form = document.getElementById('editStaffForm');
+
+        const nameEl = form.querySelector('[name="name"]');
+        if (nameEl) nameEl.value = data.name || '';
+
+        const rolesEl = form.querySelector('[name="roles"]');
+        if (rolesEl) rolesEl.value = data.roles || '';
+    })
+    .catch(err => console.error('Error fetching staff data:', err));
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+}
 </script>
+
+{{-- ✅ Modern Toast (Success) --}}
+@if (session('success'))
+<script>
+    if (!window.successToastShown) {
+        window.successToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-green-600 fa-solid fa-check-circle"></i>
+                        <span class="text-gray-800">{{ e(session('success')) }}</span>
+                    </div>
+                `,
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false,
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #16a34a",
+                    borderRadius: "10px",
+                    display: "flex",
+                    minWidth: "250px",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                    color: "#1f2937"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
+
+{{-- ✅ Modern Toast (Validation Error) --}}
+@if ($errors->any())
+<script>
+    if (!window.errorToastShown) {
+        window.errorToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-red-600 fa-solid fa-circle-xmark"></i>
+                        <span class="text-gray-800">{{ e($errors->first()) }}</span>
+                    </div>
+                `,
+                duration: 4000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false,
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #dc2626",
+                    borderRadius: "10px",
+                    display: "flex",
+                    minWidth: "250px",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+                    color: "#1f2937"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
+
 @endsection

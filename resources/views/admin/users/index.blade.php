@@ -8,12 +8,6 @@
     >
     </x-page-header>
 
-    @if(session('success'))
-        <div class="p-3 mb-4 text-sm text-green-800 bg-green-100 border border-green-200 rounded-lg">
-            {{ session('success') }}
-        </div>
-    @endif
-
     <!-- CARD -->
     <div class="bg-white border shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
         <!-- Card Header -->
@@ -30,13 +24,11 @@
                     placeholder="Search name or email"
                 >
                 <button
-                    class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-lg hover:opacity-90"
-                >
+                    class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-lg hover:opacity-90">
                     Search
                 </button>
             </form>
         </div>
-
 
         <!-- Table -->
         <div class="overflow-x-auto">
@@ -46,7 +38,7 @@
                         <th class="px-6 py-3">Name</th>
                         <th class="px-6 py-3">Email</th>
                         <th class="px-6 py-3">Current Role</th>
-                        <th class="px-6 py-3">Change Role</th>
+                        <th class="px-6 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,27 +58,16 @@
                                     {{ $currentRole }}
                                 </span>
                             </td>
-                            <td class="px-6 py-3">
-                                <form method="POST"
-                                      action="{{ route('users.updateRole', $user) }}"
-                                      class="flex items-center gap-2">
-                                    @csrf
-                                    @method('PUT')
-
-                                    <select name="role"
-                                            class="px-3 py-2 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-                                        @foreach($roles as $role)
-                                            <option value="{{ $role->name }}" @selected($role->name === $currentRole)>
-                                                {{ $role->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-
-                                    <button
-                                        class="px-3 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
-                                        Update
-                                    </button>
-                                </form>
+                            <td class="px-6 py-3 text-center">
+                                <button
+                                    onclick="openEditRoleModal(
+                                        {{ $user->id }},
+                                        '{{ $user->name }}',
+                                        '{{ $currentRole }}'
+                                    )"
+                                    class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                    Edit
+                                </button>
                             </td>
                         </tr>
                     @empty
@@ -106,4 +87,122 @@
         </div>
     </div>
 </div>
+
+<!-- EDIT ROLE MODAL -->
+<div id="editRoleModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
+        <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">
+            Edit User Role
+        </h2>
+
+        <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+            Update role for <span id="modalUserName" class="font-medium"></span>
+        </p>
+
+        <form id="editRoleForm" method="POST">
+            @csrf
+            @method('PUT')
+
+            <select name="role"
+                    id="modalRoleSelect"
+                    class="w-full px-3 py-2 mb-4 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                @foreach($roles as $role)
+                    @continue($role->name === 'admin')
+
+                    <option value="{{ $role->name }}">
+                        {{ $role->name }}
+                    </option>
+                @endforeach
+            </select>
+
+
+            <div class="flex justify-end gap-2">
+                <button type="button"
+                        onclick="closeEditRoleModal()"
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-lg dark:bg-gray-700 dark:text-gray-300">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] border border-transparent rounded-md shadow-sm hover:bg-[#7A6348] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8B7355]">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL SCRIPT -->
+<script>
+function openEditRoleModal(userId, userName, currentRole) {
+    document.getElementById('modalUserName').textContent = userName;
+    document.getElementById('modalRoleSelect').value = currentRole;
+    document.getElementById('editRoleForm').action = `/users/${userId}/role`;
+    document.getElementById('editRoleModal').classList.remove('hidden');
+}
+
+function closeEditRoleModal() {
+    document.getElementById('editRoleModal').classList.add('hidden');
+}
+</script>
+
+{{-- SUCCESS TOAST --}}
+@if (session('success'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    Toastify({
+        text: `
+            <div class="flex items-center gap-3">
+                <i class="text-green-600 fa-solid fa-check-circle"></i>
+                <span class="text-gray-800">{{ session('success') }}</span>
+            </div>
+        `,
+        duration: 3000,
+        gravity: "top",
+        position: "right",
+        close: true,
+        escapeMarkup: false,
+        backgroundColor: "#ffffff",
+        style: {
+            border: "1px solid #16a34a",
+            borderRadius: "10px",
+            minWidth: "300px",
+            display: "flex",
+            alignItems: "center",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+        }
+    }).showToast();
+});
+</script>
+@endif
+
+{{-- ERROR TOAST --}}
+@if ($errors->any())
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    Toastify({
+        text: `
+            <div class="flex items-center gap-3">
+                <i class="text-red-600 fa-solid fa-circle-xmark"></i>
+                <span class="text-gray-800">{{ $errors->first() }}</span>
+            </div>
+        `,
+        duration: 4000,
+        gravity: "top",
+        position: "right",
+        close: true,
+        escapeMarkup: false,
+        backgroundColor: "#ffffff",
+        style: {
+            border: "1px solid #dc2626",
+            borderRadius: "10px",
+            minWidth: "300px",
+            display: "flex",
+            alignItems: "center",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+        }
+    }).showToast();
+});
+</script>
+@endif
+
 @endsection

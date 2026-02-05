@@ -18,12 +18,6 @@
         </a>
     </div>
 
-    @if($errors->any())
-        <div class="p-3 mb-4 text-sm text-red-800 bg-red-100 border border-red-200 rounded-lg">
-            Please fix the errors and try again.
-        </div>
-    @endif
-
     <form method="POST" action="{{ route('roles-permissions.update', $role) }}"
           class="bg-white border rounded-lg dark:bg-gray-800 dark:border-gray-700">
         @csrf
@@ -69,4 +63,73 @@
         </div>
     </form>
 </div>
+
+@if (session('success'))
+<script>
+    if (!window.successToastShown) {
+        window.successToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-green-600 fa-solid fa-check-circle"></i>
+                        <span class="text-gray-800">{{ session('success') }}</span>
+                    </div>
+                `,
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ REQUIRED
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #16a34a",
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
+
+@if ($errors->any())
+<script>
+    if (!window.errorToastShown) {
+        window.errorToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-red-600 fa-solid fa-circle-xmark"></i>
+                        <span class="text-gray-800">
+                            {{ $errors->first() }}
+                        </span>
+                    </div>
+                `,
+                duration: 4000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ allow icon HTML
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #dc2626",   // red-600
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
+
 @endsection

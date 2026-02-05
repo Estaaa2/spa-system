@@ -38,14 +38,26 @@ class RolePermissionSeeder extends Seeder
             // Branches
             'view branches',
             'manage branches',
+            'create branches',
+            'edit branches',
+            'delete branches',
 
             // Staff (employees)
             'view staff',
             'manage staff',
+            'create staff',
+            'edit staff',
+            'delete staff',
 
             // Services / Treatments / Packages
             'view services',
             'manage services',
+            'create treatments',
+            'edit treatments',
+            'delete treatments',
+            'create packages',
+            'edit packages',
+            'delete packages',
 
             // Reports / Decision support
             'view reports',
@@ -97,21 +109,28 @@ class RolePermissionSeeder extends Seeder
             'view schedule',
             'manage schedule',
 
-            'view staff availability',
-            'manage staff availability',
+            'view staff',
+            'create staff',
+            'edit staff',
+            'delete staff',
 
             'view branches',
-            'manage branches',
-
-            'view staff',
-            'manage staff',
+            'create branches',
+            'edit branches',
+            'delete branches',
 
             'view services',
-            'manage services',
+            'create treatments',
+            'edit treatments',
+            'delete treatments',
+            'create packages',
+            'edit packages',
+            'delete packages',
 
             'view reports',
             'view decision support',
         ]);
+
 
         // MANAGER: operations + management, but no delete maybe (adjust if you want)
         $manager->syncPermissions([

@@ -53,7 +53,7 @@
 
                             <td class="px-4 py-2 text-left">
                                 <a href="{{ route('roles-permissions.edit', $role) }}"
-                                   class="inline-flex items-center px-3 py-2 text-xs font-medium text-white bg-[#8B7355] rounded-lg hover:opacity-90">
+                                   class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                     Edit
                                 </a>
                             </td>

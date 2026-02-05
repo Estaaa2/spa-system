@@ -259,7 +259,7 @@
             <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
                 <!-- Dashboard -->
                 @can('view owner dashboard')
-                    <div class="mb-2">
+                    <div class="mb-2 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                             Dashboard
                         </x-nav-link>

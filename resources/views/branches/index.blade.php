@@ -61,7 +61,7 @@
             </div>
             <div>
                 <button onclick="openCreateModal()"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-blue-300 dark:bg-blue-700 dark:hover:bg-blue-600">
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-blue-300">
                     <i class="mr-2 fa-solid fa-plus"></i>
                     Add New Branch
                 </button>
@@ -118,7 +118,7 @@
                                 </td>
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex justify-center gap-2">
-                                        <button onclick="editBranch({{ $branch->id }})"
+                                        <button onclick="editBranch(event, {{ $branch->id }})"
                                                 class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600"
                                                 title="Edit">
                                             Edit
@@ -172,7 +172,7 @@
                 </p>
                 <div class="mt-6">
                     <button onclick="openCreateModal()"
-                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:bg-blue-700 dark:hover:bg-blue-600">
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300">
                         <i class="mr-2 fa-solid fa-plus"></i>
                         Add New Branch
                     </button>
@@ -185,14 +185,11 @@
 <!-- Create/Edit Branch Modal -->
 <div id="branchModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
     <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
         <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"></div>
 
-        <!-- Modal panel -->
         <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800 sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
             <form id="branchForm" method="POST">
                 @csrf
-                <div id="formMethod"></div>
 
                 <div class="px-6 py-4 bg-white dark:bg-gray-800">
                     <div class="flex items-center justify-between">
@@ -208,7 +205,6 @@
 
                 <div class="px-6 py-4">
                     <div class="space-y-4">
-                        <!-- Branch Name -->
                         <div>
                             <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Branch Name *
@@ -220,7 +216,6 @@
                             </p>
                         </div>
 
-                        <!-- Location -->
                         <div>
                             <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Location *
@@ -239,7 +234,6 @@
                                 </label>
                                 <input type="tel" id="phone" name="phone"
                                     maxlength="11"
-                                    minlength="11"
                                     oninput="validatePhone(this)"
                                     class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
                                     placeholder="09XXXXXXXXX">
@@ -259,9 +253,6 @@
                                     placeholder="branch@example.com">
                             </div>
                         </div>
-
-                        <!-- Main Branch Toggle -->
-                        <input type="hidden" name="is_main" value="0">
 
                         <div class="flex items-center">
                             <input type="checkbox" id="is_main" name="is_main"
@@ -283,7 +274,7 @@
                             Cancel
                         </button>
                         <button type="submit" id="submitBtn"
-                                class="px-4 py-2 text-sm font-medium text-white transition-colors bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:bg-blue-700 dark:hover:bg-blue-600">
+                                class="px-4 py-2 text-sm font-medium text-white transition-colors bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-blue-300">
                             Save Branch
                         </button>
                     </div>
@@ -349,6 +340,9 @@
 <script>
 let currentBranchId = null;
 let deleteBranchId = null;
+let isSubmitting = false;
+
+const HAS_NO_BRANCHES = {{ $branches->count() === 0 ? 'true' : 'false' }};
 
 // Real-time Clock Function
 function updateClock() {
@@ -358,9 +352,7 @@ function updateClock() {
     const todayDateElement = document.getElementById('todayDate');
     const realTimeClockElement = document.getElementById('realTimeClock');
 
-    if (todayDateElement) {
-        todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-    }
+    if (todayDateElement) todayDateElement.innerText = now.toLocaleDateString('en-US', options);
 
     if (realTimeClockElement) {
         realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
@@ -373,24 +365,29 @@ function updateClock() {
 
 // Modal Functions
 function openCreateModal() {
+    const form = document.getElementById('branchForm');
+    form.reset();
+
     document.getElementById('modalTitle').textContent = 'Add New Branch';
-    document.getElementById('formMethod').innerHTML = ''; // Clear any previous method
-    document.getElementById('branchForm').action = '{{ route("branches.store") }}';
-    document.getElementById('branchForm').reset();
-    document.getElementById('is_main').checked = false;
+    form.action = '{{ route("branches.store") }}';
+
+    // If this is the first ever branch, default it to MAIN
+    document.getElementById('is_main').checked = HAS_NO_BRANCHES ? true : false;
+
     document.getElementById('submitBtn').textContent = 'Create Branch';
     document.getElementById('branchModal').classList.remove('hidden');
+
+    validatePhone(document.getElementById('phone'));
 }
 
-function editBranch(branchId) {
-    console.log('Editing branch ID:', branchId);
+function editBranch(ev, branchId) {
+    ev.preventDefault();
 
-    const button = event.target;
+    const button = ev.currentTarget;
     const originalHTML = button.innerHTML;
     button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     button.disabled = true;
 
-    // Use the correct URL (without /api prefix)
     fetch(`/branches/${branchId}`, {
         method: 'GET',
         headers: {
@@ -398,180 +395,45 @@ function editBranch(branchId) {
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
         }
     })
-    .then(response => {
-        console.log('Response status:', response.status);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
+    .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw { status: response.status, data };
+        return data;
     })
     .then(data => {
-        console.log('Response data:', data);
-
         if (data.success && data.branch) {
+            const form = document.getElementById('branchForm');
+
             document.getElementById('modalTitle').textContent = 'Edit Branch';
+            form.action = `/branches/${branchId}`;
 
-            // Set the form action
-            document.getElementById('branchForm').action = `/branches/${branchId}`;
-
-            // Fill form fields
             document.getElementById('name').value = data.branch.name || '';
             document.getElementById('location').value = data.branch.location || '';
             document.getElementById('phone').value = data.branch.phone || '';
             document.getElementById('email').value = data.branch.email || '';
-            document.getElementById('is_main').checked = data.branch.is_main || false;
+            document.getElementById('is_main').checked = !!data.branch.is_main;
+
+            validatePhone(document.getElementById('phone'));
 
             document.getElementById('submitBtn').textContent = 'Update Branch';
             currentBranchId = branchId;
-            document.getElementById('branchModal').classList.remove('hidden');
 
-            button.innerHTML = originalHTML;
-            button.disabled = false;
+            document.getElementById('branchModal').classList.remove('hidden');
         } else {
-            showToast(data.message || 'Failed to load branch data', 'error');
-            button.innerHTML = originalHTML;
-            button.disabled = false;
+            // ❌ Don't show JS toast - use sessionStorage then reload so bottom blocks apply
+            sessionStorage.setItem('toast_type', 'error');
+            sessionStorage.setItem('toast_message', data.message || 'Failed to load branch data');
+            window.location.reload();
         }
     })
     .catch(error => {
         console.error('Error fetching branch:', error);
-        showToast('An error occurred. Please try again.', 'error');
+        sessionStorage.setItem('toast_type', 'error');
+        sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
+        window.location.reload();
+    })
+    .finally(() => {
         button.innerHTML = originalHTML;
-        button.disabled = false;
-    });
-}
-
-// Form Submission Handler
-document.getElementById('branchForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const form = this;
-    const formData = new FormData(form);
-    const url = form.action;
-
-    // Check if this is an edit (URL has branch ID) or create
-    const isEdit = url.includes('/branches/') && url.split('/').filter(Boolean).length > 1;
-
-    // Convert FormData to object
-    const jsonData = {};
-    for (let [key, value] of formData.entries()) {
-        if (key === '_token') continue; // Keep CSRF token in headers
-        jsonData[key] = value;
-    }
-
-    // Handle checkbox
-    jsonData.is_main = document.getElementById('is_main').checked ? 1 : 0;
-
-    console.log('URL:', url);
-    console.log('Is Edit?', isEdit);
-    console.log('Data:', jsonData);
-
-    const button = document.getElementById('submitBtn');
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-    button.disabled = true;
-
-    // Use the correct HTTP method
-    const method = isEdit ? 'PUT' : 'POST';
-
-    // For PUT requests, don't include _method field in JSON
-    if (isEdit) {
-        delete jsonData._method;
-    }
-
-    fetch(url, {
-        method: method, // Direct HTTP method
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify(jsonData)
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json().then(data => {
-            if (!response.ok) {
-                throw {
-                    status: response.status,
-                    data: data
-                };
-            }
-            return data;
-        });
-    })
-    .then(data => {
-        console.log('Success:', data);
-        if (data.success) {
-            showToast(data.message, 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showToast(data.message || 'Operation failed', 'error');
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-
-        if (error.status === 422) {
-            // Validation errors
-            let errorMessages = [];
-            if (error.data && error.data.errors) {
-                for (let field in error.data.errors) {
-                    errorMessages.push(error.data.errors[field][0]);
-                }
-            } else {
-                errorMessages.push('Validation failed');
-            }
-            showToast(errorMessages.join('<br>'), 'error');
-        } else if (error.status === 405) {
-            // Method not allowed - fallback to POST with _method
-            submitWithMethodOverride(url, jsonData, isEdit, button, originalText);
-        } else {
-            showToast('An error occurred. Please try again.', 'error');
-        }
-
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-});
-
-// Fallback method using POST with _method override
-function submitWithMethodOverride(url, jsonData, isEdit, button, originalText) {
-    // Add _method field for Laravel to detect
-    if (isEdit) {
-        jsonData._method = 'PUT';
-    }
-
-    fetch(url, {
-        method: 'POST', // Always POST
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify(jsonData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast(data.message, 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showToast(data.message || 'Operation failed', 'error');
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Fallback error:', error);
-        showToast('Submission failed', 'error');
-        button.innerHTML = originalText;
         button.disabled = false;
     });
 }
@@ -579,6 +441,7 @@ function submitWithMethodOverride(url, jsonData, isEdit, button, originalText) {
 function closeModal() {
     document.getElementById('branchModal').classList.add('hidden');
     currentBranchId = null;
+    isSubmitting = false;
 }
 
 // Delete Functions
@@ -608,284 +471,302 @@ function confirmDelete() {
             'Accept': 'application/json'
         }
     })
-    .then(response => response.json())
+    .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw { status: response.status, data };
+        return data;
+    })
     .then(data => {
         if (data.success) {
-            showToast('Branch deleted successfully', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            // ✅ store message and reload so Toastify blocks show
+            sessionStorage.setItem('toast_type', 'success');
+            sessionStorage.setItem('toast_message', 'Branch deleted successfully');
+            window.location.reload();
         } else {
-            showToast(data.message || 'Failed to delete branch', 'error');
-            button.innerHTML = originalText;
-            button.disabled = false;
-            closeDeleteModal();
+            sessionStorage.setItem('toast_type', 'error');
+            sessionStorage.setItem('toast_message', data.message || 'Failed to delete branch');
+            window.location.reload();
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showToast('An error occurred. Please try again.', 'error');
+        console.error('Delete error:', error);
+        sessionStorage.setItem('toast_type', 'error');
+        sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
+        window.location.reload();
+    })
+    .finally(() => {
         button.innerHTML = originalText;
         button.disabled = false;
     });
 }
 
-// Form Submission
-// Form Submission - FIXED for JSON
-document.getElementById('branchForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const form = this;
-    const url = form.action;
-    const method = form.querySelector('input[name="_method"]') ? 'PUT' : 'POST';
-
-    // Create JSON data from form
-    const formData = new FormData(form);
-    const jsonData = {};
-
-    // Convert FormData to JSON object
-    for (let [key, value] of formData.entries()) {
-        if (key === '_method' || key === '_token') continue; // Skip these
-        jsonData[key] = value;
-    }
-
-    // Convert boolean value properly
-    jsonData.is_main = document.getElementById('is_main').checked ? 1 : 0;
-
-    console.log('Sending JSON data:', jsonData);
-    console.log('URL:', url);
-    console.log('Method:', method);
-
-    const button = document.getElementById('submitBtn');
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-    button.disabled = true;
-
-    // Send as JSON
-    fetch(url, {
-        method: method === 'PUT' ? 'POST' : 'POST', // Laravel handles PUT via POST with _method
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify(jsonData)
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json().then(data => {
-            if (!response.ok) {
-                throw {
-                    status: response.status,
-                    data: data
-                };
-            }
-            return data;
-        });
-    })
-    .then(data => {
-        console.log('Success response:', data);
-        if (data.success) {
-            showToast(data.message, 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showToast(data.message || 'Operation failed', 'error');
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Full error:', error);
-
-        if (error.status === 422) {
-            // Validation error
-            let errorMessages = [];
-            if (error.data && error.data.errors) {
-                for (let field in error.data.errors) {
-                    errorMessages.push(error.data.errors[field][0]);
-                }
-            } else if (error.data && error.data.message) {
-                errorMessages.push(error.data.message);
-            } else {
-                errorMessages.push('Validation failed. Please check your inputs.');
-            }
-            showToast(errorMessages.join('<br>'), 'error');
-        } else if (error.status === 419) {
-            // CSRF token mismatch
-            showToast('Session expired. Please refresh the page and try again.', 'error');
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } else {
-            showToast('An error occurred. Please try again.', 'error');
-        }
-
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-});
-
 // Phone validation
 function validatePhone(input) {
-    const value = input.value.replace(/\D/g, '');
     const errorElement = document.getElementById('phoneError');
+    const value = (input.value || '').replace(/\D/g, '');
 
-    // Limit to 11 digits
-    if (value.length > 11) {
-        input.value = value.substring(0, 11);
-    }
+    if (value.length > 11) input.value = value.substring(0, 11);
 
-    // Validate format
     if (value.length === 11) {
         if (value.startsWith('09')) {
-            // Valid
             errorElement.classList.add('hidden');
             input.classList.remove('border-red-500', 'text-red-600');
             input.classList.add('border-green-500', 'text-green-600');
         } else {
-            // Invalid - doesn't start with 09
             errorElement.textContent = 'Philippine numbers must start with 09';
             errorElement.classList.remove('hidden');
             input.classList.add('border-red-500', 'text-red-600');
             input.classList.remove('border-green-500', 'text-green-600');
         }
     } else if (value.length > 0) {
-        // Too short
         errorElement.textContent = `Must be 11 digits (${value.length}/11)`;
         errorElement.classList.remove('hidden');
         input.classList.add('border-red-500', 'text-red-600');
         input.classList.remove('border-green-500', 'text-green-600');
     } else {
-        // Empty
         errorElement.classList.add('hidden');
         input.classList.remove('border-red-500', 'text-red-600', 'border-green-500', 'text-green-600');
         input.classList.add('border-gray-300');
     }
 }
 
-// Update the form validation to include phone
-document.getElementById('branchForm').addEventListener('submit', function(e) {
-    const phoneInput = document.getElementById('phone');
-    const phoneValue = phoneInput.value.replace(/\D/g, '');
-
-    // Only validate if phone has value
-    if (phoneValue.length > 0 && (phoneValue.length !== 11 || !phoneValue.startsWith('09'))) {
-        e.preventDefault();
-        showToast('Please enter a valid Philippine mobile number (11 digits starting with 09)', 'error');
-        phoneInput.focus();
-        return false;
-    }
-});
-
-// Add this after your other functions
-function testUpdate() {
-    const testData = {
-        name: "Test Update " + new Date().getTime(),
-        location: "Test Location",
-        phone: "09123456789",
-        email: "test@example.com",
-        is_main: 0
-    };
-
-    console.log('Testing update with:', testData);
-
-    fetch('/branches/1', {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'X-HTTP-Method-Override': 'PUT'
-        },
-        body: JSON.stringify(testData)
-    })
-    .then(response => response.json())
-    .then(data => console.log('Test result:', data))
-    .catch(error => console.error('Test error:', error));
-}
-
-// Toast function
-function showToast(message, type = 'info') {
-    const existingToasts = document.querySelectorAll('.branch-toast');
-    existingToasts.forEach(toast => toast.remove());
-
-    const toast = document.createElement('div');
-    toast.className = `branch-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-0 ${
-        type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-        type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-        'bg-blue-100 text-blue-800 border border-blue-200'
-    }`;
-
-    toast.innerHTML = `
-        <div class="flex items-center">
-            <i class="mr-2 fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-        </div>
-    `;
-
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-        toast.style.transform = 'translateX(100%)';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-}
-
-// Close modals on ESC key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeModal();
-        closeDeleteModal();
-    }
-});
-
-// Close modals when clicking outside
-document.getElementById('branchModal')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeModal();
-    }
-});
-
-document.getElementById('deleteModal')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeDeleteModal();
-    }
-});
-
-// Initialize clock
+// ✅ SINGLE Submit Handler (prevents double create)
+// ✅ Uses sessionStorage so bottom Toastify blocks apply (same design)
 document.addEventListener('DOMContentLoaded', function () {
     updateClock();
     setInterval(updateClock, 1000);
+
+    const form = document.getElementById('branchForm');
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        if (isSubmitting) return;
+        isSubmitting = true;
+
+        const phoneInput = document.getElementById('phone');
+        const phoneValue = (phoneInput.value || '').replace(/\D/g, '');
+
+        if (phoneValue.length > 0 && (phoneValue.length !== 11 || !phoneValue.startsWith('09'))) {
+            // show Toastify immediately (no reload needed)
+            Toastify({
+                text: 'Please enter a valid Philippine mobile number (11 digits starting with 09)',
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                backgroundColor: "#ef4444",
+                close: true
+            }).showToast();
+
+            phoneInput.focus();
+            isSubmitting = false;
+            return;
+        }
+
+        const url = form.action;
+        const isEdit = /\/branches\/\d+$/i.test(url);
+
+        const payload = {
+            name: document.getElementById('name').value,
+            location: document.getElementById('location').value,
+            phone: document.getElementById('phone').value,
+            email: document.getElementById('email').value,
+            is_main: document.getElementById('is_main').checked ? 1 : 0,
+        };
+
+        const button = document.getElementById('submitBtn');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        button.disabled = true;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(isEdit ? { 'X-HTTP-Method-Override': 'PUT' } : {}),
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 422) {
+                    let msgs = [];
+                    if (data.errors) {
+                        for (const k in data.errors) msgs.push(data.errors[k][0]);
+                    } else {
+                        msgs.push(data.message || 'Validation failed.');
+                    }
+
+                    Toastify({
+                        text: msgs.join('\n'),
+                        duration: 3000,
+                        gravity: "top",
+                        position: "right",
+                        backgroundColor: "#ef4444",
+                        close: true
+                    }).showToast();
+
+                    return;
+                }
+
+                if (response.status === 419) {
+                    sessionStorage.setItem('toast_type', 'error');
+                    sessionStorage.setItem('toast_message', 'Session expired. Please refresh the page and try again.');
+                    window.location.reload();
+                    return;
+                }
+
+                sessionStorage.setItem('toast_type', 'error');
+                sessionStorage.setItem('toast_message', data.message || 'An error occurred. Please try again.');
+                window.location.reload();
+                return;
+            }
+
+            if (data.success) {
+                // ✅ store message and reload so bottom Toastify blocks show (same design)
+                sessionStorage.setItem('toast_type', 'success');
+                sessionStorage.setItem('toast_message', data.message || 'Saved successfully');
+                window.location.reload();
+            } else {
+                sessionStorage.setItem('toast_type', 'error');
+                sessionStorage.setItem('toast_message', data.message || 'Operation failed');
+                window.location.reload();
+            }
+        } catch (err) {
+            console.error(err);
+            sessionStorage.setItem('toast_type', 'error');
+            sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
+            window.location.reload();
+        } finally {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            isSubmitting = false;
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeDeleteModal();
+        }
+    });
+
+    document.getElementById('branchModal')?.addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    document.getElementById('deleteModal')?.addEventListener('click', function(e) {
+        if (e.target === this) closeDeleteModal();
+    });
 });
 </script>
 
-<style>
-.branch-toast {
-    animation: slideIn 0.3s ease-out;
-}
+{{-- ✅ Toastify blocks (your original) --}}
+@if (session('success'))
+    <script>
+        if (!window.successToastShown) {
+            window.successToastShown = true;
 
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
+            document.addEventListener('DOMContentLoaded', function() {
+                Toastify({
+                    text: `
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-check-circle"></i>
+                            <span>Saved successfully</span>
+                        </div>
+                    `,
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "#22c55e",
+                    close: true,
+                    escapeMarkup: false
+                }).showToast();
+            });
+        }
+    </script>
+@endif
 
-/* Modal animations */
-.hidden {
-    display: none !important;
-}
+@if ($errors->any())
+    <script>
+        if (!window.errorToastShown) {
+            window.errorToastShown = true;
 
-/* Ensure modals appear above everything */
-#branchModal, #deleteModal {
-    z-index: 9999;
-}
-</style>
+            document.addEventListener('DOMContentLoaded', function() {
+                Toastify({
+                    text: `
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                            <span>Something went wrong</span>
+                        </div>
+                    `,
+                    duration: 4000,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "#ef4444",
+                    close: true,
+                    escapeMarkup: false
+                }).showToast();
+            });
+        }
+    </script>
+@endif
+
+{{-- ✅ EXTRA: sessionStorage toast (makes AJAX success use SAME design as your bottom toast) --}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const type = sessionStorage.getItem('toast_type');
+    const message = sessionStorage.getItem('toast_message');
+
+    if (!type || !message) return;
+
+    const config = {
+        updated: {
+            icon: 'fa-circle-check',
+            iconColor: 'text-green-600',
+            border: '#16a34a'
+        },
+        deleted: {
+            icon: 'fa-trash',
+            iconColor: 'text-red-600',
+            border: '#dc2626'
+        },
+    };
+
+    const current = config[type] ?? config.updated;
+
+    Toastify({
+        text: `
+            <div class="flex items-center gap-3">
+                <i class="fa-solid ${current.icon} ${current.iconColor}"></i>
+                <span class="text-gray-800">${message}</span>
+            </div>
+        `,
+        duration: 3000,
+        gravity: "top",
+        position: "right",
+        close: true,
+        escapeMarkup: false,
+        backgroundColor: "#ffffff",
+        style: {
+            border: `1px solid ${current.border}`,
+            borderRadius: "10px",
+            display: "flex",
+            minWidth: "280px",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+            color: "#1f2937"
+        }
+    }).showToast();
+
+    sessionStorage.removeItem('toast_type');
+    sessionStorage.removeItem('toast_message');
+});
+</script>
+
+
 @endsection

@@ -1,6 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $canEdit = auth()->user()->can('edit appointments');
+    $canDelete = auth()->user()->can('delete appointments');
+    $showActions = $canEdit || $canDelete;
+@endphp
+
 <div class="mx-auto max-w-7xl">
 
     <div class="flex items-center justify-between mb-6">
@@ -33,7 +39,10 @@
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Date</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Time Range</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
-                    <th class="px-6 py-3 text-xs font-medium text-center text-gray-500 uppercase">Actions</th>
+
+                    @if($showActions)
+                        <th class="px-6 py-3 text-xs font-medium text-center text-gray-500 uppercase">Actions</th>
+                    @endif
                 </tr>
             </thead>
 
@@ -93,66 +102,61 @@
                             </span>
                         </td>
 
-                        <td class="px-6 py-4 text-center">
-                            <div class="flex justify-center gap-2">
-                                <a href="{{ route('appointments.edit', $booking) }}"
-                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                    Edit
-                                </a>
+                        @if($showActions)
+                            <td class="px-6 py-4 text-center">
+                                <div class="flex justify-center gap-2">
+                                    @can('edit appointments')
+                                        <a href="{{ route('appointments.edit', $booking) }}"
+                                           class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                            Edit
+                                        </a>
+                                    @endcan
 
-                                <!-- DELETE BUTTON -->
-                                <button onclick="openDeleteModal({{ $booking->id }})"
-                                    class="px-3 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                    Delete
-                                </button>
-                            </div>
-                        </td>
+                                    @can('delete appointments')
+                                        <button onclick="openDeleteModal({{ $booking->id }})"
+                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                            Delete
+                                        </button>
+                                    @endcan
+                                </div>
+                            </td>
+                        @endif
                     </tr>
                 @endforeach
             </tbody>
         </table>
         </div>
 
-        {{-- <div style="display: none;">
-            @foreach($bookings as $booking)
-                Booking ID: {{ $booking->id }}<br>
-                Customer: {{ $booking->customer_name }}<br>
-                Therapist ID from DB: {{ $booking->therapist_id }}<br>
-                Therapist relationship loaded: {{ $booking->relationLoaded('therapist') ? 'Yes' : 'No' }}<br>
-                Therapist object: {{ $booking->therapist ? 'Exists' : 'NULL' }}<br>
-                Therapist name via relationship: {{ $booking->therapist->name ?? 'NULL' }}<br>
-                <hr>
-            @endforeach
-        </div> --}}
+        @can('delete appointments')
+            <!-- DELETE CONFIRMATION MODAL -->
+            <div id="deleteModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+                <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
+                    <h2 class="mb-4 text-xl font-semibold text-gray-800 dark:text-white">
+                        Confirm Delete
+                    </h2>
 
-        <!-- DELETE CONFIRMATION MODAL -->
-        <div id="deleteModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
-            <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
-                <h2 class="mb-4 text-xl font-semibold text-gray-800 dark:text-white">
-                    Confirm Delete
-                </h2>
+                    <p class="text-gray-500 dark:text-gray-400">
+                        Are you sure you want to delete this appointment?
+                    </p>
 
-                <p class="text-gray-500 dark:text-gray-400">
-                    Are you sure you want to delete this appointment?
-                </p>
-
-                <div class="flex justify-end gap-2 mt-4">
-                    <button type="button" onclick="closeDeleteModal()"
-                        class="px-4 py-2 text-gray-700 bg-gray-200 rounded">
-                        Cancel
-                    </button>
-
-                    <form id="deleteForm" method="POST">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit"
-                            class="px-4 py-2 text-white bg-red-600 rounded">
-                            Yes, Delete
+                    <div class="flex justify-end gap-2 mt-4">
+                        <button type="button" onclick="closeDeleteModal()"
+                            class="px-4 py-2 text-gray-700 bg-gray-200 rounded">
+                            Cancel
                         </button>
-                    </form>
+
+                        <form id="deleteForm" method="POST">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                class="px-4 py-2 text-white bg-red-600 rounded">
+                                Yes, Delete
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endcan
 
         <!-- PAGINATION -->
         <div class="px-4 py-3 bg-white border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700">
@@ -187,31 +191,7 @@
         setInterval(updateClock, 1000);
     });
 
-    function openEditModal(booking) {
-    // Update to use correct field names
-    document.getElementById('edit_customer_name').value = booking.customer_name || '';
-    document.getElementById('edit_customer_email').value = booking.customer_email || '';
-    document.getElementById('edit_service_type').value = booking.service_type || '';
-    document.getElementById('edit_treatment').value = booking.treatment || '';
-
-    // For therapist - use therapist_id from the booking
-    document.getElementById('edit_therapist_id').value = booking.therapist_id || '';
-
-    // For date and time - use the correct field names
-    document.getElementById('edit_appointment_date').value = booking.appointment_date || '';
-    document.getElementById('edit_start_time').value = booking.start_time || '';
-    document.getElementById('edit_status').value = booking.status || 'reserved';
-
-    // Update the form action
-    document.getElementById('editForm').action = '/appointments/' + booking.id;
-    document.getElementById('editModal').classList.remove('hidden');
-    }
-
-    function closeEditModal() {
-        document.getElementById('editModal').classList.add('hidden');
-    }
-
-    // Delete Modal Functions
+    @can('delete appointments')
     function openDeleteModal(id) {
         document.getElementById('deleteForm').action = '/appointments/' + id;
         document.getElementById('deleteModal').classList.remove('hidden');
@@ -220,47 +200,76 @@
     function closeDeleteModal() {
         document.getElementById('deleteModal').classList.add('hidden');
     }
-
+    @endcan
 </script>
 
 @if (session('success'))
-    <script>
-        // Check if toast has already been shown
-        if (!window.successToastShown) {
-            window.successToastShown = true;
+<script>
+    if (!window.successToastShown) {
+        window.successToastShown = true;
 
-            document.addEventListener('DOMContentLoaded', function() {
-                Toastify({
-                    text: "{{ session('success') }}",
-                    duration: 3000,
-                    gravity: "top",
-                    position: "right",
-                    backgroundColor: "#22c55e",
-                    close: true
-                }).showToast();
-            });
-        }
-    </script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-green-600 fa-solid fa-check-circle"></i>
+                        <span class="text-gray-800">{{ session('success') }}</span>
+                    </div>
+                `,
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ REQUIRED
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #16a34a",
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
 @endif
 
 @if ($errors->any())
-    <script>
-        // Check if error toast has already been shown
-        if (!window.errorToastShown) {
-            window.errorToastShown = true;
+<script>
+    if (!window.errorToastShown) {
+        window.errorToastShown = true;
 
-            document.addEventListener('DOMContentLoaded', function() {
-                Toastify({
-                    text: "{{ $errors->first() }}",
-                    duration: 3000,
-                    gravity: "top",
-                    position: "right",
-                    backgroundColor: "#ef4444",
-                    close: true
-                }).showToast();
-            });
-        }
-    </script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-red-600 fa-solid fa-circle-xmark"></i>
+                        <span class="text-gray-800">
+                            {{ $errors->first() }}
+                        </span>
+                    </div>
+                `,
+                duration: 4000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ allow icon HTML
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #dc2626",   // red-600
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
 @endif
+
 
 @endsection

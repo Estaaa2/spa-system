@@ -38,9 +38,6 @@
                 </div>
             </header>
         @endisset
-
-
-
     </div>
 </body>
 
