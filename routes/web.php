@@ -141,6 +141,23 @@ Route::middleware(['auth', 'permission:view services|manage services'])->group(f
 Route::middleware(['auth', 'permission:manage services'])->group(function () {
     Route::resource('treatments', TreatmentController::class)->except(['index']);
     Route::resource('packages', PackageController::class)->except(['index']);
+    // Schedule
+    Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
+    
+    // API route: get operating hours for a branch/day
+    Route::get('/api/operating-hours/{branch}/{day}', function($branchId, $day) {
+        $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
+            ->where('day_of_week', $day)
+            ->first();
+
+        if (!$hours) return response()->json(['is_closed' => true]);
+
+        return response()->json([
+            'is_closed' => $hours->is_closed,
+            'opening_time' => $hours->opening_time,
+            'closing_time' => $hours->closing_time,
+        ]);
+    })->name('api.operating-hours');
 });
 
 /*

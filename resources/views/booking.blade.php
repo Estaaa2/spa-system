@@ -31,6 +31,8 @@
             <div class="h-full p-6 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
                 <h2 class="mb-2 text-lg font-semibold text-gray-800 dark:text-white">Appointment Details</h2>
                 <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Fill in all required information to schedule an appointment</p>
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">Appointment Details</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Fill in all required information to schedule an appointment</p>
 
                 <form action="{{ route('bookings.store') }}" method="POST">
                     @csrf
