@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\OperatingHours;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -11,7 +12,6 @@ class ScheduleController extends Controller
     public function index(Request $request)
     {
         $currentBranchId = session('current_branch_id');
-
         // Week start (Monday)
         $weekParam = $request->query('week');
         $startOfWeek = $weekParam
@@ -20,8 +20,19 @@ class ScheduleController extends Controller
 
         $endOfWeek = $startOfWeek->copy()->addDays(6);
 
-        // ✅ Use 24-hour keys for matching
-        $timeSlotKeys = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
+        $dayDates = [];
+        foreach (range(0,6) as $i) {
+            $dayDates[$i] = $startOfWeek->copy()->addDays($i);
+        }
+
+        $timeSlotKeys = [];
+        $start = Carbon::createFromTime(9,0);
+        $end = Carbon::createFromTime(16,0);
+
+        while($start <= $end) {
+            $timeSlotKeys[] = $start->format('H:i');
+            $start->addMinutes(30);  // 30-min resolution
+        }
 
         // Get bookings for the week (per branch)
         $bookings = Booking::query()
@@ -31,18 +42,74 @@ class ScheduleController extends Controller
             ->orderBy('start_time')
             ->get();
 
-        // Build grid: [YYYY-MM-DD][HH:MM] => [bookings...]
+        $slotResolution = 30; // minutes per row
+        $dayStart = Carbon::createFromTime(7,0); // timetable start time
+
+        foreach ($bookings as $b) {
+            $start = Carbon::parse($b->start_time);
+            $end = Carbon::parse($b->end_time);
+
+            $rowStart = $dayStart->diffInMinutes($start) / $slotResolution + 1;
+            $rowEnd = $dayStart->diffInMinutes($end) / $slotResolution + 1;
+
+            $b->gridRow = "$rowStart / $rowEnd";
+        }
+
         $grid = [];
+
+        // foreach ($bookings as $b) {
+
+        //     $start = Carbon::parse($b->start_time);
+        //     $end   = Carbon::parse($b->end_time);
+
+        //     while ($start < $end) {
+
+        //         $dateKey = Carbon::parse($b->appointment_date)->toDateString();
+        //         $timeKey = $start->format('H:i');
+
+        //         if (!in_array($timeKey, $timeSlotKeys, true)) {
+        //             $start->addMinutes(30);
+        //             continue;
+        //         }
+
+        //         $grid[$dateKey][$timeKey][] = $b;
+
+        //         $start->addMinutes(30);
+        //     }
+        // }
+
         foreach ($bookings as $b) {
             $dateKey = Carbon::parse($b->appointment_date)->toDateString();
-            $timeKey = Carbon::parse($b->start_time)->format('H:i');
+            $startTime = Carbon::parse($b->start_time);
+            $endTime = Carbon::parse($b->end_time);
 
-            // Only place bookings that match your shown time slots
-            if (!in_array($timeKey, $timeSlotKeys, true)) {
-                continue;
+            $occupiedSlots = [];
+            $slot = $startTime->copy();
+            
+            while($slot < $endTime) {
+                $occupiedSlots[] = $slot->format('H:i');
+                $slot->addMinutes(30);
             }
 
-            $grid[$dateKey][$timeKey][] = $b;
+            foreach ($occupiedSlots as $timeKey) {
+                $grid[$dateKey][$timeKey][] = $b;
+            }
+
+            // Optional: store start_time separately for front-end check
+            $b->start_slot = $startTime->format('H:i');
+        }
+
+        $operatingHours = [];
+        foreach ($dayDates as $date) {
+            $dayOfWeek = $date->format('l'); // "Monday", "Tuesday", ...
+            $hours = OperatingHours::where('branch_id', $currentBranchId)
+                        ->where('day_of_week', $dayOfWeek)
+                        ->first();
+
+            $operatingHours[$date->toDateString()] = [
+                'opening_time' => $hours->opening_time ?? null,
+                'closing_time' => $hours->closing_time ?? null,
+            ];
         }
 
         $prevWeek = $startOfWeek->copy()->subWeek()->toDateString();
@@ -53,8 +120,11 @@ class ScheduleController extends Controller
             'endOfWeek',
             'prevWeek',
             'nextWeek',
+            'grid',
+            'bookings',
+            'slotResolution',
             'timeSlotKeys',
-            'grid'
+            'operatingHours'
         ));
     }
 

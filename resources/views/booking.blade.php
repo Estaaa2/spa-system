@@ -29,8 +29,6 @@
         <!-- Booking Form -->
         <div class="lg:col-span-2">
             <div class="h-full p-6 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
-                <h2 class="mb-2 text-lg font-semibold text-gray-800 dark:text-white">Appointment Details</h2>
-                <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Fill in all required information to schedule an appointment</p>
                 <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">Appointment Details</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Fill in all required information to schedule an appointment</p>
 
@@ -377,72 +375,41 @@
 </script>
 
 @if (session('success'))
-<script>
-    if (!window.successToastShown) {
-        window.successToastShown = true;
+    <script>
+        // Check if toast has already been shown
+        if (!window.successToastShown) {
+            window.successToastShown = true;
 
-        document.addEventListener('DOMContentLoaded', function () {
-            Toastify({
-                text: `
-                    <div class="flex items-center gap-3">
-                        <i class="text-green-600 fa-solid fa-check-circle"></i>
-                        <span class="text-gray-800">{{ session('success') }}</span>
-                    </div>
-                `,
-                duration: 3000,
-                gravity: "top",
-                position: "right",
-                close: true,
-                escapeMarkup: false, // ✅ REQUIRED
-                backgroundColor: "#ffffff",
-                style: {
-                    border: "1px solid #16a34a",
-                    borderRadius: "10px",
-                    minWidth: "300px",
-                    display: "flex",
-                    alignItems: "center",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
-                }
-            }).showToast();
-        });
-    }
-</script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Toastify({
+                    text: "{{ session('success') }}",
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "#22c55e",
+                }).showToast();
+            });
+        }
+    </script>
 @endif
 
-
 @if ($errors->any())
-<script>
-    if (!window.errorToastShown) {
-        window.errorToastShown = true;
+    <script>
+        // Check if error toast has already been shown
+        if (!window.errorToastShown) {
+            window.errorToastShown = true;
 
-        document.addEventListener('DOMContentLoaded', function () {
-            Toastify({
-                text: `
-                    <div class="flex items-center gap-3">
-                        <i class="text-red-600 fa-solid fa-circle-xmark"></i>
-                        <span class="text-gray-800">
-                            {{ $errors->first() }}
-                        </span>
-                    </div>
-                `,
-                duration: 4000,
-                gravity: "top",
-                position: "right",
-                close: true,
-                escapeMarkup: false, // ✅ allow icon HTML
-                backgroundColor: "#ffffff",
-                style: {
-                    border: "1px solid #dc2626",   // red-600
-                    borderRadius: "10px",
-                    minWidth: "300px",
-                    display: "flex",
-                    alignItems: "center",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
-                }
-            }).showToast();
-        });
-    }
-</script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Toastify({
+                    text: "{{ $errors->first() }}",
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "#ef4444",
+                }).showToast();
+            });
+        }
+    </script>
 @endif
 
 @endsection

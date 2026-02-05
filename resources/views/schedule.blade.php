@@ -61,92 +61,129 @@
         }, $timeSlotKeys);
     @endphp
 
-    <!-- CALENDAR -->
-    <div class="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
-        <!-- HEADERS -->
-        <div class="grid grid-cols-8 border-b border-gray-200 dark:border-gray-700">
-            <div class="p-4 text-sm font-semibold text-gray-500 border-r border-gray-200 dark:text-gray-400 dark:border-gray-700">
+    <!-- TIMETABLE GRID -->
+    <div class="overflow-auto bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        @php
+            $numTimeSlots = count($timeSlotKeys);
+            $numDays = count($dayDates);
+        @endphp
+        <!-- Single Grid for headers + time slots -->
+        <div class="grid border-b border-gray-200 dark:border-gray-700"
+            style="display: grid; grid-template-columns: 80px repeat({{ $numDays }}, 1fr); 
+                    grid-template-rows: 70px repeat({{ $numTimeSlots }}, 84px);">
+
+            {{-- HEADERS --}}
+            <div class="p-2 text-sm text-gray-500 border-r border-b border-gray-200 dark:text-gray-400 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                 Time
             </div>
-
+            
             @foreach($dayDates as $i => $date)
-                <div class="p-4 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0">
-                    <div class="font-semibold text-gray-800 dark:text-white">{{ $days[$i] }}</div>
+                <div class="p-2 text-center text-gray-500 border-r border-b border-gray-200 dark:text-gray-400 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                    <div class="font-semibold text-gray-800 text-lg dark:text-white">{{ $days[$i] }}</div>
                     <div class="text-sm text-gray-500 dark:text-gray-400">{{ $date->format('d') }}</div>
                 </div>
             @endforeach
-        </div>
 
-        <!-- TIME ROWS -->
-        @foreach($timeSlotKeys as $slotIndex => $timeKey)
-            <div class="grid grid-cols-8 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
-                <!-- TIME LABEL -->
-                <div class="p-4 text-sm text-gray-500 border-r border-gray-200 dark:text-gray-400 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                    {{ $timeSlots[$slotIndex] }}
+            {{-- TIME LABELS --}}
+            @foreach($timeSlotKeys as $slotIndex => $timeKey)
+                {{-- Time column --}}
+                <div class="p-2 text-sm text-gray-500 border-r border-b border-gray-200 dark:text-gray-400 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                    {{ $timeKey }}
                 </div>
 
-                <!-- DAY CELLS -->
-                @foreach($dayDates as $date)
+                {{-- Day cells --}}
+                @foreach($dayDates as $dayIndex => $date)
                     @php
                         $dateKey = $date->toDateString();
                         $cellBookings = $grid[$dateKey][$timeKey] ?? [];
-                        $cellId = 'cell-' . $dateKey . '-' . str_replace(':', '', $timeKey);
+                        $opening = $operatingHours[$dateKey]['opening_time'] ?? null;
+                        $closing = $operatingHours[$dateKey]['closing_time'] ?? null;
                     @endphp
+                    <div class="relative border-b border-r border-gray-200 dark:border-gray-700 last:border-r-0">
 
-                    <div class="p-3 border-r border-gray-200 dark:border-gray-700 last:border-r-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 min-h-[84px]">
-                        <div class="space-y-2" id="{{ $cellId }}">
-                            @if(count($cellBookings))
-                                @foreach($cellBookings as $b)
-                                    @php
-                                        $badge = match($b->status) {
-                                            'reserved' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-                                            'confirmed' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-                                            'completed' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-                                            'cancelled' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-                                            default => 'bg-gray-100 text-gray-800'
-                                        };
-                                    @endphp
+                        @php
+                            $dateKey = $date->toDateString();
+                            $opening = $operatingHours[$dateKey]['opening_time'] ?? null;
+                            $closing = $operatingHours[$dateKey]['closing_time'] ?? null;
+                        @endphp
 
-                                    <div
-                                        class="p-2 border border-gray-200 rounded-lg cursor-pointer dark:border-gray-700 bg-white/70 dark:bg-gray-900/30"
-                                        onclick="openAppointmentModal(this)"
-                                        data-customer="{{ $b->customer_name ?? 'Walk-in' }}"
-                                        data-service="{{ ucfirst($b->service_type) }}"
-                                        data-treatment="{{ $b->treatment }}"
-                                        data-date="{{ \Carbon\Carbon::parse($b->appointment_date)->format('F d, Y') }}"
-                                        data-time="{{ \Carbon\Carbon::parse($b->start_time)->format('h:i A') }} -
-                                                    {{ \Carbon\Carbon::parse($b->end_time)->format('h:i A') }}"
-                                        data-status="{{ ucfirst($b->status) }}"
-                                    >
-                                        <div class="flex items-center justify-between gap-2">
-                                            <div class="text-sm font-semibold text-gray-800 truncate dark:text-white">
-                                                {{ $b->customer_name ?? 'Walk-in' }}
-                                            </div>
-                                            <span class="px-2 py-0.5 text-xs font-medium rounded-full {{ $badge }}">
-                                                {{ ucfirst($b->status) }}
-                                            </span>
-                                        </div>
-                                        <div class="mt-1 text-xs text-gray-600 truncate dark:text-gray-300">
-                                            {{ ucfirst($b->service_type) }} • {{ $b->treatment }}
-                                        </div>
-                                    </div>
-                                @endforeach
-                            @else
-                                <!-- Empty slot -->
-                                <button
-                                    type="button"
-                                    class="w-full h-full text-sm text-center text-gray-400 transition-opacity opacity-0 dark:text-gray-500 hover:opacity-100"
-                                    onclick="event.stopPropagation(); alert('Click a slot to create booking: {{ $dateKey }} {{ $timeKey }}');"
-                                >
-                                    Click to add
-                                </button>
+                        @foreach($timeSlotKeys as $slotIndex2 => $slot2)
+                            @php
+                                $openingTime = substr($opening, 0, 5); // "09:00"
+                                $closingTime = substr($closing, 0, 5); // "16:00"
+
+                                $slotStart = \Carbon\Carbon::createFromFormat('H:i', $slot2);
+                                $slotEnd = $slotStart->copy()->addMinutes(30); // your slot resolution
+                                $isClosed = !$opening || !$closing 
+                                            || $slotStart->lt(\Carbon\Carbon::createFromFormat('H:i', $openingTime)) 
+                                            || $slotEnd->gt(\Carbon\Carbon::createFromFormat('H:i', $closingTime));
+                            @endphp
+
+                            @if($isClosed)
+                                <div class="absolute left-0 top-0 w-full h-full bg-gray-200 dark:bg-gray-700 opacity-40 z-0"></div>
                             @endif
-                        </div>
+                        @endforeach
+
+                        {{-- Empty slot for adding --}}
+                        <button type="button"
+                                class="absolute inset-0 w-full h-full text-sm text-center text-gray-400 transition-opacity opacity-0 dark:text-gray-500 hover:opacity-100"
+                                onclick="event.stopPropagation(); alert('Click to add booking: {{ $dateKey }} {{ $timeKey }}');">
+                            Click to add
+                        </button>
+
+                        {{-- Appointments --}}
+                        @foreach($cellBookings as $b)
+                            @php
+                                $startTime = \Carbon\Carbon::parse($b->start_time)->format('H:i');
+                                $isStartSlot = $startTime === $timeKey;
+
+                                if($isStartSlot) {
+                                    $minutes = \Carbon\Carbon::parse($b->start_time)
+                                                ->diffInMinutes(\Carbon\Carbon::parse($b->end_time));
+                                    $rowspan = ceil($minutes / 30);
+
+                                    $badge = match($b->status) {
+                                        'reserved' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                                        'confirmed' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                        'completed' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                        'cancelled' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                                        default => 'bg-gray-100 text-gray-800'
+                                    };
+                                }
+                            @endphp
+
+                            @if($isStartSlot)
+                                <div
+                                    class="absolute left-0 top-0 w-full p-2 border rounded-lg cursor-pointer dark:border-gray-700 bg-white/70 dark:bg-gray-900/30"
+                                    style="top: 0; height: calc({{ $rowspan }} * 100%); z-index: 10;"
+                                    onclick="openAppointmentModal(this)"
+                                    data-customer="{{ $b->customer_name ?? 'Walk-in' }}"
+                                    data-service="{{ ucfirst($b->service_type) }}"
+                                    data-treatment="{{ $b->treatment }}"
+                                    data-date="{{ \Carbon\Carbon::parse($b->appointment_date)->format('F d, Y') }}"
+                                    data-time="{{ \Carbon\Carbon::parse($b->start_time)->format('h:i A') }} - {{ \Carbon\Carbon::parse($b->end_time)->format('h:i A') }}"
+                                    data-status="{{ ucfirst($b->status) }}"
+                                >
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="text-sm font-semibold text-gray-800 truncate dark:text-white">
+                                            {{ $b->customer_name ?? 'Walk-in' }}
+                                        </div>
+                                        <span class="px-2 py-0.5 text-xs font-medium rounded-full {{ $badge }}">
+                                            {{ ucfirst($b->status) }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 text-xs text-gray-600 truncate dark:text-gray-300">
+                                        {{ ucfirst($b->service_type) }} • {{ $b->treatment }}
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
                     </div>
                 @endforeach
-            </div>
-        @endforeach
+            @endforeach
+        </div>
     </div>
+
 
     <!-- VIEW APPOINTMENT MODAL -->
     <div id="appointmentModal" class="fixed inset-0 z-50 items-center justify-center hidden bg-black/50">
