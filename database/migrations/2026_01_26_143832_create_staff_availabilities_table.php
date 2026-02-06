@@ -13,10 +13,12 @@ class CreateStaffAvailabilitiesTable extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->date('date');
-            $table->time('start_time');
-            $table->time('end_time');
-            $table->enum('status', ['available', 'unavailable'])->default('available');
+            $table->time('start_time')->nullable();
+            $table->time('end_time')->nullable();
+            $table->enum('status', ['available', 'partial', 'unavailable'])->default('available');
             $table->timestamps();
+
+            $table->unique(['user_id', 'date', 'start_time', 'end_time'], 'staff_avail_unique');
         });
     }
 

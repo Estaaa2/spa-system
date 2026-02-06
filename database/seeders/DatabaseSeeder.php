@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
     {
         // Seed roles and permissions first
         $this->call(RolePermissionSeeder::class);
+        $this->call(AdminSeeder::class);
+        
         // $this->call(AdminSeeder::class);
 
         // User::factory(10)->create();
@@ -27,6 +29,5 @@ class DatabaseSeeder extends Seeder
         //     'email' => 'admin@example.com',
         //     'password' => Hash::make('admin123'),
         // ]);
-
     }
 }
