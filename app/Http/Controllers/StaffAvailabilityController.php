@@ -36,8 +36,9 @@ class StaffAvailabilityController extends Controller
             foreach(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] as $dayName){
                 $day = $operatingHours->firstWhere('day_of_week', $dayName);
                 $branchOperatingHours[$s->id][date('N', strtotime($dayName))] = [
-                    'opening' => $day ? $day->opening_time : '09:00:00',
-                    'closing' => $day ? $day->closing_time : '18:00:00',
+                    'opening' => $day ? $day->opening_time : null,
+                    'closing' => $day ? $day->closing_time : null,
+                    'closed'  => $day ? $day->is_closed : true,
                 ];
             }
         }
@@ -62,11 +63,12 @@ class StaffAvailabilityController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-        'user_id' => 'required|exists:users,id',
-        'date' => 'required|date',
-        'status' => 'required|in:available,partial,unavailable',
-        'start_time' => 'nullable|date_format:H:i',
-        'end_time' => 'nullable|date_format:H:i|after:start_time',
+            'user_id' => 'required|exists:users,id',
+            'date' => 'required|date',
+            'status' => 'required|in:available,partial,unavailable',
+
+            'start_time' => 'required_if:status,partial|nullable|date_format:H:i:s',
+            'end_time'   => 'required_if:status,partial|nullable|date_format:H:i:s|after:start_time',
         ]);
 
         $branchId = auth()->user()->branch_id;

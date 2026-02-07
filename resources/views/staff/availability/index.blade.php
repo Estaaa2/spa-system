@@ -78,18 +78,25 @@
                             $endTime = optional($availability)->end_time;
                             $opening = $branchOperatingHours[$s->id][$day->format('N')]['opening'];
                             $closing = $branchOperatingHours[$s->id][$day->format('N')]['closing'];
+                            $closed = $branchOperatingHours[$s->id][$day->format('N')]['closed'];
                         @endphp
                         <td class="px-2 py-1 text-center">
-                            <button 
-                                onclick="openAvailabilityModal({{ $s->id }}, '{{ $s->name }}', '{{ $day->format('Y-m-d') }}', '{{ $status }}', '{{ $startTime }}', '{{ $endTime }}', '{{ $opening }}', '{{ $closing }}')"
-                                class="px-2 py-1 rounded-full text-sm font-medium
-                                    @if($status == 'available') dark:bg-green-900 dark:text-green-200 bg-green-100 text-green-800
-                                    @elseif($status == 'partial') dark:bg-yellow-900 dark:text-yellow-200 bg-yellow-100 text-yellow-800
-                                    @elseif($status == 'unavailable') dark:bg-red-900 dark:text-red-200 bg-red-100 text-red-800
-                                    @endif
-                                    hover:opacity-80">
-                                {{ ucfirst($status) }}
-                            </button>
+                            @if($closed)
+                                <span class="px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-200 rounded-full dark:bg-gray-700 dark:text-gray-300">
+                                    Spa Closed
+                                </span>
+                            @else
+                                <button 
+                                    onclick="openAvailabilityModal({{ $s->id }}, '{{ $s->name }}', '{{ $day->format('Y-m-d') }}', '{{ $status }}', '{{ $startTime }}', '{{ $endTime }}', '{{ $opening }}', '{{ $closing }}')"
+                                    class="px-2 py-1 rounded-full text-sm font-medium
+                                        @if($status == 'available') dark:bg-green-900 dark:text-green-200 bg-green-100 text-green-800
+                                        @elseif($status == 'partial') dark:bg-yellow-900 dark:text-yellow-200 bg-yellow-100 text-yellow-800
+                                        @elseif($status == 'unavailable') dark:bg-red-900 dark:text-red-200 bg-red-100 text-red-800
+                                        @endif
+                                        hover:opacity-80">
+                                    {{ ucfirst($status) }}
+                                </button>
+                            @endif
                         </td>
                     @endforeach
                 </tr>
@@ -105,7 +112,7 @@
             <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"></div>
 
             <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800 sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <form id="availabilityForm" method="POST">
+                <form id="availabilityForm" method="POST" action="{{ route('staff.availability.store') }}">
                     @csrf
                     <div class="px-6 py-4">
                         <div class="flex items-center justify-between">
@@ -123,6 +130,8 @@
                         
                         <div class="mt-5 space-y-3">
                             <div>
+                                <input type="hidden" name="user_id" id="modalUserId">
+                                <input type="hidden" name="date" id="modalDateValue">
                                 <input type="radio" name="status" value="available" id="statusAvailable" checked>
                                 <label for="statusAvailable" class="ml-2 text-gray-700 dark:text-gray-300">Fully Available</label>
                             </div>
@@ -163,12 +172,19 @@
 
 <script>
     function openAvailabilityModal(userId, staffName, date, status, startTime, endTime, openingTime, closingTime) {
+
+        if (!openingTime || !closingTime) {
+            alert("Spa is closed on this day.");
+            return;
+        }
+
         const form = document.getElementById('availabilityForm');
         
         document.getElementById('modalStaffName').textContent = staffName;
         document.getElementById('modalDate').textContent = date;
 
-        form.action = `/staff-availability`; // your store route
+        document.getElementById('modalUserId').value = userId;
+        document.getElementById('modalDateValue').value = date;
 
         // Fill radio buttons
         document.getElementById('statusAvailable').checked = status === 'available';

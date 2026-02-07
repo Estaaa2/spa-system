@@ -18,7 +18,7 @@ class CreateStaffAvailabilitiesTable extends Migration
             $table->enum('status', ['available', 'partial', 'unavailable'])->default('available');
             $table->timestamps();
 
-            $table->unique(['user_id', 'date', 'start_time', 'end_time'], 'staff_avail_unique');
+            $table->unique(['user_id', 'date'], 'staff_avail_unique');
         });
     }
 

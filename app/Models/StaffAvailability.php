@@ -17,8 +17,8 @@ class StaffAvailability extends Model
 
     protected $casts = [
         'date' => 'date',
-        'start_time' => 'time:H:i',
-        'end_time' => 'time:H:i',
+        'start_time' => 'datetime:H:i',
+        'end_time' => 'datetime:H:i',
     ];
 
     public function user()
