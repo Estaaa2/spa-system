@@ -28,7 +28,7 @@
 
                 <!-- Card Container (responsive width + padding) -->
                 <div
-                    class="w-full max-w-md px-4 py-4 overflow-hidden bg-white shadow-md dark:bg-gray-800 rounded-2xl sm:px-6 sm:py-6 lg:px-8 lg:py-8 sm:max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-6xl"
+                    class="w-full max-w-md px-4 py-4 overflow-hidden dark:bg-gray-800 rounded-2xl sm:px-6 sm:py-6 lg:px-8 lg:py-8 sm:max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-6xl"
                 >
                     {{ $slot }}
                 </div>

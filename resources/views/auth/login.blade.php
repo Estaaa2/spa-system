@@ -1,7 +1,7 @@
 <x-guest-layout>
     <x-auth-session-status class="mb-10" :status="session('status')" />
 
-    <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2 rounded-2xl">
+    <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2 rounded-2xl ">
 
         <!-- LEFT IMAGE PANEL -->
         <div class="relative hidden lg:block min-h-[640px]">
