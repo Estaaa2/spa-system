@@ -192,6 +192,31 @@
     });
 
     @can('delete appointments')
+    function openEditModal(booking) {
+    // Update to use correct field names
+    document.getElementById('edit_customer_name').value = booking.customer_name || '';
+    document.getElementById('edit_customer_email').value = booking.customer_email || '';
+    document.getElementById('edit_service_type').value = booking.service_type || '';
+    document.getElementById('edit_treatment').value = booking.treatment || '';
+
+    // For therapist - use therapist_id from the booking
+    document.getElementById('edit_therapist_id').value = booking.therapist_id || '';
+
+    // For date and time - use the correct field names
+    document.getElementById('edit_appointment_date').value = booking.appointment_date || '';
+    document.getElementById('edit_start_time').value = booking.start_time || '';
+    document.getElementById('edit_status').value = booking.status || 'reserved';
+
+    // Update the form action
+    document.getElementById('editForm').action = '/appointments/' + booking.id;
+    document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    // Delete Modal Functions
     function openDeleteModal(id) {
         document.getElementById('deleteForm').action = '/appointments/' + id;
         document.getElementById('deleteModal').classList.remove('hidden');
