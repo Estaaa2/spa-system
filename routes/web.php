@@ -23,7 +23,7 @@ use App\Http\Controllers\Admin\RolePermissionController;
 */
 Route::get('/', function () {
     return view('welcome');
-});
+})->name('landing.page');
 
 /*
 |--------------------------------------------------------------------------
@@ -31,21 +31,9 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', function () {
-
-        // Admin → Admin Dashboard
-        if (auth()->user()->hasRole('admin')) {
-            return redirect()->route('admin.dashboard');
-        }
-
-        // Owner/staff without dashboard permission → Booking
-        if (!auth()->user()->can('view owner dashboard')) {
-            return redirect()->route('booking');
-        }
-
-        return app(DashboardController::class)->index();
-
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->middleware('role:owner|manager|therapist')
+        ->name('dashboard');
 });
 
 /*

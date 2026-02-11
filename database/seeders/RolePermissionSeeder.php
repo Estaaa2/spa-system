@@ -81,6 +81,7 @@ class RolePermissionSeeder extends Seeder
         $manager = Role::firstOrCreate(['name' => 'manager']);
         $therapist = Role::firstOrCreate(['name' => 'therapist']);
         $receptionist = Role::firstOrCreate(['name' => 'receptionist']);
+        $customer = Role::firstOrCreate(['name' => 'customer']);
 
         /**
          * ASSIGN PERMISSIONS TO ROLES
@@ -183,5 +184,7 @@ class RolePermissionSeeder extends Seeder
             'view branches', // optional: if they need branch list
             'view staff',    // optional: if they need staff list for booking
         ]);
+
+        $customer->syncPermissions([]);
     }
 }

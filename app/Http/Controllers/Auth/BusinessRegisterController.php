@@ -13,26 +13,21 @@ use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 use App\Models\Spa;
 
-class RegisteredUserController extends Controller
+class BusinessRegisterController extends Controller
 {
     /**
      * Display the registration view.
      */
     public function create(): View
     {
-        return view('auth.register-customer');
+        return view('auth.register-business');
     }
 
-    /**
-     * Handle an incoming registration request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
@@ -40,15 +35,17 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'is_owner' => false,
+            'is_owner' => true, // Each registered user is an owner of their own spa business
         ]);
 
-        // Assign CUSTOMER role
-        $user->assignRole('customer');
+        // Assign owner role
+        $user->assignRole('owner');
 
         event(new Registered($user));
         Auth::login($user);
 
-        return redirect()->route('landing.page');
+        // Fallback (admin or others)
+        return redirect()->route('setup.index');
+
     }
 }

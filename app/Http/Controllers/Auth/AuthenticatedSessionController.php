@@ -21,18 +21,7 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Handle an incoming authentication request.
-     */
-
-    protected function authenticated(Request $request, $user)
-    {
-        if ($user->hasRole('admin')) {
-            return redirect()->route('admin.dashboard');
-        }
-
-        if ($user->hasRole('owner')) {
-            return redirect()->route('dashboard');
-        }
-    }
+    */
 
     public function store(LoginRequest $request): RedirectResponse
     {
@@ -40,7 +29,26 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = Auth::user();
+
+        $redirectMap = [
+            'customer' => route('landing.page'),
+            'admin' => route('admin.dashboard'),
+            'owner' => route('dashboard'),
+            'manager' => route('dashboard'),
+            'receptionist' => route('dashboard'),
+            'therapist' => route('dashboard'),
+        ];
+
+        foreach ($redirectMap as $role => $route) {
+            if ($user->hasRole($role)) {
+                return redirect($route);
+            }
+        }
+
+        // fallback
+        return redirect('/');
+
     }
 
     /**
@@ -51,7 +59,6 @@ class AuthenticatedSessionController extends Controller
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
         return redirect('/');

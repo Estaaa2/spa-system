@@ -15,6 +15,7 @@
 </head>
 
 <body class="bg-[#F6EFE6] text-gray-800 selection:bg-[#D2A85B]/30 selection:text-[#3C2F23]">
+
 <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 nav-glass" id="topNav">
     <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-20">
@@ -39,22 +40,45 @@
                     Home
                 </a>
 
-                <a href="{{ route('login') }}"
-                   class="relative px-4 py-2 text-sm font-medium rounded-full transition
-                   {{ request()->is('login') ? 'text-[#6F5430] bg-white/60 ring-1 ring-black/5' : 'text-gray-700 hover:text-[#8B7355] hover:bg-white/50' }}">
-                    Login
-                </a>
+                @guest
+                    <a href="{{ route('login') }}"
+                    class="relative px-4 py-2 text-sm font-medium rounded-full transition
+                    {{ request()->is('login') ? 'text-[#6F5430] bg-white/60 ring-1 ring-black/5' : 'text-gray-700 hover:text-[#8B7355] hover:bg-white/50' }}">
+                        Login
+                    </a>
 
-                <a href="{{ route('register') }}"
-                   class="relative px-4 py-2 text-sm font-medium rounded-full transition
-                   {{ request()->is('register') ? 'text-[#6F5430] bg-white/60 ring-1 ring-black/5' : 'text-gray-700 hover:text-[#8B7355] hover:bg-white/50' }}">
-                    Register
-                </a>
+                    <a href="{{ route('register') }}"
+                    class="relative px-4 py-2 text-sm font-medium rounded-full transition
+                    {{ request()->is('register') ? 'text-[#6F5430] bg-white/60 ring-1 ring-black/5' : 'text-gray-700 hover:text-[#8B7355] hover:bg-white/50' }}">
+                        Register
+                    </a>
 
-                <a href="{{ route('register') }}"
-                   class="booking-btn ml-3 px-6 py-2.5 text-sm font-semibold text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl active:translate-y-0.5">
-                    Sign Up Your Business
-                </a>
+                    <a href="{{ route('register.business') }}"
+                    class="booking-btn ml-3 px-6 py-2.5 text-sm font-semibold text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl active:translate-y-0.5">
+                        Join as a Partner
+                    </a>
+
+                @else
+                    @role('customer')
+                        <!-- Customer Profile Menu -->
+                        <div class="relative inline-block text-left">
+                            <button type="button" class="flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-1 ring-black/5">
+                                <img src="{{ Auth::user()->profile_photo_url ?? asset('images/default-profile.png') }}" alt="Profile">
+                            </button>
+                            <div class="absolute right-0 hidden mt-2 origin-top-right bg-white divide-y divide-gray-100 rounded-md shadow-lg w-48 ring-1 ring-black ring-opacity-5" id="profileDropdown">
+                                <div class="py-1">
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            Logout
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @endrole
+                @endguest
             </div>
 
             <div class="md:hidden">
@@ -74,24 +98,22 @@
                 Home
             </a>
 
-            <a href="{{ route('login') }}"
-               class="block px-4 py-3 rounded-xl text-base font-medium transition
-               {{ request()->is('login') ? 'bg-white/70 text-[#6F5430] ring-1 ring-black/5' : 'text-gray-700 hover:bg-white/60' }}">
-                Login
-            </a>
-
-            <a href="{{ route('register') }}"
-               class="block px-4 py-3 rounded-xl text-base font-medium transition
-               {{ request()->is('register') ? 'bg-white/70 text-[#6F5430] ring-1 ring-black/5' : 'text-gray-700 hover:bg-white/60' }}">
-                Register
-            </a>
-
-            <div class="pt-2">
-                <a href="{{ route('booking') }}"
-                   class="block w-full px-4 py-3 text-base font-semibold text-center text-white shadow-lg rounded-xl booking-btn">
-                    Book Now
-                </a>
-            </div>
+            @guest
+                <a href="{{ route('login') }}" class="block px-4 py-3 rounded-xl text-base font-medium hover:bg-white/60">Login</a>
+                <a href="{{ route('register') }}" class="block px-4 py-3 rounded-xl text-base font-medium hover:bg-white/60">Register</a>
+                <a href="{{ route('register.business') }}" class="block px-4 py-3 rounded-xl text-base font-medium hover:bg-white/60">Join as a Partner</a>
+            @else
+                @role('customer')
+                <!-- # shall be replaced with the actual profile route ( {{ route('profile') }} ) -->
+                    <a href="#" class="block px-4 py-3 rounded-xl text-base font-medium hover:bg-white/60">Profile</a>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="block w-full px-4 py-3 text-left text-base font-medium rounded-xl hover:bg-white/60">
+                            Logout
+                        </button>
+                    </form>
+                @endrole
+            @endguest
         </div>
     </div>
 </nav>
@@ -415,6 +437,11 @@
     btn?.addEventListener('click', () => {
         menu.classList.toggle('hidden');
     });
+
+    // Profile dropdown toggle
+    const profileBtn = document.querySelector('.relative.inline-block button');
+    const profileDropdown = document.getElementById('profileDropdown');
+    profileBtn?.addEventListener('click', () => profileDropdown.classList.toggle('hidden'));
 
     // Nav scroll effect
     const nav = document.getElementById('topNav');

@@ -44,14 +44,14 @@
                     </div>
 
                     <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display'] mb-2">
-                        Create Account
+                        Create an owner account
                     </h2>
                     <p class="text-gray-600 dark:text-gray-400">
                         Sign up for your account
                     </p>
                 </div>
 
-                <form method="POST" action="{{ route('register') }}" class="space-y-6">
+                <form method="POST" action="{{ route('register.business.store') }}" class="space-y-6">
                     @csrf
 
                     <!-- Name -->
