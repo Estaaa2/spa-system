@@ -16,24 +16,38 @@
     </head>
 
     <body class="font-sans antialiased text-gray-900">
-        <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
-            <div class="flex flex-col items-center justify-center min-h-screen px-4 py-8 sm:px-6 sm:py-10">
+    <div class="relative min-h-screen">
 
-                <!-- Logo -->
-                <div class="mb-6 sm:mb-8">
-                    <a href="/">
-                        <x-application-logo class="w-16 h-16 text-gray-500 fill-current sm:w-20 sm:h-20" />
-                    </a>
-                </div>
-
-                <!-- Card Container (responsive width + padding) -->
-                <div
-                    class="w-full max-w-md px-4 py-4 overflow-hidden dark:bg-gray-800 rounded-2xl sm:px-6 sm:py-6 lg:px-8 lg:py-8 sm:max-w-xl md:max-w-3xl lg:max-w-5xl xl:max-w-6xl"
-                >
-                    {{ $slot }}
-                </div>
-
-            </div>
+        <!-- Background Image -->
+        <div class="absolute inset-0">
+            <img
+                src="{{ asset('images/heads.png') }}"
+                alt="Spa Background"
+                class="object-cover w-full h-full"
+            >
+            <!-- Dark Overlay -->
+            <div class="absolute inset-0 bg-black/50"></div>
         </div>
-    </body>
+
+        <!-- Content -->
+        <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-8 sm:px-6 sm:py-10">
+
+            <!-- Logo -->
+            <div class="mb-6 sm:mb-8">
+                <a href="/">
+                    <x-application-logo class="w-16 h-16 text-white fill-current sm:w-20 sm:h-20" />
+                </a>
+            </div>
+
+            <!-- Card Container -->
+            <div
+                class="w-full max-w-md overflow-hidden shadow-3xl bg-white/100 backdrop-blur-md rounded-2xl sm:max-w-xl md:max-w-3xl lg:max-w-4xl"
+            >
+                {{ $slot }}
+            </div>
+
+        </div>
+    </div>
+</body>
+
 </html>

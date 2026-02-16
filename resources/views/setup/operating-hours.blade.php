@@ -45,7 +45,7 @@
             <!-- ✅ 2 columns of cards (1 col on mobile, 2 cols on md+) -->
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 @foreach($operatingHours as $hour)
-                    <div class="p-4 transition border border-gray-200 rounded-lg dark:border-gray-700 hover:shadow-md">
+                    <div class="p-4 transition bg-white border border-gray-200 rounded-lg dark:border-gray-700 hover:shadow-md">
                         <!-- Day on top -->
                         <div class="mb-3">
                             <h4 class="text-base font-semibold text-gray-800 dark:text-white">

@@ -9,6 +9,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        
         $currentBranchId = session('current_branch_id');
 
         // If branch not set, show safe empty dashboard (prevents wrong/global data)

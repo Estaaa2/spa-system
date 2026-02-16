@@ -18,8 +18,9 @@
 
             <!-- Title -->
             <h2 class="mt-4 text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
-                Staff - {{ $branch->name }}
+                Staff Management
             </h2>
+            <p class="text-lg font-medium text-gray-700 dark:text-gray-300">{{ $branch->name }}</p>
         </div>
 
             <div class="grid grid-cols-1 gap-6">
@@ -144,4 +145,72 @@
             </div>
         </div>
     </div>
+
+@if (session('success'))
+<script>
+    if (!window.successToastShown) {
+        window.successToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-green-600 fa-solid fa-check-circle"></i>
+                        <span class="text-green-600">{{ session('success') }}</span>
+                    </div>
+                `,
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ REQUIRED
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #16a34a",
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
+
+@if ($errors->any())
+<script>
+    if (!window.errorToastShown) {
+        window.errorToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-red-600 fa-solid fa-circle-xmark"></i>
+                        <span class="text-gray-800">
+                            {{ $errors->first() }}
+                        </span>
+                    </div>
+                `,
+                duration: 4000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ allow icon HTML
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #dc2626",   // red-600
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
 </x-guest-layout>

@@ -65,12 +65,12 @@
                             <button type="button" class="flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-1 ring-black/5">
                                 <img src="{{ Auth::user()->profile_photo_url ?? asset('images/default-profile.png') }}" alt="Profile">
                             </button>
-                            <div class="absolute right-0 hidden mt-2 origin-top-right bg-white divide-y divide-gray-100 rounded-md shadow-lg w-48 ring-1 ring-black ring-opacity-5" id="profileDropdown">
+                            <div class="absolute right-0 hidden w-48 mt-2 origin-top-right bg-white divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5" id="profileDropdown">
                                 <div class="py-1">
                                     <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
-                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <button type="submit" class="block w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100">
                                             Logout
                                         </button>
                                     </form>
@@ -99,16 +99,16 @@
             </a>
 
             @guest
-                <a href="{{ route('login') }}" class="block px-4 py-3 rounded-xl text-base font-medium hover:bg-white/60">Login</a>
-                <a href="{{ route('register') }}" class="block px-4 py-3 rounded-xl text-base font-medium hover:bg-white/60">Register</a>
-                <a href="{{ route('register.business') }}" class="block px-4 py-3 rounded-xl text-base font-medium hover:bg-white/60">Join as a Partner</a>
+                <a href="{{ route('login') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Login</a>
+                <a href="{{ route('register') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Register</a>
+                <a href="{{ route('register.business') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Join as a Partner</a>
             @else
                 @role('customer')
-                <!-- # shall be replaced with the actual profile route ( {{ route('profile') }} ) -->
-                    <a href="#" class="block px-4 py-3 rounded-xl text-base font-medium hover:bg-white/60">Profile</a>
+                
+                    <a href="#" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Profile</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit" class="block w-full px-4 py-3 text-left text-base font-medium rounded-xl hover:bg-white/60">
+                        <button type="submit" class="block w-full px-4 py-3 text-base font-medium text-left rounded-xl hover:bg-white/60">
                             Logout
                         </button>
                     </form>

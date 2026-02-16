@@ -238,7 +238,7 @@
                 text: `
                     <div class="flex items-center gap-3">
                         <i class="text-green-600 fa-solid fa-check-circle"></i>
-                        <span class="text-gray-800">{{ session('success') }}</span>
+                        <span class="text-green-600">{{ session('success') }}</span>
                     </div>
                 `,
                 duration: 3000,
@@ -271,7 +271,7 @@
                 text: `
                     <div class="flex items-center gap-3">
                         <i class="text-red-600 fa-solid fa-circle-xmark"></i>
-                        <span class="text-gray-800">
+                        <span class="text-red-600">
                             {{ $errors->first() }}
                         </span>
                     </div>

@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
@@ -13,6 +12,7 @@ use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\RolePermissionController;
 
@@ -47,6 +47,13 @@ Route::middleware(['auth', 'role:admin', 'permission:view admin dashboard'])
     ->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     });
+
+
+/*
+|--------------------------------------------------------------------------
+| Manager Panel
+|--------------------------------------------------------------------------
+*/
 
 /*
 |--------------------------------------------------------------------------
@@ -131,7 +138,7 @@ Route::middleware(['auth', 'permission:manage services'])->group(function () {
     Route::resource('packages', PackageController::class)->except(['index']);
     // Schedule
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
-    
+
     // API route: get operating hours for a branch/day
     Route::get('/api/operating-hours/{branch}/{day}', function($branchId, $day) {
         $hours = \App\Models\OperatingHours::where('branch_id', $branchId)

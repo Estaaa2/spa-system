@@ -63,7 +63,7 @@
         </div>
 
         <!-- Business Info Form -->
-            <form method="POST" action="{{ route('setup.store-spa') }}" class="mb-6 space-y-6">
+            <form method="POST" action="{{ route('setup.store-spa') }}" class="m-10 space-y-6">
                 @csrf
 
                 <!-- Spa Name -->
