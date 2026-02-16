@@ -5,7 +5,10 @@
 
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Staff Availability</h1>
+        <div>
+            <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Staff Management</h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage staff availabilities and leave requests</p>
+        </div>
 
         <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div class="flex items-center gap-2">

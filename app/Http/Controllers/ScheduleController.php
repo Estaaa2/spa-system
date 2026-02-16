@@ -57,27 +57,6 @@ class ScheduleController extends Controller
 
         $grid = [];
 
-        // foreach ($bookings as $b) {
-
-        //     $start = Carbon::parse($b->start_time);
-        //     $end   = Carbon::parse($b->end_time);
-
-        //     while ($start < $end) {
-
-        //         $dateKey = Carbon::parse($b->appointment_date)->toDateString();
-        //         $timeKey = $start->format('H:i');
-
-        //         if (!in_array($timeKey, $timeSlotKeys, true)) {
-        //             $start->addMinutes(30);
-        //             continue;
-        //         }
-
-        //         $grid[$dateKey][$timeKey][] = $b;
-
-        //         $start->addMinutes(30);
-        //     }
-        // }
-
         foreach ($bookings as $b) {
             $dateKey = Carbon::parse($b->appointment_date)->toDateString();
             $startTime = Carbon::parse($b->start_time);
@@ -106,9 +85,42 @@ class ScheduleController extends Controller
                         ->where('day_of_week', $dayOfWeek)
                         ->first();
 
+            // Defaults
+            $opening = null;
+            $closing = null;
+            $closed = true;
+
+            if ($hours) {
+                // If explicit flag set, honor it
+                if ($hours->is_closed) {
+                    $opening = null;
+                    $closing = null;
+                    $closed = true;
+                } else {
+                    // Ensure we only treat a valid opening/closing as open
+                    $opening = $hours->opening_time ? substr($hours->opening_time, 0, 5) : null;
+                    $closing = $hours->closing_time ? substr($hours->closing_time, 0, 5) : null;
+
+                    // Treat "00:00" / "00:00:00" as closed (some seeds use that)
+                    if ($opening === '00:00' || $closing === '00:00' || !$opening || !$closing) {
+                        $opening = null;
+                        $closing = null;
+                        $closed = true;
+                    } else {
+                        $closed = false;
+                    }
+                }
+            } else {
+                // No operating_hours row -> treat as closed by default
+                $opening = null;
+                $closing = null;
+                $closed = true;
+            }
+
             $operatingHours[$date->toDateString()] = [
-                'opening_time' => $hours->opening_time ?? null,
-                'closing_time' => $hours->closing_time ?? null,
+                'opening_time' => $opening,
+                'closing_time' => $closing,
+                'closed' => $closed,
             ];
         }
 
