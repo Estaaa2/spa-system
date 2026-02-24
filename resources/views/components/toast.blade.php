@@ -1,46 +1,107 @@
-<div id="toast-container" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
+{{-- resources/views/components/toast.blade.php --}}
 
+{{-- ✅ Success from session('success') --}}
+@if (session('success'))
 <script>
-window.showToast = function (message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
+(function () {
+    const msg = @json(session('success'));
 
-    const toast = document.createElement('div');
-
-    const styles = {
-        success: 'bg-green-100 text-green-800 border-green-200',
-        error: 'bg-red-100 text-red-800 border-red-200',
-        info: 'bg-blue-100 text-blue-800 border-blue-200'
-    };
-
-    const icons = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        info: 'fa-info-circle'
-    };
-
-    toast.className = `
-        flex items-center gap-3 px-4 py-3 border rounded-lg shadow-lg
-        transition-all duration-300 translate-x-full opacity-0
-        ${styles[type] ?? styles.info}
-    `;
-
-    toast.innerHTML = `
-        <i class="fa-solid ${icons[type] ?? icons.info}"></i>
-        <span class="text-sm font-medium">${message}</span>
-    `;
-
-    container.appendChild(toast);
-
-    // Animate in
-    requestAnimationFrame(() => {
-        toast.classList.remove('translate-x-full', 'opacity-0');
-    });
-
-    // Auto remove
-    setTimeout(() => {
-        toast.classList.add('translate-x-full', 'opacity-0');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-};
+    Toastify({
+        text: `
+            <div class="flex items-center gap-3">
+                <i class="text-green-600 fa-solid fa-check-circle"></i>
+                <span class="text-green-600">${msg}</span>
+            </div>
+        `,
+        duration: 3000,
+        gravity: "top",
+        position: "right",
+        close: true,
+        escapeMarkup: false,
+        backgroundColor: "#ffffff",
+        style: {
+            border: "1px solid #16a34a",
+            borderRadius: "10px",
+            minWidth: "300px",
+            display: "flex",
+            alignItems: "center",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+        }
+    }).showToast();
+})();
 </script>
+@endif
+
+{{-- ✅ Success from session('status') --}}
+@if (session('status'))
+<script>
+(function () {
+    const status = @json(session('status'));
+
+    // Map status values to messages
+    const map = {
+        'profile-updated': 'Profile updated successfully!',
+        'password-updated': 'Password updated successfully!',
+        'verification-link-sent': 'Verification link sent successfully!',
+    };
+
+    // Only show toast if we know the status
+    if (!map[status]) return;
+
+    Toastify({
+        text: `
+            <div class="flex items-center gap-3">
+                <i class="text-green-600 fa-solid fa-check-circle"></i>
+                <span class="text-green-600">${map[status]}</span>
+            </div>
+        `,
+        duration: 3000,
+        gravity: "top",
+        position: "right",
+        close: true,
+        escapeMarkup: false,
+        backgroundColor: "#ffffff",
+        style: {
+            border: "1px solid #16a34a",
+            borderRadius: "10px",
+            minWidth: "300px",
+            display: "flex",
+            alignItems: "center",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+        }
+    }).showToast();
+})();
+</script>
+@endif
+
+{{-- ✅ Error --}}
+@if ($errors->any())
+<script>
+(function () {
+    const msg = @json($errors->first());
+
+    Toastify({
+        text: `
+            <div class="flex items-center gap-3">
+                <i class="text-red-600 fa-solid fa-circle-xmark"></i>
+                <span class="text-red-600">${msg}</span>
+            </div>
+        `,
+        duration: 4000,
+        gravity: "top",
+        position: "right",
+        close: true,
+        escapeMarkup: false,
+        backgroundColor: "#ffffff",
+        style: {
+            border: "1px solid #dc2626",
+            borderRadius: "10px",
+            minWidth: "300px",
+            display: "flex",
+            alignItems: "center",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+        }
+    }).showToast();
+})();
+</script>
+@endif

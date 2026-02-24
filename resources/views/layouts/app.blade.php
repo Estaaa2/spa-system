@@ -11,7 +11,8 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -38,7 +39,12 @@
                 </div>
             </header>
         @endisset
+
+        <main class="px-4 py-6 mx-auto max-w-7xl sm:px-6 lg:px-8">
+            @yield('content')
+        </main>
     </div>
+    <x-toast />
 </body>
 
 </html>

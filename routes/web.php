@@ -12,6 +12,8 @@ use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\Insights\DecisionSupportController;
+use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Admin\RolePermissionController;
@@ -176,12 +178,12 @@ Route::middleware(['auth', 'permission:manage staff'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'permission:view decision support'])->group(function () {
-    Route::get('/decision-support', fn () => view('decision-support'))
+    Route::get('/decision-support', [DecisionSupportController::class, 'index'])
         ->name('decision-support.index');
 });
 
 Route::middleware(['auth', 'permission:view reports'])->group(function () {
-    Route::get('/reports', fn () => view('reports'))
+    Route::get('/reports', [ReportsController::class, 'index'])
         ->name('reports.index');
 });
 
@@ -275,10 +277,11 @@ Route::middleware(['auth', 'owner-only'])->group(function () {
 | Profile
 |--------------------------------------------------------------------------
 */
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
 });
 
 require __DIR__ . '/auth.php';

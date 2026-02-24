@@ -69,6 +69,11 @@
                             Settings
                         </x-nav-link>
                         @endcan
+                        <div class="mb-2 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
+                                Profile
+                            </x-nav-link>
+                        </div>
                     </div>
                 </div>
 

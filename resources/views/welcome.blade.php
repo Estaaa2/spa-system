@@ -62,7 +62,7 @@
                     @role('customer')
                         <!-- Customer Profile Menu -->
                         <div class="relative inline-block text-left">
-                            <button type="button" class="flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-1 ring-black/5">
+                            <button type="button" data-profile-btn class="flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-1 ring-black/5">
                                 <img src="{{ Auth::user()->profile_photo_url ?? asset('images/default-profile.png') }}" alt="Profile">
                             </button>
                             <div class="absolute right-0 hidden w-48 mt-2 origin-top-right bg-white divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5" id="profileDropdown">
@@ -104,7 +104,7 @@
                 <a href="{{ route('register.business') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Join as a Partner</a>
             @else
                 @role('customer')
-                
+
                     <a href="#" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Profile</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
@@ -164,7 +164,7 @@
         <div class="h-10 bg-gradient-to-b from-transparent to-[#F6EFE6]"></div>
     </section>
 
-    <!-- ================= FEATURED SPAS ================= -->
+    <!-- ================= FEATURED SPAS (Airbnb-style cards + modal) ================= -->
     <section class="py-20">
         <div class="px-6 mx-auto mt-10 max-w-7xl">
             <div class="text-center">
@@ -181,50 +181,240 @@
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-6 mt-12 md:grid-cols-4">
+            @php
+                // Layout-only placeholder data (you'll replace with your real spa info later)
+                $spas = [
+                    [
+                        'id' => 1,
+                        'name' => 'Liz Spa',
+                        'thumb' => 'liz1.png',
+                        'location' => '185 Governors Drive Sampaloc 1 Pala Pala, Dasmariñas, 4114 Cavite',
+                        'rating' => 3.9,
+                        'reviews' => 128,
+                        'tag' => 'Popular',
+                        'price_note' => 'From ₱799',
+                        'photos' => ['liz1.png','liz2.png','liz3.png'],
+                        'desc' => 'A cozy wellness spot offering relaxing massages and soothing ambiance.',
+                    ],
+                    [
+                        'id' => 2,
+                        'name' => 'Carreza Spa',
+                        'thumb' => 'cr1.jpg',
+                        'location' => 'Sampaloc I, Dasmariñas, Cavite',
+                        'rating' => 3.0,
+                        'reviews' => 96,
+                        'tag' => 'Top Rated',
+                        'price_note' => 'From ₱899',
+                        'photos' => ['cr1.jpg','cr2.jpg','cr5.jpg'],
+                        'desc' => 'Premium treatments with a calm interior and professional therapists.',
+                    ],
+                    [
+                        'id' => 3,
+                        'name' => 'Aj Way Spa',
+                        'thumb' => 'aj3.jpg',
+                        'location' => 'Salitran II, Dasmariñas,Cavite',
+                        'rating' => 4.0,
+                        'reviews' => 74,
+                        'tag' => 'Guest Favorite',
+                        'price_note' => 'From ₱699',
+                        'photos' => ['aj3.jpg','aj4.jpg','aj1.jpg'],
+                        'desc' => 'Modern, clean space — perfect for quick de-stress and recovery.',
+                    ],
+                    [
+                        'id' => 4,
+                        'name' => 'Harmony Spa',
+                        'thumb' => '4th.png',
+                        'location' => 'Dasmariñas, Cavite',
+                        'rating' => 4.8,
+                        'reviews' => 210,
+                        'tag' => 'New',
+                        'price_note' => 'From ₱999',
+                        'photos' => ['4th.png','heads.png','1st.png'],
+                        'desc' => 'Signature massage blends with a boutique hotel-like atmosphere.',
+                    ],
+                ];
+            @endphp
+
+            <div class="grid grid-cols-1 gap-6 mt-12 sm:grid-cols-2 lg:grid-cols-4">
+                @foreach($spas as $spa)
                 @php
-                    $spas = [
-                        ['Liz Spa','1st.png'],
-                        ['Carreza Spa','2nd.png'],
-                        ['Aj Way Spa','3rd.png'],
-                        ['Harmony Spa','4th.png']
+                    $spaPayload = [
+                        'name' => $spa['name'],
+                        'location' => $spa['location'],
+                        'rating' => $spa['rating'],
+                        'reviews' => $spa['reviews'],
+                        'tag' => $spa['tag'],
+                        'price_note' => $spa['price_note'],
+                        'desc' => $spa['desc'],
+                        'photos' => array_map(fn($p) => asset('images/'.$p), $spa['photos']),
                     ];
                 @endphp
+                    <button
+                        type="button"
+                        class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                        data-open-spa-modal
+                        data-spa='@json($spaPayload)'
+                    >
+                        <!-- IMAGE TOP -->
+                        <div class="relative overflow-hidden">
+                            <img
+                                src="{{ asset('images/'.$spa['thumb']) }}"
+                                class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                                alt="{{ $spa['name'] }}"
+                            >
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
 
-                @foreach($spas as $spa)
-                    <div class="overflow-hidden transition bg-white border shadow-lg border-black/5 rounded-2xl hover:-translate-y-1 hover:shadow-2xl">
-                        <div class="relative">
-                            <img src="{{ asset('images/'.$spa[1]) }}" class="object-cover w-full h-44" alt="{{ $spa[0] }}">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-transparent"></div>
-                            <div class="absolute bottom-3 left-3 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-black/35 rounded-full ring-1 ring-white/10">
-                                <i class="fa-solid fa-fire"></i> Popular
+                            <!-- TAG PILL -->
+                            <div class="absolute top-3 left-3 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-black/40 rounded-full ring-1 ring-white/10">
+                                <i class="fa-solid fa-fire"></i> {{ $spa['tag'] }}
+                            </div>
+
+                            <!-- HEART (layout only) -->
+                            <div class="absolute flex items-center justify-center w-10 h-10 rounded-full top-3 right-3 bg-white/90 ring-1 ring-black/5">
+                                <i class="text-gray-700 fa-regular fa-heart"></i>
                             </div>
                         </div>
 
+                        <!-- INFO BOTTOM -->
                         <div class="p-5">
-                            <h3 class="font-semibold text-[#3C2F23]">{{ $spa[0] }}</h3>
-
-                            <div class="flex items-center justify-between mt-3">
-                                <div class="flex gap-1 text-[#D2A85B] text-sm">
-                                    <i class="fa-solid fa-spa"></i>
-                                    <i class="fa-solid fa-spa"></i>
-                                    <i class="fa-solid fa-spa"></i>
-                                    <i class="fa-solid fa-spa"></i>
-                                    <i class="fa-solid fa-spa opacity-30"></i>
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">
+                                        {{ $spa['name'] }}
+                                    </h3>
+                                    <p class="mt-1 text-xs text-gray-500">
+                                        {{ $spa['location'] }}
+                                    </p>
                                 </div>
-                                <span class="text-xs text-gray-500">4.0+</span>
+
+                                <div class="shrink-0 flex items-center gap-1 text-sm text-[#3C2F23]">
+                                    <i class="fa-solid fa-spa text-[#D2A85B]"></i>
+                                    <span class="font-semibold">{{ number_format($spa['rating'], 1) }}</span>
+                                </div>
                             </div>
 
-                            <a href="{{ route('login') }}"
-                               class="block mt-5 text-center booking-btn text-white py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                                Book Now
-                            </a>
+                            <p class="mt-3 text-sm text-gray-600 line-clamp-2">
+                                {{ $spa['desc'] }}
+                            </p>
+
+                            <div class="flex items-center justify-between mt-4">
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-semibold text-[#3C2F23]">{{ $spa['price_note'] }}</span>
+                                    <span class="text-gray-500"> / session</span>
+                                </p>
+
+                                <span class="inline-flex items-center gap-2 text-sm font-semibold text-[#6F5430]">
+                                    View
+                                    <i class="text-xs fa-solid fa-arrow-right"></i>
+                                </span>
+                            </div>
                         </div>
-                    </div>
+                    </button>
                 @endforeach
             </div>
         </div>
     </section>
+
+    <!-- ================= SPA MODAL ================= -->
+    <div id="spaModal" class="fixed inset-0 z-[100] hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-spa-modal></div>
+
+        <!-- Modal Panel -->
+        <div class="relative mx-auto w-[92%] max-w-4xl mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <!-- Header -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <div>
+                        <h3 id="spaModalName" class="text-lg font-semibold text-[#3C2F23]">Spa Name</h3>
+                        <p id="spaModalMeta" class="mt-1 text-xs text-gray-500">Location • Rating</p>
+                    </div>
+
+                    <button type="button" class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5"
+                            data-close-spa-modal aria-label="Close">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="grid gap-0 md:grid-cols-12">
+                    <!-- Photos (Top/Left) -->
+                    <div class="md:col-span-7 bg-black/5">
+                        <div class="relative">
+                            <img id="spaModalMainPhoto" src="" alt="Spa photo" class="w-full h-[320px] md:h-[420px] object-cover">
+
+                            <!-- Prev/Next -->
+                            <button type="button" id="spaPrevPhoto"
+                                    class="absolute flex items-center justify-center w-10 h-10 transition -translate-y-1/2 rounded-full shadow left-3 top-1/2 bg-white/90 ring-1 ring-black/10 hover:bg-white">
+                                <i class="text-gray-800 fa-solid fa-chevron-left"></i>
+                            </button>
+
+                            <button type="button" id="spaNextPhoto"
+                                    class="absolute flex items-center justify-center w-10 h-10 transition -translate-y-1/2 rounded-full shadow right-3 top-1/2 bg-white/90 ring-1 ring-black/10 hover:bg-white">
+                                <i class="text-gray-800 fa-solid fa-chevron-right"></i>
+                            </button>
+
+                            <!-- Counter -->
+                            <div class="absolute bottom-3 right-3 px-3 py-1.5 text-xs font-semibold text-white bg-black/45 rounded-full ring-1 ring-white/10">
+                                <span id="spaPhotoCounter">1 / 1</span>
+                            </div>
+                        </div>
+
+                        <!-- Thumbnails -->
+                        <div id="spaModalThumbs" class="flex gap-2 p-4 overflow-x-auto bg-white border-t border-black/5">
+                            <!-- injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Info (Bottom/Right) -->
+                    <div class="p-6 md:col-span-5">
+                        <div class="flex items-center justify-between">
+                            <div class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[#6F5430] bg-[#F6EFE6] rounded-full ring-1 ring-black/5">
+                                <i class="fa-solid fa-spa"></i>
+                                <span id="spaModalTag">Featured</span>
+                            </div>
+
+                            <div class="text-sm text-[#3C2F23]">
+                                <i class="fa-solid fa-spa  text-[#D2A85B]"></i>
+                                <span id="spaModalRating" class="font-semibold">4.8</span>
+                                <span id="spaModalReviews" class="text-gray-500">(0)</span>
+                            </div>
+                        </div>
+
+                        <p id="spaModalDesc" class="mt-4 text-sm leading-relaxed text-gray-600">
+                            Description here...
+                        </p>
+
+                        <div class="mt-6 p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5">
+                            <p class="text-sm text-gray-700">
+                                <span id="spaModalPrice" class="font-semibold text-[#3C2F23]">From ₱0</span>
+                                <span class="text-gray-500"> / session</span>
+                            </p>
+
+                            <a href="{{ route('login') }}"
+                            class="block mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                Reserve An Appointment
+                            </a>
+                        </div>
+
+                        <!-- Optional: amenities placeholders (layout only) -->
+                        <div class="mt-6">
+                            <p class="text-xs font-semibold tracking-wide text-gray-700 uppercase">Highlights</p>
+                            <div class="grid grid-cols-2 gap-3 mt-3 text-sm text-gray-600">
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-bath text-[#8B7355]"></i> Clean Rooms</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-user-nurse text-[#8B7355]"></i> Pro Therapists</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-mug-hot text-[#8B7355]"></i> Welcome Tea</div>
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-lock text-[#8B7355]"></i> Safe & Private</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile safe bottom spacing -->
+            <div class="h-10"></div>
+        </div>
+    </div>
 
     <!-- ================= HOW IT WORKS ================= -->
     <section class="bg-[#EFE3D6] py-20">
@@ -431,19 +621,12 @@
 </footer>
 
 <script>
-    // Mobile menu
+    // ---------------- Mobile menu ----------------
     const btn = document.getElementById('mobile-menu-button');
     const menu = document.getElementById('mobile-menu');
-    btn?.addEventListener('click', () => {
-        menu.classList.toggle('hidden');
-    });
+    btn?.addEventListener('click', () => menu.classList.toggle('hidden'));
 
-    // Profile dropdown toggle
-    const profileBtn = document.querySelector('.relative.inline-block button');
-    const profileDropdown = document.getElementById('profileDropdown');
-    profileBtn?.addEventListener('click', () => profileDropdown.classList.toggle('hidden'));
-
-    // Nav scroll effect
+    // ---------------- Nav scroll effect ----------------
     const nav = document.getElementById('topNav');
     const onScroll = () => {
         if (window.scrollY > 10) nav.classList.add('nav-scrolled');
@@ -451,6 +634,100 @@
     };
     window.addEventListener('scroll', onScroll);
     onScroll();
+
+    // ---------------- Profile dropdown (safer selector) ----------------
+    const profileBtn = document.querySelector('[data-profile-btn]');
+    const profileDropdown = document.getElementById('profileDropdown');
+    profileBtn?.addEventListener('click', () => profileDropdown?.classList.toggle('hidden'));
+
+    // ---------------- SPA MODAL ----------------
+    const spaModal = document.getElementById('spaModal');
+    const openBtns = document.querySelectorAll('[data-open-spa-modal]');
+    const closeBtns = document.querySelectorAll('[data-close-spa-modal]');
+
+    const elName = document.getElementById('spaModalName');
+    const elMeta = document.getElementById('spaModalMeta');
+    const elTag = document.getElementById('spaModalTag');
+    const elRating = document.getElementById('spaModalRating');
+    const elReviews = document.getElementById('spaModalReviews');
+    const elDesc = document.getElementById('spaModalDesc');
+    const elPrice = document.getElementById('spaModalPrice');
+
+    const elMainPhoto = document.getElementById('spaModalMainPhoto');
+    const elThumbs = document.getElementById('spaModalThumbs');
+    const elCounter = document.getElementById('spaPhotoCounter');
+    const prevBtn = document.getElementById('spaPrevPhoto');
+    const nextBtn = document.getElementById('spaNextPhoto');
+
+    let photos = [];
+    let photoIndex = 0;
+
+    function setPhoto(i) {
+        if (!photos.length) return;
+        photoIndex = (i + photos.length) % photos.length;
+        elMainPhoto.src = photos[photoIndex];
+        elCounter.textContent = `${photoIndex + 1} / ${photos.length}`;
+
+        // highlight thumbnail
+        [...elThumbs.querySelectorAll('button')].forEach((b, idx) => {
+            b.classList.toggle('ring-2', idx === photoIndex);
+            b.classList.toggle('ring-[#8B7355]', idx === photoIndex);
+        });
+    }
+
+    function openSpaModal(data) {
+        elName.textContent = data.name ?? 'Spa';
+        elMeta.textContent = `${data.location ?? ''} • ${data.rating ?? '-'} ★`;
+        elTag.textContent = data.tag ?? 'Featured';
+        elRating.textContent = (data.rating ?? '-');
+        elReviews.textContent = `(${data.reviews ?? 0})`;
+        elDesc.textContent = data.desc ?? '';
+        elPrice.textContent = data.price_note ?? '';
+
+        photos = Array.isArray(data.photos) ? data.photos : [];
+        elThumbs.innerHTML = '';
+
+        photos.forEach((src, idx) => {
+            const thumb = document.createElement('button');
+            thumb.type = 'button';
+            thumb.className = 'shrink-0 w-20 h-14 rounded-xl overflow-hidden ring-1 ring-black/10 hover:opacity-90 transition';
+            thumb.innerHTML = `<img src="${src}" class="object-cover w-full h-full" alt="thumb">`;
+            thumb.addEventListener('click', () => setPhoto(idx));
+            elThumbs.appendChild(thumb);
+        });
+
+        setPhoto(0);
+
+        spaModal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeSpaModal() {
+        spaModal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    openBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const raw = btn.getAttribute('data-spa');
+            try {
+                const data = JSON.parse(raw);
+                openSpaModal(data);
+            } catch (e) {
+                console.error('Invalid spa data', e);
+            }
+        });
+    });
+
+    closeBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
+
+    prevBtn?.addEventListener('click', () => setPhoto(photoIndex - 1));
+    nextBtn?.addEventListener('click', () => setPhoto(photoIndex + 1));
+
+    // ESC to close
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !spaModal.classList.contains('hidden')) closeSpaModal();
+    });
 </script>
 
 </body>
