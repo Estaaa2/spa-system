@@ -14,10 +14,7 @@ class Spa extends Model
     protected $fillable = [
         'owner_id',
         'name',
-        'phone',
-        'email',
-        'description',
-        'logo',
+        'business_tier',
     ];
 
     public function owner(): BelongsTo
@@ -33,5 +30,9 @@ class Spa extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function isProfessional() {
+        return $this->business_tier === 'professional';
     }
 }

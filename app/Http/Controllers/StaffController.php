@@ -100,7 +100,6 @@ class StaffController extends Controller
 
     /**
      * Update the specified staff in storage.
-     * ✅ FIX: do not require email/phone/status if your modal doesn't submit them
      */
     public function update(Request $request, Staff $staff)
     {

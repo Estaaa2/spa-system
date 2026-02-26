@@ -118,11 +118,11 @@
                                 </td>
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex justify-center gap-2">
-                                        <button onclick="editBranch(event, {{ $branch->id }})"
-                                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600"
-                                                title="Edit">
+                                        <a href="{{ route('branches.edit', $branch->id) }}"
+                                            class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600"
+                                            title="Edit">
                                             Edit
-                                        </button>
+                                        </a>
                                         @if(!$branch->is_main && $branch->users_count == 0)
                                             <button onclick="deleteBranch({{ $branch->id }}, '{{ addslashes($branch->name) }}')"
                                                     class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700"
@@ -380,64 +380,6 @@ function openCreateModal() {
     validatePhone(document.getElementById('phone'));
 }
 
-function editBranch(ev, branchId) {
-    ev.preventDefault();
-
-    const button = ev.currentTarget;
-    const originalHTML = button.innerHTML;
-    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    button.disabled = true;
-
-    fetch(`/branches/${branchId}`, {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw { status: response.status, data };
-        return data;
-    })
-    .then(data => {
-        if (data.success && data.branch) {
-            const form = document.getElementById('branchForm');
-
-            document.getElementById('modalTitle').textContent = 'Edit Branch';
-            form.action = `/branches/${branchId}`;
-
-            document.getElementById('name').value = data.branch.name || '';
-            document.getElementById('location').value = data.branch.location || '';
-            document.getElementById('phone').value = data.branch.phone || '';
-            document.getElementById('email').value = data.branch.email || '';
-            document.getElementById('is_main').checked = !!data.branch.is_main;
-
-            validatePhone(document.getElementById('phone'));
-
-            document.getElementById('submitBtn').textContent = 'Update Branch';
-            currentBranchId = branchId;
-
-            document.getElementById('branchModal').classList.remove('hidden');
-        } else {
-            // ❌ Don't show JS toast - use sessionStorage then reload so bottom blocks apply
-            sessionStorage.setItem('toast_type', 'error');
-            sessionStorage.setItem('toast_message', data.message || 'Failed to load branch data');
-            window.location.reload();
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching branch:', error);
-        sessionStorage.setItem('toast_type', 'error');
-        sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
-        window.location.reload();
-    })
-    .finally(() => {
-        button.innerHTML = originalHTML;
-        button.disabled = false;
-    });
-}
-
 function closeModal() {
     document.getElementById('branchModal').classList.add('hidden');
     currentBranchId = null;
@@ -668,33 +610,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
 @if (session('success'))
 <script>
-    if (!window.successToastShown) {
-        window.successToastShown = true;
-
-        document.addEventListener('DOMContentLoaded', function () {
-            Toastify({
-                text: `
-                    <div class="flex items-center gap-3">
-                        <i class="text-green-600 fa-solid fa-check-circle"></i>
-                        <span class="text-green-600">{{ session('success') }}</span>
-                    </div>
-                `,
-                duration: 3000,
-                gravity: "top",
-                position: "right",
-                close: true,
-                escapeMarkup: false, // ✅ REQUIRED
-                backgroundColor: "#ffffff",
-                style: {
-                    border: "1px solid #16a34a",
-                    borderRadius: "10px",
-                    minWidth: "300px",
-                    display: "flex",
-                    alignItems: "center",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
-                }
-            }).showToast();
-        });
+    if (!isEdit) {
+        if (data.success) {
+            sessionStorage.setItem('toast_type', 'success');
+            sessionStorage.setItem('toast_message', data.message || 'Saved successfully');
+            window.location.reload();
+        }
+    } else {
+        // let the controller redirect handle the toast
+        window.location.href = url; // optional
     }
 </script>
 @endif
@@ -784,6 +708,5 @@ document.addEventListener('DOMContentLoaded', function () {
     sessionStorage.removeItem('toast_message');
 });
 </script>
-
 
 @endsection
