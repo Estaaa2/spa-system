@@ -6,11 +6,7 @@ use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BranchController;
-use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\TreatmentController;
-use App\Http\Controllers\PackageController;
-use App\Http\Controllers\StaffAvailabilityController;
-use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\PackageController;
@@ -89,7 +85,7 @@ Route::middleware(['auth', 'permission:view appointments'])->group(function () {
 | Schedule Section
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'permission:view schedule'])->group(function () {
+Route::middleware(['auth', 'permission:view schedule|manage schedule'])->group(function () {
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
     Route::get('/schedule/data', [ScheduleController::class, 'data'])->name('schedule.data');
 });
@@ -153,8 +149,7 @@ Route::middleware(['auth', 'permission:manage services'])->group(function () {
     Route::resource('branches', BranchController::class)->except(['index']);
     Route::resource('treatments', TreatmentController::class)->except(['index']);
     Route::resource('packages', PackageController::class)->except(['index']);
-    // Schedule
-    Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
+    // Schedule and staff availability are handled separately
 
     // API route: get operating hours for a branch/day
     Route::get('/api/operating-hours/{branch}/{day}', function ($branchId, $day) {
