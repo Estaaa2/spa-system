@@ -101,6 +101,16 @@ class User extends Authenticatable
             return $this->branch_id;
         }
 
-        return session('current_branch_id');
+        if ($this->hasRole('owner')) {
+            $branchId = session('current_branch_id');
+
+            if (!$branchId) {
+                abort(409, 'No branch selected.');
+            }
+
+            return $branchId;
+        }
+
+        return $this->branch_id;
     }
 }

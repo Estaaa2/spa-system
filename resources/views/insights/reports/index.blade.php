@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="space-y-6">
+<div class="p-6">
 
     <x-page-header
         title="Reports"
@@ -9,7 +9,7 @@
     />
 
     {{-- Filtering (matches your figma "FILTERING") --}}
-    <form method="GET" class="flex flex-wrap items-end gap-3">
+    <form method="GET" class="flex flex-wrap items-end gap-3 p-4 mb-6 bg-white border shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
         <div>
             <label class="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">From</label>
             <input type="date" name="from" value="{{ $filters['from'] ?? '' }}"
@@ -114,7 +114,7 @@
     </div>
 
     {{-- GRAPH area --}}
-    <div class="p-6 bg-white border rounded-xl dark:bg-gray-800 dark:border-gray-700">
+    <div class="p-6 mt-5 bg-white border rounded-xl dark:bg-gray-800 dark:border-gray-700">
         <div class="flex items-center justify-between">
             <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">Graph</h2>
             <p class="text-xs text-gray-500 dark:text-gray-400">Bookings per day</p>

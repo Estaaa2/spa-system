@@ -2,30 +2,13 @@
 
 @section('content')
 <div class="mx-auto max-w-7xl">
-    
+
     <!-- HEADER -->
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Schedule</h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage Weekly Appointments</p>
-        </div>
-
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
-                    <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-                </div>
-
-                <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
-
-                <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
-                    <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="p-6">
+        <x-page-header
+            title="Schedule"
+            subtitle="View and manage all appointments in a weekly calendar view."
+        />
 
     <!-- WEEK NAV -->
     <div class="flex items-center justify-center p-4 mb-6 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700">
@@ -70,16 +53,16 @@
         @endphp
 
         <div class="grid border-b border-gray-200 dark:border-gray-700"
-             style="display: grid; grid-template-columns: 80px repeat({{ $numDays }}, 1fr); 
+             style="display: grid; grid-template-columns: 80px repeat({{ $numDays }}, 1fr);
                     grid-template-rows: 55px repeat({{ $numTimeSlots }}, 55px);">
 
             {{-- HEADERS --}}
-            <div class="p-2 text-sm text-gray-500 border-r border-b border-gray-200 dark:text-gray-400 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+            <div class="p-2 text-sm text-gray-500 border-b border-r border-gray-200 dark:text-gray-400 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                 Time
             </div>
-            
+
             @foreach($dayDates as $i => $date)
-                <div class="px-3 py-2 text-center border-r border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                <div class="px-3 py-2 text-center border-b border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                     <div class="text-sm font-semibold text-gray-800 dark:text-white">
                         {{ $days[$i] }}
                     </div>
@@ -92,7 +75,7 @@
             {{-- TIME LABELS + CELLS --}}
             @foreach($timeSlotKeys as $slotIndex => $timeKey)
                 {{-- Time column --}}
-                <div class="p-2 text-sm text-gray-500 border-r border-b border-gray-200 dark:text-gray-400 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                <div class="p-2 text-sm text-gray-500 border-b border-r border-gray-200 dark:text-gray-400 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                     {{ \Carbon\Carbon::createFromFormat('H:i', $timeKey)->format('g:i A') }}
                 </div>
 
@@ -108,20 +91,16 @@
 
                         {{-- SPA CLOSED --}}
                         @if($isDayClosed)
-                            <div class="absolute inset-0 flex items-center justify-center 
-                                        bg-gray-200 dark:bg-gray-700 opacity-90 z-50"
+                            <div class="absolute inset-0 z-50 flex items-center justify-center bg-gray-200 dark:bg-gray-700 opacity-90"
                                 style="pointer-events: auto;">
-                                <span class="px-3 py-1 text-xs font-semibold text-gray-600 
-                                            bg-gray-300 rounded-full dark:bg-gray-800 dark:text-gray-300">
+                                <span class="px-3 py-1 text-xs font-semibold text-gray-600 bg-gray-300 rounded-full dark:bg-gray-800 dark:text-gray-300">
                                     Spa Closed
                                 </span>
                             </div>
                         @else
                             {{-- EMPTY SLOT BUTTON --}}
                             <button type="button"
-                                    class="absolute inset-0 w-full h-full text-sm text-center 
-                                        text-gray-400 transition-opacity opacity-0 
-                                        dark:text-gray-500 hover:opacity-100 z-10"
+                                    class="absolute inset-0 z-10 w-full h-full text-sm text-center text-gray-400 transition-opacity opacity-0 dark:text-gray-500 hover:opacity-100"
                                     onclick="event.stopPropagation(); alert('Click to add booking: {{ $dateKey }} {{ $timeKey }}');">
                                 Click to add
                             </button>
@@ -147,8 +126,7 @@
 
                                 @if($isStartSlot)
                                     <div
-                                        class="absolute left-0 top-0 w-full p-2 border rounded-lg cursor-pointer 
-                                            dark:border-gray-700 bg-white/70 dark:bg-gray-900/30 z-20"
+                                        class="absolute top-0 left-0 z-20 w-full p-2 border rounded-lg cursor-pointer dark:border-gray-700 bg-white/70 dark:bg-gray-900/30"
                                         style="height: calc({{ $rowspan }} * 100%);"
                                         onclick="openAppointmentModal(this)"
                                         data-customer="{{ $b->customer_name ?? 'Walk-in' }}"
@@ -228,25 +206,6 @@
 
 <!-- CLOCK + MODAL SCRIPT -->
 <script>
-    function updateClock() {
-        const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-        const todayDateElement = document.getElementById('todayDate');
-        const realTimeClockElement = document.getElementById('realTimeClock');
-
-        if (todayDateElement) {
-            todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-        }
-
-        if (realTimeClockElement) {
-            realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
-        }
-    }
 
     function openAppointmentModal(el) {
         document.getElementById('modalCustomer').innerText = el.dataset.customer || '';

@@ -60,24 +60,58 @@
 
                 @else
                     @role('customer')
-                        <!-- Customer Profile Menu -->
-                        <div class="relative inline-block text-left">
-                            <button type="button" data-profile-btn class="flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-1 ring-black/5">
-                                <img src="{{ Auth::user()->profile_photo_url ?? asset('images/default-profile.png') }}" alt="Profile">
-                            </button>
-                            <div class="absolute right-0 hidden w-48 mt-2 origin-top-right bg-white divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5" id="profileDropdown">
-                                <div class="py-1">
-                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
-                                    <form method="POST" action="{{ route('logout') }}">
-                                        @csrf
-                                        <button type="submit" class="block w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100">
-                                            Logout
-                                        </button>
-                                    </form>
+                        <div class="flex items-center gap-6">
+
+                            <!-- Navigation Links -->
+                            <div class="flex items-center gap-1">
+
+                                <a href=""
+                                    class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355] dark:text-gray-200">
+                                    My Appointments
+                                </a>
+
+                                <a href=""
+                                    class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355] dark:text-gray-200">
+                                    My Schedule
+                                </a>
+
+                            </div>
+
+                            <!-- Profile Dropdown -->
+                            <div class="relative">
+                                <button type="button"
+                                    data-profile-btn
+                                    class="flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-1 ring-black/5">
+
+                                    <div class="flex items-center justify-center w-10 h-10 bg-[#8B7355] text-white rounded-full">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                </button>
+
+                                <div id="profileDropdown"
+                                    class="absolute right-0 hidden w-48 mt-2 bg-white divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
+
+                                    <div class="py-1">
+                                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            Profile
+                                        </a>
+
+                                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            Settings
+                                        </a>
+
+                                        <form method="POST" action="{{ route('logout') }}">
+                                            @csrf
+                                            <button type="submit"
+                                                class="block w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100">
+                                                Logout
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    @endrole
+                        @endrole
                 @endguest
             </div>
 
@@ -164,7 +198,7 @@
         <div class="h-10 bg-gradient-to-b from-transparent to-[#F6EFE6]"></div>
     </section>
 
-    <!-- ================= FEATURED SPAS (Airbnb-style cards + modal) ================= -->
+    <!-- ================= FEATURED SPAS (Dynamic from DB) ================= -->
     <section class="py-20">
         <div class="px-6 mx-auto mt-10 max-w-7xl">
             <div class="text-center">
@@ -181,139 +215,70 @@
                 </p>
             </div>
 
-            @php
-                // Layout-only placeholder data (you'll replace with your real spa info later)
-                $spas = [
-                    [
-                        'id' => 1,
-                        'name' => 'Liz Spa',
-                        'thumb' => 'liz1.png',
-                        'location' => '185 Governors Drive Sampaloc 1 Pala Pala, Dasmariñas, 4114 Cavite',
-                        'rating' => 3.9,
-                        'reviews' => 128,
-                        'tag' => 'Popular',
-                        'price_note' => 'From ₱799',
-                        'photos' => ['liz1.png','liz2.png','liz3.png'],
-                        'desc' => 'A cozy wellness spot offering relaxing massages and soothing ambiance.',
-                    ],
-                    [
-                        'id' => 2,
-                        'name' => 'Carreza Spa',
-                        'thumb' => 'cr1.jpg',
-                        'location' => 'Sampaloc I, Dasmariñas, Cavite',
-                        'rating' => 3.0,
-                        'reviews' => 96,
-                        'tag' => 'Top Rated',
-                        'price_note' => 'From ₱899',
-                        'photos' => ['cr1.jpg','cr2.jpg','cr5.jpg'],
-                        'desc' => 'Premium treatments with a calm interior and professional therapists.',
-                    ],
-                    [
-                        'id' => 3,
-                        'name' => 'Aj Way Spa',
-                        'thumb' => 'aj3.jpg',
-                        'location' => 'Salitran II, Dasmariñas,Cavite',
-                        'rating' => 4.0,
-                        'reviews' => 74,
-                        'tag' => 'Guest Favorite',
-                        'price_note' => 'From ₱699',
-                        'photos' => ['aj3.jpg','aj4.jpg','aj1.jpg'],
-                        'desc' => 'Modern, clean space — perfect for quick de-stress and recovery.',
-                    ],
-                    [
-                        'id' => 4,
-                        'name' => 'Harmony Spa',
-                        'thumb' => '4th.png',
-                        'location' => 'Dasmariñas, Cavite',
-                        'rating' => 4.8,
-                        'reviews' => 210,
-                        'tag' => 'New',
-                        'price_note' => 'From ₱999',
-                        'photos' => ['4th.png','heads.png','1st.png'],
-                        'desc' => 'Signature massage blends with a boutique hotel-like atmosphere.',
-                    ],
+            <div class="grid grid-cols-1 gap-6 mt-12 sm:grid-cols-2 lg:grid-cols-4">
+                @forelse($spas as $spa)
+                @php
+                $branch = $spa->branches->first();
+                $location = $branch?->location ?? 'No location yet';
+
+                $thumb = $spa->logo
+                    ? asset('storage/'.$spa->logo)
+                    : asset('images/2nd.png');
+
+                // ✅ mark first branch as main
+                $branches = $spa->branches->values()->map(function($b, $i) {
+                    return [
+                        'id' => $b->id,
+                        'name' => $b->name,
+                        'location' => $b->location,
+                        'is_main' => $i === 0,
+                        'has_home_service' => (bool) $b->has_home_service,
+                    ];
+                });
+
+                $spaPayload = [
+                    'id' => $spa->id,
+                    'name' => $spa->name,
+                    'location' => $location,
+                    'rating' => 0,
+                    'reviews' => 0,
+                    'tag' => 'Featured',
+                    'treatments' => \App\Models\Treatment::withoutGlobalScopes()
+                    ->where('spa_id', $spa->id)
+                    ->get(['id', 'name', 'duration'])
+                    ->toArray(),
+                    'packages' => \App\Models\Package::withoutGlobalScopes()
+                    ->where('spa_id', $spa->id)
+                    ->get(['id', 'name', 'total_duration'])  // ← total_duration not duration
+                    ->toArray(),
+                    'price_note' => 'From ₱0',
+                    'desc' => $spa->description ?? '',
+                    'photos' => [$thumb],
+                    'branches' => $branches,
                 ];
             @endphp
 
-            <div class="grid grid-cols-1 gap-6 mt-12 sm:grid-cols-2 lg:grid-cols-4">
-                @foreach($spas as $spa)
-                @php
-                    $spaPayload = [
-                        'name' => $spa['name'],
-                        'location' => $spa['location'],
-                        'rating' => $spa['rating'],
-                        'reviews' => $spa['reviews'],
-                        'tag' => $spa['tag'],
-                        'price_note' => $spa['price_note'],
-                        'desc' => $spa['desc'],
-                        'photos' => array_map(fn($p) => asset('images/'.$p), $spa['photos']),
-                    ];
-                @endphp
-                    <button
-                        type="button"
-                        class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
-                        data-open-spa-modal
-                        data-spa='@json($spaPayload)'
-                    >
-                        <!-- IMAGE TOP -->
-                        <div class="relative overflow-hidden">
-                            <img
-                                src="{{ asset('images/'.$spa['thumb']) }}"
-                                class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]"
-                                alt="{{ $spa['name'] }}"
-                            >
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+                <button type="button"
+                    class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                    data-open-spa-modal
+                    data-spa='@json($spaPayload)'>
+                    <div class="relative overflow-hidden">
+                        <img src="{{ $thumb }}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $spa->name }}">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+                    </div>
 
-                            <!-- TAG PILL -->
-                            <div class="absolute top-3 left-3 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-black/40 rounded-full ring-1 ring-white/10">
-                                <i class="fa-solid fa-fire"></i> {{ $spa['tag'] }}
-                            </div>
-
-                            <!-- HEART (layout only) -->
-                            <div class="absolute flex items-center justify-center w-10 h-10 rounded-full top-3 right-3 bg-white/90 ring-1 ring-black/5">
-                                <i class="text-gray-700 fa-regular fa-heart"></i>
-                            </div>
-                        </div>
-
-                        <!-- INFO BOTTOM -->
-                        <div class="p-5">
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">
-                                        {{ $spa['name'] }}
-                                    </h3>
-                                    <p class="mt-1 text-xs text-gray-500">
-                                        {{ $spa['location'] }}
-                                    </p>
-                                </div>
-
-                                <div class="shrink-0 flex items-center gap-1 text-sm text-[#3C2F23]">
-                                    <i class="fa-solid fa-spa text-[#D2A85B]"></i>
-                                    <span class="font-semibold">{{ number_format($spa['rating'], 1) }}</span>
-                                </div>
-                            </div>
-
-                            <p class="mt-3 text-sm text-gray-600 line-clamp-2">
-                                {{ $spa['desc'] }}
-                            </p>
-
-                            <div class="flex items-center justify-between mt-4">
-                                <p class="text-sm text-gray-700">
-                                    <span class="font-semibold text-[#3C2F23]">{{ $spa['price_note'] }}</span>
-                                    <span class="text-gray-500"> / session</span>
-                                </p>
-
-                                <span class="inline-flex items-center gap-2 text-sm font-semibold text-[#6F5430]">
-                                    View
-                                    <i class="text-xs fa-solid fa-arrow-right"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </button>
-                @endforeach
-            </div>
+                    <div class="p-5">
+                        <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
+                        <p class="mt-1 text-xs text-gray-500">{{ $location }}</p>
+                        <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spa->description ?? 'No description yet.' }}</p>
+                    </div>
+                </button>
+            @empty
+                <div class="text-center text-gray-600 col-span-full">No spas found yet.</div>
+            @endforelse
         </div>
-    </section>
+    </div>
+</section>
 
     <!-- ================= SPA MODAL ================= -->
     <div id="spaModal" class="fixed inset-0 z-[100] hidden">
@@ -324,17 +289,44 @@
         <div class="relative mx-auto w-[92%] max-w-4xl mt-10 sm:mt-16">
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
                 <!-- Header -->
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
-                    <div>
-                        <h3 id="spaModalName" class="text-lg font-semibold text-[#3C2F23]">Spa Name</h3>
-                        <p id="spaModalMeta" class="mt-1 text-xs text-gray-500">Location • Rating</p>
-                    </div>
+                <div class="flex items-center justify-between gap-4 px-6 py-4 border-b border-black/5">
+                <div class="min-w-0">
+                    <h3 id="spaModalName" class="text-lg font-semibold text-[#3C2F23] truncate">Spa Name</h3>
 
-                    <button type="button" class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5"
-                            data-close-spa-modal aria-label="Close">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
-                    </button>
+                    <div class="flex flex-wrap items-center mt-1 text-xs text-gray-500 gap-x-2 gap-y-1">
+                        <span id="spaModalMeta" class="truncate">Location • Rating</span>
+
+                        <span class="text-gray-300">•</span>
+
+                        <!-- ✅ Branch pill -->
+                        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#F6EFE6] ring-1 ring-black/5">
+                            <i class="fa-solid fa-location-dot text-[#8B7355] text-xs"></i>
+
+                            <!-- This will show only if selected branch is main -->
+                            <span id="spaModalBranchBadge"
+                                class="hidden text-[10px] font-semibold tracking-[0.18em] uppercase text-[#6F5430]">
+                                Main
+                            </span>
+
+                            <!-- ✅ Select wrapper (hide native arrow, use our chevron) -->
+                            <div class="relative">
+                                <select
+                                    id="spaModalBranchSelect"
+                                    class="appearance-none bg-transparent border-0 p-0 pr-6 text-xs font-semibold text-[#6F5430] focus:ring-0 focus:outline-none cursor-pointer"
+                                >
+                                    <option value="">Select branch</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <button type="button"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5"
+                        data-close-spa-modal aria-label="Close">
+                    <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                </button>
+            </div>
 
                 <!-- Content -->
                 <div class="grid gap-0 md:grid-cols-12">
@@ -391,10 +383,12 @@
                                 <span class="text-gray-500"> / session</span>
                             </p>
 
-                            <a href="{{ route('login') }}"
-                            class="block mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                                Reserve An Appointment
-                            </a>
+                            <button
+                            type="button"
+                            id="openBookingModalBtn"
+                            class="block w-full mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                            Reserve An Appointment
+                            </button>
                         </div>
 
                         <!-- Optional: amenities placeholders (layout only) -->
@@ -412,6 +406,122 @@
             </div>
 
             <!-- Mobile safe bottom spacing -->
+            <div class="h-10"></div>
+        </div>
+    </div>
+
+    <!-- ================= BOOKING MODAL ================= -->
+    <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>
+
+        <div class="relative mx-auto w-[92%] max-w-xl mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <div>
+                        <h3 class="text-lg font-semibold text-[#3C2F23]">Book Appointment</h3>
+                        <p id="bookingSpaMeta" class="mt-1 text-xs text-gray-500">Spa • Branch Location</p>
+                    </div>
+
+                    <button type="button"
+                            class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5"
+                            data-close-booking-modal
+                            aria-label="Close">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    @auth
+                        <form method="POST" action="{{ route('bookings.online.store') }}" class="space-y-4">
+                            @csrf
+
+                            {{-- Set by JS --}}
+                            <input type="hidden" name="spa_id" id="bookingSpaIdInput">
+                            <input type="hidden" name="branch_id" id="bookingBranchIdInput">
+
+                            {{-- Row 1: Service Type + Branch --}}
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Service Type</label>
+                                    <select name="service_type" id="bookingServiceType" required
+                                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <option value="">Select type</option>
+                                        <option value="in_branch">In-Branch</option>
+                                        <option value="in_home">Home Service</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Branch</label>
+                                    <select id="bookingBranchSelect"
+                                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <option value="">Select service type first</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {{-- Row 2: Treatment --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">Treatment</label>
+                                <select name="treatment" id="bookingTreatmentSelect" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <option value="">Select treatment</option>
+                                </select>
+                            </div>
+
+                            {{-- Row 3: Date + Time --}}
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
+                                    <input type="date" name="appointment_date" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Start Time</label>
+                                    <input type="time" name="start_time" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                            </div>
+
+                            {{-- Row 4: Phone --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">Phone (optional)</label>
+                                <input type="text" name="customer_phone"
+                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    placeholder="09xxxxxxxxx">
+                            </div>
+
+                            {{-- Row 5: Address (hidden until Home Service selected) --}}
+                            <div id="addressWrapper" class="hidden">
+                                <label class="block text-xs font-semibold text-gray-600">
+                                    Home Address <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="customer_address" id="bookingAddressInput"
+                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    placeholder="Enter your full address">
+                                <p class="mt-1 text-[11px] text-gray-500">Required for home service bookings.</p>
+                            </div>
+
+                            <button type="submit"
+                                    class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                Confirm Booking
+                            </button>
+                        </form>
+                    @else
+                        <div class="p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5">
+                            <p class="text-sm text-gray-700">
+                                Please log in to book an appointment.
+                            </p>
+
+                            <a href="{{ route('login') }}"
+                            class="block mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                Login to Continue
+                            </a>
+                        </div>
+                    @endauth
+                </div>
+            </div>
+
             <div class="h-10"></div>
         </div>
     </div>
@@ -635,15 +745,19 @@
     window.addEventListener('scroll', onScroll);
     onScroll();
 
-    // ---------------- Profile dropdown (safer selector) ----------------
+    // ---------------- Profile dropdown ----------------
     const profileBtn = document.querySelector('[data-profile-btn]');
     const profileDropdown = document.getElementById('profileDropdown');
     profileBtn?.addEventListener('click', () => profileDropdown?.classList.toggle('hidden'));
 
+    // ---------------- Shared state ----------------
+    let selectedSpa = null;
+    let preferredBranchId = null;
+
     // ---------------- SPA MODAL ----------------
     const spaModal = document.getElementById('spaModal');
     const openBtns = document.querySelectorAll('[data-open-spa-modal]');
-    const closeBtns = document.querySelectorAll('[data-close-spa-modal]');
+    const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
 
     const elName = document.getElementById('spaModalName');
     const elMeta = document.getElementById('spaModalMeta');
@@ -659,6 +773,9 @@
     const prevBtn = document.getElementById('spaPrevPhoto');
     const nextBtn = document.getElementById('spaNextPhoto');
 
+    const spaModalBranchSelect = document.getElementById('spaModalBranchSelect');
+    const spaModalBranchBadge = document.getElementById('spaModalBranchBadge');
+
     let photos = [];
     let photoIndex = 0;
 
@@ -668,14 +785,47 @@
         elMainPhoto.src = photos[photoIndex];
         elCounter.textContent = `${photoIndex + 1} / ${photos.length}`;
 
-        // highlight thumbnail
         [...elThumbs.querySelectorAll('button')].forEach((b, idx) => {
             b.classList.toggle('ring-2', idx === photoIndex);
             b.classList.toggle('ring-[#8B7355]', idx === photoIndex);
         });
     }
 
+    function setMainBadge(isMain) {
+        if (!spaModalBranchBadge) return;
+        if (isMain) spaModalBranchBadge.classList.remove('hidden');
+        else spaModalBranchBadge.classList.add('hidden');
+    }
+
+    function fillSpaBranchDropdown(data) {
+        if (!spaModalBranchSelect) return;
+
+        const branches = Array.isArray(data.branches) ? data.branches : [];
+        spaModalBranchSelect.innerHTML = `<option value="">Select branch</option>`;
+
+        branches.forEach((b) => {
+            const opt = document.createElement('option');
+            opt.value = String(b.id);
+            opt.textContent = `${b.name} — ${b.location}`;
+            opt.dataset.main = b.is_main ? '1' : '0';
+            spaModalBranchSelect.appendChild(opt);
+        });
+
+        if (branches.length) {
+            preferredBranchId = String(branches[0].id);
+            spaModalBranchSelect.value = preferredBranchId;
+            elMeta.textContent = `${branches[0].location ?? ''} • ${data.rating ?? '-'} ★`;
+            setMainBadge(!!branches[0].is_main);
+        } else {
+            preferredBranchId = null;
+            setMainBadge(false);
+        }
+    }
+
     function openSpaModal(data) {
+        selectedSpa = data;
+        preferredBranchId = null;
+
         elName.textContent = data.name ?? 'Spa';
         elMeta.textContent = `${data.location ?? ''} • ${data.rating ?? '-'} ★`;
         elTag.textContent = data.tag ?? 'Featured';
@@ -697,6 +847,7 @@
         });
 
         setPhoto(0);
+        fillSpaBranchDropdown(data);
 
         spaModal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
@@ -719,14 +870,173 @@
         });
     });
 
-    closeBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
-
+    closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
     prevBtn?.addEventListener('click', () => setPhoto(photoIndex - 1));
     nextBtn?.addEventListener('click', () => setPhoto(photoIndex + 1));
 
-    // ESC to close
+    spaModalBranchSelect?.addEventListener('change', () => {
+        if (!selectedSpa) return;
+
+        const branches = Array.isArray(selectedSpa.branches) ? selectedSpa.branches : [];
+        const chosenId = spaModalBranchSelect.value ? String(spaModalBranchSelect.value) : null;
+        preferredBranchId = chosenId;
+
+        const chosen = branches.find(b => String(b.id) === chosenId);
+        if (chosen) {
+            elMeta.textContent = `${chosen.location ?? ''} • ${selectedSpa.rating ?? '-'} ★`;
+            setMainBadge(!!chosen.is_main);
+        } else {
+            setMainBadge(false);
+        }
+    });
+
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !spaModal.classList.contains('hidden')) closeSpaModal();
+    });
+
+    // ---------------- BOOKING MODAL ----------------
+    const bookingModal = document.getElementById('bookingModal');
+    const openBookingBtn = document.getElementById('openBookingModalBtn');
+    const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
+
+    const bookingSpaMeta = document.getElementById('bookingSpaMeta');
+    const bookingSpaIdInput = document.getElementById('bookingSpaIdInput');
+    const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
+
+    function populateTreatments() {
+        const treatmentSelect = document.querySelector('select[name="treatment"]');
+        if (!treatmentSelect || !selectedSpa) return;
+
+        treatmentSelect.innerHTML = '<option value="">Select treatment</option>';
+
+        (selectedSpa.treatments ?? []).forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = `treatment_${t.id}`;
+            opt.textContent = t.name;
+            treatmentSelect.appendChild(opt);
+        });
+
+        (selectedSpa.packages ?? []).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = `package_${p.id}`;
+            opt.textContent = `${p.name} (Package)`;
+            treatmentSelect.appendChild(opt);
+        });
+    }
+
+    function populateBranchDropdown(filterHomeService = false) {
+        const branchSelect = document.getElementById('bookingBranchSelect');
+        if (!branchSelect || !selectedSpa) return;
+
+        const branches = Array.isArray(selectedSpa.branches) ? selectedSpa.branches : [];
+        const filtered = filterHomeService
+            ? branches.filter(b => b.has_home_service)
+            : branches;
+
+        branchSelect.innerHTML = '<option value="">Select branch</option>';
+
+        filtered.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = String(b.id);
+            opt.textContent = `${b.name} — ${b.location}`;
+            branchSelect.appendChild(opt);
+        });
+
+        // ✅ Always auto-select first and sync hidden input
+        if (filtered.length) {
+            branchSelect.value = String(filtered[0].id);
+            if (bookingBranchIdInput) bookingBranchIdInput.value = String(filtered[0].id);
+        } else {
+            branchSelect.value = '';
+            if (bookingBranchIdInput) bookingBranchIdInput.value = '';
+        }
+
+        return filtered;
+    }
+
+    function openBookingModal() {
+        if (!selectedSpa) return;
+
+        const branches = Array.isArray(selectedSpa.branches) ? selectedSpa.branches : [];
+        const chosen = preferredBranchId
+            ? branches.find(b => String(b.id) === String(preferredBranchId))
+            : (branches[0] ?? null);
+
+        bookingSpaMeta.textContent = `${selectedSpa.name ?? 'Spa'} • ${chosen?.location ?? selectedSpa.location ?? ''}`;
+
+        // ✅ Set spa_id immediately
+        if (bookingSpaIdInput) bookingSpaIdInput.value = selectedSpa.id ?? '';
+
+        // ✅ Populate treatments
+        populateTreatments();
+
+        // ✅ Reset service type + address
+        const serviceTypeSelect = document.getElementById('bookingServiceType');
+        const addressWrapper = document.getElementById('addressWrapper');
+        const addressInput = document.getElementById('bookingAddressInput');
+
+        if (serviceTypeSelect) serviceTypeSelect.value = '';
+        if (addressWrapper) addressWrapper.classList.add('hidden');
+        if (addressInput) {
+            addressInput.required = false;
+            addressInput.value = '';
+        }
+
+        // ✅ Populate branch dropdown (all branches by default) and set hidden input
+        populateBranchDropdown(false);
+
+        bookingModal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    // ✅ Service type change — filter branches + toggle address
+    document.getElementById('bookingServiceType')?.addEventListener('change', function () {
+        const selected = this.value;
+        const addressWrapper = document.getElementById('addressWrapper');
+        const addressInput = document.getElementById('bookingAddressInput');
+
+        // Toggle address field
+        if (selected === 'in_home') {
+            addressWrapper?.classList.remove('hidden');
+            if (addressInput) addressInput.required = true;
+        } else {
+            addressWrapper?.classList.add('hidden');
+            if (addressInput) {
+                addressInput.required = false;
+                addressInput.value = '';
+            }
+        }
+
+        // ✅ Filter branches and auto-sync hidden branch_id input
+        const filtered = populateBranchDropdown(selected === 'in_home');
+
+        // ✅ Warn if no home service branches available
+        if (selected === 'in_home' && (!filtered || filtered.length === 0)) {
+            const branchSelect = document.getElementById('bookingBranchSelect');
+            if (branchSelect) {
+                branchSelect.innerHTML = '<option value="">No branches offer home service</option>';
+            }
+            if (bookingBranchIdInput) bookingBranchIdInput.value = '';
+        }
+    });
+
+    // ✅ Manual branch change — sync hidden input
+    document.getElementById('bookingBranchSelect')?.addEventListener('change', function () {
+        if (bookingBranchIdInput) bookingBranchIdInput.value = this.value;
+    });
+
+    function closeBookingModal() {
+        bookingModal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    openBookingBtn?.addEventListener('click', openBookingModal);
+    closeBookingBtns.forEach(b => b.addEventListener('click', closeBookingModal));
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && bookingModal && !bookingModal.classList.contains('hidden')) {
+            closeBookingModal();
+        }
     });
 </script>
 

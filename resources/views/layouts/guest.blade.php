@@ -30,10 +30,10 @@
         </div>
 
         <!-- Content -->
-        <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-8 sm:px-6 sm:py-10">
+        <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-4 pb-8 sm:px-6 sm:pt-6 sm:pb-10">
 
             <!-- Logo -->
-            <div class="mb-6 sm:mb-8">
+            <div class="mt-2">
                 <a href="/">
                     <x-application-logo class="w-16 h-16 text-white fill-current sm:w-20 sm:h-20" />
                 </a>

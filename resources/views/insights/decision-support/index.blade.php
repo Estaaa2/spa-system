@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="space-y-6">
+<div class="p-6">
     <x-page-header
         title="Decision Support"
         subtitle="Track top services, top packages, and peak booking hours."
     />
 
     {{-- Filtering --}}
-    <form method="GET" class="flex flex-wrap items-end gap-3 p-4 rounded-xl dark:bg-gray-800">
+    <form method="GET" class="flex flex-wrap items-end gap-3 p-4 mb-4 bg-white rounded-xl dark:bg-gray-800">
         <div>
             <label class="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">From</label>
             <input type="date" name="from" value="{{ $filters['from'] }}"
@@ -52,7 +52,7 @@
     </div>
 
     {{-- Peak Hours (Line) --}}
-    <div class="p-5 bg-white border rounded-xl dark:bg-gray-800 dark:border-gray-700">
+    <div class="p-5 mt-4 bg-white border rounded-xl dark:bg-gray-800 dark:border-gray-700">
         <div class="mb-3">
             <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
                 Peak Hours

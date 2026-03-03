@@ -3,25 +3,13 @@
 @section('title', 'Branches Management')
 
 @section('content')
-<div class="mx-auto max-w-7xl">
+<div class="p-6">
     <!-- Header with Date & Time -->
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Branches Management</h1>
+    <x-page-header
+        title="Branches"
+        subtitle="Manage all branches for your spa. Add, edit, or remove branches as needed."
+    />
 
-        <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
-                <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-
-            <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
-
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
-                <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-        </div>
-    </div>
 
     <!-- Current Branch Info Card -->
     @if(session('current_branch_id'))
@@ -341,37 +329,22 @@
 let currentBranchId = null;
 let deleteBranchId = null;
 let isSubmitting = false;
+let isEditMode = false; // ✅ IMPORTANT FIX
 
 const HAS_NO_BRANCHES = {{ $branches->count() === 0 ? 'true' : 'false' }};
 
-// Real-time Clock Function
-function updateClock() {
-    const now = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-    const todayDateElement = document.getElementById('todayDate');
-    const realTimeClockElement = document.getElementById('realTimeClock');
-
-    if (todayDateElement) todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-
-    if (realTimeClockElement) {
-        realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
-    }
-}
-
-// Modal Functions
+/* =========================
+   CREATE MODAL
+========================= */
 function openCreateModal() {
+    isEditMode = false;
+
     const form = document.getElementById('branchForm');
     form.reset();
 
     document.getElementById('modalTitle').textContent = 'Add New Branch';
     form.action = '{{ route("branches.store") }}';
 
-    // If this is the first ever branch, default it to MAIN
     document.getElementById('is_main').checked = HAS_NO_BRANCHES ? true : false;
 
     document.getElementById('submitBtn').textContent = 'Create Branch';
@@ -380,8 +353,12 @@ function openCreateModal() {
     validatePhone(document.getElementById('phone'));
 }
 
+/* =========================
+   EDIT MODAL
+========================= */
 function editBranch(ev, branchId) {
     ev.preventDefault();
+    isEditMode = true;
 
     const button = ev.currentTarget;
     const originalHTML = button.innerHTML;
@@ -397,7 +374,7 @@ function editBranch(ev, branchId) {
     })
     .then(async (response) => {
         const data = await response.json();
-        if (!response.ok) throw { status: response.status, data };
+        if (!response.ok) throw data;
         return data;
     })
     .then(data => {
@@ -419,18 +396,17 @@ function editBranch(ev, branchId) {
             currentBranchId = branchId;
 
             document.getElementById('branchModal').classList.remove('hidden');
-        } else {
-            // ❌ Don't show JS toast - use sessionStorage then reload so bottom blocks apply
-            sessionStorage.setItem('toast_type', 'error');
-            sessionStorage.setItem('toast_message', data.message || 'Failed to load branch data');
-            window.location.reload();
         }
     })
-    .catch(error => {
-        console.error('Error fetching branch:', error);
-        sessionStorage.setItem('toast_type', 'error');
-        sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
-        window.location.reload();
+    .catch(() => {
+        Toastify({
+            text: 'Failed to load branch data.',
+            duration: 3000,
+            gravity: "top",
+            position: "right",
+            backgroundColor: "#ef4444",
+            close: true
+        }).showToast();
     })
     .finally(() => {
         button.innerHTML = originalHTML;
@@ -444,7 +420,9 @@ function closeModal() {
     isSubmitting = false;
 }
 
-// Delete Functions
+/* =========================
+   DELETE
+========================= */
 function deleteBranch(branchId, branchName) {
     deleteBranchId = branchId;
     document.getElementById('deleteBranchName').textContent = `Delete "${branchName}"?`;
@@ -471,14 +449,9 @@ function confirmDelete() {
             'Accept': 'application/json'
         }
     })
-    .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw { status: response.status, data };
-        return data;
-    })
+    .then(res => res.json())
     .then(data => {
         if (data.success) {
-            // ✅ store message and reload so Toastify blocks show
             sessionStorage.setItem('toast_type', 'success');
             sessionStorage.setItem('toast_message', 'Branch deleted successfully');
             window.location.reload();
@@ -488,10 +461,9 @@ function confirmDelete() {
             window.location.reload();
         }
     })
-    .catch(error => {
-        console.error('Delete error:', error);
+    .catch(() => {
         sessionStorage.setItem('toast_type', 'error');
-        sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
+        sessionStorage.setItem('toast_message', 'Delete error');
         window.location.reload();
     })
     .finally(() => {
@@ -500,70 +472,41 @@ function confirmDelete() {
     });
 }
 
-// Phone validation
+/* =========================
+   PHONE VALIDATION
+========================= */
 function validatePhone(input) {
     const errorElement = document.getElementById('phoneError');
     const value = (input.value || '').replace(/\D/g, '');
 
-    if (value.length > 11) input.value = value.substring(0, 11);
+    input.value = value.substring(0, 11);
 
-    if (value.length === 11) {
-        if (value.startsWith('09')) {
-            errorElement.classList.add('hidden');
-            input.classList.remove('border-red-500', 'text-red-600');
-            input.classList.add('border-green-500', 'text-green-600');
-        } else {
-            errorElement.textContent = 'Philippine numbers must start with 09';
-            errorElement.classList.remove('hidden');
-            input.classList.add('border-red-500', 'text-red-600');
-            input.classList.remove('border-green-500', 'text-green-600');
-        }
+    if (value.length === 11 && value.startsWith('09')) {
+        errorElement.classList.add('hidden');
+        input.classList.remove('border-red-500');
+        input.classList.add('border-green-500');
     } else if (value.length > 0) {
-        errorElement.textContent = `Must be 11 digits (${value.length}/11)`;
         errorElement.classList.remove('hidden');
-        input.classList.add('border-red-500', 'text-red-600');
-        input.classList.remove('border-green-500', 'text-green-600');
+        input.classList.add('border-red-500');
+        input.classList.remove('border-green-500');
     } else {
         errorElement.classList.add('hidden');
-        input.classList.remove('border-red-500', 'text-red-600', 'border-green-500', 'text-green-600');
-        input.classList.add('border-gray-300');
+        input.classList.remove('border-red-500', 'border-green-500');
     }
 }
 
-// ✅ SINGLE Submit Handler (prevents double create)
-// ✅ Uses sessionStorage so bottom Toastify blocks apply (same design)
+/* =========================
+   FORM SUBMIT
+========================= */
 document.addEventListener('DOMContentLoaded', function () {
-    updateClock();
-    setInterval(updateClock, 1000);
 
     const form = document.getElementById('branchForm');
+
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
 
         if (isSubmitting) return;
         isSubmitting = true;
-
-        const phoneInput = document.getElementById('phone');
-        const phoneValue = (phoneInput.value || '').replace(/\D/g, '');
-
-        if (phoneValue.length > 0 && (phoneValue.length !== 11 || !phoneValue.startsWith('09'))) {
-            // show Toastify immediately (no reload needed)
-            Toastify({
-                text: 'Please enter a valid Philippine mobile number (11 digits starting with 09)',
-                duration: 3000,
-                gravity: "top",
-                position: "right",
-                backgroundColor: "#ef4444",
-                close: true
-            }).showToast();
-
-            phoneInput.focus();
-            isSubmitting = false;
-            return;
-        }
-
-        const url = form.action;
-        const isEdit = /\/branches\/\d+$/i.test(url);
 
         const payload = {
             name: document.getElementById('name').value,
@@ -579,14 +522,12 @@ document.addEventListener('DOMContentLoaded', function () {
         button.disabled = true;
 
         try {
-            const response = await fetch(url, {
-                method: 'POST',
+            const response = await fetch(form.action, {
+                method: isEditMode ? 'PUT' : 'POST', // ✅ FIXED
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    ...(isEdit ? { 'X-HTTP-Method-Override': 'PUT' } : {}),
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify(payload),
             });
@@ -594,123 +535,46 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
 
             if (!response.ok) {
-                if (response.status === 422) {
-                    let msgs = [];
-                    if (data.errors) {
-                        for (const k in data.errors) msgs.push(data.errors[k][0]);
-                    } else {
-                        msgs.push(data.message || 'Validation failed.');
+                Toastify({
+                    text: `
+                        <div class="flex items-center gap-3">
+                            <i class="text-red-600 fa-solid fa-circle-xmark"></i>
+                            <span class="text-red-600">
+                                ${data.message || 'Validation failed.'}
+                            </span>
+                        </div>
+                    `,
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    close: true,
+                    escapeMarkup: false,
+                    style: {
+                        background: "#ffffff",
+                        border: "1px solid #dc2626",
+                        borderRadius: "10px",
+                        minWidth: "300px",
+                        display: "flex",
+                        alignItems: "center",
+                        boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
                     }
-
-                    Toastify({
-                        text: msgs.join('\n'),
-                        duration: 3000,
-                        gravity: "top",
-                        position: "right",
-                        backgroundColor: "#ef4444",
-                        close: true
-                    }).showToast();
-
-                    return;
-                }
-
-                if (response.status === 419) {
-                    sessionStorage.setItem('toast_type', 'error');
-                    sessionStorage.setItem('toast_message', 'Session expired. Please refresh the page and try again.');
-                    window.location.reload();
-                    return;
-                }
-
-                sessionStorage.setItem('toast_type', 'error');
-                sessionStorage.setItem('toast_message', data.message || 'An error occurred. Please try again.');
-                window.location.reload();
+                }).showToast();
                 return;
             }
 
             if (data.success) {
-                // ✅ store message and reload so bottom Toastify blocks show (same design)
                 sessionStorage.setItem('toast_type', 'success');
                 sessionStorage.setItem('toast_message', data.message || 'Saved successfully');
                 window.location.reload();
-            } else {
-                sessionStorage.setItem('toast_type', 'error');
-                sessionStorage.setItem('toast_message', data.message || 'Operation failed');
-                window.location.reload();
             }
-        } catch (err) {
-            console.error(err);
-            sessionStorage.setItem('toast_type', 'error');
-            sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
-            window.location.reload();
-        } finally {
-            button.innerHTML = originalText;
-            button.disabled = false;
-            isSubmitting = false;
-        }
-    });
 
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeModal();
-            closeDeleteModal();
-        }
-    });
-
-    document.getElementById('branchModal')?.addEventListener('click', function(e) {
-        if (e.target === this) closeModal();
-    });
-
-    document.getElementById('deleteModal')?.addEventListener('click', function(e) {
-        if (e.target === this) closeDeleteModal();
-    });
-});
-</script>
-
-@if (session('success'))
-<script>
-    if (!window.successToastShown) {
-        window.successToastShown = true;
-
-        document.addEventListener('DOMContentLoaded', function () {
-            Toastify({
-                text: `
-                    <div class="flex items-center gap-3">
-                        <i class="text-green-600 fa-solid fa-check-circle"></i>
-                        <span class="text-green-600">{{ session('success') }}</span>
-                    </div>
-                `,
-                duration: 3000,
-                gravity: "top",
-                position: "right",
-                close: true,
-                escapeMarkup: false, // ✅ REQUIRED
-                backgroundColor: "#ffffff",
-                style: {
-                    border: "1px solid #16a34a",
-                    borderRadius: "10px",
-                    minWidth: "300px",
-                    display: "flex",
-                    alignItems: "center",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
-                }
-            }).showToast();
-        });
-    }
-</script>
-@endif
-
-@if ($errors->any())
-<script>
-    if (!window.errorToastShown) {
-        window.errorToastShown = true;
-
-        document.addEventListener('DOMContentLoaded', function () {
+        } catch (error) {
             Toastify({
                 text: `
                     <div class="flex items-center gap-3">
                         <i class="text-red-600 fa-solid fa-circle-xmark"></i>
                         <span class="text-red-600">
-                            {{ $errors->first() }}
+                            Something went wrong.
                         </span>
                     </div>
                 `,
@@ -718,10 +582,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 gravity: "top",
                 position: "right",
                 close: true,
-                escapeMarkup: false, // ✅ allow icon HTML
-                backgroundColor: "#ffffff",
+                escapeMarkup: false,
                 style: {
-                    border: "1px solid #dc2626",   // red-600
+                    background: "#ffffff",
+                    border: "1px solid #dc2626",
                     borderRadius: "10px",
                     minWidth: "300px",
                     display: "flex",
@@ -729,61 +593,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
                 }
             }).showToast();
-        });
-    }
-</script>
-@endif
-
-{{-- ✅ EXTRA: sessionStorage toast (makes AJAX success use SAME design as your bottom toast) --}}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const type = sessionStorage.getItem('toast_type');
-    const message = sessionStorage.getItem('toast_message');
-
-    if (!type || !message) return;
-
-    const config = {
-        updated: {
-            icon: 'fa-circle-check',
-            iconColor: 'text-green-600',
-            border: '#16a34a'
-        },
-        deleted: {
-            icon: 'fa-trash',
-            iconColor: 'text-red-600',
-            border: '#dc2626'
-        },
-    };
-
-    const current = config[type] ?? config.updated;
-
-    Toastify({
-        text: `
-            <div class="flex items-center gap-3">
-                <i class="fa-solid ${current.icon} ${current.iconColor}"></i>
-                <span class="text-green-600">${message}</span>
-            </div>
-        `,
-        duration: 3000,
-        gravity: "top",
-        position: "right",
-        close: true,
-        escapeMarkup: false,
-        backgroundColor: "#ffffff",
-        style: {
-            border: `1px solid ${current.border}`,
-            borderRadius: "10px",
-            display: "flex",
-            minWidth: "280px",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-            color: "#1f2937"
+        } finally {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            isSubmitting = false;
         }
-    }).showToast();
+    });
 
-    sessionStorage.removeItem('toast_type');
-    sessionStorage.removeItem('toast_message');
 });
 </script>
-
 
 @endsection

@@ -9,22 +9,11 @@
 
 <div class="mx-auto max-w-7xl">
 
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Appointments</h1>
-
-        <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
-                <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-
-            <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
-
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
-                <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-        </div>
+    <div class="p-6">
+        <x-page-header
+            title="Appointments"
+            subtitle="Manage all customer appointments and bookings."
+        />
     </div>
 
     <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
@@ -166,31 +155,6 @@
 </div>
 
 <script>
-    function updateClock() {
-        const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-        const todayDateElement = document.getElementById('todayDate');
-        const realTimeClockElement = document.getElementById('realTimeClock');
-
-        if (todayDateElement) {
-            todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-        }
-
-        if (realTimeClockElement) {
-            realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        updateClock();
-        setInterval(updateClock, 1000);
-    });
-
     @can('delete appointments')
     function openEditModal(booking) {
     // Update to use correct field names

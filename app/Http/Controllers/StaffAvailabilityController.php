@@ -17,8 +17,10 @@ class StaffAvailabilityController extends Controller
         $startOfWeek = Carbon::parse($request->week ?? now())->startOfWeek();
         $endOfWeek = $startOfWeek->copy()->endOfWeek();
 
-        $staff = User::where('branch_id', $branchId)->get();
-        
+        $staff = User::where('branch_id', $branchId)
+    ->role('therapist')
+    ->get();
+
         $availabilities = StaffAvailability::where('branch_id', $branchId)
             ->whereBetween('date', [$startOfWeek, $endOfWeek])
             ->get()
@@ -49,11 +51,11 @@ class StaffAvailabilityController extends Controller
         $weekDays = collect(range(0,6))->map(fn($i) => $startOfWeek->copy()->addDays($i));
 
         return view('staff.availability.index', compact(
-            'staff', 
-            'availabilities', 
-            'startOfWeek', 
-            'endOfWeek', 
-            'prevWeek', 
+            'staff',
+            'availabilities',
+            'startOfWeek',
+            'endOfWeek',
+            'prevWeek',
             'nextWeek',
             'weekDays',
             'branchOperatingHours'

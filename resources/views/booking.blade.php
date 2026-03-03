@@ -4,25 +4,11 @@
 <div class="mx-auto max-w-7xl">
 
     <!-- Booking Header -->
-    <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">
-            Client's Appointment
-        </h1>
-
-        <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
-                <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-
-            <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
-
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
-                <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-        </div>
-    </div>
+    <div class="p-6">
+         <x-page-header
+            title="Client Bookings"
+            subtitle="Schedule and manage customer appointments."
+        />
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
@@ -199,26 +185,6 @@
 </div>
 
 <script>
-    function updateClock() {
-        const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-        const todayDateElement = document.getElementById('todayDate');
-        const realTimeClockElement = document.getElementById('realTimeClock');
-
-        if (todayDateElement) {
-            todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-        }
-
-        if (realTimeClockElement) {
-            realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
-        }
-    }
-
     // Fetch and update available times based on selected date
     document.addEventListener('DOMContentLoaded', function() {
         const branchId = "{{ Auth::user()->branch_id }}";

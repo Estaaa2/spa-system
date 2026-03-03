@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use App\Models\User;
-use App\Models\Staff;
 use App\Models\Booking;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,7 +14,7 @@ class BookingController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $branchId = $user->branch_id;
+        $branchId = session('current_branch_id') ?? $user->branch_id;
         $spaId = $user->spa_id;
 
         // Therapists
@@ -41,6 +41,7 @@ class BookingController extends Controller
 
     public function store(Request $request)
     {
+        \Log::info('HIT store (staff)', ['user_id' => auth()->id(), 'role' => auth()->user()?->getRoleNames()]);
         $user = Auth::user();
         // Determine spa_id and branch_id
         $spaId = $user->spa_id; // same as before
@@ -53,7 +54,12 @@ class BookingController extends Controller
         $validated = $request->validate([
             'service_type' => 'required',
             'treatment'    => 'required',
-            'therapist_id' => 'required|exists:users,id',
+            'therapist_id' => [
+                'required',
+                Rule::exists('users', 'id')->where(function ($query) use ($branchId) {
+                    $query->where('branch_id', $branchId);
+                }),
+            ],
             'customer_phone'   => 'required',
             'customer_name'    => 'required',
             'customer_address' => $request->service_type === 'in_home' ? 'required|string|max:255' : 'nullable|string|max:255',
@@ -74,7 +80,7 @@ class BookingController extends Controller
         } elseif (str_starts_with($validated['treatment'], 'package_')) {
             $id = intval(str_replace('package_', '', $validated['treatment']));
             $package = \App\Models\Package::find($id);
-            $durationMinutes = $package ? $package->duration : 0;
+            $durationMinutes = $package?->total_duration ?? 0;
         }
 
         // Check spa operating hours for the selected date.
@@ -95,7 +101,7 @@ class BookingController extends Controller
         if ($start->lt($opening) || $start->gt($closing)) {
             return back()->withErrors(['start_time' => "Please select a time within spa operating hours: {$hours->opening_time} - {$hours->closing_time}"])->withInput();
         }
-        
+
         // Calculate end time.
         $endTime = Carbon::parse($startTime)->addMinutes($durationMinutes)->format('H:i');
 
@@ -149,12 +155,25 @@ class BookingController extends Controller
         if ($user->hasRole('owner')) {
             $branchId = session('current_branch_id') ?? null;
             $query->where('spa_id', $user->spa_id);
+
             if ($branchId) {
-                $query->where('branch_id', $branchId);
+                // ✅ Show branch bookings AND all online bookings
+                $query->where(function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId)
+                    ->orWhere('booking_source', 'online');
+                });
             }
+            // ✅ If no branch in session, show ALL bookings for this spa
+
         } elseif ($user->hasRole('manager')) {
+            $branchId = session('current_branch_id') ?? $user->branch_id;
+
             $query->where('spa_id', $user->spa_id)
-                ->where('branch_id', $user->branch_id);
+                ->where(function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId)
+                        ->orWhere('booking_source', 'online');
+                });
+
         } elseif ($user->hasRole('therapist')) {
             $query->where('spa_id', $user->spa_id)
                 ->where('branch_id', $user->branch_id)
@@ -342,7 +361,7 @@ class BookingController extends Controller
 
     public function history()
     {
-        $bookings = Booking::where('user_id', Auth::id())
+        $bookings = Booking::where('customer_user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -361,5 +380,103 @@ class BookingController extends Controller
         ]);
 
         return back()->with('success', 'Booking reserved successfully.');
+    }
+
+    public function storeOnline(Request $request)
+    {
+        \Log::info('storeOnline INPUT', $request->all());
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'spa_id'           => ['required', 'exists:spas,id'],
+            'branch_id'        => ['required', 'exists:branches,id'],
+            'service_type'     => ['required', 'string', 'in:in_branch,in_home'],
+            'treatment'        => ['required', 'string'],
+            'appointment_date' => ['required', 'date', 'after_or_equal:today'],
+            'start_time'       => ['required'],
+            'customer_phone'   => ['nullable', 'string'],
+            'customer_address' => [
+                $request->service_type === 'in_home' ? 'required' : 'nullable',
+                'string',
+                'max:255'
+            ],
+        ]);
+
+        // ✅ Security: ensure branch belongs to spa
+        $branchOk = \App\Models\Branch::where('id', $validated['branch_id'])
+            ->where('spa_id', $validated['spa_id'])
+            ->exists();
+
+        abort_unless($branchOk, 422, 'Selected branch does not belong to this spa.');
+
+        // ✅ Resolve duration
+        $durationMinutes = 0;
+
+        if (str_starts_with($validated['treatment'], 'treatment_')) {
+            $id = (int) str_replace('treatment_', '', $validated['treatment']);
+            $treatment = \App\Models\Treatment::withoutGlobalScopes()->find($id);
+            $durationMinutes = $treatment?->duration ?? 0;
+
+        } elseif (str_starts_with($validated['treatment'], 'package_')) {
+            $id = (int) str_replace('package_', '', $validated['treatment']);
+            $package = \App\Models\Package::withoutGlobalScopes()->find($id);
+            $durationMinutes = $package?->total_duration ?? 0; // ✅ fixed: total_duration
+        }
+
+        if ($durationMinutes <= 0) {
+            $durationMinutes = 60; // fallback to 1 hour
+        }
+
+        // ✅ Operating hours check
+        $dayOfWeek = Carbon::parse($validated['appointment_date'])->format('l');
+        $hours = \App\Models\OperatingHours::where('branch_id', $validated['branch_id'])
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+
+        if (!$hours || $hours->is_closed) {
+            return back()->withErrors([
+                'start_time' => 'The spa is closed on this day.'
+            ])->withInput();
+        }
+
+        $start   = Carbon::parse($validated['start_time']);
+        $opening = Carbon::parse($hours->opening_time);
+        $closing = Carbon::parse($hours->closing_time);
+
+        if ($start->lt($opening) || $start->gte($closing)) {
+            return back()->withErrors([
+                'start_time' => "Please select a time within spa hours: {$hours->opening_time} - {$hours->closing_time}"
+            ])->withInput();
+        }
+
+        $endTime = $start->copy()->addMinutes($durationMinutes)->format('H:i');
+
+        if (Carbon::parse($endTime)->gt($closing)) {
+            return back()->withErrors([
+                'start_time' => 'Ends after closing hours. Choose an earlier time.'
+            ])->withInput();
+        }
+
+        // ✅ Create booking
+        Booking::create([
+            'spa_id'              => $validated['spa_id'],
+            'branch_id'           => $validated['branch_id'],
+            'customer_user_id'    => auth()->id(),
+            'created_by_user_id'  => null,
+            'booking_source'      => 'online',
+            'status'              => 'reserved',
+            'service_type'        => $validated['service_type'],
+            'treatment'           => $validated['treatment'],
+            'customer_name'       => $user->name,
+            'customer_email'      => $user->email,
+            'customer_phone'      => $validated['customer_phone'] ?? null,
+            'customer_address'    => $validated['customer_address'] ?? null,
+            'appointment_date'    => $validated['appointment_date'],
+            'start_time'          => $validated['start_time'],
+            'end_time'            => $endTime,
+            'therapist_id'        => null, // manager assigns later
+        ]);
+
+        return back()->with('success', 'Booking reserved successfully!');
     }
 }

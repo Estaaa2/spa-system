@@ -20,7 +20,7 @@ class StaffController extends Controller
     {
         $user = Auth::user();
 
-        $branchId = session('current_branch_id');
+        $branchId = $user->currentBranchId();
 
         if (!$branchId) {
             abort(409, 'Branch context not initialized');
@@ -32,9 +32,7 @@ class StaffController extends Controller
             ->latest()
             ->get();
 
-        $branches = Branch::where('spa_id', $user->spa_id)->get();
-
-        return view('staff.index', compact('staff', 'branches'));
+        return view('staff.index', compact('staff'));
     }
 
     /**
@@ -42,6 +40,7 @@ class StaffController extends Controller
      */
     public function store(Request $request)
     {
+
         $validated = $request->validate([
             'name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',

@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'check-owner-exists' => \App\Http\Middleware\CheckOwnerExists::class,
             'owner-only' => \App\Http\Middleware\OwnerOnly::class,
+            'enforce.branch' => \App\Http\Middleware\LockBranchForNonOwner::class,
         ]);
     })
     ->withMiddleware(function ($middleware) {

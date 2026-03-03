@@ -4,25 +4,11 @@
 <div class="mx-auto max-w-7xl">
 
     <!-- Dashboard Header -->
-    <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">
-            Dashboard
-        </h1>
-
-        <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
-                <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-
-            <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
-
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
-                <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-        </div>
-    </div>
+    <div class="p-6">
+        <x-page-header
+            title="Dashboard"
+            subtitle="Welcome back, {{ auth()->user()->name }}! Here's a quick overview of today's appointments and therapist availability."
+        />
 
     <!-- Cards -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -208,7 +194,7 @@
                                 <td class="px-6 py-4">
                                     <span class="text-sm font-medium text-gray-800 dark:text-white">
                                         {{ \Carbon\Carbon::parse($appointment->start_time)->format('h:i A') }}
-                                         - 
+                                         -
                                         {{ \Carbon\Carbon::parse($appointment->end_time)->format('h:i A') }}
                                     </span>
                                 </td>

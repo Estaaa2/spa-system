@@ -2,9 +2,18 @@
     $user = Auth::user();
     $spa = $user?->spa;
 
-    $firstBranch = $spa?->branches?->first();
+    // If owner → show all branches
+    if ($user?->hasRole('owner')) {
+    $branches = $spa?->branches ?? collect();
+    } else {
+        $branches = $spa?->branches
+            ? $spa->branches->where('id', $user->branch_id)
+            : collect();
+    }
+
+    $firstBranch = $branches->first();
     $currentBranchId = session('current_branch_id');
-    $currentBranch = $spa?->branches?->firstWhere('id', $currentBranchId);
+    $currentBranch = $branches->firstWhere('id', $currentBranchId);
 
     // Operations permissions
     $canBooking = $user?->can('create booking') ?? false;
@@ -27,8 +36,16 @@
 
     $showInsights = $canDecisionSupport || $canReports;
 
+    //Inventory permissions(manager-only)
+    $canInventoryProducts = $user?->can('view inventory') ?? false; // or 'manage inventory'
+    $canInventoryLogs     = $user?->can('view inventory logs') ?? false;
+
+    $showInventory = $canInventoryProducts || $canInventoryLogs;
+
     // Brand link: if dashboard is hidden, go to Booking
-    $brandHref = ($user?->can('view owner dashboard') ?? false) ? route('dashboard') : route('booking');
+    $brandHref = $user?->hasRole('owner')
+    ? route('dashboard')
+    : route('booking');
 @endphp
 
 <div x-data="sidebar()" class="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -40,7 +57,10 @@
             <i class="text-xl fa-solid fa-bars"></i>
         </button>
 
+
+
         <!-- Mobile Branch Switcher -->
+        @role('owner')
         <div class="relative">
             <button @click="mobileBranchesOpen = !mobileBranchesOpen"
                 class="flex items-center space-x-2 text-gray-700 dark:text-gray-200">
@@ -62,7 +82,7 @@
                         SWITCH BRANCH
                     </div>
 
-                    @foreach (($spa?->branches ?? collect()) as $branch)
+                    @foreach ($branches as $branch)
                         <button
                             @click="
                                 selectedBranch = '{{ addslashes($branch->name) }}';
@@ -104,6 +124,7 @@
                 </div>
             </div>
         </div>
+        @endrole
     </div>
 
     <!-- SIDEBAR -->
@@ -129,7 +150,7 @@
                 </div>
 
                 <!-- BRANCH SWITCHER -->
-                @if ($spa && $spa->branches->count() > 0)
+                @if ($branches->isNotEmpty())
                     <div class="px-6 pb-4">
                         <div class="relative">
                             <!-- Branch Switcher Button -->
@@ -140,8 +161,8 @@
                                     <div class="flex-1 min-w-0">
                                         <p class="font-medium truncate" x-text="selectedBranch"></p>
                                         <p class="text-xs text-gray-500 truncate dark:text-gray-400">
-                                            {{ $spa->branches->count() }}
-                                            {{ Str::plural('branch', $spa->branches->count()) }} available
+                                            {{ $branches->count() }}
+                                            {{ Str::plural('branch', $branches->count()) }} available
                                         </p>
                                     </div>
                                 </div>
@@ -165,13 +186,13 @@
                                             SELECT BRANCH
                                         </span>
                                         <span class="text-xs text-gray-400 dark:text-gray-500">
-                                            {{ $spa->branches->count() }} total
+                                            {{ $branches->count() }} total
                                         </span>
                                     </div>
 
                                     <!-- Branches List -->
                                     <div class="py-1">
-                                        @foreach ($spa->branches as $branch)
+                                        @foreach ($branches as $branch)
                                             <button
                                                 @click="
                                                     selectedBranch = '{{ addslashes($branch->name) }}';
@@ -362,6 +383,31 @@
                     </div>
                 @endif
 
+                @if($showInventory)
+                    <div class="mb-2">
+                        <button @click="inventoryOpen = !inventoryOpen"
+                            class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span>Inventory</span>
+                            <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                            :class="inventoryOpen ? 'transform rotate-180' : ''"></i>
+                        </button>
+
+                        <div x-show="inventoryOpen" x-collapse class="ml-4 space-y-1">
+                            @can('view inventory')
+                                <x-nav-link :href="route('inventory.products')" :active="request()->routeIs('inventory.products')">
+                                    Product Inventory
+                                </x-nav-link>
+                            @endcan
+
+                            @can('view inventory logs')
+                                <x-nav-link :href="route('inventory.logs')" :active="request()->routeIs('inventory.logs')">
+                                    Product Logs
+                                </x-nav-link>
+                            @endcan
+                        </div>
+                    </div>
+                @endif
+
                 {{-- Profile --}}
                 <div class="mb-2 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                     <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
@@ -470,6 +516,7 @@
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json'
             },
+            credentials: 'same-origin',
             body: JSON.stringify({ branch_id: branchId })
         })
         .then(response => {
@@ -529,6 +576,7 @@
             insightsOpen: false,
             branchesDropdown: false,
             mobileBranchesOpen: false,
+            inventoryOpen: false,
 
             selectedBranch: @json($currentBranch?->name ?? ($firstBranch?->name ?? 'Select Branch')),
             selectedBranchId: @json($currentBranchId ?? ($firstBranch?->id ?? null)),

@@ -21,7 +21,6 @@ class RolePermissionSeeder extends Seeder
         $permissions = [
             // Dashboard
             'view owner dashboard',
-            'view admin dashboard',
 
             // Bookings / Appointments / Schedule
             'create booking',
@@ -34,6 +33,8 @@ class RolePermissionSeeder extends Seeder
             // Staff availability
             'view staff availability',
             'manage staff availability',
+            'view inventory',
+            'view inventory logs',
 
             // Branches
             'view branches',
@@ -109,6 +110,7 @@ class RolePermissionSeeder extends Seeder
 
             'view schedule',
             'manage schedule',
+            'manage staff',
 
             'view staff',
             'create staff',
@@ -135,7 +137,6 @@ class RolePermissionSeeder extends Seeder
 
         // MANAGER: operations + management, but no delete maybe (adjust if you want)
         $manager->syncPermissions([
-            'view owner dashboard',
 
             'create booking',
             'view appointments',
@@ -149,6 +150,8 @@ class RolePermissionSeeder extends Seeder
             'manage staff availability',
 
             'view branches',
+            'view inventory',
+            'view inventory logs',
             // 'manage branches', // optional
 
             'view staff',
@@ -162,8 +165,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         // THERAPIST: mostly schedule + appointments viewing
-        $therapist->syncPermissions([
-            'view owner dashboard',      // or remove if you want therapist dashboard later
+        $therapist->syncPermissions([     // or remove if you want therapist dashboard later
             'view schedule',
             'view appointments',
             // optional if therapist can update status of own appointments:
@@ -172,7 +174,6 @@ class RolePermissionSeeder extends Seeder
 
         // RECEPTIONIST: booking + schedule + appointments (but no management)
         $receptionist->syncPermissions([
-            'view owner dashboard',
 
             'create booking',
             'view appointments',

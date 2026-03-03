@@ -1,29 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mx-auto max-w-7xl">
+<div class="p-6">
 
     <!-- HEADER -->
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Staff Management</h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage staff availabilities and leave requests</p>
-        </div>
-
-        <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
-                <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-
-            <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
-
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
-                <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-        </div>
-    </div>
+    <x-page-header
+        title="Staff Availability"
+        subtitle="Manage and view staff availability for the upcoming week."
+    />
 
     <!-- WEEK NAV -->
     <div class="flex items-center justify-center p-4 mb-6 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700">
@@ -60,9 +44,9 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-900">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff</th>
+                    <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Staff</th>
                     @foreach($weekDays as $day)
-                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                        <th class="px-6 py-3 text-xs font-medium text-center text-gray-500 uppercase">
                             {{ $day->format('D, M d') }}
                         </th>
                     @endforeach
@@ -71,7 +55,7 @@
             <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                 @foreach($staff as $s)
                 <tr>
-                    <td class="px-6 py-4 text-gray-800 dark:text-white font-medium">{{ $s->name }}</td>
+                    <td class="px-6 py-4 font-medium text-gray-800 dark:text-white">{{ $s->name }}</td>
 
                     @foreach($weekDays as $day)
                         @php
@@ -89,7 +73,7 @@
                                     Spa Closed
                                 </span>
                             @else
-                                <button 
+                                <button
                                     onclick="openAvailabilityModal({{ $s->id }}, '{{ $s->name }}', '{{ $day->format('Y-m-d') }}', '{{ $status }}', '{{ $startTime }}', '{{ $endTime }}', '{{ $opening }}', '{{ $closing }}')"
                                     class="px-2 py-1 rounded-full text-sm font-medium
                                         @if($status == 'available') dark:bg-green-900 dark:text-green-200 bg-green-100 text-green-800
@@ -130,7 +114,7 @@
                         <p id="modalStaffDate" class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Staff: <span id="modalStaffName"></span> | Date: <span id="modalDate"></span>
                         </p>
-                        
+
                         <div class="mt-5 space-y-3">
                             <div>
                                 <input type="hidden" name="user_id" id="modalUserId">
@@ -148,7 +132,7 @@
                             </div>
                         </div>
 
-                        <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 gap-4 mt-4">
                             <div>
                                 <label class="block text-sm text-gray-700 dark:text-gray-300">Start Time</label>
                                 <input type="time" name="start_time" id="startTime"
@@ -162,7 +146,7 @@
                         </div>
                     </div>
 
-                    <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 flex justify-end gap-3">
+                    <div class="flex justify-end gap-3 px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
                         <button type="button" onclick="closeAvailabilityModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500">Cancel</button>
                         <button type="submit" id="availabilitySubmitBtn" class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-blue-300">Save</button>
                     </div>
@@ -182,7 +166,7 @@
         }
 
         const form = document.getElementById('availabilityForm');
-        
+
         document.getElementById('modalStaffName').textContent = staffName;
         document.getElementById('modalDate').textContent = date;
 
@@ -249,32 +233,6 @@
             end.disabled = false;
         }
     }
-
-    // Function to update both the date and time displays.
-    function updateClock() {
-        const now = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-        const todayDateElement = document.getElementById('todayDate');
-        const realTimeClockElement = document.getElementById('realTimeClock');
-
-        if (todayDateElement) {
-            todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-        }
-
-        if (realTimeClockElement) {
-            realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        updateClock();
-        setInterval(updateClock, 1000);
-    });
 </script>
 
 @endsection

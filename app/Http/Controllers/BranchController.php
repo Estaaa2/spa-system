@@ -18,12 +18,22 @@ class BranchController extends Controller
         $user = Auth::user();
         $spa = $user->spa;
 
-        // If user has no spa, avoid crashing
         if (!$spa) {
             abort(403, 'No spa assigned to this account.');
         }
 
-        $branches = $spa->branches()->withCount('users')->get();
+        if ($user->hasRole('owner')) {
+            // Owner sees all branches
+            $branches = $spa->branches()
+                ->withCount('users')
+                ->get();
+        } else {
+            // Manager / Staff see ONLY their assigned branch
+            $branches = $spa->branches()
+                ->where('id', $user->branch_id)
+                ->withCount('users')
+                ->get();
+        }
 
         return view('branches.index', compact('branches', 'spa'));
     }
@@ -213,6 +223,14 @@ class BranchController extends Controller
             ], 403);
         }
 
+        // 🔥 IMPORTANT: Only owner can switch branches
+        if (! $user->hasRole('owner')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not allowed to switch branches.'
+            ], 403);
+        }
+
         $branch = Branch::where('spa_id', $spa->id)
             ->where('id', $request->branch_id)
             ->first();
@@ -220,16 +238,11 @@ class BranchController extends Controller
         if (!$branch) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have access to this branch'
+                'message' => 'You do not have access to this branch.'
             ], 403);
         }
 
         Session::put('current_branch_id', $branch->id);
-
-        if (Schema::hasColumn('users', 'branch_id')) {
-            $user->branch_id = $branch->id;
-            $user->save();
-        }
 
         return response()->json([
             'success' => true,

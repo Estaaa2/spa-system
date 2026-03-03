@@ -1,29 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mx-auto max-w-7xl">
+<div class="p-6">
 
     <!-- Services Header -->
-    <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Services</h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage treatments and packages for your spa</p>
-        </div>
-
-        <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
-                <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-
-            <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
-
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
-                <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-        </div>
-    </div>
+    <x-page-header
+        title="Services"
+        subtitle="Manage your treatments and packages."
+    />
 
     <!-- Treatments Section -->
     <div class="mt-8">
@@ -139,11 +123,13 @@
                     <span class="text-sm text-gray-500 dark:text-gray-400">
                         {{ $packages->count() }} package(s) available
                     </span>
+                    @can('create packages')
                     <a href="{{ route('packages.create') }}"
                        class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
                         <i class="fas fa-plus"></i>
                         Add Package
                     </a>
+                    @endcan
                 </div>
             </div>
 
@@ -557,26 +543,6 @@ function updateEditPackageTotals() {
     priceInput.value = totalPrice.toFixed(2);
 }
 
-function updateClock() {
-    const now = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-    const todayDateElement = document.getElementById('todayDate');
-    const realTimeClockElement = document.getElementById('realTimeClock');
-
-    if (todayDateElement) {
-        todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-    }
-
-    if (realTimeClockElement) {
-        realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
-    }
-}
-
 // Initialize and start the clock
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize clock immediately
@@ -586,73 +552,4 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateClock, 1000);
 });
 </script>
-
-@if (session('success'))
-<script>
-    if (!window.successToastShown) {
-        window.successToastShown = true;
-
-        document.addEventListener('DOMContentLoaded', function () {
-            Toastify({
-                text: `
-                    <div class="flex items-center gap-3">
-                        <i class="text-green-600 fa-solid fa-check-circle"></i>
-                        <span class="text-gray-800">{{ session('success') }}</span>
-                    </div>
-                `,
-                duration: 3000,
-                gravity: "top",
-                position: "right",
-                close: true,
-                escapeMarkup: false, // ✅ REQUIRED
-                backgroundColor: "#ffffff",
-                style: {
-                    border: "1px solid #16a34a",
-                    borderRadius: "10px",
-                    minWidth: "300px",
-                    display: "flex",
-                    alignItems: "center",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
-                }
-            }).showToast();
-        });
-    }
-</script>
-@endif
-
-@if ($errors->any())
-<script>
-    if (!window.errorToastShown) {
-        window.errorToastShown = true;
-
-        document.addEventListener('DOMContentLoaded', function () {
-            Toastify({
-                text: `
-                    <div class="flex items-center gap-3">
-                        <i class="text-red-600 fa-solid fa-circle-xmark"></i>
-                        <span class="text-gray-800">
-                            {{ $errors->first() }}
-                        </span>
-                    </div>
-                `,
-                duration: 4000,
-                gravity: "top",
-                position: "right",
-                close: true,
-                escapeMarkup: false, // ✅ allow icon HTML
-                backgroundColor: "#ffffff",
-                style: {
-                    border: "1px solid #dc2626",   // red-600
-                    borderRadius: "10px",
-                    minWidth: "300px",
-                    display: "flex",
-                    alignItems: "center",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
-                }
-            }).showToast();
-        });
-    }
-</script>
-@endif
-
 @endsection

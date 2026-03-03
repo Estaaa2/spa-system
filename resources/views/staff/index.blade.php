@@ -1,29 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mx-auto max-w-7xl">
+<div class="p-6">
 
     <!-- Staff Header -->
-    <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Staff Management</h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your spa therapists and staff members</p>
-        </div>
-
-        <div class="flex items-center gap-3 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Today</span>
-                <span id="todayDate" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-
-            <div class="h-6 border-l border-gray-200 dark:border-gray-700"></div>
-
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 dark:text-gray-400">Time</span>
-                <span id="realTimeClock" class="text-sm font-medium text-gray-800 dark:text-white"></span>
-            </div>
-        </div>
-    </div>
+    <x-page-header
+        title="Staff Management"
+        subtitle="Add, edit, and manage your spa staff members."
+    />
 
     <!-- Add Staff Form -->
     <div class="mb-6">
@@ -260,30 +244,6 @@
 @endcan
 
 <script>
-function updateClock() {
-    const now = new Date();
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-
-    const todayDateElement = document.getElementById('todayDate');
-    const realTimeClockElement = document.getElementById('realTimeClock');
-
-    if (todayDateElement) {
-        todayDateElement.innerText = now.toLocaleDateString('en-US', options);
-    }
-
-    if (realTimeClockElement) {
-        realTimeClockElement.innerText = now.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-    updateClock();
-    setInterval(updateClock, 1000);
-});
 
 @can('delete staff')
 function openDeleteModal(id, name) {

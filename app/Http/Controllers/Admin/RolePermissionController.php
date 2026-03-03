@@ -12,7 +12,9 @@ class RolePermissionController extends Controller
 {
     public function index()
     {
-        $roles = Role::withCount('users')
+        $roles = Role::query()
+            ->whereRaw('LOWER(name) != ?', ['admin']) // hide admin
+            ->withCount('users')
             ->with('permissions')
             ->orderBy('name')
             ->get();
@@ -22,9 +24,17 @@ class RolePermissionController extends Controller
 
     public function edit(Role $role)
     {
+        if (strtolower($role->name) === 'admin') {
+            return redirect()
+                ->route('roles-permissions.index')
+                ->with('error', 'Admin role is protected and cannot be edited.');
+        }
+
         $role->load('permissions');
 
-        $permissions = Permission::orderBy('name')->get();
+        $permissions = Permission::where('name', '!=', 'view admin dashboard')
+        ->orderBy('name')
+        ->get();
 
         $groups = $permissions->groupBy(function ($p) {
             return explode(' ', $p->name)[0]; // view/manage/create/edit/delete
@@ -35,8 +45,14 @@ class RolePermissionController extends Controller
 
     public function update(Request $request, Role $role)
     {
+        if (strtolower($role->name) === 'admin') {
+            return redirect()
+                ->route('roles-permissions.index')
+                ->with('error', 'Admin role is protected and cannot be updated.');
+        }
+
         $validated = $request->validate([
-            'permissions' => ['array'],
+            'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ]);
 
@@ -47,6 +63,5 @@ class RolePermissionController extends Controller
         return redirect()
             ->route('roles-permissions.edit', $role)
             ->with('success', 'Permissions updated successfully.');
-
     }
 }

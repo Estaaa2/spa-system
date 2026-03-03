@@ -12,6 +12,7 @@ use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\Admin\LandingController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -23,9 +24,6 @@ use App\Http\Controllers\Admin\RolePermissionController;
 | Public Routes
 |--------------------------------------------------------------------------
 */
-Route::get('/', function () {
-    return view('welcome');
-})->name('landing.page');
 
 /*
 |--------------------------------------------------------------------------
@@ -43,7 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 | Admin Dashboard (Admin only + permission)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:admin', 'permission:view admin dashboard'])
+Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
@@ -53,9 +51,11 @@ Route::middleware(['auth', 'role:admin', 'permission:view admin dashboard'])
 
 /*
 |--------------------------------------------------------------------------
-| Manager Panel
+| Landing Page (public)
 |--------------------------------------------------------------------------
 */
+
+Route::get('/', [\App\Http\Controllers\LandingController::class, 'index'])->name('landing.page');
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +66,10 @@ Route::middleware(['auth', 'permission:create booking'])->group(function () {
     Route::get('/booking', [BookingController::class, 'create'])->name('booking');
     Route::post('/booking', [BookingController::class, 'store'])->name('bookings.store');
 });
+
+Route::post('/bookings/online', [BookingController::class, 'storeOnline'])
+    ->middleware(['auth', 'role:customer'])
+    ->name('bookings.online.store');
 
 /*
 |--------------------------------------------------------------------------
@@ -126,6 +130,12 @@ Route::middleware(['auth', 'permission:manage branches'])->group(function () {
     });
 });
 
+Route::middleware(['auth', 'enforce.branch'])->group(function () {
+
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::resource('branches', BranchController::class);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Management: Services / Treatments / Packages
@@ -142,7 +152,7 @@ Route::middleware(['auth', 'permission:manage services'])->group(function () {
     Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
 
     // API route: get operating hours for a branch/day
-    Route::get('/api/operating-hours/{branch}/{day}', function($branchId, $day) {
+    Route::get('/api/operating-hours/{branch}/{day}', function ($branchId, $day) {
         $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
             ->where('day_of_week', $day)
             ->first();
@@ -174,6 +184,24 @@ Route::middleware(['auth', 'permission:manage staff'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
+| Inventory
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'role:manager'])->prefix('inventory')->name('inventory.')->group(function () {
+    Route::get('/products', [\App\Http\Controllers\InventoryController::class, 'products'])->name('products');
+    Route::post('/products', [\App\Http\Controllers\InventoryController::class, 'store'])
+        ->name('products.store');
+    Route::post('/products/{product}/deduct', [\App\Http\Controllers\InventoryController::class, 'deduct'])->name('products.deduct');
+    Route::get('/logs', [\App\Http\Controllers\InventoryController::class, 'logs'])->name('logs');
+    Route::put('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'update'])
+        ->name('products.update');
+    Route::delete('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'destroy'])
+        ->name('products.destroy');
+});
+
+/*
+|
 | Insights
 |--------------------------------------------------------------------------
 */
@@ -247,7 +275,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     });
 
     Route::middleware(['permission:manage settings'])->group(function () {
-        Route::get('/settings', fn () => view('settings'))->name('settings.index');
+        Route::get('/settings', fn() => view('settings'))->name('settings.index');
     });
 });
 

@@ -11,8 +11,6 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -40,11 +38,57 @@
             </header>
         @endisset
 
-        <main class="px-4 py-6 mx-auto max-w-7xl sm:px-6 lg:px-8">
-            @yield('content')
-        </main>
+        <x-toast />
     </div>
-    <x-toast />
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const type = sessionStorage.getItem('toast_type');
+    const message = sessionStorage.getItem('toast_message');
+
+    if (type && message) {
+
+        const isSuccess = type === 'success';
+
+        Toastify({
+            text: `
+                <div class="flex items-center gap-3">
+                    <i class="${isSuccess
+                        ? 'text-green-600 fa-solid fa-check-circle'
+                        : 'text-red-600 fa-solid fa-circle-xmark'}">
+                    </i>
+                    <span class="${isSuccess
+                        ? 'text-green-600'
+                        : 'text-red-600'}">
+                        ${message}
+                    </span>
+                </div>
+            `,
+            duration: 3000,
+            gravity: "top",
+            position: "right",
+            close: true,
+            escapeMarkup: false,
+            style: {
+                background: "#ffffff",
+                border: isSuccess
+                    ? "1px solid #16a34a"
+                    : "1px solid #dc2626",
+                borderRadius: "10px",
+                minWidth: "300px",
+                display: "flex",
+                alignItems: "center",
+                boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+            }
+        }).showToast();
+
+        sessionStorage.removeItem('toast_type');
+        sessionStorage.removeItem('toast_message');
+    }
+
+});
+</script>
 </body>
 
 </html>
