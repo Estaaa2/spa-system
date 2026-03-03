@@ -15,13 +15,11 @@ class Branch extends Model
         'spa_id',
         'name',
         'location',
-        'phone',
-        'email',
-        'is_main', // ADD THIS
+        'is_main',
     ];
 
     protected $casts = [
-        'is_main' => 'boolean', // ADD THIS
+        'is_main' => 'boolean',
     ];
 
     public function spa(): BelongsTo
@@ -39,11 +37,15 @@ class Branch extends Model
         return $this->hasMany(User::class);
     }
 
-    // ADD THIS METHOD for staff count
     public function staff()
     {
         return $this->hasMany(User::class)->whereHas('roles', function($q) {
             $q->whereIn('name', ['staff', 'therapist', 'admin']);
         });
+    }
+
+    public function profile()
+    {
+        return $this->hasOne(BranchProfile::class);
     }
 }

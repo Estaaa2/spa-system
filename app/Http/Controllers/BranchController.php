@@ -39,6 +39,21 @@ class BranchController extends Controller
     }
 
     /**
+     * Show the form for editing the specified branch.
+     */
+    public function edit(Branch $branch)
+    {
+        $user = Auth::user();
+        $spa = $user->spa;
+
+        if (!$spa || $branch->spa_id !== $spa->id) {
+            abort(403, 'Unauthorized');
+        }
+
+        return view('branches.edit', compact('branch'));
+    }
+
+    /**
      * Store a newly created branch.
      */
     public function store(Request $request)
@@ -56,36 +71,16 @@ class BranchController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
-            'is_main' => 'nullable' // we will normalize manually
+            'is_main' => 'nullable'
         ]);
 
-        // Normalize phone (optional)
-        if (!empty($validated['phone'])) {
-            $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
-
-            // If they provided something, enforce PH mobile style (optional)
-            if (strlen($validated['phone']) !== 11 || !str_starts_with($validated['phone'], '09')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Please enter a valid Philippine mobile number (11 digits starting with 09).',
-                    'errors' => ['phone' => ['Invalid phone format']]
-                ], 422);
-            }
-        }
-
-        // Normalize is_main to boolean
-        // Accepts: 1, "1", true, "true", "on"
         $wantsMain = filter_var($request->input('is_main'), FILTER_VALIDATE_BOOLEAN);
 
-        // Force first branch to be main
         $isFirstBranch = ($spa->branches()->count() === 0);
         if ($isFirstBranch) {
             $wantsMain = true;
         }
 
-        // Only one main branch rule
         if ($wantsMain) {
             $spa->branches()->update(['is_main' => false]);
         }
@@ -94,9 +89,7 @@ class BranchController extends Controller
             'spa_id' => $spa->id,
             'name' => $validated['name'],
             'location' => $validated['location'],
-            'phone' => $validated['phone'] ?? null,
-            'email' => $validated['email'] ?? null,
-            'is_main' => $wantsMain ? true : false,
+            'is_main' => $wantsMain,
         ]);
 
         return response()->json([
@@ -124,28 +117,13 @@ class BranchController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|size:11',
+            'email' => 'nullable|email|max:100',
             'is_main' => 'nullable'
         ]);
 
-        // Normalize phone (optional)
-        if (!empty($validated['phone'])) {
-            $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
-
-            if (strlen($validated['phone']) !== 11 || !str_starts_with($validated['phone'], '09')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Please enter a valid Philippine mobile number (11 digits starting with 09).',
-                    'errors' => ['phone' => ['Invalid phone format']]
-                ], 422);
-            }
-        }
-
-        // Normalize is_main
         $wantsMain = filter_var($request->input('is_main'), FILTER_VALIDATE_BOOLEAN);
 
-        // If they set this as main, unset others
         if ($wantsMain) {
             Branch::where('spa_id', $spa->id)
                 ->where('id', '!=', $branch->id)
@@ -157,14 +135,19 @@ class BranchController extends Controller
             'location' => $validated['location'],
             'phone' => $validated['phone'] ?? null,
             'email' => $validated['email'] ?? null,
-            'is_main' => $wantsMain ? true : false,
+            'is_main' => $wantsMain,
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Branch updated successfully',
-            'branch' => $branch->fresh()
-        ]);
+        // Redirect if coming from edit page
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Branch updated successfully',
+                'branch' => $branch->fresh()
+            ]);
+        }
+
+        return redirect()->route('branches.index')->with('success', 'Branch updated successfully!');
     }
 
     /**
@@ -298,7 +281,7 @@ class BranchController extends Controller
     }
 
     /**
-     * Show branch (for edit modal fetch).
+     * Show branch (for modal AJAX fetch).
      */
     public function show(Branch $branch)
     {
@@ -312,19 +295,13 @@ class BranchController extends Controller
             ], 403);
         }
 
-        return response()->json([
-            'success' => true,
-            'branch' => [
-                'id' => $branch->id,
-                'name' => $branch->name,
-                'location' => $branch->location,
-                'phone' => $branch->phone,
-                'email' => $branch->email,
-                'is_main' => (bool) $branch->is_main,
-                'spa_id' => $branch->spa_id,
-                'created_at' => $branch->created_at,
-                'updated_at' => $branch->updated_at,
-            ]
-        ]);
+        if (request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'branch' => $branch
+            ]);
+        }
+
+        return view('branches.edit', compact('branch'));
     }
 }

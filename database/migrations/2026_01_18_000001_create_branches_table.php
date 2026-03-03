@@ -16,8 +16,7 @@ return new class extends Migration
             $table->foreignId('spa_id')->constrained('spas')->onDelete('cascade');
             $table->string('name');
             $table->string('location');
-            $table->string('phone')->nullable();
-            $table->string('email')->nullable();
+            $table->boolean('is_main')->default(false);
             $table->timestamps();
         });
 

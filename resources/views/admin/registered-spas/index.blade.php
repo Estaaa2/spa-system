@@ -3,8 +3,8 @@
 @section('content')
 <div class="p-6">
     <x-page-header
-        title="Registered Users"
-        subtitle="Manage user roles"
+        title="Registered Spas"
+        subtitle="Manage spa tiers and information"
     >
     </x-page-header>
 
@@ -13,15 +13,15 @@
         <!-- Card Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
             <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
-                Registered Users
+                Spas
             </h2>
 
             <form method="GET" class="flex gap-2">
                 <input
                     name="q"
-                    value="{{ $q }}"
+                    value="{{ request('q') }}"
                     class="w-64 px-3 py-2 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                    placeholder="Search name or email"
+                    placeholder="Search spa name or owner"
                 >
                 <button
                     class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-lg hover:opacity-90">
@@ -35,36 +35,30 @@
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 dark:bg-gray-900/30">
                     <tr class="text-left text-gray-600 dark:text-gray-300">
-                        <th class="px-6 py-3">Name</th>
-                        <th class="px-6 py-3">Email</th>
-                        <th class="px-6 py-3">Current Role</th>
+                        <th class="px-6 py-3">Spa Name</th>
+                        <th class="px-6 py-3">Owner</th>
+                        <th class="px-6 py-3">Business Tier</th>
                         <th class="px-6 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($users as $user)
-                        @php
-                            $currentRole = $user->roles->first()?->name ?? 'none';
-                        @endphp
+                    @forelse($spas as $spa)
                         <tr class="border-t dark:border-gray-700">
                             <td class="px-6 py-3 text-gray-800 dark:text-gray-100">
-                                {{ $user->name }}
+                                {{ $spa->name }}
                             </td>
                             <td class="px-6 py-3 text-gray-600 dark:text-gray-300">
-                                {{ $user->email }}
+                                {{ $spa->owner->name ?? 'N/A' }}
                             </td>
                             <td class="px-6 py-3">
-                                <span class="px-2 py-1 text-xs bg-gray-100 rounded dark:bg-gray-700 dark:text-gray-200">
-                                    {{ $currentRole }}
+                                <span class="px-2 py-1 text-xs rounded text-white 
+                                    {{ $spa->business_tier == 'basic' ? 'bg-gray-700' : ($spa->business_tier == 'professional' ? 'bg-blue-500' : 'bg-yellow-500') }} rounded dark:text-gray-200">
+                                    {{ ucfirst($spa->business_tier) }}
                                 </span>
                             </td>
                             <td class="px-6 py-3 text-center">
                                 <button
-                                    onclick="openEditRoleModal(
-                                        {{ $user->id }},
-                                        '{{ $user->name }}',
-                                        '{{ $currentRole }}'
-                                    )"
+                                    onclick="openEditTierModal({{ $spa->id }}, '{{ $spa->name }}', '{{ $spa->business_tier }}')"
                                     class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                     Edit
                                 </button>
@@ -73,52 +67,42 @@
                     @empty
                         <tr>
                             <td colspan="4" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                                No users found.
+                                No spas found.
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-
-        <!-- Card Footer -->
-        <div class="px-6 py-4 border-t dark:border-gray-700">
-            {{ $users->links() }}
-        </div>
     </div>
 </div>
 
-<!-- EDIT ROLE MODAL -->
-<div id="editRoleModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+<!-- EDIT TIER MODAL -->
+<div id="editTierModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
         <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">
-            Edit User Role
+            Edit Business Tier
         </h2>
 
         <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-            Update role for <span id="modalUserName" class="font-medium"></span>
+            Update tier for <span id="modalSpaName" class="font-medium"></span>
         </p>
 
-        <form id="editRoleForm" method="POST">
+        <form id="editTierForm" method="POST">
             @csrf
             @method('PUT')
 
-            <select name="role"
-                    id="modalRoleSelect"
+            <select name="business_tier"
+                    id="modalTierSelect"
                     class="w-full px-3 py-2 mb-4 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-                @foreach($roles as $role)
-                    @continue($role->name === 'admin')
-
-                    <option value="{{ $role->name }}">
-                        {{ $role->name }}
-                    </option>
-                @endforeach
+                <option value="basic">Basic</option>
+                <option value="professional">Professional</option>
+                <option value="enterprise">Enterprise</option>
             </select>
-
 
             <div class="flex justify-end gap-2">
                 <button type="button"
-                        onclick="closeEditRoleModal()"
+                        onclick="closeEditTierModal()"
                         class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-lg dark:bg-gray-700 dark:text-gray-300">
                     Cancel
                 </button>
@@ -133,15 +117,15 @@
 
 <!-- MODAL SCRIPT -->
 <script>
-function openEditRoleModal(userId, userName, currentRole) {
-    document.getElementById('modalUserName').textContent = userName;
-    document.getElementById('modalRoleSelect').value = currentRole;
-    document.getElementById('editRoleForm').action = `/users/${userId}/role`;
-    document.getElementById('editRoleModal').classList.remove('hidden');
+function openEditTierModal(spaId, spaName, currentTier) {
+    document.getElementById('modalSpaName').textContent = spaName;
+    document.getElementById('modalTierSelect').value = currentTier;
+    document.getElementById('editTierForm').action = `/admin/registered-spas/${spaId}`;
+    document.getElementById('editTierModal').classList.remove('hidden');
 }
 
-function closeEditRoleModal() {
-    document.getElementById('editRoleModal').classList.add('hidden');
+function closeEditTierModal() {
+    document.getElementById('editTierModal').classList.add('hidden');
 }
 </script>
 @endsection

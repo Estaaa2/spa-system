@@ -106,11 +106,11 @@
                                 </td>
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex justify-center gap-2">
-                                        <button onclick="editBranch(event, {{ $branch->id }})"
-                                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600"
-                                                title="Edit">
+                                        <a href="{{ route('branches.edit', $branch->id) }}"
+                                            class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600"
+                                            title="Edit">
                                             Edit
-                                        </button>
+                                        </a>
                                         @if(!$branch->is_main && $branch->users_count == 0)
                                             <button onclick="deleteBranch({{ $branch->id }}, '{{ addslashes($branch->name) }}')"
                                                     class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700"
@@ -353,12 +353,8 @@ function openCreateModal() {
     validatePhone(document.getElementById('phone'));
 }
 
-/* =========================
-   EDIT MODAL
-========================= */
 function editBranch(ev, branchId) {
     ev.preventDefault();
-    isEditMode = true;
 
     const button = ev.currentTarget;
     const originalHTML = button.innerHTML;
@@ -374,7 +370,7 @@ function editBranch(ev, branchId) {
     })
     .then(async (response) => {
         const data = await response.json();
-        if (!response.ok) throw data;
+        if (!response.ok) throw { status: response.status, data };
         return data;
     })
     .then(data => {
@@ -396,17 +392,18 @@ function editBranch(ev, branchId) {
             currentBranchId = branchId;
 
             document.getElementById('branchModal').classList.remove('hidden');
+        } else {
+            // ❌ Don't show JS toast - use sessionStorage then reload so bottom blocks apply
+            sessionStorage.setItem('toast_type', 'error');
+            sessionStorage.setItem('toast_message', data.message || 'Failed to load branch data');
+            window.location.reload();
         }
     })
-    .catch(() => {
-        Toastify({
-            text: 'Failed to load branch data.',
-            duration: 3000,
-            gravity: "top",
-            position: "right",
-            backgroundColor: "#ef4444",
-            close: true
-        }).showToast();
+    .catch(error => {
+        console.error('Error fetching branch:', error);
+        sessionStorage.setItem('toast_type', 'error');
+        sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
+        window.location.reload();
     })
     .finally(() => {
         button.innerHTML = originalHTML;
@@ -535,40 +532,117 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
 
             if (!response.ok) {
-                Toastify({
-                    text: `
-                        <div class="flex items-center gap-3">
-                            <i class="text-red-600 fa-solid fa-circle-xmark"></i>
-                            <span class="text-red-600">
-                                ${data.message || 'Validation failed.'}
-                            </span>
-                        </div>
-                    `,
-                    duration: 3000,
-                    gravity: "top",
-                    position: "right",
-                    close: true,
-                    escapeMarkup: false,
-                    style: {
-                        background: "#ffffff",
-                        border: "1px solid #dc2626",
-                        borderRadius: "10px",
-                        minWidth: "300px",
-                        display: "flex",
-                        alignItems: "center",
-                        boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                if (response.status === 422) {
+                    let msgs = [];
+                    if (data.errors) {
+                        for (const k in data.errors) msgs.push(data.errors[k][0]);
+                    } else {
+                        msgs.push(data.message || 'Validation failed.');
                     }
-                }).showToast();
+
+                    Toastify({
+                        text: msgs.join('\n'),
+                        duration: 3000,
+                        gravity: "top",
+                        position: "right",
+                        backgroundColor: "#ef4444",
+                        close: true
+                    }).showToast();
+
+                    return;
+                }
+
+                if (response.status === 419) {
+                    sessionStorage.setItem('toast_type', 'error');
+                    sessionStorage.setItem('toast_message', 'Session expired. Please refresh the page and try again.');
+                    window.location.reload();
+                    return;
+                }
+
+                sessionStorage.setItem('toast_type', 'error');
+                sessionStorage.setItem('toast_message', data.message || 'An error occurred. Please try again.');
+                window.location.reload();
                 return;
             }
 
             if (data.success) {
+                // ✅ store message and reload so bottom Toastify blocks show (same design)
                 sessionStorage.setItem('toast_type', 'success');
                 sessionStorage.setItem('toast_message', data.message || 'Saved successfully');
                 window.location.reload();
+            } else {
+                sessionStorage.setItem('toast_type', 'error');
+                sessionStorage.setItem('toast_message', data.message || 'Operation failed');
+                window.location.reload();
             }
+        } catch (err) {
+            console.error(err);
+            sessionStorage.setItem('toast_type', 'error');
+            sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
+            window.location.reload();
+        } finally {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            isSubmitting = false;
+        }
+    });
 
-        } catch (error) {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeDeleteModal();
+        }
+    });
+
+    document.getElementById('branchModal')?.addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    document.getElementById('deleteModal')?.addEventListener('click', function(e) {
+        if (e.target === this) closeDeleteModal();
+    });
+});
+</script>
+
+@if (session('success'))
+<script>
+    if (!window.successToastShown) {
+        window.successToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            Toastify({
+                text: `
+                    <div class="flex items-center gap-3">
+                        <i class="text-green-600 fa-solid fa-check-circle"></i>
+                        <span class="text-green-600">{{ session('success') }}</span>
+                    </div>
+                `,
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                close: true,
+                escapeMarkup: false, // ✅ REQUIRED
+                backgroundColor: "#ffffff",
+                style: {
+                    border: "1px solid #16a34a",
+                    borderRadius: "10px",
+                    minWidth: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
+                }
+            }).showToast();
+        });
+    }
+</script>
+@endif
+
+@if ($errors->any())
+<script>
+    if (!window.errorToastShown) {
+        window.errorToastShown = true;
+
+        document.addEventListener('DOMContentLoaded', function () {
             Toastify({
                 text: `
                     <div class="flex items-center gap-3">

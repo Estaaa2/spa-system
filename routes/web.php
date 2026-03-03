@@ -1,23 +1,27 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\RegisteredSpaController;
+use App\Http\Controllers\Admin\RolePermissionController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\BookingController;
-use App\Http\Controllers\SetupController;
-use App\Http\Controllers\StaffController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\ScheduleController;
-use App\Http\Controllers\Admin\LandingController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
-use App\Http\Controllers\Admin\AdminDashboardController;
-use App\Http\Controllers\Admin\UserManagementController;
-use App\Http\Controllers\Admin\RolePermissionController;
+use App\Http\Controllers\PackageController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\SetupController;
+use App\Http\Controllers\StaffAvailabilityController;
+use App\Http\Controllers\StaffController;
+use App\Http\Controllers\TreatmentController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -146,6 +150,7 @@ Route::middleware(['auth', 'permission:view services|manage services'])->group(f
 });
 
 Route::middleware(['auth', 'permission:manage services'])->group(function () {
+    Route::resource('branches', BranchController::class)->except(['index']);
     Route::resource('treatments', TreatmentController::class)->except(['index']);
     Route::resource('packages', PackageController::class)->except(['index']);
     // Schedule
@@ -262,6 +267,12 @@ Route::middleware(['auth', 'permission:create booking'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:admin'])->group(function () {
+
+    Route::prefix('admin')->middleware(['auth', 'role:admin'])->name('admin.')->group(function () {
+    Route::get('/registered-spas', [RegisteredSpaController::class, 'index'])->name('registered-spas.index');
+    Route::get('/registered-spas/{spa}/edit', [RegisteredSpaController::class, 'edit'])->name('registered-spas.edit');
+    Route::put('/registered-spas/{spa}', [RegisteredSpaController::class, 'update'])->name('registered-spas.update');
+    });
 
     Route::middleware(['permission:manage users'])->group(function () {
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');

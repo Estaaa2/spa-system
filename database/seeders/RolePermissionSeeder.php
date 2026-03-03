@@ -65,6 +65,7 @@ class RolePermissionSeeder extends Seeder
             'view decision support',
 
             // System administration
+            'manage spas',
             'manage users',
             'manage roles',
             'manage settings',
@@ -91,6 +92,7 @@ class RolePermissionSeeder extends Seeder
         // ADMIN: System-level, no spa/branch assumptions, can manage access
         $admin->syncPermissions([
             'view admin dashboard',
+            'manage spas',
             'manage users',
             'manage roles',
             'manage settings',

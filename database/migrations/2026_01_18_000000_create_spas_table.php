@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('owner_id')->constrained('users')->onDelete('cascade');
             $table->string('name');
+            $table->enum('business_tier', ['basic','professional','enterprise'])->default('basic');
             $table->timestamps();
         });
 

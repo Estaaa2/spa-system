@@ -52,9 +52,15 @@
                 <!-- Administration -->
                 <div class="mb-2">
                     <div class="space-y-1">
+                        @can('manage spas')
+                        <x-nav-link :href="route('admin.registered-spas.index')" :active="request()->routeIs('admin.registered-spas.*')">
+                            Registered Spas
+                        </x-nav-link>
+                        @endcan
+
                         @can('manage users')
                         <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
-                            Users
+                            Registered Users
                         </x-nav-link>
                         @endcan
 
