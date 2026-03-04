@@ -106,7 +106,9 @@ class SetupController extends Controller
         ]);
 
         // **UPDATE USER WITH BRANCH ID**
-        $user->update(['branch_id' => $branch->id]);
+        if (!$user->hasRole('owner')) {
+            $user->update(['branch_id' => $branch->id]);
+        }
 
         // Create default operating hours (9 AM to 6 PM, Monday-Sunday)
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];

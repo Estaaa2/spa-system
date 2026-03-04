@@ -66,6 +66,7 @@ class RolePermissionSeeder extends Seeder
             'view decision support',
 
             // System administration
+            'view admin dashboard',
             'manage spas',
             'manage users',
             'manage roles',
@@ -114,6 +115,9 @@ class RolePermissionSeeder extends Seeder
             'view schedule',
             'manage schedule',
             'manage staff',
+            'manage staff availability',
+            'view inventory',
+            'view inventory logs',
 
             'view staff',
             'create staff',
@@ -121,6 +125,7 @@ class RolePermissionSeeder extends Seeder
             'delete staff',
 
             'view branches',
+            'manage branches',
             'create branches',
             'edit branches',
             'delete branches',
@@ -155,7 +160,6 @@ class RolePermissionSeeder extends Seeder
             'view branches',
             'view inventory',
             'view inventory logs',
-            // 'manage branches', // optional
 
             'view staff',
             'manage staff',
