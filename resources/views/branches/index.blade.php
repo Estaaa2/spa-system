@@ -89,9 +89,6 @@
                                                     </span>
                                                 @endif
                                             </p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $branch->phone ?? 'No phone' }}
-                                            </p>
                                         </div>
                                     </div>
                                 </td>
@@ -170,12 +167,12 @@
     </div>
 </div>
 
-<!-- Create/Edit Branch Modal -->
+<!-- Create Branch Modal -->
 <div id="branchModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
     <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"></div>
 
-        <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800 sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800 sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
             <form id="branchForm" method="POST">
                 @csrf
 
@@ -215,33 +212,6 @@
                             </p>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Phone Number
-                                </label>
-                                <input type="tel" id="phone" name="phone"
-                                    maxlength="11"
-                                    oninput="validatePhone(this)"
-                                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                                    placeholder="09XXXXXXXXX">
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    Exactly 11 digits (e.g., 09171234567)
-                                </p>
-                                <p id="phoneError" class="hidden mt-1 text-xs text-red-600 dark:text-red-400">
-                                    Must be 11 digits starting with 09
-                                </p>
-                            </div>
-                            <div>
-                                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Email Address
-                                </label>
-                                <input type="email" id="email" name="email" maxlength="100"
-                                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                                    placeholder="branch@example.com">
-                            </div>
-                        </div>
-
                         <div class="flex items-center">
                             <input type="checkbox" id="is_main" name="is_main"
                                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
@@ -253,8 +223,58 @@
                             The main branch is your primary location. Only one branch can be main at a time.
                         </p>
                     </div>
-                </div>
 
+                    <!-- Operating Hours Section -->
+                    <div x-data>
+                        <h3 class="mt-6 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Operating Hours</h3>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            @php
+                                $daysOfWeek = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+                            @endphp
+
+                            @foreach($daysOfWeek as $index => $day)
+                            <div class="p-4 bg-white dark:bg-gray-800 shadow-sm rounded-2xl ring-1 ring-black/5 dark:ring-white/10" id="new_card_{{ $index }}">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $day }}</h4>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <!-- Hidden input ensures '0' is submitted if unchecked -->
+                                        <input type="hidden" name="hours[{{ $index }}][is_closed]" value="0" />
+                                        <input type="checkbox"
+                                            name="hours[{{ $index }}][is_closed]"
+                                            value="1"
+                                            class="w-4 h-4 rounded text-[#8B7355] border-gray-300 focus:ring-[#8B7355]/40"
+                                            onchange="toggleTimeInputs(this, 'new_opening_{{ $index }}', 'new_closing_{{ $index }}')"
+                                        />
+                                        <span class="text-xs font-semibold text-gray-500 dark:text-gray-300">Closed</span>
+                                    </label>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block mb-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Opens</label>
+                                        <input type="time"
+                                            id="new_opening_{{ $index }}"
+                                            name="hours[{{ $index }}][opening_time]"
+                                            value="09:00"
+                                            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                        <!-- Always include the day_of_week hidden field -->
+                                        <input type="hidden" name="hours[{{ $index }}][day_of_week]" value="{{ $day }}">
+                                    </div>
+                                    <div>
+                                        <label class="block mb-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Closes</label>
+                                        <input type="time"
+                                            id="new_closing_{{ $index }}"
+                                            name="hours[{{ $index }}][closing_time]"
+                                            value="18:00"
+                                            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
                     <div class="flex justify-end space-x-3">
                         <button type="button" onclick="closeModal()"
@@ -349,8 +369,23 @@ function openCreateModal() {
 
     document.getElementById('submitBtn').textContent = 'Create Branch';
     document.getElementById('branchModal').classList.remove('hidden');
+}
 
-    validatePhone(document.getElementById('phone'));
+function toggleTimeInputs(checkbox, openingId, closingId) {
+    const opening = document.getElementById(openingId);
+    const closing = document.getElementById(closingId);
+    
+    if (checkbox.checked) {
+        opening.setAttribute('readonly', true);
+        closing.setAttribute('readonly', true);
+        opening.classList.add('opacity-50', 'cursor-not-allowed');
+        closing.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        opening.removeAttribute('readonly');
+        closing.removeAttribute('readonly');
+        opening.classList.remove('opacity-50', 'cursor-not-allowed');
+        closing.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
 }
 
 function editBranch(ev, branchId) {
@@ -382,11 +417,7 @@ function editBranch(ev, branchId) {
 
             document.getElementById('name').value = data.branch.name || '';
             document.getElementById('location').value = data.branch.location || '';
-            document.getElementById('phone').value = data.branch.phone || '';
-            document.getElementById('email').value = data.branch.email || '';
             document.getElementById('is_main').checked = !!data.branch.is_main;
-
-            validatePhone(document.getElementById('phone'));
 
             document.getElementById('submitBtn').textContent = 'Update Branch';
             currentBranchId = branchId;
@@ -470,103 +501,58 @@ function confirmDelete() {
 }
 
 /* =========================
-   PHONE VALIDATION
-========================= */
-function validatePhone(input) {
-    const errorElement = document.getElementById('phoneError');
-    const value = (input.value || '').replace(/\D/g, '');
-
-    input.value = value.substring(0, 11);
-
-    if (value.length === 11 && value.startsWith('09')) {
-        errorElement.classList.add('hidden');
-        input.classList.remove('border-red-500');
-        input.classList.add('border-green-500');
-    } else if (value.length > 0) {
-        errorElement.classList.remove('hidden');
-        input.classList.add('border-red-500');
-        input.classList.remove('border-green-500');
-    } else {
-        errorElement.classList.add('hidden');
-        input.classList.remove('border-red-500', 'border-green-500');
-    }
-}
-
-/* =========================
    FORM SUBMIT
 ========================= */
 document.addEventListener('DOMContentLoaded', function () {
-
     const form = document.getElementById('branchForm');
 
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
-
         if (isSubmitting) return;
         isSubmitting = true;
-
-        const payload = {
-            name: document.getElementById('name').value,
-            location: document.getElementById('location').value,
-            phone: document.getElementById('phone').value,
-            email: document.getElementById('email').value,
-            is_main: document.getElementById('is_main').checked ? 1 : 0,
-        };
 
         const button = document.getElementById('submitBtn');
         const originalText = button.innerHTML;
         button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
         button.disabled = true;
 
+        // ✅ Use FormData to include all inputs (hours, checkboxes, hidden fields, etc.)
+        const formData = new FormData(form);
+
         try {
             const response = await fetch(form.action, {
-                method: isEditMode ? 'PUT' : 'POST', // ✅ FIXED
+                method: isEditMode ? 'POST' : 'POST', // Laravel accepts POST for create, PUT for update is optional if you handle method spoofing
                 headers: {
-                    'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify(payload),
+                body: formData,
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                if (response.status === 422) {
-                    let msgs = [];
-                    if (data.errors) {
-                        for (const k in data.errors) msgs.push(data.errors[k][0]);
-                    } else {
-                        msgs.push(data.message || 'Validation failed.');
-                    }
-
-                    Toastify({
-                        text: msgs.join('\n'),
-                        duration: 3000,
-                        gravity: "top",
-                        position: "right",
-                        backgroundColor: "#ef4444",
-                        close: true
-                    }).showToast();
-
-                    return;
+                // Handle validation errors
+                let msgs = [];
+                if (data.errors) {
+                    for (const key in data.errors) msgs.push(data.errors[key][0]);
+                } else {
+                    msgs.push(data.message || 'Validation failed.');
                 }
 
-                if (response.status === 419) {
-                    sessionStorage.setItem('toast_type', 'error');
-                    sessionStorage.setItem('toast_message', 'Session expired. Please refresh the page and try again.');
-                    window.location.reload();
-                    return;
-                }
+                Toastify({
+                    text: msgs.join('\n'),
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    backgroundColor: "#ef4444",
+                    close: true
+                }).showToast();
 
-                sessionStorage.setItem('toast_type', 'error');
-                sessionStorage.setItem('toast_message', data.message || 'An error occurred. Please try again.');
-                window.location.reload();
                 return;
             }
 
             if (data.success) {
-                // ✅ store message and reload so bottom Toastify blocks show (same design)
                 sessionStorage.setItem('toast_type', 'success');
                 sessionStorage.setItem('toast_message', data.message || 'Saved successfully');
                 window.location.reload();
@@ -575,6 +561,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 sessionStorage.setItem('toast_message', data.message || 'Operation failed');
                 window.location.reload();
             }
+
         } catch (err) {
             console.error(err);
             sessionStorage.setItem('toast_type', 'error');
@@ -585,21 +572,6 @@ document.addEventListener('DOMContentLoaded', function () {
             button.disabled = false;
             isSubmitting = false;
         }
-    });
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeModal();
-            closeDeleteModal();
-        }
-    });
-
-    document.getElementById('branchModal')?.addEventListener('click', function(e) {
-        if (e.target === this) closeModal();
-    });
-
-    document.getElementById('deleteModal')?.addEventListener('click', function(e) {
-        if (e.target === this) closeDeleteModal();
     });
 });
 </script>

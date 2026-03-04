@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\OperatingHours;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Session;
 
 class BranchController extends Controller
 {
@@ -50,7 +51,22 @@ class BranchController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        return view('branches.edit', compact('branch'));
+        $daysOfWeek = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        $operatingHours = $branch->operatingHours()->get();
+
+        // If some days are missing (new branch), fill them
+        foreach ($daysOfWeek as $day) {
+            if (!$operatingHours->where('day_of_week', $day)->first()) {
+                $operatingHours->push(new \App\Models\OperatingHours([
+                    'day_of_week' => $day,
+                    'opening_time' => '09:00',
+                    'closing_time' => '18:00',
+                    'is_closed' => false,
+                ]));
+            }
+        }
+
+        return view('branches.edit', compact('branch', 'spa', 'operatingHours'));
     }
 
     /**
@@ -60,6 +76,7 @@ class BranchController extends Controller
     {
         $user = Auth::user();
         $spa = $user->spa;
+        $days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
         if (!$spa) {
             return response()->json([
@@ -71,7 +88,12 @@ class BranchController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string',
-            'is_main' => 'nullable'
+            'is_main' => 'nullable',
+            'hours' => 'required|array',
+            'hours.*.day_of_week' => 'required|string',
+            'hours.*.opening_time' => 'required|date_format:H:i',
+            'hours.*.closing_time' => 'required|date_format:H:i',
+            'hours.*.is_closed' => 'required|boolean',
         ]);
 
         $wantsMain = filter_var($request->input('is_main'), FILTER_VALIDATE_BOOLEAN);
@@ -92,6 +114,30 @@ class BranchController extends Controller
             'is_main' => $wantsMain,
         ]);
 
+        // Save operating hours from the request
+        if ($request->has('hours')) {
+            foreach ($request->hours as $index => $hourData) {
+                OperatingHours::create([
+                    'branch_id' => $branch->id,
+                    'day_of_week' => $hourData['day_of_week'] ?? $days[$index],
+                    'opening_time' => $hourData['opening_time'] ?? '09:00',
+                    'closing_time' => $hourData['closing_time'] ?? '18:00',
+                    'is_closed' => isset($hourData['is_closed']) ? (bool)$hourData['is_closed'] : false,
+                ]);
+            }
+        } else {
+            // fallback to default hours if no data sent
+            foreach ($days as $day) {
+                OperatingHours::create([
+                    'branch_id' => $branch->id,
+                    'day_of_week' => $day,
+                    'opening_time' => '09:00',
+                    'closing_time' => '18:00',
+                    'is_closed' => false,
+                ]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Branch created successfully',
@@ -108,18 +154,14 @@ class BranchController extends Controller
         $spa = $user->spa;
 
         if (!$spa || $branch->spa_id !== $spa->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized'
-            ], 403);
+            abort(403, 'Unauthorized');
         }
 
+        // ----- Management Fields -----
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string',
-            'phone' => 'nullable|string|size:11',
-            'email' => 'nullable|email|max:100',
-            'is_main' => 'nullable'
+            'is_main' => 'nullable',
         ]);
 
         $wantsMain = filter_var($request->input('is_main'), FILTER_VALIDATE_BOOLEAN);
@@ -133,18 +175,52 @@ class BranchController extends Controller
         $branch->update([
             'name' => $validated['name'],
             'location' => $validated['location'],
-            'phone' => $validated['phone'] ?? null,
-            'email' => $validated['email'] ?? null,
             'is_main' => $wantsMain,
         ]);
 
-        // Redirect if coming from edit page
-        if ($request->wantsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Branch updated successfully',
-                'branch' => $branch->fresh()
+        // ----- Branch Profile (Conditional) -----
+        if (in_array($spa->business_tier, ['professional','enterprise'])) {
+
+            $profileData = $request->validate([
+                'is_listed' => 'nullable|boolean',
+                'cover_image' => 'nullable|image|max:2048',
+                'description' => 'nullable|string',
+                'phone' => 'nullable|string|max:50',
+                'opening_time' => 'nullable|date_format:H:i',
+                'closing_time' => 'nullable|date_format:H:i',
             ]);
+
+            $profile = $branch->profile ?? $branch->profile()->create([]);
+
+            $profile->update([
+                'is_listed' => $request->has('is_listed') ? true : false,
+                'description' => $profileData['description'] ?? $profile->description,
+                'phone' => $profileData['phone'] ?? $profile->phone,
+                'opening_time' => $profileData['opening_time'] ?? $profile->opening_time,
+                'closing_time' => $profileData['closing_time'] ?? $profile->closing_time,
+            ]);
+
+            // Handle cover image upload
+            if ($request->hasFile('cover_image')) {
+                $path = $request->file('cover_image')->store('branch_profiles', 'public');
+                $profile->cover_image = $path;
+                $profile->save();
+            }
+        }
+
+        if ($request->has('hours')) {
+            foreach ($request->hours as $hourData) {
+                $hourId = $hourData['id'] ?? null;
+                $hour = $hourId ? \App\Models\OperatingHours::find($hourId) : null;
+
+                $hour = $hour ?? new \App\Models\OperatingHours();
+                $hour->branch_id = $branch->id;
+                $hour->day_of_week = $hourData['day_of_week'] ?? $hour->day_of_week;
+                $hour->opening_time = $hourData['opening_time'] ?? '09:00';
+                $hour->closing_time = $hourData['closing_time'] ?? '18:00';
+                $hour->is_closed = isset($hourData['is_closed']) ? (bool)$hourData['is_closed'] : false;
+                $hour->save();
+            }
         }
 
         return redirect()->route('branches.index')->with('success', 'Branch updated successfully!');

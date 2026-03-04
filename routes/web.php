@@ -125,15 +125,10 @@ Route::middleware(['auth', 'permission:view branches|manage branches'])->group(f
 Route::middleware(['auth', 'permission:manage branches'])->group(function () {
     Route::prefix('branches')->group(function () {
         Route::post('/', [BranchController::class, 'store'])->name('branches.store');
+        Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('branches.edit');
         Route::put('/{branch}', [BranchController::class, 'update'])->name('branches.update');
         Route::delete('/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
     });
-});
-
-Route::middleware(['auth', 'enforce.branch'])->group(function () {
-
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::resource('branches', BranchController::class);
 });
 
 /*
@@ -146,7 +141,6 @@ Route::middleware(['auth', 'permission:view services|manage services'])->group(f
 });
 
 Route::middleware(['auth', 'permission:manage services'])->group(function () {
-    Route::resource('branches', BranchController::class)->except(['index']);
     Route::resource('treatments', TreatmentController::class)->except(['index']);
     Route::resource('packages', PackageController::class)->except(['index']);
     // Schedule and staff availability are handled separately

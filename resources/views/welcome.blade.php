@@ -393,7 +393,7 @@
 
                         <!-- Optional: amenities placeholders (layout only) -->
                         <div class="mt-6">
-                            <p class="text-xs font-semibold tracking-wide text-gray-700 uppercase">Highlights</p>
+                            <p class="text-xs font-semibold tracking-wide text-gray-700 uppercase">What this spa offers</p>
                             <div class="grid grid-cols-2 gap-3 mt-3 text-sm text-gray-600">
                                 <div class="flex items-center gap-2"><i class="fa-solid fa-bath text-[#8B7355]"></i> Clean Rooms</div>
                                 <div class="flex items-center gap-2"><i class="fa-solid fa-user-nurse text-[#8B7355]"></i> Pro Therapists</div>
