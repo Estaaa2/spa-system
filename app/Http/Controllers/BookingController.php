@@ -384,7 +384,7 @@ class BookingController extends Controller
 
     public function storeOnline(Request $request)
     {
-        \Log::info('storeOnline INPUT', $request->all());
+
         $user = Auth::user();
 
         $validated = $request->validate([

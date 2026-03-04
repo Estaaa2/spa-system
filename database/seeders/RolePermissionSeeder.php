@@ -21,6 +21,7 @@ class RolePermissionSeeder extends Seeder
         $permissions = [
             // Dashboard
             'view owner dashboard',
+            'view admin dashboard',
 
             // Bookings / Appointments / Schedule
             'create booking',

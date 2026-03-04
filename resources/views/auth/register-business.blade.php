@@ -44,7 +44,7 @@
                     </div>
 
                     <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display'] mb-2">
-                        Create an owner account
+                        Create a business account
                     </h2>
                     <p class="text-gray-600 dark:text-gray-400">
                         Sign up for your account

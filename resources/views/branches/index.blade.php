@@ -636,45 +636,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 </script>
 @endif
-
-@if ($errors->any())
-<script>
-    if (!window.errorToastShown) {
-        window.errorToastShown = true;
-
-        document.addEventListener('DOMContentLoaded', function () {
-            Toastify({
-                text: `
-                    <div class="flex items-center gap-3">
-                        <i class="text-red-600 fa-solid fa-circle-xmark"></i>
-                        <span class="text-red-600">
-                            Something went wrong.
-                        </span>
-                    </div>
-                `,
-                duration: 4000,
-                gravity: "top",
-                position: "right",
-                close: true,
-                escapeMarkup: false,
-                style: {
-                    background: "#ffffff",
-                    border: "1px solid #dc2626",
-                    borderRadius: "10px",
-                    minWidth: "300px",
-                    display: "flex",
-                    alignItems: "center",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
-                }
-            }).showToast();
-        } finally {
-            button.innerHTML = originalText;
-            button.disabled = false;
-            isSubmitting = false;
-        }
-    });
-
-});
 </script>
 
 @endsection

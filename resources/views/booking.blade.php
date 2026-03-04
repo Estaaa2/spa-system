@@ -230,11 +230,6 @@
 
     // Initialize and start the clock
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize clock immediately
-        updateClock();
-
-        // Update clock every second
-        setInterval(updateClock, 1000);
 
         // CORRECTED SUMMARY UPDATE FUNCTION
         function updateSummary() {

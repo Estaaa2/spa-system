@@ -74,7 +74,6 @@ class InventoryController extends Controller
             'name'             => $data['name'],
             'brand'            => $data['brand'] ?? null,
             'stock_quantity'   => $data['stock_quantity'],
-            'unit' => $data['unit'] ?? null,
             'expiration_date'  => $data['expiration_date'] ?? null,
         ]);
 
