@@ -36,12 +36,16 @@ class BranchProfile extends Model
     public function getTitleAttribute()
     {
         $spaName = $this->branch->spa->name ?? 'Spa';
-        $city = $this->branch->profile->address ?? $this->branch->location ?? '';
+        $address = $this->address ?? $this->branch->location ?? '';
 
-        // Extract the city from the address string if possible
-        $cityParts = explode(',', $city);
-        $cityName = trim(end($cityParts)); // last part of the address
+        // Extract city from address
+        $cityName = '';
+        if ($address) {
+            $parts = explode(',', $address);
+            // Use second to last part for city if available
+            $cityName = trim(count($parts) >= 2 ? $parts[count($parts)-2] : end($parts));
+        }
 
-        return $spaName . ($cityName ? ' - ' . $cityName : '');
+        return $spaName . ($cityName ? ' — ' . $cityName : '');
     }
 }

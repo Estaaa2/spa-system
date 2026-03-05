@@ -125,12 +125,15 @@
                 {{-- Conditional Profile Inputs --}}
                 <div x-show="listed" x-transition class="space-y-4">
 
-                    {{-- Branch Title (readonly) --}}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Branch Title</label>
-                        <input type="text" value="{{ $branch->spa->name ?? '' }} - {{ $branch->profile->address ?? '' }}" readonly
-                            class="block w-full mt-1 border-gray-300 rounded-md shadow-sm bg-gray-100 dark:bg-gray-700 dark:text-gray-300 sm:text-sm">
-                    </div>
+                    @php
+                    $city = explode(',', $branch->location)[0] ?? $branch->location;
+                    @endphp
+
+                    {{-- Readonly Title --}}
+                    <input type="text"
+                        value="{{ $branch->spa->name }} - {{ $city }}"
+                        readonly
+                        class="block w-full mt-1 border-gray-300 rounded-md shadow-sm bg-gray-100 dark:bg-gray-700 dark:text-gray-300 sm:text-sm">
 
                     {{-- Description --}}
                     <div>
@@ -147,34 +150,24 @@
                             class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
                     </div>
 
-                    {{-- Address & Map --}}
+                    {{-- Address --}}
                     <div>
                         <label for="address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
                         <input type="text" name="address" id="address"
                             value="{{ old('address', $branch->profile->address ?? '') }}"
                             placeholder="Street, Barangay, City"
-                            class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                            class="block w-full mt-1 mb-7 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
                     </div>
 
-                    {{-- Latitude & Longitude --}}
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label for="latitude" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Latitude</label>
-                            <input type="text" name="latitude" id="latitude"
-                                value="{{ old('latitude', $branch->profile->latitude ?? '') }}"
-                                class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
-                        </div>
+                    {{-- Latitude & Longitude (hidden inputs) --}}
+                    <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude', $branch->profile->latitude ?? '') }}">
+                    <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', $branch->profile->longitude ?? '') }}">
 
-                        <div>
-                            <label for="longitude" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Longitude</label>
-                            <input type="text" name="longitude" id="longitude"
-                                value="{{ old('longitude', $branch->profile->longitude ?? '') }}"
-                                class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
-                        </div>
-                    </div>
-
-                    {{-- Google Map --}}
-                    <div id="map" class="w-full h-64 rounded-lg mt-2"></div>
+                    {{-- Map --}}
+                    <div id="map" class="w-full h-64 rounded-lg mt-2" x-cloak></div>
+                    <p class="text-xs text-gray-500 mb-3">
+                        Click the map or drag the marker pin to set the exact location of this spa branch.
+                    </p>
 
                     {{-- Cover Image --}}
                     <div>
@@ -200,7 +193,33 @@
                         @endif
                     </div>
 
-                </div> {{-- end x-show --}}
+                    {{-- Amenities --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amenities</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            @php
+                                $selectedAmenities = $branch->profile->amenities ?? [];
+                            @endphp
+                            @foreach([
+                                'aircon' => 'Air Conditioning',
+                                'private_rooms' => 'Private Rooms',
+                                'shower' => 'Shower',
+                                'parking' => 'Parking',
+                                'wifi' => 'WiFi',
+                                'locker' => 'Locker',
+                                'pet_friendly' => 'Pet Friendly',
+                                'sauna' => 'Sauna',
+                            ] as $value => $label)
+                                <label class="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition">
+                                    <input type="checkbox" name="amenities[]" value="{{ $value }}"
+                                        {{ in_array($value, $selectedAmenities) ? 'checked' : '' }}
+                                        class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-500">
+                                    <span class="text-sm text-gray-700 dark:text-gray-200">{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>{{-- end x-show --}}
             </div>
             @else
             <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg shadow-sm dark:bg-gray-700 dark:border-gray-600 p-6 text-center">
@@ -229,57 +248,86 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Map initialization and interaction
+    // Map initialization and interaction.
     document.addEventListener('DOMContentLoaded', function () {
         const addressInput = document.getElementById('address');
         const latInput = document.getElementById('latitude');
         const lngInput = document.getElementById('longitude');
+        const mapContainer = document.getElementById('map');
 
-        const defaultLat = parseFloat(latInput.value) || 14.4323; // Imus area default
+        const caviteBounds = [
+            [13.983, 120.850], // Southwest
+            [14.600, 121.200]  // Northeast
+        ];
+
+        // Default coordinates (if none saved)
+        const defaultLat = parseFloat(latInput.value) || 14.4323;
         const defaultLng = parseFloat(lngInput.value) || 120.9269;
 
-        const map = L.map('map').setView([defaultLat, defaultLng], 13);
-        // OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+        // Initialize map only when container is visible
+        function initMap() {
+            const map = L.map('map', {
+                maxBounds: caviteBounds,
+                maxBoundsViscosity: 0.8,
+                zoomControl: true
+            }).setView([defaultLat, defaultLng], 10);
 
-        let marker = L.marker([defaultLat, defaultLng], {
-            draggable: true
-        }).addTo(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
 
-        function updateInputs(lat, lng) {
-            latInput.value = lat.toFixed(7);
-            lngInput.value = lng.toFixed(7);
+            const marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+
+            function updateInputs(lat, lng) {
+                latInput.value = lat.toFixed(7);
+                lngInput.value = lng.toFixed(7);
+            }
+
+            // Map click
+            map.on('click', e => {
+                marker.setLatLng(e.latlng);
+                updateInputs(e.latlng.lat, e.latlng.lng);
+                reverseGeocode(e.latlng.lat, e.latlng.lng);
+            });
+
+            // Marker drag
+            marker.on('dragend', e => {
+                const pos = marker.getLatLng();
+                updateInputs(pos.lat, pos.lng);
+                reverseGeocode(pos.lat, pos.lng);
+            });
+
+            function reverseGeocode(lat, lng) {
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+                    headers: { 'User-Agent': 'SpaManagementSystem/1.0 (student-project)' }
+                })
+                .then(res => res.json())
+                .then(data => { if(data?.display_name) addressInput.value = data.display_name; })
+                .catch(err => console.log(err));
+            }
+
+            // Fix Leaflet rendering if container was hidden initially
+            setTimeout(() => map.invalidateSize(), 200);
         }
 
-        // Click on map
-        map.on('click', function (e) {
-            marker.setLatLng(e.latlng);
-            updateInputs(e.latlng.lat, e.latlng.lng);
-            reverseGeocode(e.latlng.lat, e.latlng.lng);
+        // Check if map container is visible
+        const observer = new MutationObserver(() => {
+            if (mapContainer.offsetParent !== null && !mapContainer.dataset.initialized) {
+                initMap();
+                mapContainer.dataset.initialized = true; // mark as initialized
+            }
         });
 
-        // Drag marker
-        marker.on('dragend', function (e) {
-            const position = marker.getLatLng();
-            updateInputs(position.lat, position.lng);
-            reverseGeocode(position.lat, position.lng);
-        });
+        observer.observe(mapContainer, { attributes: true, attributeFilter: ['style'] });
 
-        // Reverse geocode using Nominatim (free)
-        function reverseGeocode(lat, lng) {
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.display_name) {
-                        addressInput.value = data.display_name;
-                    }
-                })
-                .catch(error => console.log(error));
+        // Also initialize immediately if already visible
+        if (mapContainer.offsetParent !== null) {
+            initMap();
+            mapContainer.dataset.initialized = true;
         }
     });
 
+    // Toggle time inputs based on "Closed" checkbox.
     function toggleTimeInputs(checkbox, openingId, closingId, cardId) {
         const openingInput = document.getElementById(openingId);
         const closingInput = document.getElementById(closingId);

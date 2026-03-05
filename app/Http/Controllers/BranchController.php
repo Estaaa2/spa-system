@@ -157,14 +157,14 @@ class BranchController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        // ----- Management Fields -----
-        $validated = $request->validate([
+        // ----- Branch Management Fields -----
+        $validatedBranch = $request->validate([
             'name' => 'required|string|max:255',
             'location' => 'required|string',
             'is_main' => 'nullable',
         ]);
 
-        $wantsMain = filter_var($request->input('is_main'), FILTER_VALIDATE_BOOLEAN);
+        $wantsMain = $request->boolean('is_main');
 
         if ($wantsMain) {
             Branch::where('spa_id', $spa->id)
@@ -173,46 +173,61 @@ class BranchController extends Controller
         }
 
         $branch->update([
-            'name' => $validated['name'],
-            'location' => $validated['location'],
+            'name' => $validatedBranch['name'],
+            'location' => $validatedBranch['location'],
             'is_main' => $wantsMain,
         ]);
 
-        // ----- Branch Profile (Conditional) -----
+        // ----- Branch Profile Fields -----
         if (in_array($spa->business_tier, ['professional','enterprise'])) {
 
+            // Validate all profile fields
             $profileData = $request->validate([
-                'is_listed' => 'nullable|boolean',
                 'cover_image' => 'nullable|image|max:2048',
+                'gallery_images.*' => 'nullable|image|max:2048',
                 'description' => 'nullable|string',
                 'phone' => 'nullable|string|max:50',
-                'opening_time' => 'nullable|date_format:H:i',
-                'closing_time' => 'nullable|date_format:H:i',
+                'address' => 'nullable|string|max:255',
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+                'amenities' => 'nullable|array',
+                'amenities.*' => 'nullable|string|max:100',
             ]);
 
-            $profile = $branch->profile ?? $branch->profile()->create([]);
+            $profileData['is_listed'] = $request->boolean('is_listed');
+            
+            $profile = $branch->profile ?? $branch->profile()->create(['branch_id' => $branch->id]);
 
-            $profile->update([
-                'is_listed' => $request->has('is_listed') ? true : false,
-                'description' => $profileData['description'] ?? $profile->description,
-                'phone' => $profileData['phone'] ?? $profile->phone,
-                'opening_time' => $profileData['opening_time'] ?? $profile->opening_time,
-                'closing_time' => $profileData['closing_time'] ?? $profile->closing_time,
-            ]);
-
-            // Handle cover image upload
+            // Handle cover image
             if ($request->hasFile('cover_image')) {
-                $path = $request->file('cover_image')->store('branch_profiles', 'public');
-                $profile->cover_image = $path;
-                $profile->save();
+                $profileData['cover_image'] = $request->file('cover_image')->store('branch_profiles', 'public');
+            } else {
+                $profileData['cover_image'] = $profile->cover_image;
             }
+
+            // Handle gallery images (append new)
+            if ($request->hasFile('gallery_images')) {
+                $existingGallery = $profile->gallery_images ?? [];
+                foreach ($request->file('gallery_images') as $img) {
+                    $existingGallery[] = $img->store('branch_profiles', 'public');
+                }
+                $profileData['gallery_images'] = $existingGallery;
+            } else {
+                $profileData['gallery_images'] = $profile->gallery_images ?? [];
+            }
+
+            // Ensure nullable arrays are preserved
+            $profileData['amenities'] = $profileData['amenities'] ?? $profile->amenities ?? [];
+
+            // Update profile
+            $profile->update($profileData);
         }
 
+        // ----- Operating Hours -----
         if ($request->has('hours')) {
             foreach ($request->hours as $hourData) {
                 $hourId = $hourData['id'] ?? null;
                 $hour = $hourId ? \App\Models\OperatingHours::find($hourId) : null;
-
                 $hour = $hour ?? new \App\Models\OperatingHours();
                 $hour->branch_id = $branch->id;
                 $hour->day_of_week = $hourData['day_of_week'] ?? $hour->day_of_week;
