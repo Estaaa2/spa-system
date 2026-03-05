@@ -41,13 +41,19 @@ class Package extends Model
     {
         return $this->treatments->pluck('id')->toArray();
     }
-    
+
     protected static function booted()
     {
         static::addGlobalScope('spa_branch', function (Builder $query) {
             if (auth()->check()) {
-                $query->where('spa_id', auth()->user()->spa_id)
-                    ->where('branch_id', auth()->user()->branch_id);
+                $user = auth()->user();
+                $branchId = session('current_branch_id') ?? $user->branch_id;
+
+                $query->where('spa_id', $user->spa_id);
+
+                if ($branchId) {
+                    $query->where('branch_id', $branchId);
+                }
             }
         });
     }

@@ -39,7 +39,7 @@ class PackageController extends Controller
 
         $package = Package::create([
             'spa_id' => auth()->user()->spa_id,
-            'branch_id' => auth()->user()->branch_id,
+            'branch_id' => session('current_branch_id') ?? auth()->user()->branch_id,
             'name' => $validated['name'],
             'total_duration' => $validated['duration'] ?? null,
             'price' => $validated['price'],

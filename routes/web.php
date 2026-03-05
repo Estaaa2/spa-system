@@ -17,6 +17,7 @@ use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
+use App\Http\Controllers\CustomerAppointmentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -51,11 +52,16 @@ Route::middleware(['auth', 'role:admin'])
 
 /*
 |--------------------------------------------------------------------------
-| Landing Page (public)
+| Landing Page (public) + Customer routes (auth + role:customer)
 |--------------------------------------------------------------------------
 */
 
 Route::get('/', [\App\Http\Controllers\LandingController::class, 'index'])->name('landing.page');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/my-appointments', [CustomerAppointmentController::class, 'appointments'])->name('customer.appointments');
+    Route::get('/my-schedule', [CustomerAppointmentController::class, 'schedule'])->name('customer.schedule');
+});
 
 /*
 |--------------------------------------------------------------------------

@@ -11,16 +11,21 @@ class ServiceController extends Controller
     public function index()
     {
         $user = Auth::user();
+        $branchId = session('current_branch_id') ?? $user->branch_id;
 
         $treatments = Treatment::where('spa_id', $user->spa_id)
-            ->where('branch_id', $user->branch_id)
+            ->when($branchId, function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            })
             ->get();
 
         $packages = Package::where('spa_id', $user->spa_id)
-            ->where('branch_id', $user->branch_id)
+            ->when($branchId, function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            })
+            ->with('treatments')
             ->get();
 
         return view('services.index', compact('treatments', 'packages'));
     }
 }
-

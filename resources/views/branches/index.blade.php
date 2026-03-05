@@ -213,6 +213,7 @@
                         </div>
 
                         <div class="flex items-center">
+                            <input type="hidden" name="is_main" value="0" id="is_main_hidden">
                             <input type="checkbox" id="is_main" name="is_main"
                                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
                             <label for="is_main" class="block ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -233,7 +234,7 @@
                             @endphp
 
                             @foreach($daysOfWeek as $index => $day)
-                            <div class="p-4 bg-white dark:bg-gray-800 shadow-sm rounded-2xl ring-1 ring-black/5 dark:ring-white/10" id="new_card_{{ $index }}">
+                            <div class="p-4 bg-white shadow-sm dark:bg-gray-800 rounded-2xl ring-1 ring-black/5 dark:ring-white/10" id="new_card_{{ $index }}">
                                 <div class="flex items-center justify-between mb-3">
                                     <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $day }}</h4>
                                     <label class="flex items-center gap-2 cursor-pointer">
@@ -256,7 +257,7 @@
                                             id="new_opening_{{ $index }}"
                                             name="hours[{{ $index }}][opening_time]"
                                             value="09:00"
-                                            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                            class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white">
                                         <!-- Always include the day_of_week hidden field -->
                                         <input type="hidden" name="hours[{{ $index }}][day_of_week]" value="{{ $day }}">
                                     </div>
@@ -266,7 +267,7 @@
                                             id="new_closing_{{ $index }}"
                                             name="hours[{{ $index }}][closing_time]"
                                             value="18:00"
-                                            class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                            class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white">
                                     </div>
                                 </div>
                             </div>
@@ -274,7 +275,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
                     <div class="flex justify-end space-x-3">
                         <button type="button" onclick="closeModal()"
@@ -365,7 +366,18 @@ function openCreateModal() {
     document.getElementById('modalTitle').textContent = 'Add New Branch';
     form.action = '{{ route("branches.store") }}';
 
-    document.getElementById('is_main').checked = HAS_NO_BRANCHES ? true : false;
+    const isMainCheckbox = document.getElementById('is_main');
+    const isMainLabel = document.getElementById('is_main_label');
+
+    if (HAS_NO_BRANCHES) {
+        isMainCheckbox.checked = true;
+        isMainCheckbox.disabled = true;
+        if (isMainLabel) isMainLabel.textContent = 'Set as main branch (required for first branch)';
+    } else {
+        isMainCheckbox.checked = false;
+        isMainCheckbox.disabled = false;
+        if (isMainLabel) isMainLabel.textContent = 'Set as main branch';
+    }
 
     document.getElementById('submitBtn').textContent = 'Create Branch';
     document.getElementById('branchModal').classList.remove('hidden');
@@ -374,7 +386,7 @@ function openCreateModal() {
 function toggleTimeInputs(checkbox, openingId, closingId) {
     const opening = document.getElementById(openingId);
     const closing = document.getElementById(closingId);
-    
+
     if (checkbox.checked) {
         opening.setAttribute('readonly', true);
         closing.setAttribute('readonly', true);
@@ -574,40 +586,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 });
-</script>
-
-@if (session('success'))
-<script>
-    if (!window.successToastShown) {
-        window.successToastShown = true;
-
-        document.addEventListener('DOMContentLoaded', function () {
-            Toastify({
-                text: `
-                    <div class="flex items-center gap-3">
-                        <i class="text-green-600 fa-solid fa-check-circle"></i>
-                        <span class="text-green-600">{{ session('success') }}</span>
-                    </div>
-                `,
-                duration: 3000,
-                gravity: "top",
-                position: "right",
-                close: true,
-                escapeMarkup: false, // ✅ REQUIRED
-                backgroundColor: "#ffffff",
-                style: {
-                    border: "1px solid #16a34a",
-                    borderRadius: "10px",
-                    minWidth: "300px",
-                    display: "flex",
-                    alignItems: "center",
-                    boxShadow: "0 8px 20px rgba(0,0,0,0.08)"
-                }
-            }).showToast();
-        });
-    }
-</script>
-@endif
 </script>
 
 @endsection

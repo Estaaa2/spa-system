@@ -94,18 +94,24 @@ class SetupController extends Controller
         }
 
         $validated = $request->validate([
-            'branch_name' => ['required', 'string', 'max:255'],
-            'location' => ['required', 'string', 'max:255'],
+            'branch_name'      => ['required', 'string', 'max:255'],
+            'location'         => ['required', 'string', 'max:255'],
+            'has_home_service' => ['nullable', 'boolean'],
         ]);
+
+        $spa = $user->spa;
+        $isFirstBranch = $spa->branches()->count() === 0;
 
         // Create branch
         $branch = Branch::create([
-            'spa_id' => $user->spa_id,
-            'name' => $validated['branch_name'],
-            'location' => $validated['location'],
+            'spa_id'           => $user->spa_id,
+            'name'             => $validated['branch_name'],
+            'location'         => $validated['location'],
+            'is_main'          => $isFirstBranch,
+            'has_home_service' => $request->boolean('has_home_service'),
         ]);
 
-        // **UPDATE USER WITH BRANCH ID**
+        // Update user with branch ID (non-owners only)
         if (!$user->hasRole('owner')) {
             $user->update(['branch_id' => $branch->id]);
         }
@@ -114,11 +120,11 @@ class SetupController extends Controller
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         foreach ($days as $day) {
             OperatingHours::create([
-                'branch_id' => $branch->id,
-                'day_of_week' => $day,
+                'branch_id'    => $branch->id,
+                'day_of_week'  => $day,
                 'opening_time' => '09:00',
                 'closing_time' => '18:00',
-                'is_closed' => false,
+                'is_closed'    => false,
             ]);
         }
 

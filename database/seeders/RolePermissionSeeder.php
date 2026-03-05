@@ -34,8 +34,6 @@ class RolePermissionSeeder extends Seeder
             // Staff availability
             'view staff availability',
             'manage staff availability',
-            'view inventory',
-            'view inventory logs',
 
             // Branches
             'view branches',
@@ -67,6 +65,7 @@ class RolePermissionSeeder extends Seeder
 
             // System administration
             'view admin dashboard',
+            'manage inventory',
             'manage spas',
             'manage users',
             'manage roles',
@@ -94,6 +93,7 @@ class RolePermissionSeeder extends Seeder
         // ADMIN: System-level, no spa/branch assumptions, can manage access
         $admin->syncPermissions([
             'view admin dashboard',
+            'manage inventory',
             'manage spas',
             'manage users',
             'manage roles',
@@ -114,10 +114,9 @@ class RolePermissionSeeder extends Seeder
 
             'view schedule',
             'manage schedule',
+            'manage inventory',
             'manage staff',
             'manage staff availability',
-            'view inventory',
-            'view inventory logs',
 
             'view staff',
             'create staff',
@@ -158,8 +157,7 @@ class RolePermissionSeeder extends Seeder
             'manage staff availability',
 
             'view branches',
-            'view inventory',
-            'view inventory logs',
+            'manage inventory',
 
             'view staff',
             'manage staff',

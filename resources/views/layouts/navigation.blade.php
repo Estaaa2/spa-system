@@ -37,10 +37,12 @@
     $showInsights = $canDecisionSupport || $canReports;
 
     //Inventory permissions(manager-only)
-    $canInventoryProducts = $user?->can('view inventory') ?? false; // or 'manage inventory'
+    //Inventory permissions
+    $canInventoryProducts = $user?->can('view inventory') ?? false;
     $canInventoryLogs     = $user?->can('view inventory logs') ?? false;
+    $canManageInventory   = $user?->can('manage inventory') ?? false;
 
-    $showInventory = $canInventoryProducts || $canInventoryLogs;
+$showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLogs;
 
     // Brand link: if dashboard is hidden, go to Booking
     $brandHref = $user?->hasRole('owner')

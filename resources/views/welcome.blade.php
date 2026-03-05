@@ -65,13 +65,13 @@
                             <!-- Navigation Links -->
                             <div class="flex items-center gap-1">
 
-                                <a href=""
-                                    class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355] dark:text-gray-200">
+                                <a href="#" onclick="openAppointmentsModal()"
+                                    class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
                                     My Appointments
                                 </a>
 
-                                <a href=""
-                                    class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355] dark:text-gray-200">
+                                <a href="#" onclick="openScheduleModal()"
+                                    class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
                                     My Schedule
                                 </a>
 
@@ -197,6 +197,95 @@
 
         <div class="h-10 bg-gradient-to-b from-transparent to-[#F6EFE6]"></div>
     </section>
+
+    <!-- ================= MY APPOINTMENTS MODAL ================= -->
+    <div id="appointmentsModal" class="fixed inset-0 z-[120] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeAppointmentsModal()"></div>
+
+        <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+
+                <!-- Header -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <h3 class="text-lg font-semibold text-[#3C2F23]">My Appointments</h3>
+                    <button onclick="closeAppointmentsModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex border-b border-black/5">
+                    @foreach(['upcoming' => 'Upcoming', 'past' => 'Past', 'cancelled' => 'Cancelled'] as $key => $label)
+                    <button onclick="switchTab('{{ $key }}')"
+                        id="tab-{{ $key }}"
+                        class="flex-1 py-3 text-sm font-semibold transition border-b-2
+                        {{ $key === 'upcoming' ? 'border-[#8B7355] text-[#8B7355]' : 'border-transparent text-gray-500 hover:text-[#8B7355]' }}">
+                        {{ $label }}
+                        <span id="tab-count-{{ $key }}"
+                            class="ml-1 px-2 py-0.5 text-xs rounded-full bg-[#F6EFE6] text-[#6F5430]">0</span>
+                    </button>
+                    @endforeach
+                </div>
+
+                <!-- Tab Content -->
+                <div class="overflow-y-auto max-h-[60vh] p-6" id="appointmentsContent">
+                    <div class="flex items-center justify-center py-12">
+                        <i class="text-2xl text-gray-300 fa-solid fa-spinner fa-spin"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="h-10"></div>
+        </div>
+    </div>
+
+    <!-- ================= MY SCHEDULE MODAL ================= -->
+    <div id="scheduleModal" class="fixed inset-0 z-[120] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeScheduleModal()"></div>
+
+        <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+
+                <!-- Header -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <div class="flex items-center gap-3">
+                        <button onclick="changeMonth(-1)"
+                            class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5">
+                            <i class="text-sm fa-solid fa-chevron-left"></i>
+                        </button>
+                        <h3 id="calendarTitle" class="text-lg font-semibold text-[#3C2F23]">March 2026</h3>
+                        <button onclick="changeMonth(1)"
+                            class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5">
+                            <i class="text-sm fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <button onclick="closeScheduleModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Calendar -->
+                <div class="p-6">
+                    <!-- Day headers -->
+                    <div class="grid grid-cols-7 mb-2">
+                        @foreach(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $day)
+                        <div class="py-2 text-xs font-semibold text-center text-gray-400">{{ $day }}</div>
+                        @endforeach
+                    </div>
+                    <!-- Calendar grid -->
+                    <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+
+                    <!-- Selected day bookings -->
+                    <div id="selectedDayBookings" class="hidden mt-6 space-y-3">
+                        <h4 id="selectedDayTitle" class="text-sm font-semibold text-[#3C2F23]"></h4>
+                        <div id="selectedDayContent"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="h-10"></div>
+        </div>
+    </div>
 
     <!-- ================= FEATURED SPAS (Dynamic from DB) ================= -->
     <section class="py-20">
@@ -473,12 +562,12 @@
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
-                                    <input type="date" name="appointment_date" required
+                                    <input type="date" name="appointment_date" id="bookingDateInput" required
                                         class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Start Time</label>
-                                    <input type="time" name="start_time" required
+                                    <input type="time" name="start_time" id="bookingTimeInput" required
                                         class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                             </div>
@@ -982,6 +1071,14 @@
             addressInput.value = '';
         }
 
+        // ✅ Set min date to today to prevent past date selection
+        const dateInput = document.getElementById('bookingDateInput');
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.min = today;
+            dateInput.value = '';
+        }
+
         // ✅ Populate branch dropdown (all branches by default) and set hidden input
         populateBranchDropdown(false);
 
@@ -1038,6 +1135,235 @@
             closeBookingModal();
         }
     });
+
+    // ================= MY APPOINTMENTS =================
+let allAppointments = [];
+let currentTab = 'upcoming';
+
+function openAppointmentsModal() {
+    document.getElementById('appointmentsModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    loadAppointments();
+}
+
+function closeAppointmentsModal() {
+    document.getElementById('appointmentsModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function loadAppointments() {
+    fetch('/my-appointments')
+        .then(r => r.json())
+        .then(data => {
+            allAppointments = data;
+            updateTabCounts();
+            renderTab(currentTab);
+        });
+}
+
+function updateTabCounts() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('tab-count-upcoming').textContent =
+        allAppointments.filter(b => ['reserved','confirmed'].includes(b.status) && b.date_raw >= today).length;
+    document.getElementById('tab-count-past').textContent =
+        allAppointments.filter(b => b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today)).length;
+    document.getElementById('tab-count-cancelled').textContent =
+        allAppointments.filter(b => b.status === 'cancelled').length;
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    ['upcoming','past','cancelled'].forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (t === tab) {
+            el.classList.add('border-[#8B7355]', 'text-[#8B7355]');
+            el.classList.remove('border-transparent', 'text-gray-500');
+        } else {
+            el.classList.remove('border-[#8B7355]', 'text-[#8B7355]');
+            el.classList.add('border-transparent', 'text-gray-500');
+        }
+    });
+    renderTab(tab);
+}
+
+function renderTab(tab) {
+    const today = new Date().toISOString().split('T')[0];
+    let filtered = [];
+
+    if (tab === 'upcoming') {
+        filtered = allAppointments.filter(b =>
+            ['reserved','confirmed'].includes(b.status) && b.date_raw >= today);
+    } else if (tab === 'past') {
+        filtered = allAppointments.filter(b =>
+            b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today));
+    } else {
+        filtered = allAppointments.filter(b => b.status === 'cancelled');
+    }
+
+    const container = document.getElementById('appointmentsContent');
+
+    if (!filtered.length) {
+        container.innerHTML = `
+            <div class="py-12 text-center text-gray-400">
+                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
+                <p class="text-sm">No ${tab} appointments</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(b => `
+        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="font-semibold text-[#3C2F23]">${b.spa_name}</p>
+                    <p class="text-xs text-gray-500">${b.branch_name} • ${b.service_type}</p>
+                </div>
+                <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
+                    ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                </span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-spa text-[#8B7355]"></i>
+                    ${b.treatment}
+                </div>
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-user-nurse text-[#8B7355]"></i>
+                    ${b.therapist}
+                </div>
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-calendar text-[#8B7355]"></i>
+                    ${b.date}
+                </div>
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-clock text-[#8B7355]"></i>
+                    ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function statusBadge(status) {
+    const map = {
+        reserved:  'bg-blue-100 text-blue-700',
+        confirmed: 'bg-green-100 text-green-700',
+        completed: 'bg-gray-100 text-gray-600',
+        cancelled: 'bg-red-100 text-red-600',
+        pending:   'bg-yellow-100 text-yellow-700',
+    };
+    return map[status] ?? 'bg-gray-100 text-gray-600';
+}
+
+// ================= MY SCHEDULE (CALENDAR) =================
+let scheduleBookings = [];
+let calendarDate = new Date();
+
+function openScheduleModal() {
+    document.getElementById('scheduleModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    loadSchedule();
+}
+
+function closeScheduleModal() {
+    document.getElementById('scheduleModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function loadSchedule() {
+    fetch('/my-schedule')
+        .then(r => r.json())
+        .then(data => {
+            scheduleBookings = data;
+            renderCalendar();
+        });
+}
+
+function changeMonth(dir) {
+    calendarDate.setMonth(calendarDate.getMonth() + dir);
+    renderCalendar();
+    document.getElementById('selectedDayBookings').classList.add('hidden');
+}
+
+function renderCalendar() {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const today = new Date().toISOString().split('T')[0];
+
+    document.getElementById('calendarTitle').textContent =
+        calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Get dates that have bookings
+    const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
+
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+        grid.innerHTML += `<div></div>`;
+    }
+
+    // Day cells
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const isToday = dateStr === today;
+        const hasBooking = bookedDates.has(dateStr);
+        const isPast = dateStr < today;
+
+        grid.innerHTML += `
+            <button onclick="selectDay('${dateStr}')"
+                class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
+                ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
+                ${hasBooking && !isToday ? 'bg-[#F6EFE6] text-[#6F5430] font-semibold ring-1 ring-[#8B7355]/30' : ''}
+                ${isPast && !isToday ? 'text-gray-300 cursor-default' : 'hover:bg-[#F6EFE6]'}
+                ${!hasBooking && !isToday && !isPast ? 'text-gray-700' : ''}">
+                ${d}
+                ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355]'}"></span>` : ''}
+            </button>`;
+    }
+}
+
+function selectDay(dateStr) {
+    const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
+    if (!dayBookings.length) return;
+
+    const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric'
+    });
+
+    document.getElementById('selectedDayTitle').textContent = title;
+    document.getElementById('selectedDayContent').innerHTML = dayBookings.map(b => `
+        <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
+                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
+                    ${b.status}
+                </span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">${b.branch_name} • ${b.treatment}</p>
+            <p class="mt-1 text-xs text-gray-500">
+                <i class="fa-solid fa-clock text-[#8B7355]"></i>
+                ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
+            </p>
+        </div>
+    `).join('');
+
+    document.getElementById('selectedDayBookings').classList.remove('hidden');
+}
+
+function formatTime(timeStr) {
+    if (!timeStr) return 'N/A';
+    const [hour, minute] = timeStr.split(':');
+    const h = parseInt(hour);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minute} ${ampm}`;
+}
+
 </script>
 
 </body>

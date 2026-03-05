@@ -1,6 +1,6 @@
 <x-guest-layout>
-    <div class="min-h-screen px-4 py-6">
-        <div class="max-w-4xl mx-auto">
+    <div class="px-4 py-10">
+        <div class="max-w-3xl mx-auto">
 
             <!-- Header -->
             <div class="relative mb-8 text-center">
