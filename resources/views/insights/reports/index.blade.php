@@ -130,6 +130,28 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const bookingsPerDay = @json($bookingsPerDay);
+    const bookingValues = bookingsPerDay.map(x => Number(x.value) || 0);
+
+    function getDynamicMax(values) {
+        const max = Math.max(...values, 0);
+
+        if (max <= 5) return 5;
+        if (max <= 10) return 10;
+        if (max <= 20) return 20;
+
+        return Math.ceil(max * 1.2);
+    }
+
+    function getDynamicStepSize(max) {
+        if (max <= 5) return 1;
+        if (max <= 10) return 2;
+        if (max <= 20) return 5;
+        if (max <= 50) return 10;
+        return Math.ceil(max / 5);
+    }
+
+    const yMax = getDynamicMax(bookingValues);
+    const yStep = getDynamicStepSize(yMax);
 
     new Chart(document.getElementById('reportsGraph'), {
         type: 'bar',
@@ -137,12 +159,25 @@
             labels: bookingsPerDay.map(x => x.label),
             datasets: [{
                 label: 'Bookings',
-                data: bookingsPerDay.map(x => x.value),
+                data: bookingValues,
+                borderWidth: 1
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } }
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: yMax,
+                    ticks: {
+                        stepSize: yStep,
+                        precision: 0
+                    }
+                }
+            }
         }
     });
 </script>

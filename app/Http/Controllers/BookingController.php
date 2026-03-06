@@ -153,32 +153,18 @@ class BookingController extends Controller
         $query = Booking::with('therapist', 'branch');
 
         if ($user->hasRole('owner')) {
-            $branchId = session('current_branch_id') ?? null;
+            $branchId = $user->currentBranchId();
 
             $query->where('spa_id', $user->spa_id);
 
             if ($branchId) {
-                $query->where(function($q) use ($branchId, $user) {
-                    $q->where('branch_id', $branchId)
-                    ->orWhere(function($q2) use ($user) {
-                        $q2->where('booking_source', 'online')
-                            ->where('spa_id', $user->spa_id);
-                    });
-                });
+                $query->where('branch_id', $branchId);
             }
-            // If no branch in session, show ALL bookings for this spa
-
         } elseif ($user->hasRole('manager')) {
-            $branchId = session('current_branch_id') ?? $user->branch_id;
+            $branchId = $user->currentBranchId();
 
             $query->where('spa_id', $user->spa_id)
-                ->where(function($q) use ($branchId, $user) {
-                    $q->where('branch_id', $branchId)
-                        ->orWhere(function($q2) use ($user) {
-                            $q2->where('booking_source', 'online')
-                            ->where('spa_id', $user->spa_id);
-                        });
-                });
+                ->where('branch_id', $branchId);
 
         } elseif ($user->hasRole('therapist')) {
             $query->where('spa_id', $user->spa_id)

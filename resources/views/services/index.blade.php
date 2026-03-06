@@ -18,12 +18,12 @@
                     <span class="text-sm text-gray-500 dark:text-gray-400">
                         {{ $treatments->count() }} treatment(s) available
                     </span>
-                    @can('create treatments')
-                        <a href="{{ route('treatments.create') }}"
-                        class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
+                    @can('manage services')
+                        <button onclick="openAddTreatmentModal()"
+                            class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
                             <i class="fas fa-plus"></i>
                             Add Treatment
-                        </a>
+                        </button>
                     @endcan
                 </div>
             </div>
@@ -72,27 +72,27 @@
                                     {{ $treatment->service_type_label }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-end">
+                            <td class="px-6 py-4">
                                 <div class="flex items-center gap-2">
-                                    <!-- Edit Button -->
-                                    @can('edit treatments')
-                                        <button onclick="editTreatment({{ $treatment->id }})"
-                                        class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                    @can('manage services')
+                                        <button
+                                            type="button"
+                                            onclick="openEditTreatmentModal(this)"
+                                            data-id="{{ $treatment->id }}"
+                                            data-name="{{ $treatment->name }}"
+                                            data-duration="{{ $treatment->duration }}"
+                                            data-price="{{ $treatment->price }}"
+                                            data-service-type="{{ $treatment->service_type }}"
+                                            data-description="{{ $treatment->description }}"
+                                            class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                             Edit
                                         </button>
-                                    @endcan
-
-                                    <!-- Delete Form -->
-                                    @can('delete treatments')
-                                        <form action="{{ route('treatments.destroy', $treatment->id) }}" method="POST"
-                                            onsubmit="return confirm('Delete this treatment?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                                Delete
-                                            </button>
-                                        </form>
+                                        <button
+                                            type="button"
+                                            onclick="openDeleteTreatmentModal({{ $treatment->id }}, '{{ addslashes($treatment->name) }}')"
+                                            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                            Delete
+                                        </button>
                                     @endcan
                                 </div>
                             </td>
@@ -123,12 +123,12 @@
                     <span class="text-sm text-gray-500 dark:text-gray-400">
                         {{ $packages->count() }} package(s) available
                     </span>
-                    @can('create packages')
-                    <a href="{{ route('packages.create') }}"
-                       class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
-                        <i class="fas fa-plus"></i>
-                        Add Package
-                    </a>
+                    @can('manage services')
+                        <button onclick="openAddPackageModal()"
+                            class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
+                            <i class="fas fa-plus"></i>
+                            Add Package
+                        </button>
                     @endcan
                 </div>
             </div>
@@ -180,7 +180,6 @@
                                                 {{ $treatment->name }}
                                             </span>
                                         @endforeach
-
                                         @if($package->treatments->count() > 3)
                                             <span class="px-2 py-1 text-xs text-gray-800 bg-gray-100 rounded dark:bg-gray-700 dark:text-gray-300">
                                                 +{{ $package->treatments->count() - 3 }} more
@@ -191,21 +190,28 @@
                                     <span class="text-sm text-gray-500 dark:text-gray-400">No treatments included</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-end">
-                                <div class="flex items-center justify-end gap-2">
-                                    <button onclick="editPackage({{ $package->id }})"
-                                        class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-2">
+                                    @can('manage services')
+                                        <button
+                                            type="button"
+                                            onclick="openEditPackageModal(this)"
+                                            data-id="{{ $package->id }}"
+                                            data-name="{{ $package->name }}"
+                                            data-duration="{{ $package->duration }}"
+                                            data-price="{{ $package->price }}"
+                                            data-description="{{ $package->description }}"
+                                            data-treatments="{{ $package->treatments->pluck('id')->join(',') }}"
+                                            class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                             Edit
-                                    </button>
-                                    <form action="{{ route('packages.destroy', $package->id) }}" method="POST"
-                                          onsubmit="return confirm('Delete this package?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                                Delete
                                         </button>
-                                    </form>
+                                        <button
+                                            type="button"
+                                            onclick="openDeletePackageModal({{ $package->id }}, '{{ addslashes($package->name) }}')"
+                                            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                            Delete
+                                        </button>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -230,16 +236,12 @@
     <div class="mt-8">
         <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
             <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Service Summary</h2>
-
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <!-- Service Types Distribution -->
                 <div class="p-6 rounded-lg shadow-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430] text-white">
                     <p class="text-xs tracking-widest opacity-80">SERVICE TYPES</p>
                     <p class="text-lg font-semibold">DISTRIBUTION</p>
                     <div class="mt-4 space-y-2">
-                        @php
-                            $serviceTypeCounts = $treatments->groupBy('service_type')->map->count();
-                        @endphp
+                        @php $serviceTypeCounts = $treatments->groupBy('service_type')->map->count(); @endphp
                         @foreach($serviceTypeCounts->take(3) as $type => $count)
                         <div class="flex items-center justify-between">
                             <span class="text-sm">{{ $type }}</span>
@@ -248,61 +250,43 @@
                         @endforeach
                         @if($serviceTypeCounts->count() > 3)
                         <div class="pt-2 mt-2 border-t border-white/20">
-                            <span class="text-sm opacity-80">
-                                +{{ $serviceTypeCounts->count() - 3 }} more types
-                            </span>
+                            <span class="text-sm opacity-80">+{{ $serviceTypeCounts->count() - 3 }} more types</span>
                         </div>
                         @endif
                     </div>
                 </div>
-
-                <!-- Price Range -->
                 <div class="p-6 bg-white border rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
                     <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">PRICE</p>
                     <p class="text-lg font-semibold text-gray-800 dark:text-white">RANGE</p>
                     <div class="mt-4 space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-gray-600 dark:text-gray-400">Lowest</span>
-                            <span class="text-sm font-medium text-gray-800 dark:text-white">
-                                ₱{{ $treatments->min('price') ? number_format($treatments->min('price'), 0) : '0' }}
-                            </span>
+                            <span class="text-sm font-medium text-gray-800 dark:text-white">₱{{ $treatments->min('price') ? number_format($treatments->min('price'), 0) : '0' }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-gray-600 dark:text-gray-400">Highest</span>
-                            <span class="text-sm font-medium text-gray-800 dark:text-white">
-                                ₱{{ $treatments->max('price') ? number_format($treatments->max('price'), 0) : '0' }}
-                            </span>
+                            <span class="text-sm font-medium text-gray-800 dark:text-white">₱{{ $treatments->max('price') ? number_format($treatments->max('price'), 0) : '0' }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-gray-600 dark:text-gray-400">Average</span>
-                            <span class="text-sm font-medium text-gray-800 dark:text-white">
-                                ₱{{ $treatments->avg('price') ? number_format($treatments->avg('price'), 0) : '0' }}
-                            </span>
+                            <span class="text-sm font-medium text-gray-800 dark:text-white">₱{{ $treatments->avg('price') ? number_format($treatments->avg('price'), 0) : '0' }}</span>
                         </div>
                     </div>
                 </div>
-
-                <!-- Duration Stats -->
                 <div class="p-6 rounded-lg shadow-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430] text-white">
                     <p class="text-xs tracking-widest opacity-80">AVERAGE</p>
                     <p class="text-lg font-semibold">DURATION</p>
                     <div class="mt-4 space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="text-sm">Treatments</span>
-                            <span class="text-sm font-medium">
-                                {{ $treatments->avg('duration') ? round($treatments->avg('duration')) : '0' }} mins
-                            </span>
+                            <span class="text-sm font-medium">{{ $treatments->avg('duration') ? round($treatments->avg('duration')) : '0' }} mins</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm">Packages</span>
-                            <span class="text-sm font-medium">
-                                {{ $packages->avg('duration') ? round($packages->avg('duration')) : '0' }} mins
-                            </span>
+                            <span class="text-sm font-medium">{{ $packages->avg('duration') ? round($packages->avg('duration')) : '0' }} mins</span>
                         </div>
                         <div class="pt-2 mt-2 border-t border-white/20">
-                            <span class="text-sm opacity-80">
-                                Total Services: {{ $treatments->count() + $packages->count() }}
-                            </span>
+                            <span class="text-sm opacity-80">Total Services: {{ $treatments->count() + $packages->count() }}</span>
                         </div>
                     </div>
                 </div>
@@ -311,245 +295,384 @@
     </div>
 </div>
 
-<!-- Edit Treatment Modal -->
-<div id="editTreatmentModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
+@can('manage services')
 
-        <!-- Modal panel -->
-        <div class="inline-block w-full max-w-md my-8 overflow-hidden text-left align-middle transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800">
-            <form id="editTreatmentForm" method="POST">
+{{-- ADD TREATMENT MODAL --}}
+<div id="addTreatmentModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="w-full max-w-md p-6 mx-auto mt-16 bg-white rounded-lg dark:bg-gray-800">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Add Treatment</h2>
+            <button type="button" onclick="closeAddTreatmentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form action="{{ route('treatments.store') }}" method="POST">
+            @csrf
+            <div class="space-y-4">
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Name *</label>
+                    <input type="text" name="name" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Duration (mins) *</label>
+                        <input type="number" name="duration" required min="1" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Price (₱) *</label>
+                        <input type="number" name="price" step="0.01" required min="0" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    </div>
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Service Type *</label>
+                    <select name="service_type" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                        <option value="in_branch_only">In Branch Only</option>
+                        <option value="in_branch_and_home">In Branch & Home</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                    <textarea name="description" rows="3" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closeAddTreatmentModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded hover:bg-[#7A6348]">Add Treatment</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- EDIT TREATMENT MODAL --}}
+<div id="editTreatmentModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="w-full max-w-md p-6 mx-auto mt-16 bg-white rounded-lg dark:bg-gray-800">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Edit Treatment</h2>
+            <button type="button" onclick="closeEditTreatmentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form id="editTreatmentForm" method="POST">
+            @csrf
+            @method('PUT')
+            <div class="space-y-4">
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Name *</label>
+                    <input type="text" id="edit_treatment_name" name="name" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Duration (mins) *</label>
+                        <input type="number" id="edit_treatment_duration" name="duration" required min="1" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Price (₱) *</label>
+                        <input type="number" id="edit_treatment_price" name="price" step="0.01" required min="0" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    </div>
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Service Type *</label>
+                    <select id="edit_treatment_service_type" name="service_type" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                        <option value="in_branch_only">In Branch Only</option>
+                        <option value="in_branch_and_home">In Branch & Home</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                    <textarea id="edit_treatment_description" name="description" rows="3" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closeEditTreatmentModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-md hover:bg-[#7A6348]">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- DELETE TREATMENT MODAL --}}
+<div id="deleteTreatmentModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Delete Treatment</h2>
+            <button type="button" onclick="closeDeleteTreatmentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400">Are you sure you want to delete <span id="deleteTreatmentName" class="font-semibold text-gray-800 dark:text-white"></span>? This action cannot be undone.</p>
+        <div class="flex justify-end gap-2 mt-6">
+            <button type="button" onclick="closeDeleteTreatmentModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
+            <form id="deleteTreatmentForm" method="POST">
                 @csrf
-                @method('PUT')
-                <div class="px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Edit Treatment</h3>
-                        <button type="button" onclick="closeEditTreatmentModal()"
-                                class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="space-y-4" id="editTreatmentFormContent">
-                        <!-- Form fields will be injected here via JS. -->
-                    </div>
-                </div>
-                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900">
-                    <div class="flex justify-end gap-3">
-                        <button type="button" onclick="closeEditTreatmentModal()"
-                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
-                            Cancel
-                        </button>
-                        <button type="submit"
-                                class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-md hover:bg-[#7A6348]">
-                            Save Changes
-                        </button>
-                    </div>
-                </div>
+                @method('DELETE')
+                <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700">Yes, Delete</button>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Edit Package Modal -->
-<div id="editPackageModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
+{{-- ADD PACKAGE MODAL --}}
+<div id="addPackageModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="w-full max-w-lg p-6 mx-auto mt-10 bg-white rounded-lg dark:bg-gray-800">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Add Package</h2>
+            <button type="button" onclick="closeAddPackageModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form action="{{ route('packages.store') }}" method="POST">
+            @csrf
+            <div class="space-y-4">
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Package Name *</label>
+                    <input type="text" name="name" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                </div>
 
-        <!-- Modal panel -->
-        <div class="inline-block w-full max-w-2xl my-8 overflow-hidden text-left align-middle transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800">
-            <form id="editPackageForm" method="POST">
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Included Treatments</label>
+                    <div id="addIncludedTreatments" class="p-3 space-y-2 overflow-y-auto border border-gray-300 rounded-md max-h-48 dark:border-gray-600 dark:bg-gray-700">
+                        @foreach($treatments as $treatment)
+                        <label class="flex items-center gap-3">
+                            <input
+                                type="checkbox"
+                                name="included_treatments[]"
+                                value="{{ $treatment->id }}"
+                                data-duration="{{ $treatment->duration }}"
+                                data-price="{{ $treatment->price }}"
+                                class="rounded border-gray-300 text-[#8B7355] focus:ring-[#8B7355]"
+                            >
+                            <span class="text-sm text-gray-700 dark:text-gray-200">
+                                {{ $treatment->name }} ({{ $treatment->duration }} mins — ₱{{ number_format($treatment->price, 2) }})
+                            </span>
+                        </label>
+                        @endforeach
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Select one or more treatments</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Duration (mins) *</label>
+                        <input type="number" name="duration" id="addDuration" required min="1" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Price (₱) *</label>
+                        <input type="number" name="price" id="addPrice" step="0.01" required min="0" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                    <textarea name="description" rows="3" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closeAddPackageModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded hover:bg-[#7A6348]">Add Package</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- EDIT PACKAGE MODAL --}}
+<div id="editPackageModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="w-full max-w-lg p-6 mx-auto mt-10 bg-white rounded-lg dark:bg-gray-800">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Edit Package</h2>
+            <button type="button" onclick="closeEditPackageModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form id="editPackageForm" method="POST">
+            @csrf
+            @method('PUT')
+            <div class="space-y-4">
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Package Name *</label>
+                    <input type="text" id="edit_package_name" name="name" required class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                </div>
+
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Included Treatments</label>
+                    <div id="editIncludedTreatments" class="p-3 space-y-2 overflow-y-auto border border-gray-300 rounded-md max-h-48 dark:border-gray-600 dark:bg-gray-700">
+                        @foreach($treatments as $treatment)
+                        <label class="flex items-center gap-3">
+                            <input
+                                type="checkbox"
+                                name="included_treatments[]"
+                                value="{{ $treatment->id }}"
+                                data-duration="{{ $treatment->duration }}"
+                                data-price="{{ $treatment->price }}"
+                                class="rounded border-gray-300 text-[#8B7355] focus:ring-[#8B7355]"
+                            >
+                            <span class="text-sm text-gray-700 dark:text-gray-200">
+                                {{ $treatment->name }} ({{ $treatment->duration }} mins — ₱{{ number_format($treatment->price, 2) }})
+                            </span>
+                        </label>
+                        @endforeach
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Select one or more treatments</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Duration (mins) *</label>
+                        <input type="number" id="edit_package_duration" name="duration" required min="1" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Price (₱) *</label>
+                        <input type="number" id="edit_package_price" name="price" step="0.01" required min="0" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                    <textarea id="edit_package_description" name="description" rows="3" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="closeEditPackageModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-md hover:bg-[#7A6348]">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- DELETE PACKAGE MODAL --}}
+<div id="deletePackageModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Delete Package</h2>
+            <button type="button" onclick="closeDeletePackageModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400">Are you sure you want to delete <span id="deletePackageName" class="font-semibold text-gray-800 dark:text-white"></span>? This action cannot be undone.</p>
+        <div class="flex justify-end gap-2 mt-6">
+            <button type="button" onclick="closeDeletePackageModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
+            <form id="deletePackageForm" method="POST">
                 @csrf
-                @method('PUT')
-
-                <div class="px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Edit Package</h3>
-                        <button type="button" onclick="closeEditPackageModal()"
-                                class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="space-y-4" id="editPackageFormContent">
-                        <!-- Form fields will be injected via JS -->
-                    </div>
-                </div>
-
-                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900">
-                    <div class="flex justify-end gap-3">
-                        <button type="button" onclick="closeEditPackageModal()"
-                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
-                            Cancel
-                        </button>
-                        <button type="submit"
-                                class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-md hover:bg-[#7A6348]">
-                            Save Changes
-                        </button>
-                    </div>
-                </div>
+                @method('DELETE')
+                <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700">Yes, Delete</button>
             </form>
         </div>
     </div>
 </div>
+
+@endcan
 
 <script>
-// Edit Treatment Modal.
-function editTreatment(treatmentId) {
-    // Inject form fields
-    document.getElementById('editTreatmentFormContent').innerHTML = `
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Name *</label>
-            <input type="text" name="name" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-        </div>
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Duration *</label>
-            <input type="number" name="duration" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-        </div>
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Price *</label>
-            <input type="number" name="price" step="0.01" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-        </div>
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Service Type *</label>
-            <select name="service_type" required class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-                <option value="in_branch_only">In Branch Only</option>
-                <option value="in_branch_and_home">In Branch & Home</option>
-            </select>
-        </div>
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Description</label>
-            <textarea name="description" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]"></textarea>
-        </div>
-    `;
+    function openAddTreatmentModal() {
+        document.getElementById('addTreatmentModal').classList.remove('hidden');
+    }
 
-    const form = document.getElementById('editTreatmentForm');
-    form.action = `/treatments/${treatmentId}`;
+    function closeAddTreatmentModal() {
+        document.getElementById('addTreatmentModal').classList.add('hidden');
+    }
 
-    // Fetch current treatment data
-    fetch(`/treatments/${treatmentId}`) // <-- use show() route
-        .then(response => response.json())
-        .then(data => {
-            form.querySelector('[name="name"]').value = data.name;
-            form.querySelector('[name="duration"]').value = data.duration;
-            form.querySelector('[name="price"]').value = data.price;
-            form.querySelector('[name="service_type"]').value = data.service_type;
-            form.querySelector('[name="description"]').value = data.description || '';
+    function openEditTreatmentModal(btn) {
+        const d = btn.dataset;
+        document.getElementById('edit_treatment_name').value = d.name || '';
+        document.getElementById('edit_treatment_duration').value = d.duration || '';
+        document.getElementById('edit_treatment_price').value = d.price || '';
+        document.getElementById('edit_treatment_service_type').value = d.serviceType || '';
+        document.getElementById('edit_treatment_description').value = d.description || '';
+        document.getElementById('editTreatmentForm').action = '/treatments/' + d.id;
+        document.getElementById('editTreatmentModal').classList.remove('hidden');
+    }
+
+    function closeEditTreatmentModal() {
+        document.getElementById('editTreatmentModal').classList.add('hidden');
+    }
+
+    function openDeleteTreatmentModal(id, name) {
+        document.getElementById('deleteTreatmentName').textContent = name;
+        document.getElementById('deleteTreatmentForm').action = '/treatments/' + id;
+        document.getElementById('deleteTreatmentModal').classList.remove('hidden');
+    }
+
+    function closeDeleteTreatmentModal() {
+        document.getElementById('deleteTreatmentModal').classList.add('hidden');
+    }
+
+    function openAddPackageModal() {
+        document.getElementById('addPackageModal').classList.remove('hidden');
+    }
+
+    function closeAddPackageModal() {
+        document.getElementById('addPackageModal').classList.add('hidden');
+    }
+
+    function updateAddPackageTotals() {
+        const checkboxes = document.querySelectorAll('#addIncludedTreatments input[type="checkbox"]:checked');
+        let totalDuration = 0;
+        let totalPrice = 0;
+
+        checkboxes.forEach(cb => {
+            totalDuration += parseInt(cb.dataset.duration) || 0;
+            totalPrice += parseFloat(cb.dataset.price) || 0;
         });
 
-    document.getElementById('editTreatmentModal').classList.remove('hidden');
-}
+        document.getElementById('addDuration').value = totalDuration;
+        document.getElementById('addPrice').value = totalPrice.toFixed(2);
+    }
 
-function closeEditTreatmentModal() {
-    document.getElementById('editTreatmentModal').classList.add('hidden');
-}
+    function updateEditPackageTotals() {
+        const checkboxes = document.querySelectorAll('#editIncludedTreatments input[type="checkbox"]:checked');
+        let totalDuration = 0;
+        let totalPrice = 0;
 
-// Edit Package Modal.
-function editPackage(packageId) {
-    const form = document.getElementById('editPackageForm');
-    const formContent = document.getElementById('editPackageFormContent');
-
-    // Inject form fields
-    formContent.innerHTML = `
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Package Name *</label>
-            <input type="text" name="name" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-        </div>
-
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Included Treatments</label>
-            <select name="included_treatments[]" id="editIncludedTreatments" multiple class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-                @foreach($treatments as $treatment)
-                <option value="{{ $treatment->id }}" data-duration="{{ $treatment->duration }}" data-price="{{ $treatment->price }}">
-                    {{ $treatment->name }} ({{ $treatment->duration }} mins - ₱{{ number_format($treatment->price, 2) }})
-                </option>
-                @endforeach
-            </select>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Hold Ctrl / Cmd to select multiple treatments
-            </p>
-        </div>
-
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Duration (mins) *</label>
-                <input type="number" name="duration" id="editDuration" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-            </div>
-            <div>
-                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Price (₱) *</label>
-                <input type="number" name="price" id="editPrice" step="0.01" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]">
-            </div>
-        </div>
-
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Description</label>
-            <textarea name="description" rows="3" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-[#8B7355] focus:border-[#8B7355] block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-[#8B7355] dark:focus:border-[#8B7355]"></textarea>
-        </div>
-    `;
-
-    form.action = `/packages/${packageId}`;
-
-    // Fetch package data
-    fetch(`/packages/${packageId}`) // should return JSON with package info
-        .then(res => res.json())
-        .then(data => {
-            form.querySelector('[name="name"]').value = data.name;
-            form.querySelector('[name="duration"]').value = data.duration;
-            form.querySelector('[name="price"]').value = data.price;
-            form.querySelector('[name="description"]').value = data.description || '';
-
-            // Pre-select treatments
-            const select = document.getElementById('editIncludedTreatments');
-            [...select.options].forEach(option => {
-                option.selected = data.included_treatments.includes(parseInt(option.value));
-            });
-
-            // Optional: update duration/price if you want auto-sum like create form
-            updateEditPackageTotals();
+        checkboxes.forEach(cb => {
+            totalDuration += parseInt(cb.dataset.duration) || 0;
+            totalPrice += parseFloat(cb.dataset.price) || 0;
         });
 
-    document.getElementById('editPackageModal').classList.remove('hidden');
+        document.getElementById('edit_package_duration').value = totalDuration;
+        document.getElementById('edit_package_price').value = totalPrice.toFixed(2);
+    }
 
-    // Listen for treatment changes
-    const select = document.getElementById('editIncludedTreatments');
-    select.addEventListener('change', updateEditPackageTotals);
-}
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('#addIncludedTreatments input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', updateAddPackageTotals);
+        });
 
-// Close modal
-function closeEditPackageModal() {
-    document.getElementById('editPackageModal').classList.add('hidden');
-}
-
-// Auto-calculate totals
-function updateEditPackageTotals() {
-    const select = document.getElementById('editIncludedTreatments');
-    const durationInput = document.getElementById('editDuration');
-    const priceInput = document.getElementById('editPrice');
-
-    let totalDuration = 0;
-    let totalPrice = 0;
-
-    [...select.selectedOptions].forEach(opt => {
-        totalDuration += parseInt(opt.dataset.duration) || 0;
-        totalPrice += parseFloat(opt.dataset.price) || 0;
+        document.querySelectorAll('#editIncludedTreatments input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', updateEditPackageTotals);
+        });
     });
 
-    durationInput.value = totalDuration;
-    priceInput.value = totalPrice.toFixed(2);
-}
+    function openEditPackageModal(btn) {
+        const d = btn.dataset;
 
-// Initialize and start the clock
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize clock immediately
-    updateClock();
+        document.getElementById('edit_package_name').value = d.name || '';
+        document.getElementById('edit_package_duration').value = d.duration || '';
+        document.getElementById('edit_package_price').value = d.price || '';
+        document.getElementById('edit_package_description').value = d.description || '';
 
-    // Update clock every second
-    setInterval(updateClock, 1000);
-});
+        const selectedIds = d.treatments ? d.treatments.split(',').map(Number) : [];
+
+        document.querySelectorAll('#editIncludedTreatments input[type="checkbox"]').forEach(cb => {
+            cb.checked = selectedIds.includes(parseInt(cb.value));
+        });
+
+        document.getElementById('editPackageForm').action = '/packages/' + d.id;
+        document.getElementById('editPackageModal').classList.remove('hidden');
+
+        updateEditPackageTotals();
+    }
+
+    function closeEditPackageModal() {
+        document.getElementById('editPackageModal').classList.add('hidden');
+    }
+
+    function openDeletePackageModal(id, name) {
+        document.getElementById('deletePackageName').textContent = name;
+        document.getElementById('deletePackageForm').action = '/packages/' + id;
+        document.getElementById('deletePackageModal').classList.remove('hidden');
+    }
+
+    function closeDeletePackageModal() {
+        document.getElementById('deletePackageModal').classList.add('hidden');
+    }
 </script>
 @endsection

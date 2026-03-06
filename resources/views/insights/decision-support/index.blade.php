@@ -61,15 +61,41 @@
         </div>
         <canvas id="peakHoursChart" height="90"></canvas>
     </div>
-
 </div>
 
-{{-- Chart.js --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const popularServices = @json($popularServices);
     const popularPackages = @json($popularPackages);
     const peakHours = @json($peakHours);
+
+    function getDynamicMax(values) {
+        const max = Math.max(...values, 0);
+
+        if (max <= 5) return 5;
+        if (max <= 10) return 10;
+        if (max <= 20) return 20;
+
+        return Math.ceil(max * 1.2);
+    }
+
+    function getDynamicStepSize(max) {
+        if (max <= 5) return 1;
+        if (max <= 10) return 2;
+        if (max <= 20) return 5;
+        if (max <= 50) return 10;
+        return Math.ceil(max / 5);
+    }
+
+    const serviceValues = popularServices.map(x => Number(x.value) || 0);
+    const packageValues = popularPackages.map(x => Number(x.value) || 0);
+    const peakHourValues = peakHours.map(x => Number(x.value) || 0);
+
+    const servicesMax = getDynamicMax(serviceValues);
+    const servicesStep = getDynamicStepSize(servicesMax);
+
+    const peakMax = getDynamicMax(peakHourValues);
+    const peakStep = getDynamicStepSize(peakMax);
 
     // 1) Popular Services - Horizontal Bar
     new Chart(document.getElementById('popularServicesChart'), {
@@ -78,13 +104,26 @@
             labels: popularServices.map(x => x.label),
             datasets: [{
                 label: 'Bookings',
-                data: popularServices.map(x => x.value),
+                data: serviceValues,
+                borderWidth: 1
             }]
         },
         options: {
             indexAxis: 'y',
             responsive: true,
-            plugins: { legend: { display: false } }
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: servicesMax,
+                    ticks: {
+                        stepSize: servicesStep,
+                        precision: 0
+                    }
+                }
+            }
         }
     });
 
@@ -94,12 +133,25 @@
         data: {
             labels: popularPackages.map(x => x.label),
             datasets: [{
-                data: popularPackages.map(x => x.value),
+                data: packageValues,
+                borderWidth: 1
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'bottom' } }
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = packageValues.reduce((a, b) => a + b, 0);
+                            const value = context.raw || 0;
+                            const percent = total ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${context.label}: ${value} (${percent}%)`;
+                        }
+                    }
+                }
+            }
         }
     });
 
@@ -110,13 +162,27 @@
             labels: peakHours.map(x => x.label),
             datasets: [{
                 label: 'Bookings',
-                data: peakHours.map(x => x.value),
+                data: peakHourValues,
                 tension: 0.35,
+                fill: false,
+                borderWidth: 2
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } }
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: peakMax,
+                    ticks: {
+                        stepSize: peakStep,
+                        precision: 0
+                    }
+                }
+            }
         }
     });
 </script>

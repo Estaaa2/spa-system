@@ -53,7 +53,7 @@
             <p class="text-xs tracking-widest opacity-80">TOP SERVICE</p>
             <p class="text-lg font-semibold">TODAY</p>
             <p class="mt-2 text-3xl font-bold">
-                {{ $topServiceToday ? $topServiceToday->service_type . ' (' . $topServiceToday->count . ')' : 'N/A' }}
+                {{ $topServiceToday ? ucfirst(str_replace('_', ' ', $topServiceToday->service_type)) . ' (' . $topServiceToday->count . ')' : 'N/A' }}
             </p>
         </div>
     </div>
@@ -211,8 +211,8 @@
                                 </td>
                                 <td class="px-6 py-4">
                                     <div>
-                                        <span class="text-sm font-medium text-gray-800 dark:text-white">{{ ucfirst($appointment->service_type) }}</span>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $appointment->treatment }}</p>
+                                        <span class="text-sm font-medium text-gray-800 dark:text-white">{{ $appointment->service_type_label }}</span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $appointment->treatment_label }}</p>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">

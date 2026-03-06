@@ -95,10 +95,22 @@
                             <td class="px-6 py-4 text-center">
                                 <div class="flex justify-center gap-2">
                                     @can('edit appointments')
-                                        <a href="{{ route('appointments.edit', $booking) }}"
-                                           class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                        <button
+                                            type="button"
+                                            onclick="openEditModal(this)"
+                                            data-id="{{ $booking->id }}"
+                                            data-customer-name="{{ $booking->customer_name }}"
+                                            data-customer-email="{{ $booking->customer_email }}"
+                                            data-service-type="{{ $booking->service_type }}"
+                                            data-treatment="{{ $booking->treatment }}"
+                                            data-therapist-id="{{ $booking->therapist_id }}"
+                                            data-branch-id="{{ $booking->branch_id }}"
+                                            data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
+                                            data-start-time="{{ $booking->start_time }}"
+                                            data-status="{{ $booking->status }}"
+                                            class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                             Edit
-                                        </a>
+                                        </button>
                                     @endcan
 
                                     @can('delete appointments')
@@ -115,6 +127,124 @@
             </tbody>
         </table>
         </div>
+
+        @can('edit appointments')
+            @php
+                $allTreatments = \App\Models\Treatment::orderBy('name')->get();
+                $allPackages   = \App\Models\Package::orderBy('name')->get();
+            @endphp
+
+            <!-- EDIT MODAL -->
+            <div id="editModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+                <div class="w-full max-w-lg p-6 mx-auto mt-16 bg-white rounded-lg dark:bg-gray-800">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Edit Appointment</h2>
+                        <button type="button" onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form id="editForm" method="POST">
+                        @csrf
+                        @method('PUT')
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="col-span-2">
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
+                                <input type="text" id="edit_customer_name" name="customer_name"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                            </div>
+
+                            <div class="col-span-2">
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Email</label>
+                                <input type="email" id="edit_customer_email" name="customer_email"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                            </div>
+
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Service Type</label>
+                                <select id="edit_service_type" name="service_type"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                    <option value="in_branch">In Branch</option>
+                                    <option value="in_home">In Home</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Treatment</label>
+                                <select id="edit_treatment" name="treatment"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                    @if($allTreatments->isNotEmpty())
+                                        <optgroup label="Treatments">
+                                            @foreach($allTreatments as $treatment)
+                                                <option value="treatment_{{ $treatment->id }}">{{ $treatment->name }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endif
+                                    @if($allPackages->isNotEmpty())
+                                        <optgroup label="Packages">
+                                            @foreach($allPackages as $package)
+                                                <option value="package_{{ $package->id }}">{{ $package->name }}</option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endif
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Therapist</label>
+                                <select id="edit_therapist_id" name="therapist_id"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                    <option value="">— No Therapist Assigned —</option>
+                                    @foreach(\App\Models\Staff::with('user')->get() as $staff)
+                                        @if($staff->user && $staff->user->hasRole('therapist'))
+                                            <option value="{{ $staff->user_id }}" data-branch="{{ $staff->branch_id }}">
+                                                {{ $staff->user->name }}
+                                            </option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                                <select id="edit_status" name="status"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                    <option value="pending">Pending</option>
+                                    <option value="reserved">Reserved</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Appointment Date</label>
+                                <input type="date" id="edit_appointment_date" name="appointment_date"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                            </div>
+
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Start Time</label>
+                                <input type="time" id="edit_start_time" name="start_time"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 mt-6">
+                            <button type="button" onclick="closeEditModal()"
+                                class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-md hover:bg-[#7A6348]">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endcan
 
         @can('delete appointments')
             <!-- DELETE CONFIRMATION MODAL -->
@@ -155,32 +285,40 @@
 </div>
 
 <script>
-    @can('delete appointments')
-    function openEditModal(booking) {
-    // Update to use correct field names
-    document.getElementById('edit_customer_name').value = booking.customer_name || '';
-    document.getElementById('edit_customer_email').value = booking.customer_email || '';
-    document.getElementById('edit_service_type').value = booking.service_type || '';
-    document.getElementById('edit_treatment').value = booking.treatment || '';
+    @can('edit appointments')
+    function openEditModal(btn) {
+        const d = btn.dataset;
 
-    // For therapist - use therapist_id from the booking
-    document.getElementById('edit_therapist_id').value = booking.therapist_id || '';
+        document.getElementById('edit_customer_name').value  = d.customerName  || '';
+        document.getElementById('edit_customer_email').value = d.customerEmail || '';
+        document.getElementById('edit_service_type').value   = d.serviceType   || '';
+        document.getElementById('edit_treatment').value      = d.treatment     || '';
+        document.getElementById('edit_start_time').value     = d.startTime     || '';
+        document.getElementById('edit_status').value         = d.status        || 'pending';
 
-    // For date and time - use the correct field names
-    document.getElementById('edit_appointment_date').value = booking.appointment_date || '';
-    document.getElementById('edit_start_time').value = booking.start_time || '';
-    document.getElementById('edit_status').value = booking.status || 'reserved';
+        // Show assigned date, block past dates from being selected
+        const dateInput = document.getElementById('edit_appointment_date');
+        dateInput.min   = new Date().toISOString().split('T')[0];
+        dateInput.value = d.appointmentDate || '';
 
-    // Update the form action
-    document.getElementById('editForm').action = '/appointments/' + booking.id;
-    document.getElementById('editModal').classList.remove('hidden');
+        // Filter therapists to booking's branch only
+        const therapistSelect = document.getElementById('edit_therapist_id');
+        Array.from(therapistSelect.options).forEach(option => {
+            if (option.value === '') return;
+            option.hidden = option.dataset.branch != d.branchId;
+        });
+        therapistSelect.value = d.therapistId || '';
+
+        document.getElementById('editForm').action = '/appointments/' + d.id;
+        document.getElementById('editModal').classList.remove('hidden');
     }
 
     function closeEditModal() {
         document.getElementById('editModal').classList.add('hidden');
     }
+    @endcan
 
-    // Delete Modal Functions
+    @can('delete appointments')
     function openDeleteModal(id) {
         document.getElementById('deleteForm').action = '/appointments/' + id;
         document.getElementById('deleteModal').classList.remove('hidden');

@@ -147,8 +147,8 @@ Route::middleware(['auth', 'permission:view services|manage services'])->group(f
 });
 
 Route::middleware(['auth', 'permission:manage services'])->group(function () {
-    Route::resource('treatments', TreatmentController::class)->except(['index']);
-    Route::resource('packages', PackageController::class)->except(['index']);
+    Route::resource('treatments', TreatmentController::class)->except(['index','create','edit']);
+    Route::resource('packages', PackageController::class)->except(['index','create','edit']);
     // Schedule and staff availability are handled separately
 
     // API route: get operating hours for a branch/day
@@ -174,6 +174,7 @@ Route::middleware(['auth', 'permission:manage services'])->group(function () {
 */
 Route::middleware(['auth', 'permission:view staff|manage staff'])->group(function () {
     Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
+    Route::get('/staff/{staff}', [StaffController::class, 'show'])->name('staff.show');
 });
 
 Route::middleware(['auth', 'permission:manage staff'])->group(function () {
@@ -232,7 +233,6 @@ Route::middleware(['auth', 'permission:edit appointments'])->group(function () {
     Route::post('/appointments/{booking}/reserve', [BookingController::class, 'reserve'])->name('appointments.reserve');
     Route::put('/appointments/{booking}/status', [BookingController::class, 'updateStatus'])->name('appointments.updateStatus');
     Route::put('/appointments/{booking}', [BookingController::class, 'update'])->name('appointments.update');
-    Route::get('/appointments/{booking}/edit', [BookingController::class, 'edit'])->name('appointments.edit');
 });
 
 /*

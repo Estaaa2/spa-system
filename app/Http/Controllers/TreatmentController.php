@@ -2,16 +2,10 @@
 
 namespace App\Http\Controllers;
 use App\Models\Treatment;
-
 use Illuminate\Http\Request;
 
 class TreatmentController extends Controller
 {
-    public function create()
-    {
-        return view('treatments.create');
-    }
-
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -45,22 +39,17 @@ class TreatmentController extends Controller
 
     public function show(Treatment $treatment)
     {
-        // $this->authorize('view', $treatment);
         return response()->json($treatment);
     }
 
-    // Update an existing treatment
-
     public function update(Request $request, Treatment $treatment)
     {
-        // $this->authorize('update', $treatment);
-
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'duration' => 'required|integer|min:1',
-            'price' => 'required|numeric|min:0',
+            'name'         => 'required|string|max:255',
+            'duration'     => 'required|integer|min:1',
+            'price'        => 'required|numeric|min:0',
             'service_type' => 'required|in:in_branch_only,in_branch_and_home',
-            'description' => 'nullable|string',
+            'description'  => 'nullable|string',
         ]);
 
         $treatment->update($validated);
@@ -70,16 +59,12 @@ class TreatmentController extends Controller
             ->with('success', 'Treatment updated successfully.');
     }
 
-    // Delete a treatment
     public function destroy(Treatment $treatment)
     {
-        // $this->authorize('delete', $treatment);
-
         $treatment->delete();
 
         return redirect()
             ->route('services.index')
             ->with('success', 'Treatment deleted successfully.');
     }
-
 }

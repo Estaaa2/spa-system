@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Staff;
-use App\Models\Branch;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +39,6 @@ class StaffController extends Controller
      */
     public function store(Request $request)
     {
-
         $validated = $request->validate([
             'name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
@@ -88,7 +86,6 @@ class StaffController extends Controller
      */
     public function show(Staff $staff)
     {
-        // Return what your modal actually needs
         return response()->json([
             'name' => $staff->user?->name ?? '',
             'roles' => $staff->user?->getRoleNames()->first() ?? '',
@@ -103,18 +100,11 @@ class StaffController extends Controller
     public function update(Request $request, Staff $staff)
     {
         $validated = $request->validate([
-            'name'  => 'required|string|max:255',
-            'roles' => 'required|in:therapist,receptionist,manager,admin',
+            'roles' => 'required|in:therapist,receptionist,manager',
         ]);
 
         try {
-            // Update user name + role
             if ($staff->user) {
-                $staff->user->update([
-                    'name' => $validated['name'],
-                ]);
-
-                // Replace role with selected role
                 $staff->user->syncRoles([$validated['roles']]);
             }
 
