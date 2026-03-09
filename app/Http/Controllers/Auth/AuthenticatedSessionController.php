@@ -21,8 +21,7 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Handle an incoming authentication request.
-    */
-
+     */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
@@ -31,13 +30,31 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
+        // Block login if email is not yet verified
+        if (! $user->hasVerifiedEmail()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')
+                ->withErrors([
+                    'email' => 'You need to verify your email before logging in. Please check your inbox.',
+                ]);
+        }
+
+        // Force password change if using temporary password
+        if ($user->password_reset_required) {
+            return redirect()->route('profile.edit')
+                ->with('warning', 'Please change your temporary password to continue.');
+        }
+
         $redirectMap = [
-            'customer' => route('landing.page'),
-            'admin' => route('admin.dashboard'),
-            'owner' => route('dashboard'),
-            'manager' => route('dashboard'),
+            'customer'     => route('landing.page'),
+            'admin'        => route('admin.dashboard'),
+            'owner'        => route('dashboard'),
+            'manager'      => route('dashboard'),
             'receptionist' => route('dashboard'),
-            'therapist' => route('dashboard'),
+            'therapist'    => route('dashboard'),
         ];
 
         foreach ($redirectMap as $role => $route) {
@@ -46,9 +63,7 @@ class AuthenticatedSessionController extends Controller
             }
         }
 
-        // fallback
         return redirect('/');
-
     }
 
     /**

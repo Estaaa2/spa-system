@@ -243,6 +243,7 @@ class SetupController extends Controller
 
             // Assign role
             $newUser->assignRole($validated['role']);
+            $newUser->markEmailAsVerified();
 
             // Create staff record
             Staff::create([
@@ -264,15 +265,18 @@ class SetupController extends Controller
      */
     private function sendStaffCredentials(User $user, string $tempPassword): void
     {
-        // Simple email sending - you can enhance this with a proper mailable class
-        $message = "Welcome to " . $user->spa->name . "!\n\n";
-        $message .= "Your account has been created. Here are your temporary credentials:\n\n";
-        $message .= "Email: " . $user->email . "\n";
-        $message .= "Password: " . $tempPassword . "\n\n";
-        $message .= "Please change your password after logging in.\n";
-
-        // You can implement proper email sending here
-        // For now, just ensure the user has the credentials stored
+        Mail::raw(
+            "Welcome to {$user->spa->name}!\n\n" .
+            "Your account has been created. Here are your login credentials:\n\n" .
+            "Email: {$user->email}\n" .
+            "Temporary Password: {$tempPassword}\n\n" .
+            "Please log in and change your password immediately.\n\n" .
+            "Login here: " . route('login'),
+            function ($mail) use ($user) {
+                $mail->to($user->email, $user->name)
+                    ->subject("Your {$user->spa->name} Staff Account Credentials");
+            }
+        );
     }
 
     /**

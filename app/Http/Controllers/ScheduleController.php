@@ -11,7 +11,8 @@ class ScheduleController extends Controller
 {
     public function index(Request $request)
     {
-        $currentBranchId = session('current_branch_id');
+        $currentBranchId = session('current_branch_id') ?? auth()->user()->branch_id;
+
         // Week start (Monday)
         $weekParam = $request->query('week');
         $startOfWeek = $weekParam
@@ -64,7 +65,7 @@ class ScheduleController extends Controller
 
             $occupiedSlots = [];
             $slot = $startTime->copy();
-            
+
             while($slot < $endTime) {
                 $occupiedSlots[] = $slot->format('H:i');
                 $slot->addMinutes(30);
@@ -143,7 +144,7 @@ class ScheduleController extends Controller
     // Optional realtime endpoint (returns JSON for the current week)
     public function data(Request $request)
     {
-        $currentBranchId = session('current_branch_id');
+        $currentBranchId = session('current_branch_id') ?? auth()->user()->branch_id;
 
         $weekParam = $request->query('week');
         $startOfWeek = $weekParam

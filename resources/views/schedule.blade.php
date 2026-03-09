@@ -130,8 +130,8 @@
                                         style="height: calc({{ $rowspan }} * 100%);"
                                         onclick="openAppointmentModal(this)"
                                         data-customer="{{ $b->customer_name ?? 'Walk-in' }}"
-                                        data-service="{{ ucfirst($b->service_type) }}"
-                                        data-treatment="{{ $b->treatment }}"
+                                        data-service="{{ $b->service_type_label }}"
+                                        data-treatment="{{ $b->treatment_label }}"
                                         data-date="{{ \Carbon\Carbon::parse($b->appointment_date)->format('F d, Y') }}"
                                         data-time="{{ \Carbon\Carbon::parse($b->start_time)->format('h:i A') }} - {{ \Carbon\Carbon::parse($b->end_time)->format('h:i A') }}"
                                         data-status="{{ ucfirst($b->status) }}"
@@ -145,7 +145,7 @@
                                             </span>
                                         </div>
                                         <div class="mt-1 text-xs text-gray-600 truncate dark:text-gray-300">
-                                            {{ ucfirst($b->service_type) }} • {{ $b->treatment }}
+                                            {{ ucfirst($b->service_type_label) }} • {{ $b->treatment_label }}
                                         </div>
                                     </div>
                                 @endif

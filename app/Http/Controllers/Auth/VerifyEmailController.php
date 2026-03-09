@@ -5,23 +5,48 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 
 class VerifyEmailController extends Controller
 {
-    /**
-     * Mark the authenticated user's email address as verified.
-     */
-    public function __invoke(EmailVerificationRequest $request): RedirectResponse
+    public function __invoke(EmailVerificationRequest $request): Response
     {
-        if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->intended(route('dashboard', absolute: false).'?verified=1');
+        $user = $request->user();
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+            event(new Verified($user));
         }
 
-        if ($request->user()->markEmailAsVerified()) {
-            event(new Verified($request->user()));
+        $redirectUrl = $this->redirectTo($user);
+
+        return response(view('auth.verify-success', [
+            'redirectUrl' => $redirectUrl,
+        ]));
+    }
+
+    private function redirectTo($user): string
+    {
+        // Owner who hasn't completed setup yet
+        if ($user->hasRole('owner') && ! $user->spa_id) {
+            return route('setup.index');
         }
 
-        return redirect()->intended(route('dashboard', absolute: false).'?verified=1');
+        $redirectMap = [
+            'customer'     => route('landing.page'),
+            'admin'        => route('admin.dashboard'),
+            'owner'        => route('dashboard'),
+            'manager'      => route('dashboard'),
+            'receptionist' => route('dashboard'),
+            'therapist'    => route('dashboard'),
+        ];
+
+        foreach ($redirectMap as $role => $route) {
+            if ($user->hasRole($role)) {
+                return $route;
+            }
+        }
+
+        return route('landing.page');
     }
 }

@@ -66,6 +66,7 @@ class StaffController extends Controller
             ]);
 
             $user->assignRole($validated['roles']);
+            $user->markEmailAsVerified(); 
 
             Staff::create([
                 'user_id' => $user->id,

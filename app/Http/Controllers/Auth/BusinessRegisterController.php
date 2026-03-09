@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
-use App\Models\Spa;
 
 class BusinessRegisterController extends Controller
 {
@@ -23,29 +22,36 @@ class BusinessRegisterController extends Controller
         return view('auth.register-business');
     }
 
+    /**
+     * Validate, create owner account, send verification email,
+     * then wait for verification before allowing setup access.
+     */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'string', 'lowercase', 'email:rfc', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        // Create owner account — not verified yet
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'     => $request->name,
+            'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'is_owner' => true, // Each registered user is an owner of their own spa business
+            'is_owner' => true,
         ]);
 
-        // Assign owner role
         $user->assignRole('owner');
 
+        // Send verification email via Registered event
         event(new Registered($user));
+
         Auth::login($user);
 
-        // Fallback (admin or others)
-        return redirect()->route('setup.index');
+        // Flag so VerifyEmailController redirects to setup after verification
+        session(['owner_pending_setup' => true]);
 
+        return redirect()->route('verification.notice');
     }
 }

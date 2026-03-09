@@ -60,58 +60,60 @@
 
                 @else
                     @role('customer')
-                        <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-3">
 
-                            <!-- Navigation Links -->
-                            <div class="flex items-center gap-1">
+                        <!-- Navigation Links -->
+                        <div class="flex items-center gap-1">
+                            <a href="#" onclick="openAppointmentsModal()"
+                                class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                                My Appointments
+                            </a>
+                            <a href="#" onclick="openScheduleModal()"
+                                class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                                My Schedule
+                            </a>
+                        </div>
 
-                                <a href="#" onclick="openAppointmentsModal()"
-                                    class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
-                                    My Appointments
-                                </a>
+                        <!-- Profile Dropdown -->
+                        <div class="relative" id="profileDropdownWrapper">
+                            <button type="button" id="profileDropdownBtn"
+                                class="flex items-center gap-2 px-3 py-2 transition rounded-full hover:bg-white/60 ring-1 ring-black/5">
+                                <div class="flex items-center justify-center w-8 h-8 bg-[#8B7355] text-white rounded-full text-xs font-semibold">
+                                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                                </div>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200" id="profileChevron"></i>
+                            </button>
 
-                                <a href="#" onclick="openScheduleModal()"
-                                    class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
-                                    My Schedule
-                                </a>
+                            <!-- Dropdown Menu -->
+                            <div id="profileDropdownMenu"
+                                class="absolute right-0 z-50 hidden w-48 mt-2 overflow-hidden bg-white shadow-xl rounded-2xl ring-1 ring-black/10">
 
-                            </div>
+                                <div class="px-4 py-3 border-b border-black/5 bg-[#F6EFE6]/60">
+                                    <p class="text-xs font-semibold text-[#3C2F23] truncate">{{ auth()->user()->name }}</p>
+                                    <p class="text-[11px] text-gray-400 truncate">{{ auth()->user()->email }}</p>
+                                </div>
 
-                            <!-- Profile Dropdown -->
-                            <div class="relative">
-                                <button type="button"
-                                    data-profile-btn
-                                    class="flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-1 ring-black/5">
+                                <div class="py-1">
+                                    <button type="button"
+                                        onclick="closeProfileDropdown(); openProfileModal();"
+                                        class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-[#F6EFE6] transition">
+                                        <i class="fa-solid fa-user text-[#8B7355] w-4"></i>
+                                        Profile
+                                    </button>
 
-                                    <div class="flex items-center justify-center w-10 h-10 bg-[#8B7355] text-white rounded-full">
-                                        <i class="fa-solid fa-user"></i>
-                                    </div>
-                                </button>
-
-                                <div id="profileDropdown"
-                                    class="absolute right-0 hidden w-48 mt-2 bg-white divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
-
-                                    <div class="py-1">
-                                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                            Profile
-                                        </a>
-
-                                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                            Settings
-                                        </a>
-
-                                        <form method="POST" action="{{ route('logout') }}">
-                                            @csrf
-                                            <button type="submit"
-                                                class="block w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100">
-                                                Logout
-                                            </button>
-                                        </form>
-                                    </div>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit"
+                                            class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
+                                            <i class="w-4 fa-solid fa-right-from-bracket"></i>
+                                            Logout
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
-                        @endrole
+                    </div>
+                    @endrole
                 @endguest
             </div>
 
@@ -123,6 +125,108 @@
             </div>
         </div>
     </div>
+
+            <!-- Profile Modal -->
+            <div id="profileModal" class="fixed inset-0 z-[130] hidden">
+            <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeProfileModal()"></div>
+
+            <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+                <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+
+                    <!-- Header -->
+                    <div class="relative px-6 py-8 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center">
+                        <!-- Avatar -->
+                        <div class="flex items-center justify-center w-16 h-16 mx-auto text-2xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
+                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                        </div>
+                        <h3 class="mt-3 text-lg font-semibold font-['Playfair_Display']">
+                            {{ auth()->user()->name }}
+                        </h3>
+                        <p class="mt-1 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
+
+                        <button onclick="closeProfileModal()"
+                            class="absolute flex items-center justify-center w-8 h-8 transition top-4 right-4 rounded-xl bg-white/10 hover:bg-white/20">
+                            <i class="text-sm fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="p-6 space-y-4">
+
+                        <!-- Full Name -->
+                        <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+                            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
+                                <i class="fa-solid fa-user text-[#8B7355] text-sm"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[11px] text-gray-400 uppercase tracking-wide">Full Name</p>
+                                <p class="text-sm font-semibold text-[#3C2F23] truncate">{{ auth()->user()->name }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Email — partially masked -->
+                        <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+                            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
+                                <i class="fa-solid fa-envelope text-[#8B7355] text-sm"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] text-gray-400 uppercase tracking-wide">Email Address</p>
+                                @php
+                                    $email = auth()->user()->email;
+                                    $parts = explode('@', $email);
+                                    $name = $parts[0];
+                                    $domain = $parts[1] ?? '';
+                                    $maskedName = strlen($name) > 3
+                                        ? substr($name, 0, 2) . str_repeat('*', strlen($name) - 2)
+                                        : str_repeat('*', strlen($name));
+                                    $maskedEmail = $maskedName . '@' . $domain;
+                                @endphp
+                                <div class="flex items-center gap-2">
+                                    <p id="emailDisplay" class="text-sm font-semibold text-[#3C2F23] truncate">{{ $maskedEmail }}</p>
+                                    <button type="button" onclick="toggleEmail(this)"
+                                        data-masked="{{ $maskedEmail }}"
+                                        data-real="{{ $email }}"
+                                        class="text-[#8B7355] hover:text-[#6F5430] transition flex-shrink-0"
+                                        title="Show/Hide email">
+                                        <i class="text-xs fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Verified Status -->
+                        <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+                            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
+                                <i class="fa-solid fa-shield-halved text-[#8B7355] text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-[11px] text-gray-400 uppercase tracking-wide">Account Status</p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    @if(auth()->user()->hasVerifiedEmail())
+                                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
+                                            <i class="fa-solid fa-circle-check"></i> Verified
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-500">
+                                            <i class="fa-solid fa-circle-exclamation"></i> Unverified
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="px-6 pb-6">
+                        <button onclick="closeProfileModal()"
+                            class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                            Close
+                        </button>
+                    </div>
+                </div>
+                <div class="h-10"></div>
+            </div>
+        </div>
 
     <div id="mobile-menu" class="hidden bg-[#F6EFE6]/95 border-t border-black/10 shadow-lg md:hidden">
         <div class="px-3 pt-3 pb-5 space-y-2">
@@ -834,10 +938,33 @@
     window.addEventListener('scroll', onScroll);
     onScroll();
 
-    // ---------------- Profile dropdown ----------------
-    const profileBtn = document.querySelector('[data-profile-btn]');
-    const profileDropdown = document.getElementById('profileDropdown');
-    profileBtn?.addEventListener('click', () => profileDropdown?.classList.toggle('hidden'));
+    // ---------------- Profile Dropdown ----------------
+    const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
+    const profileDropdownMenu = document.getElementById('profileDropdownMenu');
+    const profileChevron      = document.getElementById('profileChevron');
+
+    function closeProfileDropdown() {
+        profileDropdownMenu?.classList.add('hidden');
+        profileChevron?.classList.remove('rotate-180');
+    }
+
+    profileDropdownBtn?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isHidden = profileDropdownMenu.classList.contains('hidden');
+        if (isHidden) {
+            profileDropdownMenu.classList.remove('hidden');
+            profileChevron?.classList.add('rotate-180');
+        } else {
+            closeProfileDropdown();
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const wrapper = document.getElementById('profileDropdownWrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            closeProfileDropdown();
+        }
+    });
 
     // ---------------- Shared state ----------------
     let selectedSpa = null;
@@ -979,10 +1106,6 @@
         }
     });
 
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !spaModal.classList.contains('hidden')) closeSpaModal();
-    });
-
     // ---------------- BOOKING MODAL ----------------
     const bookingModal = document.getElementById('bookingModal');
     const openBookingBtn = document.getElementById('openBookingModalBtn');
@@ -1031,7 +1154,6 @@
             branchSelect.appendChild(opt);
         });
 
-        // ✅ Always auto-select first and sync hidden input
         if (filtered.length) {
             branchSelect.value = String(filtered[0].id);
             if (bookingBranchIdInput) bookingBranchIdInput.value = String(filtered[0].id);
@@ -1053,13 +1175,10 @@
 
         bookingSpaMeta.textContent = `${selectedSpa.name ?? 'Spa'} • ${chosen?.location ?? selectedSpa.location ?? ''}`;
 
-        // ✅ Set spa_id immediately
         if (bookingSpaIdInput) bookingSpaIdInput.value = selectedSpa.id ?? '';
 
-        // ✅ Populate treatments
         populateTreatments();
 
-        // ✅ Reset service type + address
         const serviceTypeSelect = document.getElementById('bookingServiceType');
         const addressWrapper = document.getElementById('addressWrapper');
         const addressInput = document.getElementById('bookingAddressInput');
@@ -1071,7 +1190,6 @@
             addressInput.value = '';
         }
 
-        // ✅ Set min date to today to prevent past date selection
         const dateInput = document.getElementById('bookingDateInput');
         if (dateInput) {
             const today = new Date().toISOString().split('T')[0];
@@ -1079,20 +1197,17 @@
             dateInput.value = '';
         }
 
-        // ✅ Populate branch dropdown (all branches by default) and set hidden input
         populateBranchDropdown(false);
 
         bookingModal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
     }
 
-    // ✅ Service type change — filter branches + toggle address
     document.getElementById('bookingServiceType')?.addEventListener('change', function () {
         const selected = this.value;
         const addressWrapper = document.getElementById('addressWrapper');
         const addressInput = document.getElementById('bookingAddressInput');
 
-        // Toggle address field
         if (selected === 'in_home') {
             addressWrapper?.classList.remove('hidden');
             if (addressInput) addressInput.required = true;
@@ -1104,10 +1219,8 @@
             }
         }
 
-        // ✅ Filter branches and auto-sync hidden branch_id input
         const filtered = populateBranchDropdown(selected === 'in_home');
 
-        // ✅ Warn if no home service branches available
         if (selected === 'in_home' && (!filtered || filtered.length === 0)) {
             const branchSelect = document.getElementById('bookingBranchSelect');
             if (branchSelect) {
@@ -1117,7 +1230,6 @@
         }
     });
 
-    // ✅ Manual branch change — sync hidden input
     document.getElementById('bookingBranchSelect')?.addEventListener('change', function () {
         if (bookingBranchIdInput) bookingBranchIdInput.value = this.value;
     });
@@ -1130,240 +1242,274 @@
     openBookingBtn?.addEventListener('click', openBookingModal);
     closeBookingBtns.forEach(b => b.addEventListener('click', closeBookingModal));
 
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && bookingModal && !bookingModal.classList.contains('hidden')) {
-            closeBookingModal();
-        }
-    });
-
     // ================= MY APPOINTMENTS =================
-let allAppointments = [];
-let currentTab = 'upcoming';
+    let allAppointments = [];
+    let currentTab = 'upcoming';
 
-function openAppointmentsModal() {
-    document.getElementById('appointmentsModal').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-    loadAppointments();
-}
+    function openAppointmentsModal() {
+        document.getElementById('appointmentsModal').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+        loadAppointments();
+    }
 
-function closeAppointmentsModal() {
-    document.getElementById('appointmentsModal').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-}
+    function closeAppointmentsModal() {
+        document.getElementById('appointmentsModal').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
 
-function loadAppointments() {
-    fetch('/my-appointments')
-        .then(r => r.json())
-        .then(data => {
-            allAppointments = data;
-            updateTabCounts();
-            renderTab(currentTab);
+    function loadAppointments() {
+        fetch('/my-appointments')
+            .then(r => r.json())
+            .then(data => {
+                allAppointments = data;
+                updateTabCounts();
+                renderTab(currentTab);
+            });
+    }
+
+    function updateTabCounts() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('tab-count-upcoming').textContent =
+            allAppointments.filter(b => ['reserved','confirmed'].includes(b.status) && b.date_raw >= today).length;
+        document.getElementById('tab-count-past').textContent =
+            allAppointments.filter(b => b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today)).length;
+        document.getElementById('tab-count-cancelled').textContent =
+            allAppointments.filter(b => b.status === 'cancelled').length;
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        ['upcoming','past','cancelled'].forEach(t => {
+            const el = document.getElementById(`tab-${t}`);
+            if (t === tab) {
+                el.classList.add('border-[#8B7355]', 'text-[#8B7355]');
+                el.classList.remove('border-transparent', 'text-gray-500');
+            } else {
+                el.classList.remove('border-[#8B7355]', 'text-[#8B7355]');
+                el.classList.add('border-transparent', 'text-gray-500');
+            }
         });
-}
+        renderTab(tab);
+    }
 
-function updateTabCounts() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('tab-count-upcoming').textContent =
-        allAppointments.filter(b => ['reserved','confirmed'].includes(b.status) && b.date_raw >= today).length;
-    document.getElementById('tab-count-past').textContent =
-        allAppointments.filter(b => b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today)).length;
-    document.getElementById('tab-count-cancelled').textContent =
-        allAppointments.filter(b => b.status === 'cancelled').length;
-}
+    function renderTab(tab) {
+        const today = new Date().toISOString().split('T')[0];
+        let filtered = [];
 
-function switchTab(tab) {
-    currentTab = tab;
-    ['upcoming','past','cancelled'].forEach(t => {
-        const el = document.getElementById(`tab-${t}`);
-        if (t === tab) {
-            el.classList.add('border-[#8B7355]', 'text-[#8B7355]');
-            el.classList.remove('border-transparent', 'text-gray-500');
+        if (tab === 'upcoming') {
+            filtered = allAppointments.filter(b =>
+                ['reserved','confirmed'].includes(b.status) && b.date_raw >= today);
+        } else if (tab === 'past') {
+            filtered = allAppointments.filter(b =>
+                b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today));
         } else {
-            el.classList.remove('border-[#8B7355]', 'text-[#8B7355]');
-            el.classList.add('border-transparent', 'text-gray-500');
+            filtered = allAppointments.filter(b => b.status === 'cancelled');
         }
-    });
-    renderTab(tab);
-}
 
-function renderTab(tab) {
-    const today = new Date().toISOString().split('T')[0];
-    let filtered = [];
+        const container = document.getElementById('appointmentsContent');
 
-    if (tab === 'upcoming') {
-        filtered = allAppointments.filter(b =>
-            ['reserved','confirmed'].includes(b.status) && b.date_raw >= today);
-    } else if (tab === 'past') {
-        filtered = allAppointments.filter(b =>
-            b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today));
-    } else {
-        filtered = allAppointments.filter(b => b.status === 'cancelled');
-    }
+        if (!filtered.length) {
+            container.innerHTML = `
+                <div class="py-12 text-center text-gray-400">
+                    <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
+                    <p class="text-sm">No ${tab} appointments</p>
+                </div>`;
+            return;
+        }
 
-    const container = document.getElementById('appointmentsContent');
-
-    if (!filtered.length) {
-        container.innerHTML = `
-            <div class="py-12 text-center text-gray-400">
-                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
-                <p class="text-sm">No ${tab} appointments</p>
-            </div>`;
-        return;
-    }
-
-    container.innerHTML = filtered.map(b => `
-        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="font-semibold text-[#3C2F23]">${b.spa_name}</p>
-                    <p class="text-xs text-gray-500">${b.branch_name} • ${b.service_type}</p>
+        container.innerHTML = filtered.map(b => `
+            <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="font-semibold text-[#3C2F23]">${b.spa_name}</p>
+                        <p class="text-xs text-gray-500">${b.branch_name} • ${b.service_type}</p>
+                    </div>
+                    <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
+                        ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                    </span>
                 </div>
-                <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                    ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                </span>
+                <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
+                    <div class="flex items-center gap-1">
+                        <i class="fa-solid fa-spa text-[#8B7355]"></i>
+                        ${b.treatment}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <i class="fa-solid fa-user-nurse text-[#8B7355]"></i>
+                        ${b.therapist}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <i class="fa-solid fa-calendar text-[#8B7355]"></i>
+                        ${b.date}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <i class="fa-solid fa-clock text-[#8B7355]"></i>
+                        ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
+                    </div>
+                </div>
             </div>
-            <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
-                <div class="flex items-center gap-1">
-                    <i class="fa-solid fa-spa text-[#8B7355]"></i>
-                    ${b.treatment}
+        `).join('');
+    }
+
+    function statusBadge(status) {
+        const map = {
+            reserved:  'bg-blue-100 text-blue-700',
+            confirmed: 'bg-green-100 text-green-700',
+            completed: 'bg-gray-100 text-gray-600',
+            cancelled: 'bg-red-100 text-red-600',
+            pending:   'bg-yellow-100 text-yellow-700',
+        };
+        return map[status] ?? 'bg-gray-100 text-gray-600';
+    }
+
+    // ================= MY SCHEDULE (CALENDAR) =================
+    let scheduleBookings = [];
+    let calendarDate = new Date();
+
+    function openScheduleModal() {
+        document.getElementById('scheduleModal').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+        loadSchedule();
+    }
+
+    function closeScheduleModal() {
+        document.getElementById('scheduleModal').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    function loadSchedule() {
+        fetch('/my-schedule')
+            .then(r => r.json())
+            .then(data => {
+                scheduleBookings = data;
+                renderCalendar();
+            });
+    }
+
+    function changeMonth(dir) {
+        calendarDate.setMonth(calendarDate.getMonth() + dir);
+        renderCalendar();
+        document.getElementById('selectedDayBookings').classList.add('hidden');
+    }
+
+    function renderCalendar() {
+        const year = calendarDate.getFullYear();
+        const month = calendarDate.getMonth();
+        const today = new Date().toISOString().split('T')[0];
+
+        document.getElementById('calendarTitle').textContent =
+            calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
+
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+
+        for (let i = 0; i < firstDay; i++) {
+            grid.innerHTML += `<div></div>`;
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const isToday = dateStr === today;
+            const hasBooking = bookedDates.has(dateStr);
+            const isPast = dateStr < today;
+
+            grid.innerHTML += `
+                <button onclick="selectDay('${dateStr}')"
+                    class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
+                    ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
+                    ${hasBooking && !isToday ? 'bg-[#F6EFE6] text-[#6F5430] font-semibold ring-1 ring-[#8B7355]/30' : ''}
+                    ${isPast && !isToday ? 'text-gray-300 cursor-default' : 'hover:bg-[#F6EFE6]'}
+                    ${!hasBooking && !isToday && !isPast ? 'text-gray-700' : ''}">
+                    ${d}
+                    ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355]'}"></span>` : ''}
+                </button>`;
+        }
+    }
+
+    function selectDay(dateStr) {
+        const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
+        if (!dayBookings.length) return;
+
+        const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric'
+        });
+
+        document.getElementById('selectedDayTitle').textContent = title;
+        document.getElementById('selectedDayContent').innerHTML = dayBookings.map(b => `
+            <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
+                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
+                        ${b.status}
+                    </span>
                 </div>
-                <div class="flex items-center gap-1">
-                    <i class="fa-solid fa-user-nurse text-[#8B7355]"></i>
-                    ${b.therapist}
-                </div>
-                <div class="flex items-center gap-1">
-                    <i class="fa-solid fa-calendar text-[#8B7355]"></i>
-                    ${b.date}
-                </div>
-                <div class="flex items-center gap-1">
+                <p class="mt-1 text-xs text-gray-500">${b.branch_name} • ${b.treatment}</p>
+                <p class="mt-1 text-xs text-gray-500">
                     <i class="fa-solid fa-clock text-[#8B7355]"></i>
                     ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
-                </div>
+                </p>
             </div>
-        </div>
-    `).join('');
-}
+        `).join('');
 
-function statusBadge(status) {
-    const map = {
-        reserved:  'bg-blue-100 text-blue-700',
-        confirmed: 'bg-green-100 text-green-700',
-        completed: 'bg-gray-100 text-gray-600',
-        cancelled: 'bg-red-100 text-red-600',
-        pending:   'bg-yellow-100 text-yellow-700',
-    };
-    return map[status] ?? 'bg-gray-100 text-gray-600';
-}
-
-// ================= MY SCHEDULE (CALENDAR) =================
-let scheduleBookings = [];
-let calendarDate = new Date();
-
-function openScheduleModal() {
-    document.getElementById('scheduleModal').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-    loadSchedule();
-}
-
-function closeScheduleModal() {
-    document.getElementById('scheduleModal').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-}
-
-function loadSchedule() {
-    fetch('/my-schedule')
-        .then(r => r.json())
-        .then(data => {
-            scheduleBookings = data;
-            renderCalendar();
-        });
-}
-
-function changeMonth(dir) {
-    calendarDate.setMonth(calendarDate.getMonth() + dir);
-    renderCalendar();
-    document.getElementById('selectedDayBookings').classList.add('hidden');
-}
-
-function renderCalendar() {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const today = new Date().toISOString().split('T')[0];
-
-    document.getElementById('calendarTitle').textContent =
-        calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    // Get dates that have bookings
-    const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
-
-    const grid = document.getElementById('calendarGrid');
-    grid.innerHTML = '';
-
-    // Empty cells before first day
-    for (let i = 0; i < firstDay; i++) {
-        grid.innerHTML += `<div></div>`;
+        document.getElementById('selectedDayBookings').classList.remove('hidden');
     }
 
-    // Day cells
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const isToday = dateStr === today;
-        const hasBooking = bookedDates.has(dateStr);
-        const isPast = dateStr < today;
-
-        grid.innerHTML += `
-            <button onclick="selectDay('${dateStr}')"
-                class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
-                ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
-                ${hasBooking && !isToday ? 'bg-[#F6EFE6] text-[#6F5430] font-semibold ring-1 ring-[#8B7355]/30' : ''}
-                ${isPast && !isToday ? 'text-gray-300 cursor-default' : 'hover:bg-[#F6EFE6]'}
-                ${!hasBooking && !isToday && !isPast ? 'text-gray-700' : ''}">
-                ${d}
-                ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355]'}"></span>` : ''}
-            </button>`;
+    function formatTime(timeStr) {
+        if (!timeStr) return 'N/A';
+        const [hour, minute] = timeStr.split(':');
+        const h = parseInt(hour);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${h12}:${minute} ${ampm}`;
     }
-}
 
-function selectDay(dateStr) {
-    const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
-    if (!dayBookings.length) return;
+    // ================= PROFILE MODAL =================
+    function openProfileModal() {
+        document.getElementById('profileModal').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
 
-    const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric'
+    function closeProfileModal() {
+        document.getElementById('profileModal').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+        // Reset email back to masked
+        const btn     = document.getElementById('emailToggleBtn');
+        const display = document.getElementById('emailDisplay');
+        const icon    = document.getElementById('emailToggleIcon');
+        if (btn && display && icon) {
+            display.textContent = btn.dataset.masked;
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
+    function toggleEmail() {
+        const display = document.getElementById('emailDisplay');
+        const btn     = document.getElementById('emailToggleBtn');
+        const icon    = document.getElementById('emailToggleIcon');
+        const isHidden = icon.classList.contains('fa-eye');
+        if (isHidden) {
+            display.textContent = btn.dataset.real;
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            display.textContent = btn.dataset.masked;
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    // ================= GLOBAL KEYDOWN =================
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (!document.getElementById('profileModal')?.classList.contains('hidden')) closeProfileModal();
+            if (!spaModal?.classList.contains('hidden')) closeSpaModal();
+            if (bookingModal && !bookingModal.classList.contains('hidden')) closeBookingModal();
+            closeProfileDropdown();
+        }
     });
-
-    document.getElementById('selectedDayTitle').textContent = title;
-    document.getElementById('selectedDayContent').innerHTML = dayBookings.map(b => `
-        <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-            <div class="flex items-center justify-between">
-                <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
-                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                    ${b.status}
-                </span>
-            </div>
-            <p class="mt-1 text-xs text-gray-500">${b.branch_name} • ${b.treatment}</p>
-            <p class="mt-1 text-xs text-gray-500">
-                <i class="fa-solid fa-clock text-[#8B7355]"></i>
-                ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
-            </p>
-        </div>
-    `).join('');
-
-    document.getElementById('selectedDayBookings').classList.remove('hidden');
-}
-
-function formatTime(timeStr) {
-    if (!timeStr) return 'N/A';
-    const [hour, minute] = timeStr.split(':');
-    const h = parseInt(hour);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 || 12;
-    return `${h12}:${minute} ${ampm}`;
-}
-
 </script>
 
 </body>

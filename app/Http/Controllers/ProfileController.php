@@ -6,6 +6,7 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 
@@ -58,5 +59,23 @@ class ProfileController extends Controller
         return Redirect::to('/');
     }
 
+    public function password(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'current_password'      => ['required', 'current_password'],
+            'password'              => ['required', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        $user->update([
+            'password'                => Hash::make($request->password),
+            'temp_password'           => null,       // 👈 clear temp password
+            'password_reset_required' => false,       // 👈 unlock dashboard access
+        ]);
+
+        return redirect()->route('profile.edit')
+            ->with('success', 'Password changed successfully! You can now access the dashboard.');
+    }
 
 }

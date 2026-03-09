@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'check-owner-exists' => \App\Http\Middleware\CheckOwnerExists::class,
             'owner-only' => \App\Http\Middleware\OwnerOnly::class,
             'enforce.branch' => \App\Http\Middleware\LockBranchForNonOwner::class,
+            'force.password.change' => \App\Http\Middleware\ForcePasswordChange::class,
         ]);
     })
     ->withMiddleware(function ($middleware) {

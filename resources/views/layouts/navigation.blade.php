@@ -410,12 +410,39 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                     </div>
                 @endif
 
-                {{-- Profile --}}
+                {{-- Settings (Owner only) --}}
+                @role('owner')
+                <div class="mb-2">
+                    <button @click="settingsOpen = !settingsOpen"
+                        class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <span>Settings</span>
+                        <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                        :class="settingsOpen ? 'transform rotate-180' : ''"></i>
+                    </button>
+
+                    <div x-show="settingsOpen" x-collapse class="ml-4 space-y-1">
+                        <x-nav-link
+                            :href="route('profile.edit')"
+                            :active="request()->routeIs('profile.*')">
+                            Profile
+                        </x-nav-link>
+
+                        <x-nav-link
+                            :href="route('owner.roles-permissions.index')"
+                            :active="request()->routeIs('owner.roles-permissions.*')">
+                            Roles &amp; Permissions
+                        </x-nav-link>
+                    </div>
+                </div>
+                @endrole
+
+                @unlessrole('owner')
                 <div class="mb-2 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                     <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
                         Profile
                     </x-nav-link>
                 </div>
+                @endunlessrole
 
                 {{-- ✅ REMOVED: Owner sidebar should not show admin menu --}}
             </nav>
@@ -579,6 +606,7 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
             branchesDropdown: false,
             mobileBranchesOpen: false,
             inventoryOpen: false,
+            settingsOpen: false,
 
             selectedBranch: @json($currentBranch?->name ?? ($firstBranch?->name ?? 'Select Branch')),
             selectedBranchId: @json($currentBranchId ?? ($firstBranch?->id ?? null)),

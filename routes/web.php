@@ -18,13 +18,34 @@ use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\CustomerAppointmentController;
+use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
+use App\Http\Controllers\MailController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\WelcomeMail;
 
 /*
 |--------------------------------------------------------------------------
-| Public Routes
+| SMTP Test Route (temporary)
 |--------------------------------------------------------------------------
 */
+Route::get('/send-mail', [MailController::class, 'sendWelcomeMail']);
+Route::get('/test-mail', function () {
+    $data = [
+        'name'    => 'Test User',
+        'message' => 'This is a test email from Mailtrap!'
+    ];
+
+    Mail::to('anyone@example.com')->send(new WelcomeMail($data));
+
+    return 'Email sent! Check your Mailtrap inbox.';
+});
+
+Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->middleware('role:owner|manager|therapist')
+        ->name('dashboard');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -304,6 +325,20 @@ Route::middleware(['auth', 'owner-only'])->group(function () {
     Route::post('/setup/branches/{branch}/staff', [SetupController::class, 'storeStaff'])->name('setup.store-staff');
 
     Route::get('/setup/complete', [SetupController::class, 'complete'])->name('setup.complete');
+
+    Route::middleware(['auth', 'role:owner'])
+    ->prefix('owner')
+    ->name('owner.')
+    ->group(function () {
+        Route::get('/roles-permissions', [OwnerRolePermissionController::class, 'index'])
+            ->name('roles-permissions.index');
+
+        Route::get('/roles-permissions/{role}/edit', [OwnerRolePermissionController::class, 'edit'])
+            ->name('roles-permissions.edit');
+
+        Route::put('/roles-permissions/{role}', [OwnerRolePermissionController::class, 'update'])
+            ->name('roles-permissions.update');
+    });
 });
 
 /*
