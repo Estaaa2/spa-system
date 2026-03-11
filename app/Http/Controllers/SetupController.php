@@ -10,6 +10,7 @@ use Illuminate\View\View;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\OperatingHours;
+use App\Mail\StaffCredentialsMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -265,18 +266,7 @@ class SetupController extends Controller
      */
     private function sendStaffCredentials(User $user, string $tempPassword): void
     {
-        Mail::raw(
-            "Welcome to {$user->spa->name}!\n\n" .
-            "Your account has been created. Here are your login credentials:\n\n" .
-            "Email: {$user->email}\n" .
-            "Temporary Password: {$tempPassword}\n\n" .
-            "Please log in and change your password immediately.\n\n" .
-            "Login here: " . route('login'),
-            function ($mail) use ($user) {
-                $mail->to($user->email, $user->name)
-                    ->subject("Your {$user->spa->name} Staff Account Credentials");
-            }
-        );
+        Mail::to($user->email)->send(new StaffCredentialsMail($user, $tempPassword));
     }
 
     /**

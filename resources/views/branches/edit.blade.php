@@ -3,10 +3,9 @@
 @section('title', 'Edit Branch')
 
 @section('content')
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 
 <div class="mx-auto max-w-3xl py-6">
@@ -246,7 +245,6 @@
     </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     // Map initialization and interaction.
     document.addEventListener('DOMContentLoaded', function () {

@@ -8,15 +8,12 @@ class LandingController extends Controller
 {
     public function index()
     {
-        // Only get spas that have at least one branch listed
-        $spas = Spa::with(['branches', 'branches.profile'])
-            ->get()
-            ->filter(function ($spa) {
-                    return $spa->branches->contains(function ($branch) {
-                        // Show if explicitly listed OR if no profile set up yet (new spa)
-                        return ($branch->profile?->is_listed ?? true);
-                    });
-                });
+        $spas = Spa::with(['branches.profile'])
+            ->where('business_tier', 'professional') // Only professional tier spas
+            ->whereHas('branches.profile', function ($query) {
+                $query->where('is_listed', 1); // Branch must be listed
+            })
+            ->get();
 
         // Pass all treatments grouped by branch for the booking modal
         $treatments = \App\Models\Treatment::all()->groupBy('branch_id');

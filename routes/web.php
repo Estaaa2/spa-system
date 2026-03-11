@@ -6,9 +6,14 @@ use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\CustomerAppointmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
+use App\Http\Controllers\LandingController;
+use App\Http\Middleware\LandingPageRedirect;
+use App\Http\Controllers\MailController;
+use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;
@@ -17,12 +22,9 @@ use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
-use App\Http\Controllers\CustomerAppointmentController;
-use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
-use App\Http\Controllers\MailController;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Mail;
 use App\Mail\WelcomeMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -77,7 +79,9 @@ Route::middleware(['auth', 'role:admin'])
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', [\App\Http\Controllers\LandingController::class, 'index'])->name('landing.page');
+Route::get('/', [LandingController::class, 'index'])
+    ->middleware(LandingPageRedirect::class)
+    ->name('landing.page');
 
 Route::middleware('auth')->group(function () {
     Route::get('/my-appointments', [CustomerAppointmentController::class, 'appointments'])->name('customer.appointments');

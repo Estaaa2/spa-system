@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Staff;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use App\Mail\StaffCredentialsMail;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -75,11 +77,13 @@ class StaffController extends Controller
                 'employment_status' => 'active',
                 'hire_date' => now(),
             ]);
+
+            Mail::to($user->email)->send(new StaffCredentialsMail($user, $tempPassword));
         });
 
         return redirect()
             ->route('staff.index')
-            ->with('success', 'Staff member added successfully.');
+            ->with('success', 'Staff member added successfully and staff credentials sent via email.');
     }
 
     /**

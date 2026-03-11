@@ -12,6 +12,10 @@
 
     <!-- Google Font -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
 <body class="bg-[#F6EFE6] text-gray-800 selection:bg-[#D2A85B]/30 selection:text-[#3C2F23]">
@@ -125,9 +129,9 @@
             </div>
         </div>
     </div>
-
-            <!-- Profile Modal -->
-            <div id="profileModal" class="fixed inset-0 z-[130] hidden">
+        @auth
+        <!-- Profile Modal -->
+        <div id="profileModal" class="fixed inset-0 z-[130] hidden">
             <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeProfileModal()"></div>
 
             <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
@@ -183,12 +187,12 @@
                                 @endphp
                                 <div class="flex items-center gap-2">
                                     <p id="emailDisplay" class="text-sm font-semibold text-[#3C2F23] truncate">{{ $maskedEmail }}</p>
-                                    <button type="button" onclick="toggleEmail(this)"
+                                    <button type="button" id="emailToggleBtn" onclick="toggleEmail(this)"
                                         data-masked="{{ $maskedEmail }}"
                                         data-real="{{ $email }}"
                                         class="text-[#8B7355] hover:text-[#6F5430] transition flex-shrink-0"
                                         title="Show/Hide email">
-                                        <i class="text-xs fa-solid fa-eye"></i>
+                                        <i id="emailToggleIcon" class="text-xs fa-solid fa-eye"></i>
                                     </button>
                                 </div>
                             </div>
@@ -224,9 +228,12 @@
                         </button>
                     </div>
                 </div>
-                <div class="h-10"></div>
+                <div class="h-10">
+
+                </div>
             </div>
         </div>
+        @endauth
 
     <div id="mobile-menu" class="hidden bg-[#F6EFE6]/95 border-t border-black/10 shadow-lg md:hidden">
         <div class="px-3 pt-3 pb-5 space-y-2">
@@ -391,7 +398,7 @@
         </div>
     </div>
 
-    <!-- ================= FEATURED SPAS (Dynamic from DB) ================= -->
+    <!-- ================= FEATURED SPAS ================= -->
     <section class="py-20">
         <div class="px-6 mx-auto mt-10 max-w-7xl">
             <div class="text-center">
@@ -402,7 +409,6 @@
                     </h2>
                     <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                 </div>
-
                 <p class="mt-3 text-sm text-gray-600">
                     Curated picks for a premium relaxation experience.
                 </p>
@@ -410,196 +416,217 @@
 
             <div class="grid grid-cols-1 gap-6 mt-12 sm:grid-cols-2 lg:grid-cols-4">
                 @forelse($spas as $spa)
-                @php
-                $branch = $spa->branches->first();
-                $location = $branch?->location ?? 'No location yet';
+                    @foreach($spa->branches as $branch)
+                        @if($branch->profile?->is_listed)
+                            @php
+                                $lowestPrice = \App\Models\Treatment::withoutGlobalScopes()
+                                    ->where('spa_id', $spa->id)
+                                    ->where('branch_id', $branch->id)
+                                    ->min('price'); // returns decimal directly
 
-                $thumb = $spa->logo
-                    ? asset('storage/'.$spa->logo)
-                    : asset('images/2nd.png');
+                                $branchTreatments = \App\Models\Treatment::withoutGlobalScopes()
+                                    ->where('spa_id', $spa->id)
+                                    ->where('branch_id', $branch->id)
+                                    ->get();
 
-                // ✅ mark first branch as main
-                $branches = $spa->branches->values()->map(function($b, $i) {
-                    return [
-                        'id' => $b->id,
-                        'name' => $b->name,
-                        'location' => $b->location,
-                        'is_main' => $i === 0,
-                        'has_home_service' => (bool) $b->has_home_service,
-                    ];
-                });
+                                $profile = $branch->profile;
+                                $thumb = $profile->cover_image 
+                                    ? asset('storage/' . $profile->cover_image)
+                                    : asset('images/2nd.png');
 
-                $spaPayload = [
-                    'id' => $spa->id,
-                    'name' => $spa->name,
-                    'location' => $location,
-                    'rating' => 0,
-                    'reviews' => 0,
-                    'tag' => 'Featured',
-                    'treatments' => \App\Models\Treatment::withoutGlobalScopes()
-                    ->where('spa_id', $spa->id)
-                    ->get(['id', 'name', 'duration'])
-                    ->toArray(),
-                    'packages' => \App\Models\Package::withoutGlobalScopes()
-                    ->where('spa_id', $spa->id)
-                    ->get(['id', 'name', 'total_duration'])  // ← total_duration not duration
-                    ->toArray(),
-                    'price_note' => 'From ₱0',
-                    'desc' => $spa->description ?? '',
-                    'photos' => [$thumb],
-                    'branches' => $branches,
-                ];
-            @endphp
+                                $photos = collect([$profile->cover_image])
+                                    ->merge($profile->gallery_images ?? [])
+                                    ->filter() // removes null or empty strings
+                                    ->map(fn($img) => asset('storage/' . $img))
+                                    ->values()
+                                    ->toArray();
 
-                <button type="button"
-                    class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
-                    data-open-spa-modal
-                    data-spa='@json($spaPayload)'>
-                    <div class="relative overflow-hidden">
-                        <img src="{{ $thumb }}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $spa->name }}">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
-                    </div>
+                                $spaPayload = [
+                                    'id' => $spa->id,
+                                    'name' => $spa->name,
+                                    'tag' => 'Featured Spa',
+                                    'desc' => $profile->description ?? $spa->description ?? '',
+                                    'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
+                                    'photos' => $photos,
+                                    'address' => $profile->address ?? $branch->location ?? 'Location unavailable',
+                                    'phone' => $profile->phone ?? '',
+                                    'lat' => $profile->latitude,
+                                    'lng' => $profile->longitude,
+                                ];
+                            @endphp
 
-                    <div class="p-5">
-                        <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
-                        <p class="mt-1 text-xs text-gray-500">{{ $location }}</p>
-                        <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spa->description ?? 'No description yet.' }}</p>
-                    </div>
-                </button>
-            @empty
-                <div class="text-center text-gray-600 col-span-full">No spas found yet.</div>
-            @endforelse
+                            <button type="button"
+                                class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                                data-open-spa-modal
+                                data-spa='@json($spaPayload)'>
+                                <div class="relative overflow-hidden">
+                                    <img src="{{ $thumb }}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $spa->name }}">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+                                </div>
+                                <div class="p-5">
+                                    <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
+                                    @php
+                                    function addressSummary($fullAddress) {
+                                        if (!$fullAddress) return 'Location unavailable';
+                                        $parts = array_map('trim', explode(',', $fullAddress));
+                                        if (count($parts) < 3) return $fullAddress;
+                                        $withoutZipCountry = array_slice($parts, 0, count($parts) - 2);
+                                        $summary = implode(', ', array_slice($withoutZipCountry, -3));
+                                        return $summary;
+                                    }
+                                    @endphp
+                                    <p class="mt-1 text-xs text-gray-500">{{ addressSummary($spaPayload['address']) }}</p>
+                                    <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
+                                </div>
+                            </button>
+                        @endif
+                    @endforeach
+                @empty
+                    <div class="text-center text-gray-600 col-span-full">No spas found yet.</div>
+                @endforelse
+            </div>
         </div>
-    </div>
-</section>
+    </section>
 
     <!-- ================= SPA MODAL ================= -->
     <div id="spaModal" class="fixed inset-0 z-[100] hidden">
-        <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-spa-modal></div>
 
-        <!-- Modal Panel -->
-        <div class="relative mx-auto w-[92%] max-w-4xl mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+        <!-- Overlay -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-spa-modal></div>
+
+        <!-- Modal container -->
+        <div class="relative mx-auto w-[92%] max-w-5xl mt-8 mb-8">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl flex flex-col max-h-[90vh]">
+
                 <!-- Header -->
-                <div class="flex items-center justify-between gap-4 px-6 py-4 border-b border-black/5">
-                <div class="min-w-0">
-                    <h3 id="spaModalName" class="text-lg font-semibold text-[#3C2F23] truncate">Spa Name</h3>
+                <div class="flex items-center justify-between px-6 py-4 border-b bg-white sticky top-0 z-10">
+                    <div>
+                        <h3 id="spaModalName" class="text-2xl font-bold text-gray-900 tracking-tight">Spa Name</h3>
+                        <div class="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
+                            <span id="spaModalTag">Featured Spa</span>
+                            <span class="mx-1">·</span>
+                            <span id="spaModalAddressSummary" class="underline font-medium">Location</span>
+                        </div>
+                    </div>
 
-                    <div class="flex flex-wrap items-center mt-1 text-xs text-gray-500 gap-x-2 gap-y-1">
-                        <span id="spaModalMeta" class="truncate">Location • Rating</span>
+                    <button data-close-spa-modal class="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-900">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
 
-                        <span class="text-gray-300">•</span>
+                <!-- Body -->
+                <div class="overflow-y-auto">
 
-                        <!-- ✅ Branch pill -->
-                        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#F6EFE6] ring-1 ring-black/5">
-                            <i class="fa-solid fa-location-dot text-[#8B7355] text-xs"></i>
+                    <!-- Photo gallery -->
+                    <div class="p-6">
+                        <div class="grid grid-cols-4 grid-rows-2 gap-2 h-[400px] rounded-2xl overflow-hidden">
+                            <div class="col-span-2 row-span-2 bg-gray-200">
+                                <img id="spaModalMainPhoto" src="" class="w-full h-full object-cover hover:opacity-90 transition-opacity cursor-pointer">
+                            </div>
+                            <div class="col-span-1 row-span-1 bg-gray-200">
+                                <img id="gallery_1" class="w-full h-full object-cover hover:opacity-90 transition-opacity">
+                            </div>
+                            <div class="col-span-1 row-span-1 bg-gray-200">
+                                <img id="gallery_2" class="w-full h-full object-cover hover:opacity-90 transition-opacity">
+                            </div>
+                            <div class="col-span-1 row-span-1 bg-gray-200">
+                                <img id="gallery_3" class="w-full h-full object-cover hover:opacity-90 transition-opacity">
+                            </div>
+                            <div class="col-span-1 row-span-1 bg-gray-200 relative">
+                                <img id="gallery_4" class="w-full h-full object-cover hover:opacity-90 transition-opacity">
+                                <div id="spaModalGalleryCount" class="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-semibold hidden">
+                                    + View All
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                            <!-- This will show only if selected branch is main -->
-                            <span id="spaModalBranchBadge"
-                                class="hidden text-[10px] font-semibold tracking-[0.18em] uppercase text-[#6F5430]">
-                                Main
-                            </span>
+                    <!-- Content -->
+                    <div class="px-6 pb-6 grid md:grid-cols-3 gap-8">
 
-                            <!-- ✅ Select wrapper (hide native arrow, use our chevron) -->
-                            <div class="relative">
-                                <select
-                                    id="spaModalBranchSelect"
-                                    class="appearance-none bg-transparent border-0 p-0 pr-6 text-xs font-semibold text-[#6F5430] focus:ring-0 focus:outline-none cursor-pointer"
-                                >
-                                    <option value="">Select branch</option>
-                                </select>
+                        <!-- Left / Main content -->
+                        <div class="md:col-span-2 space-y-8">
+
+                            <!-- About -->
+                            <div>
+                                <h4 class="text-xl font-semibold text-gray-900 mb-3">About this spa</h4>
+                                <p id="spaModalDesc" class="text-gray-600 leading-relaxed"></p>
+                            </div>
+
+                            <hr class="border-gray-200">
+
+                            <!-- Amenities -->
+                            <div>
+                                @php
+                                    $amenityIcons = [
+                                        'aircon' => 'fa-fan',
+                                        'private_rooms' => 'fa-door-closed',
+                                        'shower' => 'fa-shower',
+                                        'parking' => 'fa-car',
+                                        'wifi' => 'fa-wifi',
+                                        'locker' => 'fa-lock',
+                                        'pet_friendly' => 'fa-dog',
+                                        'sauna' => 'fa-hot-tub-person',
+                                        // add more as needed
+                                    ];
+                                    $amenities = $profile->amenities ?? [];
+                                @endphp
+                                <h4 id="spaModalAmenities" class="text-xl font-semibold text-gray-900 mb-4">What this place offers</h4>
+                                @foreach($amenities as $a)
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <i class="fa-solid {{ $amenityIcons[$a] ?? 'fa-star' }} text-[#8B7355]"></i> {{ $a }}
+                                    </div>
+                                @endforeach
+                            </div>
+
+                        </div>
+
+                        <!-- Right / Sidebar -->
+                        <div class="md:col-span-1">
+                            <div class="border rounded-2xl p-6 shadow-sm sticky top-4 space-y-4">
+
+                                <!-- Address -->
+                                <div class="flex items-start gap-3">
+                                    <i class="fa-solid fa-location-dot mt-1 text-gray-900"></i>
+                                    <div>
+                                        <p class="font-semibold">Address</p>
+                                        <p id="spaModalAddress" class="text-sm text-gray-500"></p>
+                                    </div>
+                                </div>
+
+                                <!-- Contact -->
+                                <div class="flex items-start gap-3">
+                                    <i class="fa-solid fa-phone mt-1 text-gray-900"></i>
+                                    <div>
+                                        <p class="font-semibold">Contact</p>
+                                        <p id="spaModalPhone" class="text-sm text-gray-500"></p>
+                                    </div>
+                                </div>
+
+                                <!-- Price -->
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-tag mt-1 text-gray-900"></i>
+                                    <div>
+                                        <p class="font-semibold">Price</p>
+                                        <p id="spaModalPrice" class="text-sm text-gray-500"></p>
+                                    </div>
+                                </div>
+
+                                <!-- Map -->
+                                <div id="spaModalMap" class="w-full h-[180px] rounded-xl border bg-gray-50 overflow-hidden"></div>
+
+                                <!-- Reserve button -->
+                                <button
+                                type="button"
+                                id="openBookingModalBtn"
+                                class="block w-full mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                Reserve An Appointment
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <button type="button"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5"
-                        data-close-spa-modal aria-label="Close">
-                    <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
-                </button>
             </div>
-
-                <!-- Content -->
-                <div class="grid gap-0 md:grid-cols-12">
-                    <!-- Photos (Top/Left) -->
-                    <div class="md:col-span-7 bg-black/5">
-                        <div class="relative">
-                            <img id="spaModalMainPhoto" src="" alt="Spa photo" class="w-full h-[320px] md:h-[420px] object-cover">
-
-                            <!-- Prev/Next -->
-                            <button type="button" id="spaPrevPhoto"
-                                    class="absolute flex items-center justify-center w-10 h-10 transition -translate-y-1/2 rounded-full shadow left-3 top-1/2 bg-white/90 ring-1 ring-black/10 hover:bg-white">
-                                <i class="text-gray-800 fa-solid fa-chevron-left"></i>
-                            </button>
-
-                            <button type="button" id="spaNextPhoto"
-                                    class="absolute flex items-center justify-center w-10 h-10 transition -translate-y-1/2 rounded-full shadow right-3 top-1/2 bg-white/90 ring-1 ring-black/10 hover:bg-white">
-                                <i class="text-gray-800 fa-solid fa-chevron-right"></i>
-                            </button>
-
-                            <!-- Counter -->
-                            <div class="absolute bottom-3 right-3 px-3 py-1.5 text-xs font-semibold text-white bg-black/45 rounded-full ring-1 ring-white/10">
-                                <span id="spaPhotoCounter">1 / 1</span>
-                            </div>
-                        </div>
-
-                        <!-- Thumbnails -->
-                        <div id="spaModalThumbs" class="flex gap-2 p-4 overflow-x-auto bg-white border-t border-black/5">
-                            <!-- injected by JS -->
-                        </div>
-                    </div>
-
-                    <!-- Info (Bottom/Right) -->
-                    <div class="p-6 md:col-span-5">
-                        <div class="flex items-center justify-between">
-                            <div class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[#6F5430] bg-[#F6EFE6] rounded-full ring-1 ring-black/5">
-                                <i class="fa-solid fa-spa"></i>
-                                <span id="spaModalTag">Featured</span>
-                            </div>
-
-                            <div class="text-sm text-[#3C2F23]">
-                                <i class="fa-solid fa-spa  text-[#D2A85B]"></i>
-                                <span id="spaModalRating" class="font-semibold">4.8</span>
-                                <span id="spaModalReviews" class="text-gray-500">(0)</span>
-                            </div>
-                        </div>
-
-                        <p id="spaModalDesc" class="mt-4 text-sm leading-relaxed text-gray-600">
-                            Description here...
-                        </p>
-
-                        <div class="mt-6 p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5">
-                            <p class="text-sm text-gray-700">
-                                <span id="spaModalPrice" class="font-semibold text-[#3C2F23]">From ₱0</span>
-                                <span class="text-gray-500"> / session</span>
-                            </p>
-
-                            <button
-                            type="button"
-                            id="openBookingModalBtn"
-                            class="block w-full mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                            Reserve An Appointment
-                            </button>
-                        </div>
-
-                        <!-- Optional: amenities placeholders (layout only) -->
-                        <div class="mt-6">
-                            <p class="text-xs font-semibold tracking-wide text-gray-700 uppercase">What this spa offers</p>
-                            <div class="grid grid-cols-2 gap-3 mt-3 text-sm text-gray-600">
-                                <div class="flex items-center gap-2"><i class="fa-solid fa-bath text-[#8B7355]"></i> Clean Rooms</div>
-                                <div class="flex items-center gap-2"><i class="fa-solid fa-user-nurse text-[#8B7355]"></i> Pro Therapists</div>
-                                <div class="flex items-center gap-2"><i class="fa-solid fa-mug-hot text-[#8B7355]"></i> Welcome Tea</div>
-                                <div class="flex items-center gap-2"><i class="fa-solid fa-lock text-[#8B7355]"></i> Safe & Private</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Mobile safe bottom spacing -->
-            <div class="h-10"></div>
         </div>
     </div>
 
@@ -924,592 +951,677 @@
 </footer>
 
 <script>
-    // ---------------- Mobile menu ----------------
-    const btn = document.getElementById('mobile-menu-button');
-    const menu = document.getElementById('mobile-menu');
-    btn?.addEventListener('click', () => menu.classList.toggle('hidden'));
+// ---------------- Mobile menu ----------------
+const btn = document.getElementById('mobile-menu-button');
+const menu = document.getElementById('mobile-menu');
+btn?.addEventListener('click', () => menu.classList.toggle('hidden'));
 
-    // ---------------- Nav scroll effect ----------------
-    const nav = document.getElementById('topNav');
-    const onScroll = () => {
-        if (window.scrollY > 10) nav.classList.add('nav-scrolled');
-        else nav.classList.remove('nav-scrolled');
-    };
-    window.addEventListener('scroll', onScroll);
-    onScroll();
 
-    // ---------------- Profile Dropdown ----------------
-    const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
-    const profileDropdownMenu = document.getElementById('profileDropdownMenu');
-    const profileChevron      = document.getElementById('profileChevron');
+// ---------------- Nav scroll effect ----------------
+const nav = document.getElementById('topNav');
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 10) nav?.classList.add('nav-scrolled');
+    else nav?.classList.remove('nav-scrolled');
+});
 
-    function closeProfileDropdown() {
-        profileDropdownMenu?.classList.add('hidden');
-        profileChevron?.classList.remove('rotate-180');
+
+// ---------------- Shared state ----------------
+let selectedSpa = null;
+let preferredBranchId = null;
+let spaMap = null;
+
+
+// =====================================================
+// PROFILE DROPDOWN LOGIC
+// =====================================================
+const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
+const profileDropdownMenu = document.getElementById('profileDropdownMenu');
+const profileChevron      = document.getElementById('profileChevron');
+
+function closeProfileDropdown() {
+    profileDropdownMenu?.classList.add('hidden');
+    profileChevron?.classList.remove('rotate-180');
+}
+
+profileDropdownBtn?.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const isHidden = profileDropdownMenu.classList.contains('hidden');
+    if (isHidden) {
+        profileDropdownMenu.classList.remove('hidden');
+        profileChevron?.classList.add('rotate-180');
+    } else {
+        closeProfileDropdown();
     }
+});
 
-    profileDropdownBtn?.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const isHidden = profileDropdownMenu.classList.contains('hidden');
-        if (isHidden) {
-            profileDropdownMenu.classList.remove('hidden');
-            profileChevron?.classList.add('rotate-180');
-        } else {
-            closeProfileDropdown();
-        }
+document.addEventListener('click', function(e) {
+    const wrapper = document.getElementById('profileDropdownWrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        closeProfileDropdown();
+    }
+});
+
+// =====================================================
+// PROFILE MODAL
+// =====================================================
+
+function openProfileModal() {
+    document.getElementById('profileModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeProfileModal() {
+    document.getElementById('profileModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    // Reset email back to masked
+    const btn     = document.getElementById('emailToggleBtn');
+    const display = document.getElementById('emailDisplay');
+    const icon    = document.getElementById('emailToggleIcon');
+    if (btn && display && icon) {
+        display.textContent = btn.dataset.masked;
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+function toggleEmail() {
+    const display = document.getElementById('emailDisplay');
+    const btn = document.getElementById('emailToggleBtn');
+    const icon = document.getElementById('emailToggleIcon');
+    
+    if (!display || !btn || !icon) return; // Guard clause
+
+    const isHidden = icon.classList.contains('fa-eye');
+    if (isHidden) {
+        display.textContent = btn.dataset.real;
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        display.textContent = btn.dataset.masked;
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
+// =====================================================
+// SPA MODAL
+// =====================================================
+
+const spaModal = document.getElementById('spaModal');
+const openBtns = document.querySelectorAll('[data-open-spa-modal]');
+const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
+
+const elName = document.getElementById('spaModalName');
+const elTag = document.getElementById('spaModalTag');
+const elDesc = document.getElementById('spaModalDesc');
+const elPrice = document.getElementById('spaModalPrice');
+
+const elMainPhoto = document.getElementById('spaModalMainPhoto');
+const elThumbs = document.getElementById('spaModalThumbs');
+const elCounter = document.getElementById('spaPhotoCounter');
+
+const prevBtn = document.getElementById('spaPrevPhoto');
+const nextBtn = document.getElementById('spaNextPhoto');
+
+const spaModalBranchSelect = document.getElementById('spaModalBranchSelect');
+
+let photos = [];
+let photoIndex = 0;
+
+
+// ---------------- Photo viewer ----------------
+function setPhoto(i) {
+    if (!photos.length) return;
+
+    photoIndex = (i + photos.length) % photos.length;
+
+    elMainPhoto.src = photos[photoIndex];
+    elCounter.textContent = `${photoIndex + 1} / ${photos.length}`;
+
+    [...elThumbs.querySelectorAll('button')].forEach((b, idx) => {
+        b.classList.toggle('ring-2', idx === photoIndex);
+        b.classList.toggle('ring-[#8B7355]', idx === photoIndex);
+    });
+}
+
+// ---------------- Fill Branch Dropdown ----------------
+function fillSpaBranchDropdown(data) {
+
+    if (!spaModalBranchSelect) return;
+
+    const branches = Array.isArray(data.branches) ? data.branches : [];
+
+    spaModalBranchSelect.innerHTML = `<option value="">Select branch</option>`;
+
+    branches.forEach(b => {
+
+        const opt = document.createElement('option');
+        opt.value = String(b.id);
+        opt.textContent = `${b.name} — ${b.location}`;
+
+        spaModalBranchSelect.appendChild(opt);
+
     });
 
-    document.addEventListener('click', function(e) {
-        const wrapper = document.getElementById('profileDropdownWrapper');
-        if (wrapper && !wrapper.contains(e.target)) {
-            closeProfileDropdown();
-        }
-    });
+    if (branches.length) {
 
-    // ---------------- Shared state ----------------
-    let selectedSpa = null;
-    let preferredBranchId = null;
+        preferredBranchId = String(branches[0].id);
+        spaModalBranchSelect.value = preferredBranchId;
 
-    // ---------------- SPA MODAL ----------------
-    const spaModal = document.getElementById('spaModal');
-    const openBtns = document.querySelectorAll('[data-open-spa-modal]');
-    const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
+    } else {
 
-    const elName = document.getElementById('spaModalName');
-    const elMeta = document.getElementById('spaModalMeta');
-    const elTag = document.getElementById('spaModalTag');
-    const elRating = document.getElementById('spaModalRating');
-    const elReviews = document.getElementById('spaModalReviews');
-    const elDesc = document.getElementById('spaModalDesc');
-    const elPrice = document.getElementById('spaModalPrice');
-
-    const elMainPhoto = document.getElementById('spaModalMainPhoto');
-    const elThumbs = document.getElementById('spaModalThumbs');
-    const elCounter = document.getElementById('spaPhotoCounter');
-    const prevBtn = document.getElementById('spaPrevPhoto');
-    const nextBtn = document.getElementById('spaNextPhoto');
-
-    const spaModalBranchSelect = document.getElementById('spaModalBranchSelect');
-    const spaModalBranchBadge = document.getElementById('spaModalBranchBadge');
-
-    let photos = [];
-    let photoIndex = 0;
-
-    function setPhoto(i) {
-        if (!photos.length) return;
-        photoIndex = (i + photos.length) % photos.length;
-        elMainPhoto.src = photos[photoIndex];
-        elCounter.textContent = `${photoIndex + 1} / ${photos.length}`;
-
-        [...elThumbs.querySelectorAll('button')].forEach((b, idx) => {
-            b.classList.toggle('ring-2', idx === photoIndex);
-            b.classList.toggle('ring-[#8B7355]', idx === photoIndex);
-        });
-    }
-
-    function setMainBadge(isMain) {
-        if (!spaModalBranchBadge) return;
-        if (isMain) spaModalBranchBadge.classList.remove('hidden');
-        else spaModalBranchBadge.classList.add('hidden');
-    }
-
-    function fillSpaBranchDropdown(data) {
-        if (!spaModalBranchSelect) return;
-
-        const branches = Array.isArray(data.branches) ? data.branches : [];
-        spaModalBranchSelect.innerHTML = `<option value="">Select branch</option>`;
-
-        branches.forEach((b) => {
-            const opt = document.createElement('option');
-            opt.value = String(b.id);
-            opt.textContent = `${b.name} — ${b.location}`;
-            opt.dataset.main = b.is_main ? '1' : '0';
-            spaModalBranchSelect.appendChild(opt);
-        });
-
-        if (branches.length) {
-            preferredBranchId = String(branches[0].id);
-            spaModalBranchSelect.value = preferredBranchId;
-            elMeta.textContent = `${branches[0].location ?? ''} • ${data.rating ?? '-'} ★`;
-            setMainBadge(!!branches[0].is_main);
-        } else {
-            preferredBranchId = null;
-            setMainBadge(false);
-        }
-    }
-
-    function openSpaModal(data) {
-        selectedSpa = data;
         preferredBranchId = null;
 
-        elName.textContent = data.name ?? 'Spa';
-        elMeta.textContent = `${data.location ?? ''} • ${data.rating ?? '-'} ★`;
-        elTag.textContent = data.tag ?? 'Featured';
-        elRating.textContent = (data.rating ?? '-');
-        elReviews.textContent = `(${data.reviews ?? 0})`;
-        elDesc.textContent = data.desc ?? '';
-        elPrice.textContent = data.price_note ?? '';
-
-        photos = Array.isArray(data.photos) ? data.photos : [];
-        elThumbs.innerHTML = '';
-
-        photos.forEach((src, idx) => {
-            const thumb = document.createElement('button');
-            thumb.type = 'button';
-            thumb.className = 'shrink-0 w-20 h-14 rounded-xl overflow-hidden ring-1 ring-black/10 hover:opacity-90 transition';
-            thumb.innerHTML = `<img src="${src}" class="object-cover w-full h-full" alt="thumb">`;
-            thumb.addEventListener('click', () => setPhoto(idx));
-            elThumbs.appendChild(thumb);
-        });
-
-        setPhoto(0);
-        fillSpaBranchDropdown(data);
-
-        spaModal.classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
     }
 
-    function closeSpaModal() {
-        spaModal.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
+}
+
+// ---------------- Open Modal ----------------
+function openSpaModal(spaData) {
+
+    const data = spaData; // rename for clarity
+    selectedSpa = data;   // store the data in a global variable for later use (e.g. booking)
+
+    const elName = document.getElementById('spaModalName');
+    const elTag = document.getElementById('spaModalTag');
+    const elDesc = document.getElementById('spaModalDesc');
+    const elAddress = document.getElementById('spaModalAddress');
+    const elAddressSummary = document.getElementById('spaModalAddressSummary');
+    const elPhone = document.getElementById('spaModalPhone');
+    const elMap = document.getElementById('spaModalMap');
+    const elPrice = document.getElementById('spaModalPrice');
+    if (data.price_note) {
+        elPrice.textContent = "Starts at ₱" + data.price_note;
+    } else {
+        elPrice.textContent = "Price on request";
+    }
+    
+
+    // Fill content
+    elName.textContent = data.name ?? 'Spa';
+    elTag.textContent = data.tag ?? '';
+    elDesc.textContent = data.desc ?? '';
+    elPrice.textContent = data.price_note ? `Starts at ₱${data.price_note}` : 'Prices vary per treatment';
+    elAddress.textContent = data.address ?? 'Address unavailable';
+    elAddressSummary.textContent = data.address ?? 'Location unavailable';
+    elPhone.textContent = data.phone ?? 'No contact info';
+
+    function getAddressSummary(fullAddress) {
+        if (!fullAddress) return 'Location unavailable';
+        
+        const parts = fullAddress.split(',').map(p => p.trim());
+        if (parts.length < 3) return fullAddress;
+
+        // Remove last 2 parts (ZIP, country)
+        const withoutZipCountry = parts.slice(0, parts.length - 2);
+
+        // Take the last 3 parts of the remaining (this usually gives Barangay, City, Province/Region)
+        const summary = withoutZipCountry.slice(-3).join(', ');
+
+        return summary;
     }
 
-    openBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const raw = btn.getAttribute('data-spa');
-            try {
-                const data = JSON.parse(raw);
-                openSpaModal(data);
-            } catch (e) {
-                console.error('Invalid spa data', e);
-            }
-        });
+    elAddressSummary.textContent = getAddressSummary(data.address);
+
+    const elMainPhoto = document.getElementById('spaModalMainPhoto');
+    const galleries = ['gallery_1','gallery_2','gallery_3','gallery_4'];
+    if (elMainPhoto) elMainPhoto.src = data.photos[0] ?? '';
+    ['gallery_1','gallery_2','gallery_3','gallery_4'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (el) el.src = data.photos[i+1] ?? '';
     });
 
-    closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
-    prevBtn?.addEventListener('click', () => setPhoto(photoIndex - 1));
-    nextBtn?.addEventListener('click', () => setPhoto(photoIndex + 1));
+    // Show modal first
+    spaModal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
 
-    spaModalBranchSelect?.addEventListener('change', () => {
-        if (!selectedSpa) return;
+    // Initialize Leaflet map after modal is visible
+    if (spaMap) {
+        spaMap.remove();
+        spaMap = null;
+    }
 
-        const branches = Array.isArray(selectedSpa.branches) ? selectedSpa.branches : [];
-        const chosenId = spaModalBranchSelect.value ? String(spaModalBranchSelect.value) : null;
-        preferredBranchId = chosenId;
+    if (elMap && data.lat && data.lng) {
+        setTimeout(() => {
+            // Initialize map
+            spaMap = L.map(elMap).setView([data.lat, data.lng], 15);
 
-        const chosen = branches.find(b => String(b.id) === chosenId);
-        if (chosen) {
-            elMeta.textContent = `${chosen.location ?? ''} • ${selectedSpa.rating ?? '-'} ★`;
-            setMainBadge(!!chosen.is_main);
-        } else {
-            setMainBadge(false);
-        }
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(spaMap);
+
+            L.marker([data.lat, data.lng]).addTo(spaMap)
+                .bindPopup(data.name)
+                .openPopup();
+
+            // THIS IS THE KEY: Forces Leaflet to check the container size again
+            spaMap.invalidateSize(); 
+        }, 300); // Increased to 300ms to ensure the modal animation is fully finished
+    }
+
+    photos = Array.isArray(data.photos) ? data.photos : [];
+    const elThumbs = document.getElementById('spaModalThumbs');
+    if (elThumbs) elThumbs.innerHTML = '';
+    photos.forEach((src, idx) => {
+        const thumb = document.createElement('button');
+        thumb.type = 'button';
+        thumb.className = 'w-20 h-14 rounded-xl overflow-hidden ring-1 ring-black/10';
+        thumb.innerHTML = `<img src="${src}" class="object-cover w-full h-full">`;
+        thumb.addEventListener('click', () => setPhoto(idx));
+        elThumbs?.appendChild(thumb);
     });
 
-    // ---------------- BOOKING MODAL ----------------
-    const bookingModal = document.getElementById('bookingModal');
-    const openBookingBtn = document.getElementById('openBookingModalBtn');
-    const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
+    setPhoto(0);
 
-    const bookingSpaMeta = document.getElementById('bookingSpaMeta');
-    const bookingSpaIdInput = document.getElementById('bookingSpaIdInput');
-    const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
+}
 
-    function populateTreatments() {
-        const treatmentSelect = document.querySelector('select[name="treatment"]');
-        if (!treatmentSelect || !selectedSpa) return;
+// ---------------- Close Modal ----------------
+function closeSpaModal() {
 
-        treatmentSelect.innerHTML = '<option value="">Select treatment</option>';
+    spaModal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
 
-        (selectedSpa.treatments ?? []).forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = `treatment_${t.id}`;
-            opt.textContent = t.name;
-            treatmentSelect.appendChild(opt);
-        });
+}
 
-        (selectedSpa.packages ?? []).forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = `package_${p.id}`;
-            opt.textContent = `${p.name} (Package)`;
-            treatmentSelect.appendChild(opt);
-        });
-    }
 
-    function populateBranchDropdown(filterHomeService = false) {
-        const branchSelect = document.getElementById('bookingBranchSelect');
-        if (!branchSelect || !selectedSpa) return;
+// ---------------- Modal Events ----------------
+openBtns.forEach(btn => {
 
-        const branches = Array.isArray(selectedSpa.branches) ? selectedSpa.branches : [];
-        const filtered = filterHomeService
-            ? branches.filter(b => b.has_home_service)
-            : branches;
+    btn.addEventListener('click', () => {
 
-        branchSelect.innerHTML = '<option value="">Select branch</option>';
+        const raw = btn.getAttribute('data-spa');
 
-        filtered.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = String(b.id);
-            opt.textContent = `${b.name} — ${b.location}`;
-            branchSelect.appendChild(opt);
-        });
+        try {
 
-        if (filtered.length) {
-            branchSelect.value = String(filtered[0].id);
-            if (bookingBranchIdInput) bookingBranchIdInput.value = String(filtered[0].id);
-        } else {
-            branchSelect.value = '';
-            if (bookingBranchIdInput) bookingBranchIdInput.value = '';
+            const data = JSON.parse(raw);
+            openSpaModal(data);
+
+        } catch (e) {
+
+            console.error('Invalid spa data', e);
+
         }
 
-        return filtered;
-    }
-
-    function openBookingModal() {
-        if (!selectedSpa) return;
-
-        const branches = Array.isArray(selectedSpa.branches) ? selectedSpa.branches : [];
-        const chosen = preferredBranchId
-            ? branches.find(b => String(b.id) === String(preferredBranchId))
-            : (branches[0] ?? null);
-
-        bookingSpaMeta.textContent = `${selectedSpa.name ?? 'Spa'} • ${chosen?.location ?? selectedSpa.location ?? ''}`;
-
-        if (bookingSpaIdInput) bookingSpaIdInput.value = selectedSpa.id ?? '';
-
-        populateTreatments();
-
-        const serviceTypeSelect = document.getElementById('bookingServiceType');
-        const addressWrapper = document.getElementById('addressWrapper');
-        const addressInput = document.getElementById('bookingAddressInput');
-
-        if (serviceTypeSelect) serviceTypeSelect.value = '';
-        if (addressWrapper) addressWrapper.classList.add('hidden');
-        if (addressInput) {
-            addressInput.required = false;
-            addressInput.value = '';
-        }
-
-        const dateInput = document.getElementById('bookingDateInput');
-        if (dateInput) {
-            const today = new Date().toISOString().split('T')[0];
-            dateInput.min = today;
-            dateInput.value = '';
-        }
-
-        populateBranchDropdown(false);
-
-        bookingModal.classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
-    }
-
-    document.getElementById('bookingServiceType')?.addEventListener('change', function () {
-        const selected = this.value;
-        const addressWrapper = document.getElementById('addressWrapper');
-        const addressInput = document.getElementById('bookingAddressInput');
-
-        if (selected === 'in_home') {
-            addressWrapper?.classList.remove('hidden');
-            if (addressInput) addressInput.required = true;
-        } else {
-            addressWrapper?.classList.add('hidden');
-            if (addressInput) {
-                addressInput.required = false;
-                addressInput.value = '';
-            }
-        }
-
-        const filtered = populateBranchDropdown(selected === 'in_home');
-
-        if (selected === 'in_home' && (!filtered || filtered.length === 0)) {
-            const branchSelect = document.getElementById('bookingBranchSelect');
-            if (branchSelect) {
-                branchSelect.innerHTML = '<option value="">No branches offer home service</option>';
-            }
-            if (bookingBranchIdInput) bookingBranchIdInput.value = '';
-        }
     });
 
-    document.getElementById('bookingBranchSelect')?.addEventListener('change', function () {
-        if (bookingBranchIdInput) bookingBranchIdInput.value = this.value;
-    });
+});
 
-    function closeBookingModal() {
-        bookingModal.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    }
+closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
 
-    openBookingBtn?.addEventListener('click', openBookingModal);
-    closeBookingBtns.forEach(b => b.addEventListener('click', closeBookingModal));
+prevBtn?.addEventListener('click', () => setPhoto(photoIndex - 1));
+nextBtn?.addEventListener('click', () => setPhoto(photoIndex + 1));
 
-    // ================= MY APPOINTMENTS =================
-    let allAppointments = [];
-    let currentTab = 'upcoming';
 
-    function openAppointmentsModal() {
-        document.getElementById('appointmentsModal').classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
-        loadAppointments();
-    }
+// =====================================================
+// MY APPOINTMENTS MODAL
+// =====================================================
 
-    function closeAppointmentsModal() {
-        document.getElementById('appointmentsModal').classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    }
+let allAppointments = [];
+let currentTab = 'upcoming';
 
-    function loadAppointments() {
-        fetch('/my-appointments')
-            .then(r => r.json())
-            .then(data => {
-                allAppointments = data;
-                updateTabCounts();
-                renderTab(currentTab);
-            });
-    }
+function openAppointmentsModal() {
+    document.getElementById('appointmentsModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    loadAppointments();
+}
 
-    function updateTabCounts() {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('tab-count-upcoming').textContent =
-            allAppointments.filter(b => ['reserved','confirmed'].includes(b.status) && b.date_raw >= today).length;
-        document.getElementById('tab-count-past').textContent =
-            allAppointments.filter(b => b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today)).length;
-        document.getElementById('tab-count-cancelled').textContent =
-            allAppointments.filter(b => b.status === 'cancelled').length;
-    }
+function closeAppointmentsModal() {
+    document.getElementById('appointmentsModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
 
-    function switchTab(tab) {
-        currentTab = tab;
-        ['upcoming','past','cancelled'].forEach(t => {
-            const el = document.getElementById(`tab-${t}`);
-            if (t === tab) {
-                el.classList.add('border-[#8B7355]', 'text-[#8B7355]');
-                el.classList.remove('border-transparent', 'text-gray-500');
-            } else {
-                el.classList.remove('border-[#8B7355]', 'text-[#8B7355]');
-                el.classList.add('border-transparent', 'text-gray-500');
-            }
+function loadAppointments() {
+    fetch('/my-appointments')
+        .then(r => r.json())
+        .then(data => {
+            allAppointments = data;
+            updateTabCounts();
+            renderTab(currentTab);
         });
-        renderTab(tab);
+}
+
+function updateTabCounts() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('tab-count-upcoming').textContent =
+        allAppointments.filter(b => ['reserved','confirmed'].includes(b.status) && b.date_raw >= today).length;
+    document.getElementById('tab-count-past').textContent =
+        allAppointments.filter(b => b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today)).length;
+    document.getElementById('tab-count-cancelled').textContent =
+        allAppointments.filter(b => b.status === 'cancelled').length;
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    ['upcoming','past','cancelled'].forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (t === tab) {
+            el.classList.add('border-[#8B7355]', 'text-[#8B7355]');
+            el.classList.remove('border-transparent', 'text-gray-500');
+        } else {
+            el.classList.remove('border-[#8B7355]', 'text-[#8B7355]');
+            el.classList.add('border-transparent', 'text-gray-500');
+        }
+    });
+    renderTab(tab);
+}
+
+function renderTab(tab) {
+    const today = new Date().toISOString().split('T')[0];
+    let filtered = [];
+
+    if (tab === 'upcoming') {
+        filtered = allAppointments.filter(b =>
+            ['reserved','confirmed'].includes(b.status) && b.date_raw >= today);
+    } else if (tab === 'past') {
+        filtered = allAppointments.filter(b =>
+            b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today));
+    } else {
+        filtered = allAppointments.filter(b => b.status === 'cancelled');
     }
 
-    function renderTab(tab) {
-        const today = new Date().toISOString().split('T')[0];
-        let filtered = [];
+    const container = document.getElementById('appointmentsContent');
 
-        if (tab === 'upcoming') {
-            filtered = allAppointments.filter(b =>
-                ['reserved','confirmed'].includes(b.status) && b.date_raw >= today);
-        } else if (tab === 'past') {
-            filtered = allAppointments.filter(b =>
-                b.status === 'completed' || (['reserved','confirmed'].includes(b.status) && b.date_raw < today));
-        } else {
-            filtered = allAppointments.filter(b => b.status === 'cancelled');
-        }
+    if (!filtered.length) {
+        container.innerHTML = `
+            <div class="py-12 text-center text-gray-400">
+                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
+                <p class="text-sm">No ${tab} appointments</p>
+            </div>`;
+        return;
+    }
 
-        const container = document.getElementById('appointmentsContent');
-
-        if (!filtered.length) {
-            container.innerHTML = `
-                <div class="py-12 text-center text-gray-400">
-                    <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
-                    <p class="text-sm">No ${tab} appointments</p>
-                </div>`;
-            return;
-        }
-
-        container.innerHTML = filtered.map(b => `
-            <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="font-semibold text-[#3C2F23]">${b.spa_name}</p>
-                        <p class="text-xs text-gray-500">${b.branch_name} • ${b.service_type}</p>
-                    </div>
-                    <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                        ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                    </span>
+    container.innerHTML = filtered.map(b => `
+        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="font-semibold text-[#3C2F23]">${b.spa_name}</p>
+                    <p class="text-xs text-gray-500">${b.branch_name} • ${b.service_type}</p>
                 </div>
-                <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
-                    <div class="flex items-center gap-1">
-                        <i class="fa-solid fa-spa text-[#8B7355]"></i>
-                        ${b.treatment}
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <i class="fa-solid fa-user-nurse text-[#8B7355]"></i>
-                        ${b.therapist}
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <i class="fa-solid fa-calendar text-[#8B7355]"></i>
-                        ${b.date}
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <i class="fa-solid fa-clock text-[#8B7355]"></i>
-                        ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
-                    </div>
-                </div>
+                <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
+                    ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                </span>
             </div>
-        `).join('');
-    }
-
-    function statusBadge(status) {
-        const map = {
-            reserved:  'bg-blue-100 text-blue-700',
-            confirmed: 'bg-green-100 text-green-700',
-            completed: 'bg-gray-100 text-gray-600',
-            cancelled: 'bg-red-100 text-red-600',
-            pending:   'bg-yellow-100 text-yellow-700',
-        };
-        return map[status] ?? 'bg-gray-100 text-gray-600';
-    }
-
-    // ================= MY SCHEDULE (CALENDAR) =================
-    let scheduleBookings = [];
-    let calendarDate = new Date();
-
-    function openScheduleModal() {
-        document.getElementById('scheduleModal').classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
-        loadSchedule();
-    }
-
-    function closeScheduleModal() {
-        document.getElementById('scheduleModal').classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    }
-
-    function loadSchedule() {
-        fetch('/my-schedule')
-            .then(r => r.json())
-            .then(data => {
-                scheduleBookings = data;
-                renderCalendar();
-            });
-    }
-
-    function changeMonth(dir) {
-        calendarDate.setMonth(calendarDate.getMonth() + dir);
-        renderCalendar();
-        document.getElementById('selectedDayBookings').classList.add('hidden');
-    }
-
-    function renderCalendar() {
-        const year = calendarDate.getFullYear();
-        const month = calendarDate.getMonth();
-        const today = new Date().toISOString().split('T')[0];
-
-        document.getElementById('calendarTitle').textContent =
-            calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-        const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
-
-        const grid = document.getElementById('calendarGrid');
-        grid.innerHTML = '';
-
-        for (let i = 0; i < firstDay; i++) {
-            grid.innerHTML += `<div></div>`;
-        }
-
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const isToday = dateStr === today;
-            const hasBooking = bookedDates.has(dateStr);
-            const isPast = dateStr < today;
-
-            grid.innerHTML += `
-                <button onclick="selectDay('${dateStr}')"
-                    class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
-                    ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
-                    ${hasBooking && !isToday ? 'bg-[#F6EFE6] text-[#6F5430] font-semibold ring-1 ring-[#8B7355]/30' : ''}
-                    ${isPast && !isToday ? 'text-gray-300 cursor-default' : 'hover:bg-[#F6EFE6]'}
-                    ${!hasBooking && !isToday && !isPast ? 'text-gray-700' : ''}">
-                    ${d}
-                    ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355]'}"></span>` : ''}
-                </button>`;
-        }
-    }
-
-    function selectDay(dateStr) {
-        const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
-        if (!dayBookings.length) return;
-
-        const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-            weekday: 'long', month: 'long', day: 'numeric'
-        });
-
-        document.getElementById('selectedDayTitle').textContent = title;
-        document.getElementById('selectedDayContent').innerHTML = dayBookings.map(b => `
-            <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-                <div class="flex items-center justify-between">
-                    <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
-                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                        ${b.status}
-                    </span>
+            <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-spa text-[#8B7355]"></i>
+                    ${b.treatment}
                 </div>
-                <p class="mt-1 text-xs text-gray-500">${b.branch_name} • ${b.treatment}</p>
-                <p class="mt-1 text-xs text-gray-500">
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-user-nurse text-[#8B7355]"></i>
+                    ${b.therapist}
+                </div>
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-calendar text-[#8B7355]"></i>
+                    ${b.date}
+                </div>
+                <div class="flex items-center gap-1">
                     <i class="fa-solid fa-clock text-[#8B7355]"></i>
                     ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
-                </p>
+                </div>
             </div>
-        `).join('');
+        </div>
+    `).join('');
+}
 
-        document.getElementById('selectedDayBookings').classList.remove('hidden');
+function statusBadge(status) {
+    const map = {
+        reserved:  'bg-blue-100 text-blue-700',
+        confirmed: 'bg-green-100 text-green-700',
+        completed: 'bg-gray-100 text-gray-600',
+        cancelled: 'bg-red-100 text-red-600',
+        pending:   'bg-yellow-100 text-yellow-700',
+    };
+    return map[status] ?? 'bg-gray-100 text-gray-600';
+}
+
+
+// =====================================================
+// MY SCHEDULE (CALENDAR)
+// =====================================================
+
+let scheduleBookings = [];
+let calendarDate = new Date();
+
+function openScheduleModal() {
+    document.getElementById('scheduleModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    loadSchedule();
+}
+
+function closeScheduleModal() {
+    document.getElementById('scheduleModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function loadSchedule() {
+    fetch('/my-schedule')
+        .then(r => r.json())
+        .then(data => {
+            scheduleBookings = data;
+            renderCalendar();
+        });
+}
+
+function changeMonth(dir) {
+    calendarDate.setMonth(calendarDate.getMonth() + dir);
+    renderCalendar();
+    document.getElementById('selectedDayBookings').classList.add('hidden');
+}
+
+function renderCalendar() {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const today = new Date().toISOString().split('T')[0];
+
+    document.getElementById('calendarTitle').textContent =
+        calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
+
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    for (let i = 0; i < firstDay; i++) {
+        grid.innerHTML += `<div></div>`;
     }
 
-    function formatTime(timeStr) {
-        if (!timeStr) return 'N/A';
-        const [hour, minute] = timeStr.split(':');
-        const h = parseInt(hour);
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        return `${h12}:${minute} ${ampm}`;
-    }
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const isToday = dateStr === today;
+        const hasBooking = bookedDates.has(dateStr);
+        const isPast = dateStr < today;
 
-    // ================= PROFILE MODAL =================
-    function openProfileModal() {
-        document.getElementById('profileModal').classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
+        grid.innerHTML += `
+            <button onclick="selectDay('${dateStr}')"
+                class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
+                ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
+                ${hasBooking && !isToday ? 'bg-[#F6EFE6] text-[#6F5430] font-semibold ring-1 ring-[#8B7355]/30' : ''}
+                ${isPast && !isToday ? 'text-gray-300 cursor-default' : 'hover:bg-[#F6EFE6]'}
+                ${!hasBooking && !isToday && !isPast ? 'text-gray-700' : ''}">
+                ${d}
+                ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355]'}"></span>` : ''}
+            </button>`;
     }
+}
 
-    function closeProfileModal() {
-        document.getElementById('profileModal').classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-        // Reset email back to masked
-        const btn     = document.getElementById('emailToggleBtn');
-        const display = document.getElementById('emailDisplay');
-        const icon    = document.getElementById('emailToggleIcon');
-        if (btn && display && icon) {
-            display.textContent = btn.dataset.masked;
-            icon.classList.remove('fa-eye-slash');
-            icon.classList.add('fa-eye');
-        }
-    }
+function selectDay(dateStr) {
+    const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
+    if (!dayBookings.length) return;
 
-    function toggleEmail() {
-        const display = document.getElementById('emailDisplay');
-        const btn     = document.getElementById('emailToggleBtn');
-        const icon    = document.getElementById('emailToggleIcon');
-        const isHidden = icon.classList.contains('fa-eye');
-        if (isHidden) {
-            display.textContent = btn.dataset.real;
-            icon.classList.replace('fa-eye', 'fa-eye-slash');
-        } else {
-            display.textContent = btn.dataset.masked;
-            icon.classList.replace('fa-eye-slash', 'fa-eye');
-        }
-    }
-
-    // ================= GLOBAL KEYDOWN =================
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (!document.getElementById('profileModal')?.classList.contains('hidden')) closeProfileModal();
-            if (!spaModal?.classList.contains('hidden')) closeSpaModal();
-            if (bookingModal && !bookingModal.classList.contains('hidden')) closeBookingModal();
-            closeProfileDropdown();
-        }
+    const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric'
     });
+
+    document.getElementById('selectedDayTitle').textContent = title;
+    document.getElementById('selectedDayContent').innerHTML = dayBookings.map(b => `
+        <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
+                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
+                    ${b.status}
+                </span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">${b.branch_name} • ${b.treatment}</p>
+            <p class="mt-1 text-xs text-gray-500">
+                <i class="fa-solid fa-clock text-[#8B7355]"></i>
+                ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
+            </p>
+        </div>
+    `).join('');
+
+    document.getElementById('selectedDayBookings').classList.remove('hidden');
+}
+
+function formatTime(timeStr) {
+    if (!timeStr) return 'N/A';
+    const [hour, minute] = timeStr.split(':');
+    const h = parseInt(hour);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minute} ${ampm}`;
+}
+
+// =====================================================
+// BOOKING MODAL
+// =====================================================
+
+const bookingModal = document.getElementById('bookingModal');
+const openBookingBtn = document.getElementById('openBookingModalBtn');
+const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
+
+const bookingSpaMeta = document.getElementById('bookingSpaMeta');
+const bookingSpaIdInput = document.getElementById('bookingSpaIdInput');
+const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
+
+
+// ---------------- Treatments ----------------
+function populateTreatments() {
+
+    const treatmentSelect = document.querySelector('select[name="treatment"]');
+
+    if (!treatmentSelect || !selectedSpa) return;
+
+    treatmentSelect.innerHTML = '<option value="">Select treatment</option>';
+
+    (selectedSpa.treatments ?? []).forEach(t => {
+
+        const opt = document.createElement('option');
+        opt.value = `treatment_${t.id}`;
+        opt.textContent = t.name;
+
+        treatmentSelect.appendChild(opt);
+
+    });
+
+    (selectedSpa.packages ?? []).forEach(p => {
+
+        const opt = document.createElement('option');
+        opt.value = `package_${p.id}`;
+        opt.textContent = `${p.name} (Package)`;
+
+        treatmentSelect.appendChild(opt);
+
+    });
+
+}
+
+
+// ---------------- Branch Dropdown ----------------
+function populateBranchDropdown(filterHomeService = false) {
+
+    const branchSelect = document.getElementById('bookingBranchSelect');
+
+    if (!branchSelect || !selectedSpa) return;
+
+    const branches = selectedSpa.branches ?? [];
+
+    const filtered = filterHomeService
+        ? branches.filter(b => b.has_home_service)
+        : branches;
+
+    branchSelect.innerHTML = '<option value="">Select branch</option>';
+
+    filtered.forEach(b => {
+
+        const opt = document.createElement('option');
+
+        opt.value = String(b.id);
+        opt.textContent = `${b.name} — ${b.location}`;
+
+        branchSelect.appendChild(opt);
+
+    });
+
+    if (filtered.length) {
+
+        branchSelect.value = filtered[0].id;
+
+        if (bookingBranchIdInput)
+            bookingBranchIdInput.value = filtered[0].id;
+
+    }
+
+}
+
+
+// ---------------- Open Booking ----------------
+function openBookingModal() {
+
+    if (!selectedSpa) return;
+
+    const branches = selectedSpa.branches ?? [];
+
+    const chosen = preferredBranchId
+        ? branches.find(b => String(b.id) === String(preferredBranchId))
+        : branches[0];
+
+    bookingSpaMeta.textContent =
+        `${selectedSpa.name} • ${chosen?.location ?? ''}`;
+
+    if (bookingSpaIdInput)
+        bookingSpaIdInput.value = selectedSpa.id ?? '';
+
+    populateTreatments();
+    populateBranchDropdown(false);
+
+    bookingModal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+
+}
+
+
+// ---------------- Close Booking ----------------
+function closeBookingModal() {
+
+    bookingModal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+
+}
+
+
+openBookingBtn?.addEventListener('click', openBookingModal);
+
+closeBookingBtns.forEach(b =>
+    b.addEventListener('click', closeBookingModal)
+);
+
+
+// ---------------- Escape Key ----------------
+window.addEventListener('keydown', (e) => {
+
+    if (e.key === 'Escape') {
+
+        if (!spaModal?.classList.contains('hidden'))
+            closeSpaModal();
+
+        if (!bookingModal?.classList.contains('hidden'))
+            closeBookingModal();
+
+    }
+
+});
 </script>
 
 </body>
