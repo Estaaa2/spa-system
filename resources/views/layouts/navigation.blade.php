@@ -145,7 +145,7 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                 {{ $spa?->name ?? 'Spa Management' }}
                             </span>
                             <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">
-                                SPA & WELLNESS
+                                SPA | WELLNESS
                             </p>
                         </div>
                     </a>
@@ -280,10 +280,12 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
 
             <!-- Navigation (scrollable) -->
             <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+
                 <!-- Dashboard -->
                 @can('view owner dashboard')
-                    <div class="mb-2 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                    <div class="mb-1 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                            <i class="fa-solid fa-gauge-high w-4 text-[#8B7355]"></i>
                             Dashboard
                         </x-nav-link>
                     </div>
@@ -291,12 +293,15 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
 
                 <!-- Operations -->
                 @if($showOperations)
-                    <div class="mb-2">
+                    <div class="mb-1">
                         <button @click="operationsOpen = !operationsOpen"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span>Operations</span>
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-calendar-check w-4 text-[#8B7355]"></i>
+                                Operations
+                            </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                               :class="operationsOpen ? 'transform rotate-180' : ''"></i>
+                            :class="operationsOpen ? 'transform rotate-180' : ''"></i>
                         </button>
 
                         <div x-show="operationsOpen" x-collapse class="ml-4 space-y-1">
@@ -329,12 +334,15 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
 
                 <!-- Management -->
                 @if($showManagement)
-                    <div class="mb-2">
+                    <div class="mb-1">
                         <button @click="managementOpen = !managementOpen"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span>Management</span>
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-briefcase w-4 text-[#8B7355]"></i>
+                                Management
+                            </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                               :class="managementOpen ? 'transform rotate-180' : ''"></i>
+                            :class="managementOpen ? 'transform rotate-180' : ''"></i>
                         </button>
 
                         <div x-show="managementOpen" x-collapse class="ml-4 space-y-1">
@@ -361,12 +369,15 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
 
                 <!-- Insights -->
                 @if($showInsights)
-                    <div class="mb-2">
+                    <div class="mb-1">
                         <button @click="insightsOpen = !insightsOpen"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span>Insights</span>
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line w-4 text-[#8B7355]"></i>
+                                Insights
+                            </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                               :class="insightsOpen ? 'transform rotate-180' : ''"></i>
+                            :class="insightsOpen ? 'transform rotate-180' : ''"></i>
                         </button>
 
                         <div x-show="insightsOpen" x-collapse class="ml-4 space-y-1">
@@ -385,11 +396,15 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                     </div>
                 @endif
 
+                <!-- Inventory -->
                 @if($showInventory)
-                    <div class="mb-2">
+                    <div class="mb-1">
                         <button @click="inventoryOpen = !inventoryOpen"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span>Inventory</span>
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-boxes-stacked w-4 text-[#8B7355]"></i>
+                                Inventory
+                            </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
                             :class="inventoryOpen ? 'transform rotate-180' : ''"></i>
                         </button>
@@ -410,12 +425,14 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                     </div>
                 @endif
 
-                {{-- Settings (Owner only) --}}
-                @role('owner')
-                <div class="mb-2">
+                <!-- Settings -->
+                <div class="mb-1">
                     <button @click="settingsOpen = !settingsOpen"
                         class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                        <span>Settings</span>
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-gear w-4 text-[#8B7355]"></i>
+                            Settings
+                        </span>
                         <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
                         :class="settingsOpen ? 'transform rotate-180' : ''"></i>
                     </button>
@@ -427,24 +444,16 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                             Profile
                         </x-nav-link>
 
+                        @role('owner')
                         <x-nav-link
                             :href="route('owner.roles-permissions.index')"
                             :active="request()->routeIs('owner.roles-permissions.*')">
                             Roles &amp; Permissions
                         </x-nav-link>
+                        @endrole
                     </div>
                 </div>
-                @endrole
 
-                @unlessrole('owner')
-                <div class="mb-2 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                    <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
-                        Profile
-                    </x-nav-link>
-                </div>
-                @endunlessrole
-
-                {{-- ✅ REMOVED: Owner sidebar should not show admin menu --}}
             </nav>
 
             <!-- USER INFO pinned at bottom -->

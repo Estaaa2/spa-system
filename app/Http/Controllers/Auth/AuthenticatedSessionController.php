@@ -30,8 +30,8 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
-        // Block login if email is not yet verified
-        if (! $user->hasVerifiedEmail()) {
+        // Block login if email is not yet verified (admins are excluded)
+        if (! $user->hasRole('admin') && ! $user->hasVerifiedEmail()) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -74,6 +74,7 @@ class AuthenticatedSessionController extends Controller
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
+
         $request->session()->regenerateToken();
 
         return redirect('/');

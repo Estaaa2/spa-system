@@ -83,7 +83,7 @@
                             <button type="button" id="profileDropdownBtn"
                                 class="flex items-center gap-2 px-3 py-2 transition rounded-full hover:bg-white/60 ring-1 ring-black/5">
                                 <div class="flex items-center justify-center w-8 h-8 bg-[#8B7355] text-white rounded-full text-xs font-semibold">
-                                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                                    {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
                                 </div>
                                 <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200" id="profileChevron"></i>
                             </button>
@@ -93,8 +93,8 @@
                                 class="absolute right-0 z-50 hidden w-48 mt-2 overflow-hidden bg-white shadow-xl rounded-2xl ring-1 ring-black/10">
 
                                 <div class="px-4 py-3 border-b border-black/5 bg-[#F6EFE6]/60">
-                                    <p class="text-xs font-semibold text-[#3C2F23] truncate">{{ auth()->user()->name }}</p>
-                                    <p class="text-[11px] text-gray-400 truncate">{{ auth()->user()->email }}</p>
+                                    <p class="text-xs font-semibold text-[#3C2F23] truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
+                                    <p class="text-[11px] text-gray-400 truncate">{{ auth()->user()?->email ?? '' }}</p>
                                 </div>
 
                                 <div class="py-1">
@@ -137,22 +137,24 @@
             <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
                 <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
 
-                    <!-- Header -->
-                    <div class="relative px-6 py-8 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center">
-                        <!-- Avatar -->
-                        <div class="flex items-center justify-center w-16 h-16 mx-auto text-2xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-                        </div>
-                        <h3 class="mt-3 text-lg font-semibold font-['Playfair_Display']">
-                            {{ auth()->user()->name }}
-                        </h3>
-                        <p class="mt-1 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
+                    @auth
+                        <!-- Header -->
+                        <div class="relative px-6 py-8 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center">
+                            <!-- Avatar -->
+                            <div class="flex items-center justify-center w-16 h-16 mx-auto text-2xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
+                                {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
+                            </div>
+                            <h3 class="mt-3 text-lg font-semibold font-['Playfair_Display']">
+                                {{ auth()->user()?->name ?? 'Guest' }}
+                            </h3>
+                            <p class="mt-1 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
 
-                        <button onclick="closeProfileModal()"
-                            class="absolute flex items-center justify-center w-8 h-8 transition top-4 right-4 rounded-xl bg-white/10 hover:bg-white/20">
-                            <i class="text-sm fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
+                            <button onclick="closeProfileModal()"
+                                class="absolute flex items-center justify-center w-8 h-8 transition top-4 right-4 rounded-xl bg-white/10 hover:bg-white/20">
+                                <i class="text-sm fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    @endauth
 
                     <!-- Content -->
                     <div class="p-6 space-y-4">
@@ -164,7 +166,7 @@
                             </div>
                             <div class="min-w-0">
                                 <p class="text-[11px] text-gray-400 uppercase tracking-wide">Full Name</p>
-                                <p class="text-sm font-semibold text-[#3C2F23] truncate">{{ auth()->user()->name }}</p>
+                                <p class="text-sm font-semibold text-[#3C2F23] truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
                             </div>
                         </div>
 
@@ -176,7 +178,7 @@
                             <div class="flex-1 min-w-0">
                                 <p class="text-[11px] text-gray-400 uppercase tracking-wide">Email Address</p>
                                 @php
-                                    $email = auth()->user()->email;
+                                    $email = auth()->user()?->email ?? '';
                                     $parts = explode('@', $email);
                                     $name = $parts[0];
                                     $domain = $parts[1] ?? '';
@@ -206,7 +208,7 @@
                             <div class="flex-1">
                                 <p class="text-[11px] text-gray-400 uppercase tracking-wide">Account Status</p>
                                 <div class="flex items-center gap-2 mt-0.5">
-                                    @if(auth()->user()->hasVerifiedEmail())
+                                    @if(auth()->user()?->hasVerifiedEmail())
                                         <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
                                             <i class="fa-solid fa-circle-check"></i> Verified
                                         </span>
@@ -1626,3 +1628,4 @@ window.addEventListener('keydown', (e) => {
 
 </body>
 </html>
+

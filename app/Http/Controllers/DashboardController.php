@@ -11,6 +11,11 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+
+        if ($user->hasRole('therapist')) {
+        return redirect()->route('appointments.index');
+    }
+
         $currentBranchId = $user->currentBranchId();
 
         if (! $currentBranchId) {
