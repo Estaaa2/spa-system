@@ -222,11 +222,13 @@
             </div>
             @else
             <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg shadow-sm dark:bg-gray-700 dark:border-gray-600 p-6 text-center">
-                <p class="text-gray-600 dark:text-gray-300 mb-2">Branch Profile is only available for Professional or Enterprise tiers.</p>
-                <button type="button"
-                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg">
+                <p class="text-gray-600 dark:text-gray-300 mb-2">
+                    Branch Profile is only available for Professional or Enterprise tiers.
+                </p>
+                <a href="{{ route('owner.subscription.index') }}"
+                class="inline-block px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg">
                     Upgrade to unlock
-                </button>
+                </a>
             </div>
             @endif
 

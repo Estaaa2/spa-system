@@ -7,6 +7,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -24,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function ($middleware) {
         $middleware->web(append: [
             \App\Http\Middleware\EnsureCurrentBranch::class,
+        ]);
+        $middleware->validateCsrfTokens(except: [
+        'paymongo/webhook', // Add the path here (no leading slash)
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

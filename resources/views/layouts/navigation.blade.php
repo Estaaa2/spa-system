@@ -451,6 +451,14 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                             Roles &amp; Permissions
                         </x-nav-link>
                         @endrole
+
+                        @role('owner')
+                        <x-nav-link
+                            :href="route('owner.subscription.index')"
+                            :active="request()->routeIs('owner.subscription.*')">
+                            Subscription & Billing
+                        </x-nav-link>
+                        @endrole
                     </div>
                 </div>
 

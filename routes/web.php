@@ -11,9 +11,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\LandingController;
-use App\Http\Middleware\LandingPageRedirect;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
+use App\Http\Controllers\Owner\SubscriptionController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;
@@ -22,6 +22,7 @@ use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
+use App\Http\Middleware\LandingPageRedirect;
 use App\Mail\WelcomeMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
@@ -342,6 +343,21 @@ Route::middleware(['auth', 'owner-only'])->group(function () {
 
         Route::put('/roles-permissions/{role}', [OwnerRolePermissionController::class, 'update'])
             ->name('roles-permissions.update');
+            
+        Route::get('/subscription', [SubscriptionController::class, 'index'])
+            ->name('subscription.index');
+
+        Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])
+            ->name('subscription.checkout');
+
+        Route::get('/subscription/success', [SubscriptionController::class, 'success'])
+            ->name('subscription.success');
+
+        Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel'])
+            ->name('subscription.cancel');
+
+        Route::post('/subscription/cancel-subscription', [SubscriptionController::class, 'cancelSubscription'])
+            ->name('subscription.cancel-subscription');
     });
 });
 
