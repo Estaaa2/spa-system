@@ -103,13 +103,7 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         if ($this->hasRole('owner')) {
-            $branchId = session('current_branch_id');
-
-            if (!$branchId) {
-                abort(409, 'No branch selected.');
-            }
-
-            return $branchId;
+            return session('current_branch_id'); // returns null if not set
         }
 
         return $this->branch_id;

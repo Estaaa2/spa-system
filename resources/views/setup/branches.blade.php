@@ -4,7 +4,7 @@
 
             <!-- Header -->
             <div class="relative mb-8 text-center">
-                <a href="{{ url('/') }}"
+                <a href="{{ route('setup.index') }}"
                    class="absolute left-0 inline-flex items-center text-sm text-gray-600 hover:text-[#8B7355] transition-colors duration-200">
                     <i class="fa-solid fa-circle-chevron-left text-3xl text-[#8B7355]"></i>
                 </a>
@@ -61,6 +61,7 @@
                                             <option value="Dasmariñas">Dasmariñas</option>
                                             <option value="General Trias">General Trias</option>
                                             <option value="Imus">Imus</option>
+                                            <option value="Carmona">Carmona</option>
                                             <option value="Tagaytay">Tagaytay</option>
                                             <option value="Trece Martires">Trece Martires</option>
                                         </optgroup>
@@ -68,7 +69,6 @@
                                             <option value="Alfonso">Alfonso</option>
                                             <option value="Amadeo">Amadeo</option>
                                             <option value="Carmen">Carmen</option>
-                                            <option value="Carmona">Carmona</option>
                                             <option value="General Emilio Aguinaldo">General Emilio Aguinaldo</option>
                                             <option value="General Mariano Alvarez">General Mariano Alvarez</option>
                                             <option value="Indang">Indang</option>

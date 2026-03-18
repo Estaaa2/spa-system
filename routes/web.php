@@ -317,7 +317,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'owner-only'])->group(function () {
-    Route::get('/setup', [SetupController::class, 'index'])->name('setup.index');
+    Route::get('/setup/index', [SetupController::class, 'index'])->name('setup.index');
     Route::post('/setup/spa', [SetupController::class, 'storeSpa'])->name('setup.store-spa');
 
     Route::get('/setup/branches', [SetupController::class, 'branches'])->name('setup.branches');

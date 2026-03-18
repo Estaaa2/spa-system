@@ -13,24 +13,20 @@ class DashboardController extends Controller
         $user = Auth::user();
 
         if ($user->hasRole('therapist')) {
-        return redirect()->route('appointments.index');
-    }
+            return redirect()->route('appointments.index');
+        }
 
         $currentBranchId = $user->currentBranchId();
 
-        if (! $currentBranchId) {
-            return view('dashboard', [
-                'total'              => 0,
-                'completed'          => 0,
-                'todayCount'         => 0,
-                'pending'            => 0,
-                'todayAppointments'  => collect(),
-                'topServiceToday'    => null,
-                'therapists'         => collect(),
-                'lateAppointments'   => 0,
-                'noShows'            => 0,
-                'overbookedSlots'    => 0,
-            ]);
+        if (!$currentBranchId) {
+            // Only redirect to setup if setup is NOT complete
+            if (!$user->spa || !$user->spa->is_setup_complete) {
+                return redirect()->route('setup.index');
+            }
+
+            // Setup is complete but no branch in session → redirect to branch switcher
+            return redirect()->route('branches.index')
+                ->with('warning', 'Please select a branch to continue.');
         }
 
         $spaId = $user->spa_id;
@@ -70,16 +66,16 @@ class DashboardController extends Controller
             ->role('therapist')
             ->whereHas('staff', function ($q) use ($currentBranchId, $spaId) {
                 $q->where('spa_id', $spaId)
-                  ->where('branch_id', $currentBranchId)
-                  ->where('employment_status', 'active');
+                ->where('branch_id', $currentBranchId)
+                ->where('employment_status', 'active');
             })
             ->select(['id', 'name', 'email'])
             ->withCount([
                 'assignedBookings as assigned_bookings_count' => function ($q) use ($currentBranchId, $spaId) {
                     $q->where('spa_id', $spaId)
-                      ->where('branch_id', $currentBranchId)
-                      ->whereDate('appointment_date', today())
-                      ->whereIn('status', ['reserved', 'confirmed']);
+                    ->where('branch_id', $currentBranchId)
+                    ->whereDate('appointment_date', today())
+                    ->whereIn('status', ['reserved', 'confirmed']);
                 }
             ])
             ->get();
