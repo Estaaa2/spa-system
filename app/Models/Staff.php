@@ -36,4 +36,15 @@ class Staff extends Model
     {
         return $this->hasMany(Booking::class, 'therapist_id');
     }
+
+    public function attendance()
+    {
+        return $this->hasMany(StaffAttendance::class);
+    }
+
+    public function payrolls()
+    {
+        return $this->hasMany(Payroll::class);
+    }
+    
 }

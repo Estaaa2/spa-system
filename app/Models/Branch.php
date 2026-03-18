@@ -20,7 +20,7 @@ class Branch extends Model
     ];
 
     protected $casts = [
-        'is_main' => 'boolean',
+        'is_main'          => 'boolean',
         'has_home_service' => 'boolean',
     ];
 
@@ -41,7 +41,7 @@ class Branch extends Model
 
     public function staff()
     {
-        return $this->hasMany(User::class)->whereHas('roles', function($q) {
+        return $this->hasMany(User::class)->whereHas('roles', function ($q) {
             $q->whereIn('name', ['staff', 'therapist', 'admin']);
         });
     }
@@ -49,5 +49,16 @@ class Branch extends Model
     public function profile()
     {
         return $this->hasOne(BranchProfile::class);
+    }
+
+    // ✅ ADD THESE
+    public function treatments(): HasMany
+    {
+        return $this->hasMany(Treatment::class);
+    }
+
+    public function packages(): HasMany
+    {
+        return $this->hasMany(Package::class);
     }
 }

@@ -32,7 +32,23 @@ class Spa extends Model
         return $this->hasMany(User::class);
     }
 
-    public function isProfessional() {
-        return $this->business_tier === 'professional';
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(\App\Models\Subscription::class);
+    }
+
+    public function activeSubscription()
+    {
+        return $this->subscriptions()
+                    ->where('payment_status', 'paid')
+                    ->where('expires_at', '>', now())
+                    ->latest()
+                    ->first();
+    }
+
+    public function isProfessional(): bool
+    {
+        return $this->business_tier === 'professional'
+            && $this->activeSubscription() !== null;
     }
 }

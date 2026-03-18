@@ -86,42 +86,38 @@ class SetupController extends Controller
     /**
      * Store a new branch
      */
-    public function storeBranch(Request $request): RedirectResponse
+    public function storeBranch(Request $request)
     {
-        $user = Auth::user();
-
-        if (!$user->spa_id) {
-            return redirect()->route('setup.index');
-        }
-
-        $validated = $request->validate([
-            'branch_name'      => ['required', 'string', 'max:255'],
-            'location'         => ['required', 'string', 'max:255'],
-            'has_home_service' => ['nullable', 'boolean'],
+        $request->validate([
+            'branch_name' => 'required|string|max:255',
+            'location'    => 'required|string|max:255',
+            'address'     => 'required|string|max:500',
+            'phone'       => 'required|string|max:20',
+            'description' => 'nullable|string|max:1000',
         ]);
 
-        $spa = $user->spa;
-        $isFirstBranch = $spa->branches()->count() === 0;
+        $spa = auth()->user()->spa;
 
-        // Create branch
-        $branch = Branch::create([
-            'spa_id'           => $user->spa_id,
-            'name'             => $validated['branch_name'],
-            'location'         => $validated['location'],
-            'is_main'          => $isFirstBranch,
+        // Create the branch
+        $branch = $spa->branches()->create([
+            'name'             => $request->branch_name,
+            'location'         => $request->location,
             'has_home_service' => $request->boolean('has_home_service'),
+            'is_main'          => $spa->branches()->count() === 0, // first branch = main
         ]);
 
-        // Update user with branch ID (non-owners only)
-        if (!$user->hasRole('owner')) {
-            $user->update(['branch_id' => $branch->id]);
-        }
+        // ✅ Auto-create the BranchProfile
+        $branch->profile()->create([
+            'address'     => $request->address,
+            'phone'       => $request->phone,
+            'description' => $request->description ?? '',
+            'is_listed'   => 0, // not listed until they subscribe
+        ]);
 
-        // Create default operating hours (9 AM to 6 PM, Monday-Sunday)
-        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        // Create default operating hours for all 7 days
+        $days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
         foreach ($days as $day) {
-            OperatingHours::create([
-                'branch_id'    => $branch->id,
+            $branch->operatingHours()->create([
                 'day_of_week'  => $day,
                 'opening_time' => '09:00',
                 'closing_time' => '18:00',
@@ -129,7 +125,8 @@ class SetupController extends Controller
             ]);
         }
 
-        return redirect()->route('setup.branches')->with('success', 'Branch added successfully');
+        return redirect()->route('setup.branches')
+            ->with('success', 'Branch added successfully!');
     }
 
 

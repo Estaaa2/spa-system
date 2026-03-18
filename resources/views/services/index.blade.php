@@ -2,7 +2,6 @@
 
 @section('content')
 <div class="p-6">
-
     <!-- Services Header -->
     <x-page-header
         title="Services"
@@ -12,18 +11,47 @@
     <!-- Treatments Section -->
     <div class="mt-8">
         <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
                 <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Treatments</h2>
-                <div class="flex items-center gap-3">
+
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
                     <span class="text-sm text-gray-500 dark:text-gray-400">
                         {{ $treatments->count() }} treatment(s) available
                     </span>
+
                     @can('manage services')
+
                         <button onclick="openAddTreatmentModal()"
-                            class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
+                            class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center justify-center gap-2">
                             <i class="fas fa-plus"></i>
                             Add Treatment
                         </button>
+
+                        <a href="{{ route('treatments.export') }}"
+                            class="px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] flex items-center justify-center gap-2 dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                            <i class="fas fa-download"></i>
+                            Export CSV
+                        </a>
+
+                        <form id="treatmentsImportForm" action="{{ route('treatments.import') }}" method="POST" enctype="multipart/form-data" class="inline">
+                            @csrf
+                            <input
+                                type="file"
+                                id="treatmentsCsvFile"
+                                name="file"
+                                accept=".csv"
+                                required
+                                class="hidden"
+                                onchange="document.getElementById('treatmentsImportForm').submit()"
+                            >
+                            <button
+                                type="button"
+                                onclick="document.getElementById('treatmentsCsvFile').click()"
+                                class="px-4 py-2 text-sm border rounded-lg whitespace-nowrap bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                                <i class="mr-2 fas fa-upload"></i>
+                                Import CSV
+                            </button>
+                        </form>
                     @endcan
                 </div>
             </div>
@@ -117,18 +145,47 @@
     <!-- Packages Section -->
     <div class="mt-8">
         <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-col gap-4 mb-4 lg:flex-row lg:items-center lg:justify-between">
                 <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Packages</h2>
-                <div class="flex items-center gap-3">
+
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
                     <span class="text-sm text-gray-500 dark:text-gray-400">
                         {{ $packages->count() }} package(s) available
                     </span>
+
                     @can('manage services')
+
                         <button onclick="openAddPackageModal()"
-                            class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center gap-2">
+                            class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center justify-center gap-2">
                             <i class="fas fa-plus"></i>
                             Add Package
                         </button>
+
+                        <a href="{{ route('packages.export') }}"
+                            class="px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] flex items-center justify-center gap-2 dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                            <i class="fas fa-download"></i>
+                            Export CSV
+                        </a>
+
+                        <form id="packagesImportForm" action="{{ route('packages.import') }}" method="POST" enctype="multipart/form-data" class="inline">
+                            @csrf
+                            <input
+                                type="file"
+                                id="packagesCsvFile"
+                                name="file"
+                                accept=".csv"
+                                required
+                                class="hidden"
+                                onchange="document.getElementById('packagesImportForm').submit()"
+                            >
+                            <button
+                                type="button"
+                                onclick="document.getElementById('packagesCsvFile').click()"
+                                class="px-4 py-2 text-sm border rounded-lg whitespace-nowrap bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                                <i class="mr-2 fas fa-upload"></i>
+                                Import CSV
+                            </button>
+                        </form>
                     @endcan
                 </div>
             </div>

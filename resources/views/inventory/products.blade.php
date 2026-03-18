@@ -39,17 +39,45 @@
     <div class="bg-white border shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
         <!-- Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-            <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
-                Inventory List
-            </h2>
+        <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
+            Inventory List
+        </h2>
 
+        <div class="flex items-center gap-3">
             <button type="button"
                 @click="addOpen = true"
                 class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90">
                 <i class="fa-solid fa-plus"></i>
                 Add Product
             </button>
+
+            <a href="{{ route('inventory.products.export') }}"
+                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                <i class="fa-solid fa-download"></i>
+                Export CSV
+            </a>
+
+            <form id="productsImportForm" action="{{ route('inventory.products.import') }}" method="POST" enctype="multipart/form-data" class="inline">
+                @csrf
+                <input
+                    type="file"
+                    id="productsCsvFile"
+                    name="file"
+                    accept=".csv"
+                    required
+                    class="hidden"
+                    onchange="document.getElementById('productsImportForm').submit()"
+                >
+                <button
+                    type="button"
+                    onclick="document.getElementById('productsCsvFile').click()"
+                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                    <i class="fa-solid fa-upload"></i>
+                    Import CSV
+                </button>
+            </form>
         </div>
+    </div>
 
         <!-- Table -->
         <div class="overflow-x-auto">

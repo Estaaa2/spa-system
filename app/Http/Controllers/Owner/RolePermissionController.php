@@ -11,27 +11,47 @@ use Spatie\Permission\PermissionRegistrar;
 class RolePermissionController extends Controller
 {
     /**
-     * Roles the owner is allowed to manage.
-     * Owner & Admin are intentionally excluded.
+     * Base roles — HR & Finance added dynamically for Professional owners
      */
-    private array $manageableRoles = ['manager', 'therapist', 'receptionist', 'customer'];
+    private array $baseRoles = ['manager', 'therapist', 'receptionist', 'customer'];
+
+    /**
+     * Get manageable roles based on spa tier
+     */
+    private function getManageableRoles(): array
+    {
+        $spa = auth()->user()->spa;
+
+        $roles = $this->baseRoles;
+
+        if ($spa->isProfessional()) {
+            $roles = array_merge($roles, ['hr', 'finance']);
+        }
+
+        return $roles;
+    }
 
     public function index()
     {
+        $spa            = auth()->user()->spa;
+        $manageableRoles = $this->getManageableRoles();
+
         $roles = Role::query()
-            ->whereIn('name', $this->manageableRoles)
+            ->whereIn('name', $manageableRoles) // ✅ uses dynamic list
             ->withCount('users')
             ->with('permissions')
             ->orderBy('name')
             ->get();
 
-        return view('owner.roles-permissions.index', compact('roles'));
+        return view('owner.roles-permissions.index', compact('roles', 'spa'));
     }
 
     public function edit(Role $role)
     {
-        // Guard: owner cannot edit owner/admin roles
-        if (! in_array(strtolower($role->name), $this->manageableRoles)) {
+        $manageableRoles = $this->getManageableRoles();
+
+        // ✅ Guard uses dynamic list
+        if (! in_array(strtolower($role->name), $manageableRoles)) {
             return redirect()
                 ->route('owner.roles-permissions.index')
                 ->with('error', 'You are not allowed to edit this role.');
@@ -39,7 +59,6 @@ class RolePermissionController extends Controller
 
         $role->load('permissions');
 
-        // Exclude system-level & owner-only permissions from the UI
         $excludedPermissions = [
             'view admin dashboard',
             'view owner dashboard',
@@ -53,7 +72,6 @@ class RolePermissionController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Group by first word: view / manage / create / edit / delete
         $groups = $permissions->groupBy(function ($p) {
             return explode(' ', $p->name)[0];
         });
@@ -63,8 +81,10 @@ class RolePermissionController extends Controller
 
     public function update(Request $request, Role $role)
     {
-        // Guard: owner cannot update owner/admin roles
-        if (! in_array(strtolower($role->name), $this->manageableRoles)) {
+        $manageableRoles = $this->getManageableRoles();
+
+        // ✅ Guard uses dynamic list
+        if (! in_array(strtolower($role->name), $manageableRoles)) {
             return redirect()
                 ->route('owner.roles-permissions.index')
                 ->with('error', 'You are not allowed to modify this role.');
@@ -77,7 +97,14 @@ class RolePermissionController extends Controller
 
         $role->syncPermissions($validated['permissions'] ?? []);
 
+        // Clear Spatie cache
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Clear per-user cache for affected users
+        $role->users->each(function ($user) {
+            $user->unsetRelation('roles');
+            $user->unsetRelation('permissions');
+        });
 
         return redirect()
             ->route('owner.roles-permissions.edit', $role)

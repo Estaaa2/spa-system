@@ -42,8 +42,9 @@
 
                 <!-- Admin Dashboard -->
                 @can('view admin dashboard')
-                <div class="mb-2">
+                <div class="mb-1 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                     <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
+                        <i class="fa-solid fa-gauge-high w-4 mr-1 text-[#8B7355]"></i>
                         Dashboard
                     </x-nav-link>
                 </div>
@@ -54,31 +55,41 @@
                     <div class="space-y-1">
                         @can('manage spas')
                         <x-nav-link :href="route('admin.registered-spas.index')" :active="request()->routeIs('admin.registered-spas.*')">
+                            <i class="fa-solid fa-spa w-4 mr-1 text-[#8B7355]"></i>
                             Registered Spas
                         </x-nav-link>
                         @endcan
 
                         @can('manage users')
-                        <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
+                        <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
+                            <i class="fa-solid fa-users w-4 mr-1 text-[#8B7355]"></i>
                             Registered Users
                         </x-nav-link>
                         @endcan
 
                         @can('manage roles')
-                        <x-nav-link :href="route('roles-permissions.index')" :active="request()->routeIs('roles-permissions.*')">
+                        <x-nav-link :href="route('admin.roles-permissions.index')" :active="request()->routeIs('admin.roles-permissions.*')">
+                            <i class="fa-solid fa-key w-4 mr-1 text-[#8B7355]"></i>
                             Roles & Permissions
                         </x-nav-link>
                         @endcan
 
-                        @can('manage settings')
-                        <x-nav-link :href="route('settings.index')" :active="request()->routeIs('settings.*')">
-                            Settings
-                        </x-nav-link>
-                        @endcan
-                        <div class="mb-2 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
-                                Profile
-                            </x-nav-link>
+                        {{-- ✅ REPLACE WITH THIS --}}
+                        <div class="mb-1">
+                            <button @click="settingsOpen = !settingsOpen"
+                                class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                                <span class="flex items-center gap-2">
+                                    <i class="fa-solid fa-gear w-4 text-[#8B7355]"></i>
+                                    Settings
+                                </span>
+                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                                    :class="settingsOpen ? 'transform rotate-180' : ''"></i>
+                            </button>
+                            <div x-show="settingsOpen" x-collapse class="ml-4 space-y-1">
+                                <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
+                                    Profile
+                                </x-nav-link>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -173,6 +184,7 @@ function sidebar() {
     return {
         open: false,
         showLogoutModal: false,
+        settingsOpen: false,
     };
 }
 </script>

@@ -46,7 +46,7 @@
                             </td>
 
                             <td class="px-4 py-2 text-left">
-                                <a href="{{ route('roles-permissions.edit', $role) }}"
+                                <a href="{{ route('admin.roles-permissions.edit', $role) }}"
                                    class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                     Edit
                                 </a>

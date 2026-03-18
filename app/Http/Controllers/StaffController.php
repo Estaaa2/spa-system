@@ -44,38 +44,43 @@ class StaffController extends Controller
         $validated = $request->validate([
             'name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'roles' => 'required|in:therapist,receptionist,manager',
+            'roles' => 'required|in:therapist,receptionist,manager,hr,finance',
         ]);
 
         $currentUser = Auth::user();
-        $branchId = $currentUser->currentBranchId();
+        $branchId    = $currentUser->currentBranchId();
+        $spa         = $currentUser->spa;
 
         if (!$branchId) {
             return back()->with('error', 'No branch selected.');
+        }
+
+        if (in_array($validated['roles'], ['hr', 'finance']) && !$spa->isProfessional()) {
+            return back()->with('error', 'HR and Finance accounts are only available on the Professional plan.');
         }
 
         DB::transaction(function () use ($validated, $currentUser, $branchId) {
             $tempPassword = Str::random(12);
 
             $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($tempPassword),
-                'spa_id' => $currentUser->spa_id,
-                'branch_id' => $branchId,
-                'temp_password' => $tempPassword,
+                'name'                    => $validated['name'],
+                'email'                   => $validated['email'],
+                'password'                => Hash::make($tempPassword),
+                'spa_id'                  => $currentUser->spa_id,
+                'branch_id'               => $branchId,
+                'temp_password'           => $tempPassword,
                 'password_reset_required' => true,
             ]);
 
             $user->assignRole($validated['roles']);
-            $user->markEmailAsVerified(); 
+            $user->markEmailAsVerified();
 
             Staff::create([
-                'user_id' => $user->id,
-                'spa_id' => $currentUser->spa_id,
-                'branch_id' => $branchId,
+                'user_id'           => $user->id,
+                'spa_id'            => $currentUser->spa_id,
+                'branch_id'         => $branchId,
                 'employment_status' => 'active',
-                'hire_date' => now(),
+                'hire_date'         => now(),
             ]);
 
             Mail::to($user->email)->send(new StaffCredentialsMail($user, $tempPassword));
@@ -83,7 +88,7 @@ class StaffController extends Controller
 
         return redirect()
             ->route('staff.index')
-            ->with('success', 'Staff member added successfully and staff credentials sent via email.');
+            ->with('success', 'Staff member added successfully and credentials sent via email.');
     }
 
     /**
@@ -105,8 +110,14 @@ class StaffController extends Controller
     public function update(Request $request, Staff $staff)
     {
         $validated = $request->validate([
-            'roles' => 'required|in:therapist,receptionist,manager',
+            'roles' => 'required|in:therapist,receptionist,manager,hr,finance',
         ]);
+
+        $spa = Auth::user()->spa;
+
+        if (in_array($validated['roles'], ['hr', 'finance']) && !$spa->isProfessional()) {
+            return back()->with('error', 'HR and Finance roles require the Professional plan.');
+        }
 
         try {
             if ($staff->user) {
@@ -117,10 +128,7 @@ class StaffController extends Controller
                 ->route('staff.index')
                 ->with('success', 'Staff member updated successfully!');
         } catch (\Exception $e) {
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with('error', 'Error updating staff: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Error updating staff: ' . $e->getMessage());
         }
     }
 

@@ -30,6 +30,10 @@
     <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
         @if(auth()->check() && auth()->user()->hasRole('admin'))
             @include('layouts.navigation-admin')
+        @elseif(auth()->check() && auth()->user()->hasRole('hr'))
+            @include('layouts.navigation-hr')
+        @elseif(auth()->check() && auth()->user()->hasRole('finance'))
+            @include('layouts.navigation-finance')
         @else
             @include('layouts.navigation')
         @endif

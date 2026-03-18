@@ -26,7 +26,7 @@ class RolePermissionController extends Controller
     {
         if (strtolower($role->name) === 'admin') {
             return redirect()
-                ->route('roles-permissions.index')
+                ->route('admin.roles-permissions.index')
                 ->with('error', 'Admin role is protected and cannot be edited.');
         }
 
@@ -47,7 +47,7 @@ class RolePermissionController extends Controller
     {
         if (strtolower($role->name) === 'admin') {
             return redirect()
-                ->route('roles-permissions.index')
+                ->route('admin.roles-permissions.index')
                 ->with('error', 'Admin role is protected and cannot be updated.');
         }
 
@@ -60,8 +60,16 @@ class RolePermissionController extends Controller
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
+        // ✅ Also clear cached permissions for all users with this role
+        $role->users->each(function ($user) {
+            $user->unsetRelation('roles');
+            $user->unsetRelation('permissions');
+        });
+
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
         return redirect()
-            ->route('roles-permissions.edit', $role)
+            ->route('admin.roles-permissions.edit', $role)
             ->with('success', 'Permissions updated successfully.');
     }
 }

@@ -285,7 +285,7 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                 @can('view owner dashboard')
                     <div class="mb-1 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                            <i class="fa-solid fa-gauge-high w-4 text-[#8B7355]"></i>
+                            <i class="fa-solid fa-gauge-high w-4 mr-1 text-[#8B7355]"></i>
                             Dashboard
                         </x-nav-link>
                     </div>
