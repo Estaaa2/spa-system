@@ -46,7 +46,7 @@
                     </div>
 
                     <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display'] mb-2">
-                        Welcome Back
+                        User Login
                     </h2>
                     <p class="text-gray-600 dark:text-gray-400">
                         Login to your account

@@ -51,7 +51,6 @@ class Branch extends Model
         return $this->hasOne(BranchProfile::class);
     }
 
-    // ✅ ADD THESE
     public function treatments(): HasMany
     {
         return $this->hasMany(Treatment::class);

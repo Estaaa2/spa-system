@@ -441,8 +441,16 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                         <x-nav-link
                             :href="route('profile.edit')"
                             :active="request()->routeIs('profile.*')">
-                            Profile
+                            User Profile
                         </x-nav-link>
+
+                        @role('owner')
+                        <x-nav-link
+                            :href="route('owner.roles-permissions.index')"
+                            :active="request()->routeIs('owner.spaprofile.*')">
+                            Spa Profile
+                        </x-nav-link>
+                        @endrole
 
                         @role('owner')
                         <x-nav-link

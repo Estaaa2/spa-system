@@ -1,5 +1,5 @@
 <x-guest-layout>
-    <div class="max-w-2xl mx-auto">
+    <div class="p-8 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
         <!-- Header -->
         <div class="relative mb-10 text-center">
 
@@ -13,8 +13,8 @@
                 Set Up Your Spa Business
             </h1>
 
-            <p class="text-gray-600 dark:text-gray-400">
-                Let's get your business up and running
+            <p class="max-w-2xl mx-auto mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">
+                Start by entering your spa business name. You can complete branch and staff setup in the next steps.
             </p>
         </div>
 
@@ -84,13 +84,33 @@
                     @enderror
                 </div>
 
+                <!-- Verification Notice -->
+                <div class="p-4 mt-6 border rounded-xl bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:border-amber-400/20">
+                    <div class="flex gap-3">
+                        <div class="mt-0.5 text-amber-600 dark:text-amber-400">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                                Verification documents will be required later
+                            </p>
+                            <p class="mt-1 text-sm leading-6 text-amber-700 dark:text-amber-200/90">
+                                To verify your business and enable public listing, you will later need to upload:
+                                <span class="font-medium">one valid government ID</span>,
+                                <span class="font-medium">DTI or SEC certificate</span>, and
+                                <span class="font-medium">BIR Certificate of Registration</span>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Submit Button -->
                 <div class="pt-6">
                     <button
                         type="submit"
                         class="w-full bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:from-[#6F5430] hover:to-[#5A4526] text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-[1.02]"
                     >
-                        Continue to Branches Setup
+                        Continue
                     </button>
                 </div>
             </form>
