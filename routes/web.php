@@ -8,25 +8,26 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CustomerAppointmentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Finance\FinanceController;
+use App\Http\Controllers\HR\HRController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
+use App\Http\Controllers\InventoryImportExportController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
+use App\Http\Controllers\Owner\SpaProfileController;
 use App\Http\Controllers\Owner\SubscriptionController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\ServiceImportExportController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Middleware\LandingPageRedirect;
-use App\Http\Controllers\ServiceImportExportController;
-use App\Http\Controllers\InventoryImportExportController;
-use App\Http\Controllers\HR\HRController;
-use App\Http\Controllers\Finance\FinanceController;
 use App\Mail\WelcomeMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
@@ -294,6 +295,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/registered-spas', [RegisteredSpaController::class, 'index'])->name('registered-spas.index');
     Route::get('/registered-spas/{spa}/edit', [RegisteredSpaController::class, 'edit'])->name('registered-spas.edit');
     Route::put('/registered-spas/{spa}', [RegisteredSpaController::class, 'update'])->name('registered-spas.update');
+    Route::delete('/registered-spas/{spa}', [RegisteredSpaController::class, 'destroy'])->name('registered-spas.destroy');
 
     Route::middleware('permission:manage users')->group(function () {
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
@@ -341,6 +343,17 @@ Route::middleware(['auth', 'role:owner'])
     ->prefix('owner')
     ->name('owner.')
     ->group(function () {
+        // Spa Profile
+        Route::get('/spa-profile', [SpaProfileController::class, 'edit'])
+            ->name('spa-profile.edit');
+        Route::patch('/spa-profile', [SpaProfileController::class, 'update'])
+            ->name('spa-profile.update');
+        Route::post('/spa-profile/documents', [SpaProfileController::class, 'uploadDocument'])
+            ->name('spa-profile.documents.upload');
+        Route::delete('/spa-profile/documents/{document}', [SpaProfileController::class, 'destroyDocument'])
+            ->name('spa-profile.documents.destroy');
+        
+        // Roles & Permissions
         Route::get('/roles-permissions', [OwnerRolePermissionController::class, 'index'])
             ->name('roles-permissions.index');
         Route::get('/roles-permissions/{role}/edit', [OwnerRolePermissionController::class, 'edit'])
@@ -348,6 +361,7 @@ Route::middleware(['auth', 'role:owner'])
         Route::put('/roles-permissions/{role}', [OwnerRolePermissionController::class, 'update'])
             ->name('roles-permissions.update');
 
+        // Subscription Management
         Route::get('/subscription', [SubscriptionController::class, 'index'])
             ->name('subscription.index');
         Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])
@@ -438,7 +452,7 @@ Route::middleware(['auth', 'role:finance|owner'])
 
 /*
 |--------------------------------------------------------------------------
-| Profile
+| User Profile
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {

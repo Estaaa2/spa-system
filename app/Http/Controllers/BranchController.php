@@ -6,8 +6,8 @@ use App\Models\Branch;
 use App\Models\OperatingHours;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
 
 class BranchController extends Controller
 {
@@ -179,7 +179,7 @@ class BranchController extends Controller
         ]);
 
         // ----- Branch Profile Fields -----
-        if (in_array($spa->business_tier, ['professional','enterprise'])) {
+        if ($spa->verification_status === 'verified') {
 
             // Validate all profile fields
             $profileData = $request->validate([
@@ -194,33 +194,67 @@ class BranchController extends Controller
                 'amenities.*' => 'nullable|string|max:100',
             ]);
 
-            $profileData['is_listed'] = $request->boolean('is_listed');
+            $profile = $branch->profile ?? $branch->profile()->create([
+                'branch_id' => $branch->id,
+            ]);
             
-            $profile = $branch->profile ?? $branch->profile()->create(['branch_id' => $branch->id]);
+            $profileData['is_listed'] = $request->boolean('is_listed');
 
             // Handle cover image
-            if ($request->hasFile('cover_image')) {
+            if ($request->boolean('remove_cover_image')) {
+                if ($profile->cover_image) {
+                    Storage::disk('public')->delete($profile->cover_image);
+                }
+                $profileData['cover_image'] = null;
+            } elseif ($request->hasFile('cover_image')) {
+                if ($profile->cover_image) {
+                    Storage::disk('public')->delete($profile->cover_image);
+                }
                 $profileData['cover_image'] = $request->file('cover_image')->store('branch_profiles', 'public');
             } else {
                 $profileData['cover_image'] = $profile->cover_image;
             }
 
-            // Handle gallery images (append new)
-            if ($request->hasFile('gallery_images')) {
-                $existingGallery = $profile->gallery_images ?? [];
-                foreach ($request->file('gallery_images') as $img) {
-                    $existingGallery[] = $img->store('branch_profiles', 'public');
+            // Handle gallery images as 4 slots
+            $finalGallery = [];
+            $existingGalleryInputs = $request->input('existing_gallery_images', []);
+            $removeGalleryInputs = $request->input('remove_gallery_images', []);
+            $newGalleryFiles = $request->file('gallery_images', []);
+
+            for ($i = 0; $i < 4; $i++) {
+                $existingPath = $existingGalleryInputs[$i] ?? null;
+                $removeThis = isset($removeGalleryInputs[$i]) && (int)$removeGalleryInputs[$i] === 1;
+                $newFile = $newGalleryFiles[$i] ?? null;
+
+                if ($removeThis) {
+                    if ($existingPath) {
+                        Storage::disk('public')->delete($existingPath);
+                    }
+                    continue;
                 }
-                $profileData['gallery_images'] = $existingGallery;
-            } else {
-                $profileData['gallery_images'] = $profile->gallery_images ?? [];
+
+                if ($newFile) {
+                    if ($existingPath) {
+                        Storage::disk('public')->delete($existingPath);
+                    }
+
+                    $finalGallery[$i] = $newFile->store('branch_profiles', 'public');
+                } elseif ($existingPath) {
+                    $finalGallery[$i] = $existingPath;
+                }
             }
 
-            // Ensure nullable arrays are preserved
+            $profileData['gallery_images'] = array_values(array_filter($finalGallery));
+
             $profileData['amenities'] = $profileData['amenities'] ?? $profile->amenities ?? [];
 
-            // Update profile
             $profile->update($profileData);
+        } else {
+            if ($branch->profile) {
+                $branch->profile->update([
+                    'is_listed' => false,
+                ]);
+            }
         }
 
         // ----- Operating Hours -----

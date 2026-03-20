@@ -27,12 +27,6 @@ class SetupController extends Controller
             return redirect()->route('dashboard');
         }
 
-        // If spa is fully set up, go to dashboard
-        if ($user->spa_id && $user->spa->is_setup_complete) {
-            return redirect()->route('dashboard');
-        }
-
-        // Otherwise, always show setup index (whether spa exists or not)
         return view('setup.index');
     }
 
@@ -233,9 +227,6 @@ class SetupController extends Controller
 
     public function complete()
     {
-        $spa = auth()->user()->spa;
-        $spa->update(['is_setup_complete' => true]);
-
         return redirect()->route('dashboard');
     }
 }

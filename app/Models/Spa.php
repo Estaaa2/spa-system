@@ -15,6 +15,14 @@ class Spa extends Model
         'owner_id',
         'name',
         'business_tier',
+        'verification_status',
+        'verification_remarks',
+        'verified_at',
+        'verified_by',
+    ];
+
+    protected $casts = [
+        'verified_at' => 'datetime',
     ];
 
     public function owner(): BelongsTo
@@ -40,15 +48,37 @@ class Spa extends Model
     public function activeSubscription()
     {
         return $this->subscriptions()
-                    ->where('payment_status', 'paid')
-                    ->where('expires_at', '>', now())
-                    ->latest()
-                    ->first();
+            ->where('payment_status', 'paid')
+            ->where('expires_at', '>', now())
+            ->latest()
+            ->first();
     }
 
     public function isProfessional(): bool
     {
         return $this->business_tier === 'professional'
             && $this->activeSubscription() !== null;
+    }
+
+    public function verificationDocuments(): HasMany
+    {
+        return $this->hasMany(SpaVerificationDocument::class);
+    }
+
+    public function verifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function hasCompleteVerificationDocuments(): bool
+    {
+        $required = ['government_id', 'dti_sec', 'bir_certificate'];
+
+        $uploaded = $this->verificationDocuments()
+            ->pluck('document_type')
+            ->unique()
+            ->toArray();
+
+        return count(array_intersect($required, $uploaded)) === count($required);
     }
 }

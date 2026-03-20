@@ -3,29 +3,32 @@
 namespace App\Http\Controllers;
 
 use App\Models\Spa;
+use App\Models\Treatment;
+use App\Models\Package;
 
 class LandingController extends Controller
 {
     public function index()
     {
         $spas = Spa::with([
-            'branches.profile',
-            'branches.treatments',
-            'branches.packages',
+            'branches' => function ($query) {
+                $query->whereHas('profile', function ($q) {
+                    $q->where('is_listed', 1);
+                })->with([
+                    'profile',
+                    'treatments',
+                    'packages',
+                ]);
+            },
         ])
-            ->where('business_tier', 'professional')
-            ->whereHas('branches.profile', function ($query) {
-                $query->where('is_listed', 1);
-            })
-            // ✅ ADD THIS — only spas with a non-expired paid subscription
-            ->whereHas('subscriptions', function ($query) {
-                $query->where('payment_status', 'paid')
-                    ->where('expires_at', '>', now());
-            })
-            ->get();
+        ->where('verification_status', 'verified')
+        ->whereHas('branches.profile', function ($query) {
+            $query->where('is_listed', 1);
+        })
+        ->get();
 
-        $treatments = \App\Models\Treatment::all()->groupBy('branch_id');
-        $packages   = \App\Models\Package::all()->groupBy('branch_id');
+        $treatments = Treatment::all()->groupBy('branch_id');
+        $packages   = Package::all()->groupBy('branch_id');
 
         return view('welcome', compact('spas', 'treatments', 'packages'));
     }

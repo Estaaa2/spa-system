@@ -419,7 +419,7 @@
             <div class="grid grid-cols-1 gap-6 mt-12 sm:grid-cols-2 lg:grid-cols-4">
                 @forelse($spas as $spa)
                     @foreach($spa->branches as $branch)
-                        @if($branch->profile?->is_listed)
+                        @if($spa->verification_status === 'verified' && $branch->profile?->is_listed)
                             @php
                                 $lowestPrice = \App\Models\Treatment::withoutGlobalScopes()
                                     ->where('spa_id', $spa->id)
@@ -427,16 +427,25 @@
                                     ->min('price');
 
                                 $profile = $branch->profile;
-                                $thumb = $profile->cover_image
-                                    ? asset('storage/' . $profile->cover_image)
-                                    : asset('images/2nd.png');
+                                $fallbackImage = asset('storage/branch_profiles/emptyspa.jpg');
 
-                                $photos = collect([$profile->cover_image])
-                                    ->merge($profile->gallery_images ?? [])
+                                $coverPhoto = !empty($profile?->cover_image)
+                                    ? asset('storage/' . $profile->cover_image)
+                                    : $fallbackImage;
+
+                                $galleryPhotos = collect($profile->gallery_images ?? [])
                                     ->filter()
                                     ->map(fn($img) => asset('storage/' . $img))
+                                    ->values();
+
+                                $photos = collect([$coverPhoto])
+                                    ->merge($galleryPhotos)
+                                    ->take(5)
+                                    ->pad(5, $fallbackImage)
                                     ->values()
                                     ->toArray();
+
+                                $thumb = $coverPhoto;
 
                                 // ✅ Build branches array with treatments + packages
                                 $branchesData = $spa->branches->map(fn($b) => [
@@ -466,7 +475,8 @@
                                     'phone'      => $profile->phone ?? '',
                                     'lat'        => $profile->latitude,
                                     'lng'        => $profile->longitude,
-                                    'branches'   => $branchesData, // ✅ NEW
+                                    'branches'   => $branchesData,
+                                    'amenities'  => $profile->amenities ?? [],
                                 ];
                             @endphp
 
@@ -592,10 +602,11 @@
                                     ];
                                     $amenities = $profile->amenities ?? [];
                                 @endphp
-                                <h4 id="spaModalAmenities" class="mb-4 text-xl font-semibold text-gray-900">What this place offers</h4>
+                                <h4 class="mb-4 text-xl font-semibold text-gray-900">What this place offers</h4>
                                 @foreach($amenities as $a)
                                     <div class="flex items-center gap-2 mt-2">
-                                        <i class="fa-solid {{ $amenityIcons[$a] ?? 'fa-star' }} text-[#8B7355]"></i> {{ $a }}
+                                        <i class="fa-solid {{ $amenityIcons[$a] ?? 'fa-star' }} text-[#8B7355]"></i> 
+                                        <span class="mr-4 text-sm text-gray-700 capitalize">{{ str_replace('_', ' ', $a) }}</span>
                                     </div>
                                 @endforeach
                             </div>
@@ -1093,6 +1104,7 @@ function openSpaModal(spaData) {
     const elPrice          = document.getElementById('spaModalPrice');
     const elMap            = document.getElementById('spaModalMap');
     const elMainPhoto      = document.getElementById('spaModalMainPhoto');
+    const elAmenities = document.getElementById('spaModalAmenities');
 
     // Fill text content
     elName.textContent  = spaData.name    ?? 'Spa';
@@ -1115,11 +1127,21 @@ function openSpaModal(spaData) {
     elAddressSummary.textContent = getAddressSummary(spaData.address);
 
     // Photos
-    photos = Array.isArray(spaData.photos) ? spaData.photos : [];
-    if (elMainPhoto) elMainPhoto.src = photos[0] ?? '';
+    const fallbackImage = "{{ asset('storage/branch_profiles/emptyspa.jpg') }}";
+
+    photos = Array.isArray(spaData.photos) && spaData.photos.length
+        ? spaData.photos
+        : [fallbackImage, fallbackImage, fallbackImage, fallbackImage, fallbackImage];
+
+    if (elMainPhoto) {
+        elMainPhoto.src = photos[0] || fallbackImage;
+    }
+
     ['gallery_1', 'gallery_2', 'gallery_3', 'gallery_4'].forEach((id, i) => {
         const el = document.getElementById(id);
-        if (el) el.src = photos[i + 1] ?? '';
+        if (el) {
+            el.src = photos[i + 1] || fallbackImage;
+        }
     });
 
     // Hide the gallery count overlay (no "View All" needed for now)
