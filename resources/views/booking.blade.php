@@ -54,7 +54,7 @@
                         <!-- Therapist -->
                         <div>
                             <label for="therapist_id" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Therapist</label>
-                            <select name="therapist_id" class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
+                            <select id="therapist_id" name="therapist_id" class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
                                 @foreach($therapists as $therapist)
                                     <option value="{{ $therapist->id }}">{{ $therapist->name }}</option>
                                 @endforeach
@@ -93,7 +93,7 @@
                     <!-- Appointment Date & Time -->
                     <div class="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2">
                         <div>
-                            <label for="appointment_date" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Calendar</label>
+                            <label for="appointment_date" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Appointment Date</label>
                             <input type="date" id="appointment_date" name="appointment_date" class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
                         </div>
                         <div>
@@ -109,7 +109,7 @@
                         <label for="status" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Status</label>
                         <select id="status" name="status" class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
                             <option value="reserved" selected>Reserved</option>
-                            <option value="confirmed">Confirmed</option>
+                            <option value="pending">Pending</option>
                             <option value="ongoing">Ongoing</option>
                             <option value="completed">Completed</option>
                             <option value="cancelled">Cancelled</option>
@@ -332,6 +332,69 @@
 
         // Initial update - CLEAR ALL DEFAULTS
         updateSummary();
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const treatmentInput = document.getElementById('treatment');
+        const dateInput = document.getElementById('appointment_date');
+        const timeInput = document.getElementById('start_time');
+        const therapistSelect = document.getElementById('therapist_id');
+
+        async function refreshAvailableTherapists() {
+            if (!treatmentInput?.value || !dateInput?.value || !timeInput?.value || !therapistSelect) {
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams({
+                    treatment: treatmentInput.value,
+                    appointment_date: dateInput.value,
+                    start_time: timeInput.value,
+                });
+
+                const response = await fetch(`{{ route('booking.available-therapists') }}?${params.toString()}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    }
+                });
+
+                const data = await response.json();
+
+                therapistSelect.innerHTML = '';
+
+                if (!data.therapists || data.therapists.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No therapist available';
+                    therapistSelect.appendChild(option);
+                    therapistSelect.disabled = true;
+                    return;
+                }
+
+                therapistSelect.disabled = false;
+
+                data.therapists.forEach(therapist => {
+                    const option = document.createElement('option');
+                    option.value = therapist.id;
+                    option.textContent = therapist.name;
+
+                    if (Number(data.recommended_id) === Number(therapist.id)) {
+                        option.selected = true;
+                    }
+
+                    therapistSelect.appendChild(option);
+                });
+
+                therapistSelect.dispatchEvent(new Event('change'));
+            } catch (error) {
+                console.error('Failed to load available therapists:', error);
+            }
+        }
+
+        treatmentInput?.addEventListener('change', refreshAvailableTherapists);
+        dateInput?.addEventListener('change', refreshAvailableTherapists);
+        timeInput?.addEventListener('change', refreshAvailableTherapists);
     });
 </script>
 @endsection

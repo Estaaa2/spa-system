@@ -75,14 +75,14 @@ class DashboardController extends Controller
                     $q->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
                     ->whereDate('appointment_date', today())
-                    ->whereIn('status', ['reserved', 'confirmed']);
+                    ->whereIn('status', ['reserved', 'pending']);
                 }
             ])
             ->get();
 
         $lateAppointments = (clone $baseBookings)
             ->whereDate('appointment_date', today())
-            ->where('status', 'confirmed')
+            ->where('status', 'pending')
             ->whereTime('start_time', '<', now()->format('H:i:s'))
             ->whereTime('end_time', '>', now()->format('H:i:s'))
             ->count();

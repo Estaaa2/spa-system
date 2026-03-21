@@ -116,7 +116,8 @@
                                         $rowspan = ceil($minutes / 30);
                                         $badge = match($b->status) {
                                             'reserved' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-                                            'confirmed' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                            'pending' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                            'ongoing' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
                                             'completed' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
                                             'cancelled' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
                                             default => 'bg-gray-100 text-gray-800'
@@ -219,8 +220,9 @@
         // status color
         const s = (el.dataset.status || '').toLowerCase();
         let cls = 'bg-gray-100 text-gray-800';
-        if (s === 'reserved') cls = 'bg-yellow-100 text-yellow-800';
-        if (s === 'confirmed') cls = 'bg-blue-100 text-blue-800';
+        if (s === 'reserved') cls = 'bg-blue-100 text-blue-800';
+        if (s === 'pending') cls = 'bg-yellow-100 text-yellow-800';
+        if (s === 'ongoing') cls = 'bg-green-100 text-green-800';
         if (s === 'completed') cls = 'bg-gray-200 text-gray-800';
         if (s === 'cancelled') cls = 'bg-red-100 text-red-800';
 

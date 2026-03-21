@@ -447,36 +447,53 @@
 
                                 $thumb = $coverPhoto;
 
-                                // ✅ Build branches array with treatments + packages
-                                $branchesData = $spa->branches->map(fn($b) => [
-                                    'id'               => $b->id,
-                                    'name'             => $b->name,
-                                    'location'         => $b->location ?? '',
-                                    'has_home_service' => (bool) ($b->has_home_service ?? false),
-                                    'treatments'       => $b->treatments->map(fn($t) => [
-                                        'id'    => $t->id,
-                                        'name'  => $t->name,
+                                $branchTreatments = \App\Models\Treatment::withoutGlobalScopes()
+                                    ->where('branch_id', $branch->id)
+                                    ->where('spa_id', $spa->id)
+                                    ->get()
+                                    ->map(fn($t) => [
+                                        'id' => $t->id,
+                                        'name' => $t->name,
                                         'price' => $t->price,
-                                    ])->values()->toArray(),
-                                    'packages' => ($b->packages ?? collect())->map(fn($p) => [
-                                        'id'   => $p->id,
+                                        'duration' => $t->duration,
+                                        'service_type' => $t->service_type,
+                                        'type' => 'treatment',
+                                    ])
+                                    ->values()
+                                    ->toArray();
+
+                                $branchPackages = \App\Models\Package::withoutGlobalScopes()
+                                    ->where('branch_id', $branch->id)
+                                    ->where('spa_id', $spa->id)
+                                    ->get()
+                                    ->map(fn($p) => [
+                                        'id' => $p->id,
                                         'name' => $p->name,
-                                    ])->values()->toArray(),
-                                ])->values()->toArray();
+                                        'price' => $p->price ?? null,
+                                        'duration' => $p->duration ?? null,
+                                        'service_type' => $p->service_type ?? 'in_branch_only',
+                                        'type' => 'package',
+                                    ])
+                                    ->values()
+                                    ->toArray();
 
                                 $spaPayload = [
-                                    'id'         => $spa->id,
-                                    'name'       => $spa->name,
-                                    'tag'        => 'Featured Spa',
-                                    'desc'       => $profile->description ?? '',
+                                    'id' => $spa->id,
+                                    'name' => $spa->name,
+                                    'tag' => 'Featured Spa',
+                                    'branch_id' => $branch->id,
+                                    'branch_name' => $branch->name,
+                                    'branch_location' => $branch->location ?? '',
+                                    'desc' => $profile->description ?? '',
                                     'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
-                                    'photos'     => $photos,
-                                    'address'    => $profile->address ?? $branch->location ?? 'Location unavailable',
-                                    'phone'      => $profile->phone ?? '',
-                                    'lat'        => $profile->latitude,
-                                    'lng'        => $profile->longitude,
-                                    'branches'   => $branchesData,
-                                    'amenities'  => $profile->amenities ?? [],
+                                    'photos' => $photos,
+                                    'address' => $profile->address ?? $branch->location ?? 'Location unavailable',
+                                    'phone' => $profile->phone ?? '',
+                                    'lat' => $profile->latitude,
+                                    'lng' => $profile->longitude,
+                                    'treatments' => $branchTreatments,
+                                    'packages' => $branchPackages,
+                                    'amenities' => $profile->amenities ?? [],
                                 ];
                             @endphp
 
@@ -497,16 +514,23 @@
                                 <div class="p-5">
                                     <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
                                     @php
-                                    function addressSummary($fullAddress) {
-                                        if (!$fullAddress) return 'Location unavailable';
-                                        $parts = array_map('trim', explode(',', $fullAddress));
-                                        if (count($parts) < 3) return $fullAddress;
-                                        $withoutZipCountry = array_slice($parts, 0, count($parts) - 2);
-                                        $summary = implode(', ', array_slice($withoutZipCountry, -3));
-                                        return $summary;
-                                    }
+                                        $fullAddress = $spaPayload['address'] ?? null;
+
+                                        if (!$fullAddress) {
+                                            $addressSummary = 'Location unavailable';
+                                        } else {
+                                            $parts = array_map('trim', explode(',', $fullAddress));
+
+                                            if (count($parts) < 3) {
+                                                $addressSummary = $fullAddress;
+                                            } else {
+                                                $withoutZipCountry = array_slice($parts, 0, count($parts) - 2);
+                                                $addressSummary = implode(', ', array_slice($withoutZipCountry, -3));
+                                            }
+                                        }
                                     @endphp
-                                    <p class="mt-1 text-xs text-gray-500">{{ addressSummary($spaPayload['address']) }}</p>
+
+                                    <p class="mt-1 text-xs text-gray-500">{{ $addressSummary }}</p>
                                     <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
                                 </div>
                             </button>
@@ -666,12 +690,12 @@
     <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>
 
-        <div class="relative mx-auto w-[92%] max-w-xl mt-10 sm:mt-16">
+        <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
                     <div>
                         <h3 class="text-lg font-semibold text-[#3C2F23]">Book Appointment</h3>
-                        <p id="bookingSpaMeta" class="mt-1 text-xs text-gray-500">Spa • Branch Location</p>
+                        <p id="bookingSpaMeta" class="mt-1 text-xs text-gray-500">Spa • Branch</p>
                     </div>
 
                     <button type="button"
@@ -687,71 +711,111 @@
                         <form method="POST" action="{{ route('bookings.online.store') }}" class="space-y-4">
                             @csrf
 
-                            {{-- Set by JS --}}
                             <input type="hidden" name="spa_id" id="bookingSpaIdInput">
                             <input type="hidden" name="branch_id" id="bookingBranchIdInput">
 
-                            {{-- Row 1: Service Type + Branch --}}
+                            {{-- Customer Info --}}
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Service Type</label>
-                                    <select name="service_type" id="bookingServiceType" required
-                                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                        <option value="">Select type</option>
-                                        <option value="in_branch">In-Branch</option>
-                                        <option value="in_home">Home Service</option>
-                                    </select>
+                                    <label class="block text-xs font-semibold text-gray-600">Full Name</label>
+                                    <input
+                                        type="text"
+                                        name="customer_name"
+                                        id="bookingCustomerName"
+                                        value="{{ auth()->user()->name }}"
+                                        readonly
+                                        class="w-full mt-1 rounded-xl border-black/10 bg-gray-100 ring-1 ring-black/5 text-gray-700"
+                                    >
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Branch</label>
-                                    <select id="bookingBranchSelect"
-                                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                        <option value="">Select service type first</option>
-                                    </select>
+                                    <label class="block text-xs font-semibold text-gray-600">Email</label>
+                                    <input
+                                        type="email"
+                                        name="customer_email"
+                                        id="bookingCustomerEmail"
+                                        value="{{ auth()->user()->email }}"
+                                        readonly
+                                        class="w-full mt-1 rounded-xl border-black/10 bg-gray-100 ring-1 ring-black/5 text-gray-700"
+                                    >
                                 </div>
                             </div>
 
-                            {{-- Row 2: Treatment --}}
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600">Treatment</label>
-                                <select name="treatment" id="bookingTreatmentSelect" required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                    <option value="">Select treatment</option>
+                                <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
+                                <input
+                                    type="text"
+                                    name="customer_phone"
+                                    id="bookingCustomerPhone"
+                                    placeholder="09xxxxxxxxx"
+                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    required
+                                >
+                            </div>
+
+                            {{-- Treatment / Package --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">Treatment / Package</label>
+                                <select
+                                    name="treatment"
+                                    id="bookingTreatmentSelect"
+                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    required>
+                                    <option value="">Select treatment or package</option>
                                 </select>
                             </div>
 
-                            {{-- Row 3: Date + Time --}}
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
-                                    <input type="date" name="appointment_date" id="bookingDateInput" required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Start Time</label>
-                                    <input type="time" name="start_time" id="bookingTimeInput" required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                </div>
-                            </div>
-
-                            {{-- Row 4: Phone --}}
+                            {{-- Service Type --}}
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600">Phone (optional)</label>
-                                <input type="text" name="customer_phone"
+                                <label class="block text-xs font-semibold text-gray-600">Service Type</label>
+                                <select
+                                    name="service_type"
+                                    id="bookingServiceType"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    placeholder="09xxxxxxxxx">
+                                    required>
+                                    <option value="">Select service type</option>
+                                </select>
+                                <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500"></p>
                             </div>
 
-                            {{-- Row 5: Address (hidden until Home Service selected) --}}
+                            {{-- Home address --}}
                             <div id="addressWrapper" class="hidden">
                                 <label class="block text-xs font-semibold text-gray-600">
                                     Home Address <span class="text-red-500">*</span>
                                 </label>
-                                <input type="text" name="customer_address" id="bookingAddressInput"
+                                <input
+                                    type="text"
+                                    name="customer_address"
+                                    id="bookingAddressInput"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    placeholder="Enter your full address">
+                                    placeholder="Enter your full address"
+                                >
                                 <p class="mt-1 text-[11px] text-gray-500">Required for home service bookings.</p>
+                            </div>
+
+                            {{-- Date + Time --}}
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
+                                    <input
+                                        type="date"
+                                        name="appointment_date"
+                                        id="bookingDateInput"
+                                        required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    >
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Start Time</label>
+                                    <input
+                                        type="time"
+                                        name="start_time"
+                                        id="bookingTimeInput"
+                                        required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    >
+                                </div>
                             </div>
 
                             <button type="submit"
@@ -1198,139 +1262,217 @@ closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
 // =====================================================
 // BOOKING MODAL — elements
 // =====================================================
-const bookingModal      = document.getElementById('bookingModal');
-const openBookingBtn    = document.getElementById('openBookingModalBtn');
-const closeBookingBtns  = document.querySelectorAll('[data-close-booking-modal]');
-const bookingSpaMeta    = document.getElementById('bookingSpaMeta');
+const bookingModal = document.getElementById('bookingModal');
+const openBookingBtn = document.getElementById('openBookingModalBtn');
+const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
+const bookingSpaMeta = document.getElementById('bookingSpaMeta');
 const bookingSpaIdInput = document.getElementById('bookingSpaIdInput');
 const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
 const serviceTypeSelect = document.getElementById('bookingServiceType');
-const branchSelect      = document.getElementById('bookingBranchSelect');
-const treatmentSelect   = document.getElementById('bookingTreatmentSelect');
+const serviceTypeHint = document.getElementById('bookingServiceTypeHint');
+const treatmentSelect = document.getElementById('bookingTreatmentSelect');
+const bookingDateInput = document.getElementById('bookingDateInput');
+const bookingTimeInput = document.getElementById('bookingTimeInput');
+const addressWrapper = document.getElementById('addressWrapper');
+const addressInput = document.getElementById('bookingAddressInput');
 
-
-// ---------------- Populate Branches ----------------
-function populateBranchDropdown(filterHomeService = false) {
-    if (!branchSelect || !selectedSpa) return;
-
-    const branches = selectedSpa.branches ?? [];
-    const filtered = filterHomeService
-        ? branches.filter(b => b.has_home_service)
-        : branches;
-
-    branchSelect.innerHTML = '<option value="">Select branch</option>';
-
-    filtered.forEach(b => {
-        const opt = document.createElement('option');
-        opt.value   = String(b.id);
-        opt.textContent = b.location
-            ? `${b.name} — ${b.location}`
-            : b.name;
-        branchSelect.appendChild(opt);
-    });
-
-    if (filtered.length) {
-        branchSelect.value = String(filtered[0].id);
-        if (bookingBranchIdInput) bookingBranchIdInput.value = filtered[0].id;
+function clearBookingSelections() {
+    if (treatmentSelect) {
+        treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
+        treatmentSelect.value = '';
     }
 
-    populateTreatmentsForBranch();
+    if (bookingBranchIdInput) bookingBranchIdInput.value = '';
+
+    resetServiceType();
+
+    if (bookingDateInput) bookingDateInput.value = '';
+    if (bookingTimeInput) {
+        bookingTimeInput.value = '';
+        bookingTimeInput.disabled = false;
+        bookingTimeInput.removeAttribute('min');
+        bookingTimeInput.removeAttribute('max');
+    }
+
+    if (addressInput) {
+        addressInput.value = '';
+        addressInput.required = false;
+    }
+
+    if (addressWrapper) {
+        addressWrapper.classList.add('hidden');
+    }
 }
 
+function populateTreatmentsForSelectedBranch() {
+    if (!selectedSpa || !treatmentSelect) return;
 
-// ---------------- Populate Treatments for selected branch ----------------
-function populateTreatmentsForBranch() {
-    if (!treatmentSelect || !selectedSpa) return;
+    treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
 
-    const selectedBranchId = branchSelect?.value;
-    const branch = (selectedSpa.branches ?? [])
-        .find(b => String(b.id) === String(selectedBranchId));
-
-    treatmentSelect.innerHTML = '<option value="">Select treatment</option>';
-
-    if (!branch) return;
-
-    (branch.treatments ?? []).forEach(t => {
-        const opt = document.createElement('option');
-        opt.value = `treatment_${t.id}`;
-        opt.textContent = t.price
+    (selectedSpa.treatments ?? []).forEach(t => {
+        const option = document.createElement('option');
+        option.value = `treatment_${t.id}`;
+        option.textContent = t.price !== null && t.price !== undefined
             ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}`
             : t.name;
-        treatmentSelect.appendChild(opt);
+        option.dataset.serviceType = t.service_type ?? 'in_branch_only';
+        option.dataset.itemType = 'treatment';
+        treatmentSelect.appendChild(option);
     });
 
-    (branch.packages ?? []).forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = `package_${p.id}`;
-        opt.textContent = `${p.name} (Package)`;
-        treatmentSelect.appendChild(opt);
+    (selectedSpa.packages ?? []).forEach(p => {
+        const option = document.createElement('option');
+        option.value = `package_${p.id}`;
+        option.textContent = p.price !== null && p.price !== undefined
+            ? `${p.name} (Package) — ₱${parseFloat(p.price).toLocaleString()}`
+            : `${p.name} (Package)`;
+        option.dataset.serviceType = p.service_type ?? 'in_branch_only';
+        option.dataset.itemType = 'package';
+        treatmentSelect.appendChild(option);
     });
+
+    resetServiceType();
 }
 
-// Alias kept for compatibility
-function populateTreatments() {
-    populateTreatmentsForBranch();
+function resetServiceType() {
+    if (!serviceTypeSelect) return;
+
+    serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
+    serviceTypeSelect.value = '';
+
+    if (serviceTypeHint) {
+        serviceTypeHint.textContent = '';
+    }
+
+    if (addressWrapper) {
+        addressWrapper.classList.add('hidden');
+    }
+
+    if (addressInput) {
+        addressInput.required = false;
+    }
 }
 
+function populateServiceTypeOptions() {
+    resetServiceType();
 
-// ---------------- Service Type → filter branches ----------------
-serviceTypeSelect?.addEventListener('change', function () {
-    const isHome = this.value === 'in_home';
+    if (!treatmentSelect || !serviceTypeSelect) return;
 
-    populateBranchDropdown(isHome);
+    const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
+    if (!selectedOption || !selectedOption.value) return;
 
-    // Show / hide address field
-    const addressWrapper   = document.getElementById('addressWrapper');
-    const addressInput     = document.getElementById('bookingAddressInput');
-    if (addressWrapper) addressWrapper.classList.toggle('hidden', !isHome);
-    if (addressInput)   addressInput.toggleAttribute('required', isHome);
-});
+    const serviceType = selectedOption.dataset.serviceType || 'in_branch_only';
 
+    if (serviceType === 'in_branch_only') {
+        serviceTypeSelect.innerHTML = `
+            <option value="in_branch">In-Branch</option>
+        `;
+        serviceTypeSelect.value = 'in_branch';
 
-// ---------------- Branch change → refresh treatments ----------------
-branchSelect?.addEventListener('change', function () {
-    if (bookingBranchIdInput) bookingBranchIdInput.value = this.value;
-    populateTreatmentsForBranch();
-});
+        if (serviceTypeHint) {
+            serviceTypeHint.textContent = 'This selection is available for in-branch service only.';
+        }
+    } else if (serviceType === 'in_branch_and_home') {
+        serviceTypeSelect.innerHTML = `
+            <option value="">Select service type</option>
+            <option value="in_branch">In-Branch</option>
+            <option value="in_home">Home Service</option>
+        `;
 
+        if (serviceTypeHint) {
+            serviceTypeHint.textContent = 'This selection is available for both in-branch and home service.';
+        }
+    }
 
-// ---------------- Open Booking Modal ----------------
+    toggleAddressField();
+}
+
+function toggleAddressField() {
+    const isHome = serviceTypeSelect && serviceTypeSelect.value === 'in_home';
+
+    if (addressWrapper) {
+        addressWrapper.classList.toggle('hidden', !isHome);
+    }
+
+    if (addressInput) {
+        addressInput.required = isHome;
+    }
+}
+
+async function updateAvailableTimes() {
+    const branchId = bookingBranchIdInput?.value;
+    const dateValue = bookingDateInput?.value;
+
+    if (!branchId || !dateValue || !bookingTimeInput) return;
+
+    const day = new Date(dateValue).toLocaleDateString('en-US', { weekday: 'long' });
+
+    try {
+        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
+        const data = await response.json();
+
+        if (data.is_closed) {
+            bookingTimeInput.value = '';
+            bookingTimeInput.disabled = true;
+            alert('This branch is closed on the selected day.');
+        } else {
+            bookingTimeInput.disabled = false;
+            bookingTimeInput.min = data.opening_time;
+            bookingTimeInput.max = data.closing_time;
+        }
+    } catch (error) {
+        console.error('Failed to load operating hours:', error);
+    }
+}
+
 function openBookingModal() {
-    if (!selectedSpa) return;
+    if (!selectedSpa || !bookingModal) return;
 
-    const branches = selectedSpa.branches ?? [];
-    const chosen   = branches[0];
+    clearBookingSelections();
 
-    bookingSpaMeta.textContent = chosen?.location
-        ? `${selectedSpa.name} • ${chosen.location}`
-        : selectedSpa.name;
+    if (bookingSpaIdInput) {
+        bookingSpaIdInput.value = selectedSpa.id ?? '';
+    }
 
-    if (bookingSpaIdInput) bookingSpaIdInput.value = selectedSpa.id ?? '';
+    if (bookingBranchIdInput) {
+        bookingBranchIdInput.value = selectedSpa.branch_id ?? '';
+    }
 
-    // Reset service type then populate branches + treatments fresh
-    if (serviceTypeSelect) serviceTypeSelect.value = '';
-    populateBranchDropdown(false);
+    if (bookingSpaMeta) {
+        bookingSpaMeta.textContent = selectedSpa.branch_location
+            ? `${selectedSpa.name} • ${selectedSpa.branch_location} Branch`
+            : `${selectedSpa.name} • ${selectedSpa.branch_name ?? ''}`;
+    }
 
-    // Hide address field on fresh open
-    const addressWrapper = document.getElementById('addressWrapper');
-    const addressInput   = document.getElementById('bookingAddressInput');
-    if (addressWrapper) addressWrapper.classList.add('hidden');
-    if (addressInput)   addressInput.removeAttribute('required');
+    const today = new Date().toISOString().split('T')[0];
+    if (bookingDateInput) {
+        bookingDateInput.min = today;
+    }
+
+    populateTreatmentsForSelectedBranch();
 
     bookingModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
 }
 
-
-// ---------------- Close Booking Modal ----------------
 function closeBookingModal() {
+    if (!bookingModal) return;
     bookingModal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
 }
 
 openBookingBtn?.addEventListener('click', openBookingModal);
-closeBookingBtns.forEach(b => b.addEventListener('click', closeBookingModal));
+closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal));
 
+treatmentSelect?.addEventListener('change', function () {
+    populateServiceTypeOptions();
+});
+
+serviceTypeSelect?.addEventListener('change', function () {
+    toggleAddressField();
+});
+
+bookingDateInput?.addEventListener('change', updateAvailableTimes);
 
 // =====================================================
 // MY APPOINTMENTS MODAL
@@ -1363,11 +1505,11 @@ function updateTabCounts() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('tab-count-upcoming').textContent =
         allAppointments.filter(b =>
-            ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
+            ['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw >= today).length;
     document.getElementById('tab-count-past').textContent =
         allAppointments.filter(b =>
             b.status === 'completed' ||
-            (['reserved', 'confirmed'].includes(b.status) && b.date_raw < today)).length;
+            (['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw < today)).length;
     document.getElementById('tab-count-cancelled').textContent =
         allAppointments.filter(b => b.status === 'cancelled').length;
 }
@@ -1393,11 +1535,11 @@ function renderTab(tab) {
 
     if (tab === 'upcoming') {
         filtered = allAppointments.filter(b =>
-            ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
+            ['reserved', 'pending'].includes(b.status) && b.date_raw >= today);
     } else if (tab === 'past') {
         filtered = allAppointments.filter(b =>
             b.status === 'completed' ||
-            (['reserved', 'confirmed'].includes(b.status) && b.date_raw < today));
+            (['reserved', 'pending'].includes(b.status) && b.date_raw < today));
     } else {
         filtered = allAppointments.filter(b => b.status === 'cancelled');
     }
@@ -1446,7 +1588,7 @@ function renderTab(tab) {
 function statusBadge(status) {
     const map = {
         reserved:  'bg-blue-100 text-blue-700',
-        confirmed: 'bg-green-100 text-green-700',
+        ongoing: 'bg-green-100 text-green-700',
         completed: 'bg-gray-100 text-gray-600',
         cancelled: 'bg-red-100 text-red-600',
         pending:   'bg-yellow-100 text-yellow-700',
