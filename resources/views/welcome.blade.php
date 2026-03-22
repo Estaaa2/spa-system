@@ -694,7 +694,7 @@
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
                     <div>
-                        <h3 class="text-lg font-semibold text-[#3C2F23]">Book Appointment</h3>
+                        <h3 class="text-lg font-semibold text-[#3C2F23]">Make a Reservation</h3>
                         <p id="bookingSpaMeta" class="mt-1 text-xs text-gray-500">Spa • Branch</p>
                     </div>
 
@@ -708,7 +708,7 @@
 
                 <div class="p-6">
                     @auth
-                        <form method="POST" action="{{ route('bookings.online.store') }}" class="space-y-4">
+                        <form method="POST" action="{{ route('bookings.online.checkout') }}" class="space-y-4">
                             @csrf
 
                             <input type="hidden" name="spa_id" id="bookingSpaIdInput">
@@ -765,6 +765,17 @@
                                 </select>
                             </div>
 
+                            <div id="bookingPriceSummary" class="hidden p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5">
+                                <div class="flex items-center justify-between text-sm text-gray-700">
+                                    <span>Service Price</span>
+                                    <span id="bookingFullPrice">₱0.00</span>
+                                </div>
+                                <div class="flex items-center justify-between mt-2 text-sm font-semibold text-[#3C2F23]">
+                                    <span>Reservation Fee (50%)</span>
+                                    <span id="bookingDownpayment">₱0.00</span>
+                                </div>
+                            </div>
+
                             {{-- Service Type --}}
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Service Type</label>
@@ -818,9 +829,14 @@
                                 </div>
                             </div>
 
+                            <div id="reservationFeeNotice" class="p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5 text-sm text-gray-700">
+                                A 50% downpayment is required to reserve this appointment.
+                                Your booking will only be confirmed after successful payment.
+                            </div>
+
                             <button type="submit"
                                     class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                                Confirm Booking
+                                Proceed to 50% Payment
                             </button>
                         </form>
                     @else
@@ -1262,19 +1278,28 @@ closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
 // =====================================================
 // BOOKING MODAL — elements
 // =====================================================
-const bookingModal = document.getElementById('bookingModal');
-const openBookingBtn = document.getElementById('openBookingModalBtn');
-const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
-const bookingSpaMeta = document.getElementById('bookingSpaMeta');
-const bookingSpaIdInput = document.getElementById('bookingSpaIdInput');
+const bookingModal         = document.getElementById('bookingModal');
+const openBookingBtn       = document.getElementById('openBookingModalBtn');
+const closeBookingBtns     = document.querySelectorAll('[data-close-booking-modal]');
+const bookingSpaMeta       = document.getElementById('bookingSpaMeta');
+const bookingSpaIdInput    = document.getElementById('bookingSpaIdInput');
 const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
-const serviceTypeSelect = document.getElementById('bookingServiceType');
-const serviceTypeHint = document.getElementById('bookingServiceTypeHint');
-const treatmentSelect = document.getElementById('bookingTreatmentSelect');
-const bookingDateInput = document.getElementById('bookingDateInput');
-const bookingTimeInput = document.getElementById('bookingTimeInput');
-const addressWrapper = document.getElementById('addressWrapper');
-const addressInput = document.getElementById('bookingAddressInput');
+const serviceTypeSelect    = document.getElementById('bookingServiceType');
+const serviceTypeHint      = document.getElementById('bookingServiceTypeHint');
+const treatmentSelect      = document.getElementById('bookingTreatmentSelect');
+const bookingDateInput     = document.getElementById('bookingDateInput');
+const bookingTimeInput     = document.getElementById('bookingTimeInput');
+const addressWrapper       = document.getElementById('addressWrapper');
+const addressInput         = document.getElementById('bookingAddressInput');
+
+// NEW: reservation summary elements
+const bookingPriceSummary = document.getElementById('bookingPriceSummary');
+const bookingFullPrice    = document.getElementById('bookingFullPrice');
+const bookingDownpayment  = document.getElementById('bookingDownpayment');
+
+// NEW: form + submit button loading state
+const bookingForm         = bookingModal?.querySelector('form');
+const bookingSubmitBtn    = bookingForm?.querySelector('button[type="submit"]');
 
 function clearBookingSelections() {
     if (treatmentSelect) {
@@ -1287,6 +1312,7 @@ function clearBookingSelections() {
     resetServiceType();
 
     if (bookingDateInput) bookingDateInput.value = '';
+
     if (bookingTimeInput) {
         bookingTimeInput.value = '';
         bookingTimeInput.disabled = false;
@@ -1301,6 +1327,15 @@ function clearBookingSelections() {
 
     if (addressWrapper) {
         addressWrapper.classList.add('hidden');
+    }
+
+    if (bookingPriceSummary) bookingPriceSummary.classList.add('hidden');
+    if (bookingFullPrice) bookingFullPrice.textContent = '₱0.00';
+    if (bookingDownpayment) bookingDownpayment.textContent = '₱0.00';
+
+    if (bookingSubmitBtn) {
+        bookingSubmitBtn.disabled = false;
+        bookingSubmitBtn.innerHTML = 'Pay 50% to Reserve';
     }
 }
 
@@ -1317,6 +1352,7 @@ function populateTreatmentsForSelectedBranch() {
             : t.name;
         option.dataset.serviceType = t.service_type ?? 'in_branch_only';
         option.dataset.itemType = 'treatment';
+        option.dataset.price = t.price ?? '';
         treatmentSelect.appendChild(option);
     });
 
@@ -1328,10 +1364,12 @@ function populateTreatmentsForSelectedBranch() {
             : `${p.name} (Package)`;
         option.dataset.serviceType = p.service_type ?? 'in_branch_only';
         option.dataset.itemType = 'package';
+        option.dataset.price = p.price ?? '';
         treatmentSelect.appendChild(option);
     });
 
     resetServiceType();
+    updateReservationSummary();
 }
 
 function resetServiceType() {
@@ -1397,6 +1435,38 @@ function toggleAddressField() {
     if (addressInput) {
         addressInput.required = isHome;
     }
+}
+
+function updateReservationSummary() {
+    if (!treatmentSelect || !bookingPriceSummary || !bookingFullPrice || !bookingDownpayment) return;
+
+    const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
+    const rawPrice = selectedOption?.dataset?.price;
+
+    if (!rawPrice || !selectedOption?.value) {
+        bookingPriceSummary.classList.add('hidden');
+        bookingFullPrice.textContent = '₱0.00';
+        bookingDownpayment.textContent = '₱0.00';
+        return;
+    }
+
+    const full = parseFloat(rawPrice);
+
+    if (Number.isNaN(full) || full <= 0) {
+        bookingPriceSummary.classList.add('hidden');
+        bookingFullPrice.textContent = '₱0.00';
+        bookingDownpayment.textContent = '₱0.00';
+        return;
+    }
+
+    const half = full * 0.5;
+
+    bookingFullPrice.textContent =
+        `₱${full.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    bookingDownpayment.textContent =
+        `₱${half.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    bookingPriceSummary.classList.remove('hidden');
 }
 
 async function updateAvailableTimes() {
@@ -1466,6 +1536,7 @@ closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal)
 
 treatmentSelect?.addEventListener('change', function () {
     populateServiceTypeOptions();
+    updateReservationSummary();
 });
 
 serviceTypeSelect?.addEventListener('change', function () {
@@ -1473,6 +1544,19 @@ serviceTypeSelect?.addEventListener('change', function () {
 });
 
 bookingDateInput?.addEventListener('change', updateAvailableTimes);
+
+// NEW: loading state before redirect to PayMongo
+bookingForm?.addEventListener('submit', function () {
+    if (bookingSubmitBtn) {
+        bookingSubmitBtn.disabled = true;
+        bookingSubmitBtn.innerHTML = `
+            <span class="inline-flex items-center justify-center gap-2">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                Redirecting to Payment...
+            </span>
+        `;
+    }
+});
 
 // =====================================================
 // MY APPOINTMENTS MODAL

@@ -221,39 +221,102 @@ class BookingController extends Controller
 
         $this->syncAutomaticStatuses($user->spa_id, $currentBranchId);
 
-        $query = Booking::with('therapist', 'branch');
+        $baseQuery = Booking::with('therapist', 'branch');
 
         if ($user->hasRole('owner')) {
             $branchId = $user->currentBranchId();
 
-            $query->where('spa_id', $user->spa_id);
+            $baseQuery->where('spa_id', $user->spa_id);
 
             if ($branchId) {
-                $query->where('branch_id', $branchId);
+                $baseQuery->where('branch_id', $branchId);
             }
-        } elseif ($user->hasRole('manager')) {
-            $branchId = $user->currentBranchId();
+        } elseif ($user->hasRole('manager') || $user->hasRole('receptionist')) {
+            $branchId = $user->currentBranchId() ?? $user->branch_id;
 
-            $query->where('spa_id', $user->spa_id)
+            $baseQuery->where('spa_id', $user->spa_id)
                 ->where('branch_id', $branchId);
         } elseif ($user->hasRole('therapist')) {
-            $query->where('spa_id', $user->spa_id)
+            $baseQuery->where('spa_id', $user->spa_id)
                 ->where('branch_id', $user->branch_id)
                 ->where('therapist_id', $user->id);
         }
 
-        $bookings = $query->orderBy('appointment_date', 'asc')
+        $today = now()->toDateString();
+
+        $todayBase = (clone $baseQuery)
+            ->whereDate('appointment_date', $today)
+            ->whereIn('status', ['reserved', 'pending', 'ongoing']); // completed removed here
+
+        $todayPending = (clone $todayBase)
+            ->where('status', 'pending')
             ->orderBy('start_time', 'asc')
-            ->paginate(10);
+            ->paginate(5, ['*'], 'pending_page');
+
+        $todayPending->getCollection()->transform(
+            fn ($booking) => $this->decorateBooking($booking)
+        );
+
+        $todayAppointments = (clone $todayBase)
+            ->orderBy('start_time', 'asc')
+            ->paginate(10, ['*'], 'today_page');
+
+        $todayAppointments->getCollection()->transform(
+            fn ($booking) => $this->decorateBooking($booking)
+        );
+
+        $upcomingBase = (clone $baseQuery)
+            ->whereDate('appointment_date', '>', $today)
+            ->whereIn('status', ['reserved', 'pending']);
+
+        $upcomingAppointments = (clone $upcomingBase)
+            ->orderBy('appointment_date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->paginate(5, ['*'], 'upcoming_page');
+
+        $upcomingAppointments->getCollection()->transform(
+            fn ($booking) => $this->decorateBooking($booking)
+        );
+
+        $historyAppointments = (clone $baseQuery)
+            ->where(function ($query) use ($today) {
+                $query->whereIn('status', ['completed', 'cancelled'])
+                    ->orWhereDate('appointment_date', '<', $today);
+            })
+            ->orderBy('appointment_date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->paginate(10, ['*'], 'history_page');
+
+        $historyAppointments->getCollection()->transform(
+            fn ($booking) => $this->decorateBooking($booking)
+        );
+
+        $summary = [
+            'today_total' => (clone $todayBase)->count(),
+            'pending_today' => (clone $todayBase)->where('status', 'pending')->count(),
+            'upcoming_total' => (clone $upcomingBase)->count(),
+            'collected_today' => (clone $todayBase)->sum('amount_paid'),
+        ];
 
         $therapists = User::role('therapist')
-            ->whereHas('staff', function ($q) use ($user) {
+            ->whereHas('staff', function ($q) use ($user, $currentBranchId) {
                 $q->where('spa_id', $user->spa_id);
+
+                if ($currentBranchId) {
+                    $q->where('branch_id', $currentBranchId);
+                }
             })
             ->orderBy('name')
             ->get();
 
-        return view('appointments', compact('bookings', 'therapists'));
+        return view('appointments', compact(
+            'todayAppointments',
+            'todayPending',
+            'upcomingAppointments',
+            'historyAppointments',
+            'summary',
+            'therapists'
+        ));
     }
 
     public function edit(Booking $booking)
@@ -504,6 +567,64 @@ class BookingController extends Controller
         return back()->with('success', 'Booking reserved successfully!');
     }
 
+    public function updateStatus(Request $request, Booking $booking)
+    {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['ongoing', 'cancelled'])],
+            'amount_paid' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $serviceTotal = (float) ($booking->total_amount > 0
+            ? $booking->total_amount
+            : $this->resolveServicePrice($booking->treatment));
+
+        $currentPaid = (float) ($booking->amount_paid ?? 0);
+        $remaining = max($serviceTotal - $currentPaid, 0);
+        $additionalPayment = (float) ($validated['amount_paid'] ?? 0);
+
+        if ($validated['status'] !== 'cancelled') {
+            if ($additionalPayment > $remaining) {
+                return back()->withErrors([
+                    'amount_paid' => 'Entered amount is greater than the remaining balance.',
+                ]);
+            }
+
+            if ($remaining > 0 && $additionalPayment <= 0) {
+                return back()->withErrors([
+                    'amount_paid' => 'Please enter the amount collected for this appointment.',
+                ]);
+            }
+        }
+
+        $newPaid = $validated['status'] === 'cancelled'
+            ? $currentPaid
+            : $currentPaid + $additionalPayment;
+
+        $newBalance = max($serviceTotal - $newPaid, 0);
+
+        $newPaymentStatus = $booking->payment_status;
+
+        if ($validated['status'] !== 'cancelled') {
+            if ($serviceTotal > 0 && $newPaid >= $serviceTotal) {
+                $newPaymentStatus = 'paid';
+            } elseif ($newPaid > 0) {
+                $newPaymentStatus = 'partially_paid';
+            } else {
+                $newPaymentStatus = 'unpaid';
+            }
+        }
+
+        $booking->update([
+            'status' => $validated['status'],
+            'total_amount' => $serviceTotal,
+            'amount_paid' => $newPaid,
+            'balance_amount' => $newBalance,
+            'payment_status' => $newPaymentStatus,
+        ]);
+
+        return back()->with('success', 'Appointment status updated successfully.');
+    }
+
     private function resolveDurationMinutes(string $selection): int
     {
         if (str_starts_with($selection, 'treatment_')) {
@@ -652,18 +773,22 @@ class BookingController extends Controller
             $pendingUntil = (clone $start)->addMinutes(15);
             $end = Carbon::parse($date . ' ' . $booking->end_time);
 
-
             $newStatus = $booking->status;
 
             if (in_array($booking->status, ['reserved', 'pending', 'ongoing'])) {
                 if ($now->lt($start)) {
                     $newStatus = 'reserved';
-                } elseif ($now->gte($start) && $now->lt($pendingUntil)) {
-                    $newStatus = 'pending';
-                } elseif ($now->gte($pendingUntil) && $now->lt($end)) {
-                    $newStatus = 'ongoing';
                 } elseif ($now->gte($end)) {
                     $newStatus = 'completed';
+                } else {
+                    // Between start and end
+                    if ($booking->status === 'ongoing') {
+                        $newStatus = 'ongoing'; // keep manual ongoing
+                    } elseif ($now->lt($pendingUntil)) {
+                        $newStatus = 'pending';
+                    } else {
+                        $newStatus = 'ongoing';
+                    }
                 }
             }
 
@@ -673,5 +798,37 @@ class BookingController extends Controller
                 ]);
             }
         }
+    }
+
+    private function decorateBooking(Booking $booking): Booking
+    {
+        $resolvedTotal = (float) ($booking->total_amount > 0
+            ? $booking->total_amount
+            : $this->resolveServicePrice($booking->treatment));
+
+        $resolvedPaid = (float) ($booking->amount_paid ?? 0);
+
+        $booking->resolved_total_amount = $resolvedTotal;
+        $booking->resolved_amount_paid = $resolvedPaid;
+        $booking->resolved_balance_amount = max($resolvedTotal - $resolvedPaid, 0);
+
+        return $booking;
+    }
+
+    private function resolveServicePrice(string $selection): float
+    {
+        if (str_starts_with($selection, 'treatment_')) {
+            $id = (int) str_replace('treatment_', '', $selection);
+            $treatment = Treatment::withoutGlobalScopes()->find($id);
+            return (float) ($treatment?->price ?? 0);
+        }
+
+        if (str_starts_with($selection, 'package_')) {
+            $id = (int) str_replace('package_', '', $selection);
+            $package = Package::withoutGlobalScopes()->find($id);
+            return (float) ($package?->price ?? 0);
+        }
+
+        return 0;
     }
 }

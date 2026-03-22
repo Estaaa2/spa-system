@@ -1,7 +1,7 @@
 <?php
 
+use App\Http\Controllers\PaymongoWebhookController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Owner\SubscriptionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -9,4 +9,4 @@ use App\Http\Controllers\Owner\SubscriptionController;
 |--------------------------------------------------------------------------
 */
 
-Route::post('/paymongo/webhook', [SubscriptionController::class, 'webhook']);
+Route::post('/paymongo/webhook', [PaymongoWebhookController::class, 'handle']);
