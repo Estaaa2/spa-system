@@ -97,6 +97,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/bookings/online/payment/cancel', [OnlineBookingCheckoutController::class, 'cancel'])
         ->name('bookings.online.payment.cancel');
+
+    Route::post('/webhooks/paymongo', [PaymongoWebhookController::class, 'handle'])
+    ->name('webhooks.paymongo');
 });
 /*
 |--------------------------------------------------------------------------
@@ -204,7 +207,9 @@ Route::middleware(['auth', 'permission:manage services'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'permission:create booking|manage services'])->group(function () {
-    Route::get('/api/operating-hours/{branch}/{day}', function ($branchId, $day) {
+});
+
+Route::get('/api/operating-hours/{branch}/{day}', function ($branchId, $day) {
         $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
             ->where('day_of_week', $day)
             ->first();
@@ -217,7 +222,6 @@ Route::middleware(['auth', 'permission:create booking|manage services'])->group(
             'closing_time' => $hours->closing_time,
         ]);
     })->name('api.operating-hours');
-});
 
 /*
 |--------------------------------------------------------------------------

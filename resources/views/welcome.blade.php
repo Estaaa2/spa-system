@@ -128,7 +128,6 @@
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeProfileModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                @auth
                 <div class="relative px-6 py-8 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center">
                     <div class="flex items-center justify-center w-16 h-16 mx-auto text-2xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
                         {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
@@ -142,7 +141,6 @@
                         <i class="text-sm fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                @endauth
                 <div class="p-6 space-y-4">
                     <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
                         <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
@@ -260,7 +258,6 @@
                 </p>
             </div>
 
-            {{-- ✅ Search form — posts to home route with city param --}}
             <form action="{{ url('/') }}" method="GET"
                   class="grid max-w-4xl grid-cols-1 gap-4 p-4 mx-auto mt-10 shadow-2xl bg-white/90 rounded-2xl ring-1 ring-black/5 md:grid-cols-12">
                 <div class="flex items-center gap-3 px-4 py-3 bg-white border border-black/10 md:col-span-8 rounded-xl">
@@ -281,7 +278,6 @@
                         </a>
                     @endif
                 </div>
-
                 <button class="md:col-span-4 booking-btn text-white rounded-xl font-semibold hover:opacity-95 transition shadow-lg active:translate-y-0.5">
                     <span class="inline-flex items-center justify-center gap-2 py-3">
                         <i class="fa-solid fa-magnifying-glass"></i>
@@ -373,9 +369,7 @@
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
                     <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">
-                        Featured Spas
-                    </h2>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Featured Spas</h2>
                     <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                 </div>
                 <p class="mt-3 text-sm text-gray-600">
@@ -420,28 +414,17 @@
 
                                 $thumb = $coverPhoto;
 
-<<<<<<<<< Temporary merge branch 1
                                 $branchTreatments = \App\Models\Treatment::withoutGlobalScopes()
                                     ->where('branch_id', $branch->id)
                                     ->where('spa_id', $spa->id)
                                     ->get()
                                     ->map(fn($t) => [
-                                        'id' => $t->id,
-                                        'name' => $t->name,
-=========
-                                $branchesData = $spa->branches->map(fn($b) => [
-                                    'id'               => $b->id,
-                                    'name'             => $b->name,
-                                    'location'         => $b->location ?? '',
-                                    'has_home_service' => (bool) ($b->has_home_service ?? false),
-                                    'treatments'       => $b->treatments->map(fn($t) => [
-                                        'id'    => $t->id,
-                                        'name'  => $t->name,
->>>>>>>>> Temporary merge branch 2
-                                        'price' => $t->price,
-                                        'duration' => $t->duration,
+                                        'id'           => $t->id,
+                                        'name'         => $t->name,
+                                        'price'        => $t->price,
+                                        'duration'     => $t->duration,
                                         'service_type' => $t->service_type,
-                                        'type' => 'treatment',
+                                        'type'         => 'treatment',
                                     ])
                                     ->values()
                                     ->toArray();
@@ -451,33 +434,33 @@
                                     ->where('spa_id', $spa->id)
                                     ->get()
                                     ->map(fn($p) => [
-                                        'id' => $p->id,
-                                        'name' => $p->name,
-                                        'price' => $p->price ?? null,
-                                        'duration' => $p->duration ?? null,
+                                        'id'           => $p->id,
+                                        'name'         => $p->name,
+                                        'price'        => $p->price ?? null,
+                                        'duration'     => $p->duration ?? null,
                                         'service_type' => $p->service_type ?? 'in_branch_only',
-                                        'type' => 'package',
+                                        'type'         => 'package',
                                     ])
                                     ->values()
                                     ->toArray();
 
                                 $spaPayload = [
-                                    'id' => $spa->id,
-                                    'name' => $spa->name,
-                                    'tag' => 'Featured Spa',
-                                    'branch_id' => $branch->id,
-                                    'branch_name' => $branch->name,
+                                    'id'              => $spa->id,
+                                    'name'            => $spa->name,
+                                    'tag'             => 'Featured Spa',
+                                    'branch_id'       => $branch->id,
+                                    'branch_name'     => $branch->name,
                                     'branch_location' => $branch->location ?? '',
-                                    'desc' => $profile->description ?? '',
-                                    'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
-                                    'photos' => $photos,
-                                    'address' => $profile->address ?? $branch->location ?? 'Location unavailable',
-                                    'phone' => $profile->phone ?? '',
-                                    'lat' => $profile->latitude,
-                                    'lng' => $profile->longitude,
-                                    'treatments' => $branchTreatments,
-                                    'packages' => $branchPackages,
-                                    'amenities' => $profile->amenities ?? [],
+                                    'desc'            => $profile->description ?? '',
+                                    'price_note'      => $lowestPrice ? number_format($lowestPrice, 2) : null,
+                                    'photos'          => $photos,
+                                    'address'         => $profile->address ?? $branch->location ?? 'Location unavailable',
+                                    'phone'           => $profile->phone ?? '',
+                                    'lat'             => $profile->latitude,
+                                    'lng'             => $profile->longitude,
+                                    'treatments'      => $branchTreatments,
+                                    'packages'        => $branchPackages,
+                                    'amenities'       => $profile->amenities ?? [],
                                 ];
                             @endphp
 
@@ -496,25 +479,6 @@
                                 <div class="p-5">
                                     <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
                                     @php
-<<<<<<<<< Temporary merge branch 1
-                                        $fullAddress = $spaPayload['address'] ?? null;
-
-                                        if (!$fullAddress) {
-                                            $addressSummary = 'Location unavailable';
-                                        } else {
-                                            $parts = array_map('trim', explode(',', $fullAddress));
-
-                                            if (count($parts) < 3) {
-                                                $addressSummary = $fullAddress;
-                                            } else {
-                                                $withoutZipCountry = array_slice($parts, 0, count($parts) - 2);
-                                                $addressSummary = implode(', ', array_slice($withoutZipCountry, -3));
-                                            }
-                                        }
-                                    @endphp
-
-                                    <p class="mt-1 text-xs text-gray-500">{{ $addressSummary }}</p>
-=========
                                         $addr = $spaPayload['address'] ?? '';
                                         $addrParts = array_map('trim', explode(',', $addr));
                                         $addrSummary = count($addrParts) >= 3
@@ -522,7 +486,6 @@
                                             : ($addr ?: 'Location unavailable');
                                     @endphp
                                     <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
->>>>>>>>> Temporary merge branch 2
                                     <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
                                 </div>
                             </button>
@@ -555,9 +518,7 @@
                 <div class="text-center">
                     <div class="flex items-center justify-center gap-6">
                         <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                        <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">
-                            More Spas Near You
-                        </h2>
+                        <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">More Spas Near You</h2>
                         <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                     </div>
                     <p class="mt-3 text-sm text-gray-600">
@@ -603,35 +564,53 @@
                                             ->values()
                                             ->toArray();
 
-                                        $branchesData = $spa->branches->map(fn($b) => [
-                                            'id'               => $b->id,
-                                            'name'             => $b->name,
-                                            'location'         => $b->location ?? '',
-                                            'has_home_service' => (bool) ($b->has_home_service ?? false),
-                                            'treatments'       => $b->treatments->map(fn($t) => [
-                                                'id'    => $t->id,
-                                                'name'  => $t->name,
-                                                'price' => $t->price,
-                                            ])->values()->toArray(),
-                                            'packages' => ($b->packages ?? collect())->map(fn($p) => [
-                                                'id'   => $p->id,
-                                                'name' => $p->name,
-                                            ])->values()->toArray(),
-                                        ])->values()->toArray();
+                                        $branchTreatments = \App\Models\Treatment::withoutGlobalScopes()
+                                            ->where('branch_id', $branch->id)
+                                            ->where('spa_id', $spa->id)
+                                            ->get()
+                                            ->map(fn($t) => [
+                                                'id'           => $t->id,
+                                                'name'         => $t->name,
+                                                'price'        => $t->price,
+                                                'duration'     => $t->duration,
+                                                'service_type' => $t->service_type,
+                                                'type'         => 'treatment',
+                                            ])
+                                            ->values()
+                                            ->toArray();
+
+                                        $branchPackages = \App\Models\Package::withoutGlobalScopes()
+                                            ->where('branch_id', $branch->id)
+                                            ->where('spa_id', $spa->id)
+                                            ->get()
+                                            ->map(fn($p) => [
+                                                'id'           => $p->id,
+                                                'name'         => $p->name,
+                                                'price'        => $p->price ?? null,
+                                                'duration'     => $p->duration ?? null,
+                                                'service_type' => $p->service_type ?? 'in_branch_only',
+                                                'type'         => 'package',
+                                            ])
+                                            ->values()
+                                            ->toArray();
 
                                         $spaPayload = [
-                                            'id'         => $spa->id,
-                                            'name'       => $spa->name,
-                                            'tag'        => 'Listed Spa',
-                                            'desc'       => $profile->description ?? '',
-                                            'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
-                                            'photos'     => $photos,
-                                            'address'    => $profile->address ?? $branch->location ?? 'Location unavailable',
-                                            'phone'      => $profile->phone ?? '',
-                                            'lat'        => $profile->latitude,
-                                            'lng'        => $profile->longitude,
-                                            'branches'   => $branchesData,
-                                            'amenities'  => $profile->amenities ?? [],
+                                            'id'              => $spa->id,
+                                            'name'            => $spa->name,
+                                            'tag'             => 'Listed Spa',
+                                            'branch_id'       => $branch->id,
+                                            'branch_name'     => $branch->name,
+                                            'branch_location' => $branch->location ?? '',
+                                            'desc'            => $profile->description ?? '',
+                                            'price_note'      => $lowestPrice ? number_format($lowestPrice, 2) : null,
+                                            'photos'          => $photos,
+                                            'address'         => $profile->address ?? $branch->location ?? 'Location unavailable',
+                                            'phone'           => $profile->phone ?? '',
+                                            'lat'             => $profile->latitude,
+                                            'lng'             => $profile->longitude,
+                                            'treatments'      => $branchTreatments,
+                                            'packages'        => $branchPackages,
+                                            'amenities'       => $profile->amenities ?? [],
                                         ];
                                     @endphp
 
@@ -671,7 +650,6 @@
                             @endforeach
                         @endforeach
                     </div>
-
                 @else
                     <div class="flex flex-col items-center justify-center py-20 mt-12 border border-dashed border-[#C4A97D]/40 rounded-3xl bg-white/50">
                         <div class="flex items-center justify-center w-16 h-16 mb-5 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
@@ -815,12 +793,7 @@
     <!-- ================= BOOKING MODAL ================= -->
     <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>
-<<<<<<<<< Temporary merge branch 1
-
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-=========
-        <div class="relative mx-auto w-[92%] max-w-xl mt-10 sm:mt-16">
->>>>>>>>> Temporary merge branch 2
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
                     <div>
@@ -837,100 +810,44 @@
                     @auth
                         <form method="POST" action="{{ route('bookings.online.checkout') }}" class="space-y-4">
                             @csrf
-<<<<<<<<< Temporary merge branch 1
-
                             <input type="hidden" name="spa_id" id="bookingSpaIdInput">
                             <input type="hidden" name="branch_id" id="bookingBranchIdInput">
 
-                            {{-- Customer Info --}}
-=========
-                            <input type="hidden" name="spa_id" id="bookingSpaIdInput">
-                            <input type="hidden" name="branch_id" id="bookingBranchIdInput">
->>>>>>>>> Temporary merge branch 2
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Full Name</label>
-                                    <input
-                                        type="text"
-                                        name="customer_name"
-                                        id="bookingCustomerName"
-                                        value="{{ auth()->user()->name }}"
-                                        readonly
-                                        class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5"
-                                    >
+                                    <input type="text" name="customer_name" id="bookingCustomerName"
+                                        value="{{ auth()->user()->name }}" readonly
+                                        class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Email</label>
-                                    <input
-                                        type="email"
-                                        name="customer_email"
-                                        id="bookingCustomerEmail"
-                                        value="{{ auth()->user()->email }}"
-                                        readonly
-                                        class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5"
-                                    >
+                                    <input type="email" name="customer_email" id="bookingCustomerEmail"
+                                        value="{{ auth()->user()->email }}" readonly
+                                        class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
                                 </div>
                             </div>
 
-=========
->>>>>>>>> Temporary merge branch 2
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
-                                <input
-                                    type="text"
-                                    name="customer_phone"
-                                    id="bookingCustomerPhone"
+                                <input type="text" name="customer_phone" id="bookingCustomerPhone"
                                     placeholder="09xxxxxxxxx"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    required
-                                >
-                            </div>
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
-                                    <input type="date" name="appointment_date" id="bookingDateInput" required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Start Time</label>
-                                    <input type="time" name="start_time" id="bookingTimeInput" required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                </div>
+                                    required>
                             </div>
 
-                            {{-- Treatment / Package --}}
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Treatment / Package</label>
-                                <select
-                                    name="treatment"
-                                    id="bookingTreatmentSelect"
+                                <select name="treatment" id="bookingTreatmentSelect"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
                                     required>
                                     <option value="">Select treatment or package</option>
                                 </select>
                             </div>
-<<<<<<<<< Temporary merge branch 1
 
-                            {{-- Service Type --}}
-=========
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
-                                    <input type="date" name="appointment_date" id="bookingDateInput" required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Start Time</label>
-                                    <input type="time" name="start_time" id="bookingTimeInput" required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                </div>
-                            </div>
->>>>>>>>> Temporary merge branch 2
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Service Type</label>
-                                <select
-                                    name="service_type"
-                                    id="bookingServiceType"
+                                <select name="service_type" id="bookingServiceType"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
                                     required>
                                     <option value="">Select service type</option>
@@ -938,51 +855,36 @@
                                 <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500"></p>
                             </div>
 
-                            {{-- Home address --}}
-=========
->>>>>>>>> Temporary merge branch 2
                             <div id="addressWrapper" class="hidden">
                                 <label class="block text-xs font-semibold text-gray-600">
                                     Home Address <span class="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    name="customer_address"
-                                    id="bookingAddressInput"
+                                <input type="text" name="customer_address" id="bookingAddressInput"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    placeholder="Enter your full address"
-                                >
+                                    placeholder="Enter your full address">
                                 <p class="mt-1 text-[11px] text-gray-500">Required for home service bookings.</p>
                             </div>
-<<<<<<<<< Temporary merge branch 1
 
-                            {{-- Date + Time --}}
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
-                                    <input
-                                        type="date"
-                                        name="appointment_date"
-                                        id="bookingDateInput"
-                                        required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    >
+                                    <input type="date" name="appointment_date" id="bookingDateInput" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
-
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Start Time</label>
-                                    <input
-                                        type="time"
-                                        name="start_time"
-                                        id="bookingTimeInput"
-                                        required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    >
+                                    <input type="time" name="start_time" id="bookingTimeInput" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                             </div>
 
-=========
->>>>>>>>> Temporary merge branch 2
+                            @if($errors->has('start_time'))
+                                <div class="p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200">
+                                    <i class="mr-1 fa-solid fa-circle-exclamation"></i>
+                                    {{ $errors->first('start_time') }}
+                                </div>
+                            @endif
+
                             <button type="submit"
                                     class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
                                 Proceed to 50% Payment
@@ -1189,9 +1091,8 @@ window.addEventListener('scroll', () => {
     else nav?.classList.remove('nav-scrolled');
 });
 
-let selectedSpa       = null;
-let preferredBranchId = null;
-let spaMap            = null;
+let selectedSpa = null;
+let spaMap      = null;
 
 const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
 const profileDropdownMenu = document.getElementById('profileDropdownMenu');
@@ -1251,36 +1152,23 @@ function toggleEmail() {
     }
 }
 
+// =====================================================
+// SPA MODAL
+// =====================================================
 const spaModal     = document.getElementById('spaModal');
 const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
 let photos     = [];
 let photoIndex = 0;
 
-function setPhoto(i) {
-    const elMainPhoto = document.getElementById('spaModalMainPhoto');
-    if (!photos.length || !elMainPhoto) return;
-    photoIndex = (i + photos.length) % photos.length;
-    elMainPhoto.src = photos[photoIndex];
-}
-
 function openSpaModal(spaData) {
     selectedSpa = spaData;
-    const elName           = document.getElementById('spaModalName');
-    const elTag            = document.getElementById('spaModalTag');
-    const elDesc           = document.getElementById('spaModalDesc');
-    const elAddress        = document.getElementById('spaModalAddress');
-    const elAddressSummary = document.getElementById('spaModalAddressSummary');
-    const elPhone          = document.getElementById('spaModalPhone');
-    const elPrice          = document.getElementById('spaModalPrice');
-    const elMap            = document.getElementById('spaModalMap');
-    const elMainPhoto      = document.getElementById('spaModalMainPhoto');
 
-    elName.textContent    = spaData.name    ?? 'Spa';
-    elTag.textContent     = spaData.tag     ?? 'Featured Spa';
-    elDesc.textContent    = spaData.desc    ?? '';
-    elPhone.textContent   = spaData.phone   ?? 'No contact info';
-    elAddress.textContent = spaData.address ?? 'Address unavailable';
-    elPrice.textContent   = spaData.price_note
+    document.getElementById('spaModalName').textContent    = spaData.name    ?? 'Spa';
+    document.getElementById('spaModalTag').textContent     = spaData.tag     ?? 'Featured Spa';
+    document.getElementById('spaModalDesc').textContent    = spaData.desc    ?? '';
+    document.getElementById('spaModalPhone').textContent   = spaData.phone   ?? 'No contact info';
+    document.getElementById('spaModalAddress').textContent = spaData.address ?? 'Address unavailable';
+    document.getElementById('spaModalPrice').textContent   = spaData.price_note
         ? `Starts at ₱${spaData.price_note}`
         : 'Prices vary per treatment';
 
@@ -1291,10 +1179,10 @@ function openSpaModal(spaData) {
         const withoutZipCountry = parts.slice(0, parts.length - 2);
         return withoutZipCountry.slice(-3).join(', ');
     }
-    elAddressSummary.textContent = getAddressSummary(spaData.address);
+    document.getElementById('spaModalAddressSummary').textContent = getAddressSummary(spaData.address);
 
+    // Amenities
     const amenitiesContainer = document.getElementById('spaModalAmenities');
-
     if (amenitiesContainer) {
         const amenities = spaData.amenities ?? [];
         if (amenities.length) {
@@ -1316,11 +1204,13 @@ function openSpaModal(spaData) {
         }
     }
 
+    // Photos
     const fallbackImage = "{{ asset('storage/branch_profiles/emptyspa.jpg') }}";
     photos = Array.isArray(spaData.photos) && spaData.photos.length
         ? spaData.photos
         : [fallbackImage, fallbackImage, fallbackImage, fallbackImage, fallbackImage];
 
+    const elMainPhoto = document.getElementById('spaModalMainPhoto');
     if (elMainPhoto) elMainPhoto.src = photos[0] || fallbackImage;
 
     ['gallery_1', 'gallery_2', 'gallery_3', 'gallery_4'].forEach((id, i) => {
@@ -1334,6 +1224,8 @@ function openSpaModal(spaData) {
     spaModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
 
+    // Map
+    const elMap = document.getElementById('spaModalMap');
     if (spaMap) { spaMap.remove(); spaMap = null; }
     if (elMap && spaData.lat && spaData.lng) {
         setTimeout(() => {
@@ -1367,42 +1259,30 @@ document.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
 
 closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
 
-<<<<<<<<< Temporary merge branch 1
-
 // =====================================================
-// BOOKING MODAL — elements
+// BOOKING MODAL
 // =====================================================
-const bookingModal = document.getElementById('bookingModal');
-const openBookingBtn = document.getElementById('openBookingModalBtn');
+const bookingModal     = document.getElementById('bookingModal');
+const openBookingBtn   = document.getElementById('openBookingModalBtn');
 const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
-const bookingSpaMeta = document.getElementById('bookingSpaMeta');
-=========
-const bookingModal      = document.getElementById('bookingModal');
-const openBookingBtn    = document.getElementById('openBookingModalBtn');
-const closeBookingBtns  = document.querySelectorAll('[data-close-booking-modal]');
-const bookingSpaMeta    = document.getElementById('bookingSpaMeta');
->>>>>>>>> Temporary merge branch 2
-const bookingSpaIdInput = document.getElementById('bookingSpaIdInput');
+const bookingSpaMeta   = document.getElementById('bookingSpaMeta');
+const bookingSpaIdInput    = document.getElementById('bookingSpaIdInput');
 const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
-const serviceTypeSelect = document.getElementById('bookingServiceType');
-const serviceTypeHint = document.getElementById('bookingServiceTypeHint');
-const treatmentSelect = document.getElementById('bookingTreatmentSelect');
-const bookingDateInput = document.getElementById('bookingDateInput');
-const bookingTimeInput = document.getElementById('bookingTimeInput');
-const addressWrapper = document.getElementById('addressWrapper');
-const addressInput = document.getElementById('bookingAddressInput');
+const serviceTypeSelect    = document.getElementById('bookingServiceType');
+const serviceTypeHint      = document.getElementById('bookingServiceTypeHint');
+const treatmentSelect      = document.getElementById('bookingTreatmentSelect');
+const bookingDateInput     = document.getElementById('bookingDateInput');
+const bookingTimeInput     = document.getElementById('bookingTimeInput');
+const addressWrapper       = document.getElementById('addressWrapper');
+const addressInput         = document.getElementById('bookingAddressInput');
 
-<<<<<<<<< Temporary merge branch 1
 function clearBookingSelections() {
     if (treatmentSelect) {
         treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
         treatmentSelect.value = '';
     }
-
     if (bookingBranchIdInput) bookingBranchIdInput.value = '';
-
     resetServiceType();
-
     if (bookingDateInput) bookingDateInput.value = '';
     if (bookingTimeInput) {
         bookingTimeInput.value = '';
@@ -1410,15 +1290,11 @@ function clearBookingSelections() {
         bookingTimeInput.removeAttribute('min');
         bookingTimeInput.removeAttribute('max');
     }
-
     if (addressInput) {
         addressInput.value = '';
         addressInput.required = false;
     }
-
-    if (addressWrapper) {
-        addressWrapper.classList.add('hidden');
-    }
+    if (addressWrapper) addressWrapper.classList.add('hidden');
 }
 
 function populateTreatmentsForSelectedBranch() {
@@ -1433,7 +1309,7 @@ function populateTreatmentsForSelectedBranch() {
             ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}`
             : t.name;
         option.dataset.serviceType = t.service_type ?? 'in_branch_only';
-        option.dataset.itemType = 'treatment';
+        option.dataset.itemType    = 'treatment';
         treatmentSelect.appendChild(option);
     });
 
@@ -1444,73 +1320,24 @@ function populateTreatmentsForSelectedBranch() {
             ? `${p.name} (Package) — ₱${parseFloat(p.price).toLocaleString()}`
             : `${p.name} (Package)`;
         option.dataset.serviceType = p.service_type ?? 'in_branch_only';
-        option.dataset.itemType = 'package';
+        option.dataset.itemType    = 'package';
         treatmentSelect.appendChild(option);
-=========
-function populateBranchDropdown(filterHomeService = false) {
-    if (!branchSelect || !selectedSpa) return;
-    const branches = selectedSpa.branches ?? [];
-    const filtered = filterHomeService ? branches.filter(b => b.has_home_service) : branches;
-    branchSelect.innerHTML = '<option value="">Select branch</option>';
-    filtered.forEach(b => {
-        const opt = document.createElement('option');
-        opt.value = String(b.id);
-        opt.textContent = b.location ? `${b.name} — ${b.location}` : b.name;
-        branchSelect.appendChild(opt);
-    });
-    if (filtered.length) {
-        branchSelect.value = String(filtered[0].id);
-        if (bookingBranchIdInput) bookingBranchIdInput.value = filtered[0].id;
-    }
-    populateTreatmentsForBranch();
-}
-
-function populateTreatmentsForBranch() {
-    if (!treatmentSelect || !selectedSpa) return;
-    const selectedBranchId = branchSelect?.value;
-    const branch = (selectedSpa.branches ?? []).find(b => String(b.id) === String(selectedBranchId));
-    treatmentSelect.innerHTML = '<option value="">Select treatment</option>';
-    if (!branch) return;
-    (branch.treatments ?? []).forEach(t => {
-        const opt = document.createElement('option');
-        opt.value = `treatment_${t.id}`;
-        opt.textContent = t.price ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}` : t.name;
-        treatmentSelect.appendChild(opt);
-    });
-    (branch.packages ?? []).forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = `package_${p.id}`;
-        opt.textContent = `${p.name} (Package)`;
-        treatmentSelect.appendChild(opt);
->>>>>>>>> Temporary merge branch 2
     });
 
     resetServiceType();
 }
 
-<<<<<<<<< Temporary merge branch 1
 function resetServiceType() {
     if (!serviceTypeSelect) return;
-
     serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
     serviceTypeSelect.value = '';
-
-    if (serviceTypeHint) {
-        serviceTypeHint.textContent = '';
-    }
-
-    if (addressWrapper) {
-        addressWrapper.classList.add('hidden');
-    }
-
-    if (addressInput) {
-        addressInput.required = false;
-    }
+    if (serviceTypeHint) serviceTypeHint.textContent = '';
+    if (addressWrapper) addressWrapper.classList.add('hidden');
+    if (addressInput) addressInput.required = false;
 }
 
 function populateServiceTypeOptions() {
     resetServiceType();
-
     if (!treatmentSelect || !serviceTypeSelect) return;
 
     const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
@@ -1519,24 +1346,16 @@ function populateServiceTypeOptions() {
     const serviceType = selectedOption.dataset.serviceType || 'in_branch_only';
 
     if (serviceType === 'in_branch_only') {
-        serviceTypeSelect.innerHTML = `
-            <option value="in_branch">In-Branch</option>
-        `;
+        serviceTypeSelect.innerHTML = `<option value="in_branch">In-Branch</option>`;
         serviceTypeSelect.value = 'in_branch';
-
-        if (serviceTypeHint) {
-            serviceTypeHint.textContent = 'This selection is available for in-branch service only.';
-        }
+        if (serviceTypeHint) serviceTypeHint.textContent = 'This selection is available for in-branch service only.';
     } else if (serviceType === 'in_branch_and_home') {
         serviceTypeSelect.innerHTML = `
             <option value="">Select service type</option>
             <option value="in_branch">In-Branch</option>
             <option value="in_home">Home Service</option>
         `;
-
-        if (serviceTypeHint) {
-            serviceTypeHint.textContent = 'This selection is available for both in-branch and home service.';
-        }
+        if (serviceTypeHint) serviceTypeHint.textContent = 'This selection is available for both in-branch and home service.';
     }
 
     toggleAddressField();
@@ -1544,28 +1363,19 @@ function populateServiceTypeOptions() {
 
 function toggleAddressField() {
     const isHome = serviceTypeSelect && serviceTypeSelect.value === 'in_home';
-
-    if (addressWrapper) {
-        addressWrapper.classList.toggle('hidden', !isHome);
-    }
-
-    if (addressInput) {
-        addressInput.required = isHome;
-    }
+    if (addressWrapper) addressWrapper.classList.toggle('hidden', !isHome);
+    if (addressInput) addressInput.required = isHome;
 }
 
 async function updateAvailableTimes() {
-    const branchId = bookingBranchIdInput?.value;
+    const branchId  = bookingBranchIdInput?.value;
     const dateValue = bookingDateInput?.value;
-
     if (!branchId || !dateValue || !bookingTimeInput) return;
 
     const day = new Date(dateValue).toLocaleDateString('en-US', { weekday: 'long' });
-
     try {
         const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
         const data = await response.json();
-
         if (data.is_closed) {
             bookingTimeInput.value = '';
             bookingTimeInput.disabled = true;
@@ -1585,13 +1395,8 @@ function openBookingModal() {
 
     clearBookingSelections();
 
-    if (bookingSpaIdInput) {
-        bookingSpaIdInput.value = selectedSpa.id ?? '';
-    }
-
-    if (bookingBranchIdInput) {
-        bookingBranchIdInput.value = selectedSpa.branch_id ?? '';
-    }
+    if (bookingSpaIdInput)    bookingSpaIdInput.value    = selectedSpa.id ?? '';
+    if (bookingBranchIdInput) bookingBranchIdInput.value = selectedSpa.branch_id ?? '';
 
     if (bookingSpaMeta) {
         bookingSpaMeta.textContent = selectedSpa.branch_location
@@ -1600,44 +1405,10 @@ function openBookingModal() {
     }
 
     const today = new Date().toISOString().split('T')[0];
-    if (bookingDateInput) {
-        bookingDateInput.min = today;
-    }
+    if (bookingDateInput) bookingDateInput.min = today;
 
     populateTreatmentsForSelectedBranch();
 
-=========
-function populateTreatments() { populateTreatmentsForBranch(); }
-
-serviceTypeSelect?.addEventListener('change', function () {
-    const isHome = this.value === 'in_home';
-    populateBranchDropdown(isHome);
-    const addressWrapper = document.getElementById('addressWrapper');
-    const addressInput   = document.getElementById('bookingAddressInput');
-    if (addressWrapper) addressWrapper.classList.toggle('hidden', !isHome);
-    if (addressInput)   addressInput.toggleAttribute('required', isHome);
-});
-
-branchSelect?.addEventListener('change', function () {
-    if (bookingBranchIdInput) bookingBranchIdInput.value = this.value;
-    populateTreatmentsForBranch();
-});
-
-function openBookingModal() {
-    if (!selectedSpa) return;
-    const branches = selectedSpa.branches ?? [];
-    const chosen   = branches[0];
-    bookingSpaMeta.textContent = chosen?.location
-        ? `${selectedSpa.name} • ${chosen.location}`
-        : selectedSpa.name;
-    if (bookingSpaIdInput) bookingSpaIdInput.value = selectedSpa.id ?? '';
-    if (serviceTypeSelect) serviceTypeSelect.value = '';
-    populateBranchDropdown(false);
-    const addressWrapper = document.getElementById('addressWrapper');
-    const addressInput   = document.getElementById('bookingAddressInput');
-    if (addressWrapper) addressWrapper.classList.add('hidden');
-    if (addressInput)   addressInput.removeAttribute('required');
->>>>>>>>> Temporary merge branch 2
     bookingModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
 }
@@ -1651,15 +1422,8 @@ function closeBookingModal() {
 openBookingBtn?.addEventListener('click', openBookingModal);
 closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal));
 
-<<<<<<<<< Temporary merge branch 1
-treatmentSelect?.addEventListener('change', function () {
-    populateServiceTypeOptions();
-});
-
-serviceTypeSelect?.addEventListener('change', function () {
-    toggleAddressField();
-});
-
+treatmentSelect?.addEventListener('change', populateServiceTypeOptions);
+serviceTypeSelect?.addEventListener('change', toggleAddressField);
 bookingDateInput?.addEventListener('change', updateAvailableTimes);
 
 // =====================================================
@@ -1692,18 +1456,9 @@ function loadAppointments() {
 function updateTabCounts() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('tab-count-upcoming').textContent =
-<<<<<<<<< Temporary merge branch 1
-        allAppointments.filter(b =>
-            ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
-    document.getElementById('tab-count-past').textContent =
-        allAppointments.filter(b =>
-            b.status === 'completed' ||
-            (['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw < today)).length;
-=========
         allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
     document.getElementById('tab-count-past').textContent =
-        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'confirmed'].includes(b.status) && b.date_raw < today)).length;
->>>>>>>>> Temporary merge branch 2
+        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw < today)).length;
     document.getElementById('tab-count-cancelled').textContent =
         allAppointments.filter(b => b.status === 'cancelled').length;
 }
@@ -1727,21 +1482,13 @@ function renderTab(tab) {
     const today  = new Date().toISOString().split('T')[0];
     let filtered = [];
     if (tab === 'upcoming') {
-<<<<<<<<< Temporary merge branch 1
-        filtered = allAppointments.filter(b =>
-            ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
-    } else if (tab === 'past') {
-        filtered = allAppointments.filter(b =>
-            b.status === 'completed' ||
-            (['reserved', 'pending'].includes(b.status) && b.date_raw < today));
-=========
         filtered = allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
     } else if (tab === 'past') {
-        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'confirmed'].includes(b.status) && b.date_raw < today));
->>>>>>>>> Temporary merge branch 2
+        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending'].includes(b.status) && b.date_raw < today));
     } else {
         filtered = allAppointments.filter(b => b.status === 'cancelled');
     }
+
     const container = document.getElementById('appointmentsContent');
     if (!filtered.length) {
         container.innerHTML = `
@@ -1775,7 +1522,7 @@ function renderTab(tab) {
 function statusBadge(status) {
     const map = {
         reserved:  'bg-blue-100 text-blue-700',
-        ongoing: 'bg-green-100 text-green-700',
+        ongoing:   'bg-green-100 text-green-700',
         completed: 'bg-gray-100 text-gray-600',
         cancelled: 'bg-red-100 text-red-600',
         pending:   'bg-yellow-100 text-yellow-700',
@@ -1783,6 +1530,9 @@ function statusBadge(status) {
     return map[status] ?? 'bg-gray-100 text-gray-600';
 }
 
+// =====================================================
+// MY SCHEDULE MODAL
+// =====================================================
 let scheduleBookings = [];
 let calendarDate     = new Date();
 
@@ -1800,7 +1550,10 @@ function closeScheduleModal() {
 function loadSchedule() {
     fetch('/my-schedule')
         .then(r => r.json())
-        .then(data => { scheduleBookings = data; renderCalendar(); });
+        .then(data => {
+            console.log('Schedule data:', data);
+            scheduleBookings = data;
+            renderCalendar(); });
 }
 
 function changeMonth(dir) {
@@ -1877,7 +1630,66 @@ window.addEventListener('keydown', (e) => {
         if (!bookingModal?.classList.contains('hidden')) closeBookingModal();
     }
 });
+
+// =====================================================
+// TOAST
+// =====================================================
+function showSpaToast(message, type = 'success') {
+    const isSuccess = type === 'success';
+    Toastify({
+        text: `
+            <div style="display:flex;align-items:center;gap:12px;padding:2px 0;">
+                <div style="width:36px;height:36px;border-radius:50%;background:${isSuccess?'#f0fdf4':'#fef2f2'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="${isSuccess?'fa-solid fa-spa':'fa-solid fa-circle-xmark'}" style="color:${isSuccess?'#16a34a':'#dc2626'};font-size:15px;"></i>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${isSuccess?'#15803d':'#b91c1c'};">${isSuccess?'Success':'Error'}</span>
+                    <span style="font-size:13px;color:#374151;font-weight:400;line-height:1.4;">${message}</span>
+                </div>
+            </div>`,
+        duration: 3500,
+        gravity: 'top',
+        position: 'right',
+        close: false,
+        escapeMarkup: false,
+        style: {
+            background: '#ffffff',
+            border: isSuccess ? '1px solid #bbf7d0' : '1px solid #fecaca',
+            borderLeft: isSuccess ? '4px solid #16a34a' : '4px solid #dc2626',
+            borderRadius: '10px',
+            minWidth: '300px',
+            maxWidth: '360px',
+            padding: '14px 18px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+        }
+    }).showToast();
+}
+
 </script>
+
+@if(session('booking_error'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        showSpaToast(@json(session('booking_error')), 'error');
+    });
+</script>
+@endif
+
+@if(session('success'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        showSpaToast(@json(session('success')), 'success');
+    });
+</script>
+@endif
+
+@if(session('error'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        showSpaToast(@json(session('error')), 'error');
+    });
+</script>
+@endif
 
 </body>
 </html>
