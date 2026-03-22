@@ -420,7 +420,15 @@
 
                                 $thumb = $coverPhoto;
 
-                                // ✅ Build branches array with treatments + packages
+<<<<<<<<< Temporary merge branch 1
+                                $branchTreatments = \App\Models\Treatment::withoutGlobalScopes()
+                                    ->where('branch_id', $branch->id)
+                                    ->where('spa_id', $spa->id)
+                                    ->get()
+                                    ->map(fn($t) => [
+                                        'id' => $t->id,
+                                        'name' => $t->name,
+=========
                                 $branchesData = $spa->branches->map(fn($b) => [
                                     'id'               => $b->id,
                                     'name'             => $b->name,
@@ -429,6 +437,7 @@
                                     'treatments'       => $b->treatments->map(fn($t) => [
                                         'id'    => $t->id,
                                         'name'  => $t->name,
+>>>>>>>>> Temporary merge branch 2
                                         'price' => $t->price,
                                         'duration' => $t->duration,
                                         'service_type' => $t->service_type,
@@ -487,16 +496,33 @@
                                 <div class="p-5">
                                     <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
                                     @php
-                                    function addressSummary($fullAddress) {
-                                        if (!$fullAddress) return 'Location unavailable';
-                                        $parts = array_map('trim', explode(',', $fullAddress));
-                                        if (count($parts) < 3) return $fullAddress;
-                                        $withoutZipCountry = array_slice($parts, 0, count($parts) - 2);
-                                        $summary = implode(', ', array_slice($withoutZipCountry, -3));
-                                        return $summary;
-                                    }
+<<<<<<<<< Temporary merge branch 1
+                                        $fullAddress = $spaPayload['address'] ?? null;
+
+                                        if (!$fullAddress) {
+                                            $addressSummary = 'Location unavailable';
+                                        } else {
+                                            $parts = array_map('trim', explode(',', $fullAddress));
+
+                                            if (count($parts) < 3) {
+                                                $addressSummary = $fullAddress;
+                                            } else {
+                                                $withoutZipCountry = array_slice($parts, 0, count($parts) - 2);
+                                                $addressSummary = implode(', ', array_slice($withoutZipCountry, -3));
+                                            }
+                                        }
                                     @endphp
-                                    <p class="mt-1 text-xs text-gray-500">{{ addressSummary($spaPayload['address']) }}</p>
+
+                                    <p class="mt-1 text-xs text-gray-500">{{ $addressSummary }}</p>
+=========
+                                        $addr = $spaPayload['address'] ?? '';
+                                        $addrParts = array_map('trim', explode(',', $addr));
+                                        $addrSummary = count($addrParts) >= 3
+                                            ? implode(', ', array_slice(array_slice($addrParts, 0, count($addrParts) - 2), -3))
+                                            : ($addr ?: 'Location unavailable');
+                                    @endphp
+                                    <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
+>>>>>>>>> Temporary merge branch 2
                                     <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
                                 </div>
                             </button>
@@ -789,8 +815,12 @@
     <!-- ================= BOOKING MODAL ================= -->
     <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>
+<<<<<<<<< Temporary merge branch 1
 
+        <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
+=========
         <div class="relative mx-auto w-[92%] max-w-xl mt-10 sm:mt-16">
+>>>>>>>>> Temporary merge branch 2
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
                     <div>
@@ -807,12 +837,16 @@
                     @auth
                         <form method="POST" action="{{ route('bookings.online.checkout') }}" class="space-y-4">
                             @csrf
+<<<<<<<<< Temporary merge branch 1
 
-                            {{-- Set by JS --}}
                             <input type="hidden" name="spa_id" id="bookingSpaIdInput">
                             <input type="hidden" name="branch_id" id="bookingBranchIdInput">
 
-                            {{-- Row 1: Service Type + Branch --}}
+                            {{-- Customer Info --}}
+=========
+                            <input type="hidden" name="spa_id" id="bookingSpaIdInput">
+                            <input type="hidden" name="branch_id" id="bookingBranchIdInput">
+>>>>>>>>> Temporary merge branch 2
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Full Name</label>
@@ -838,7 +872,8 @@
                                 </div>
                             </div>
 
-                            {{-- Row 2: Treatment --}}
+=========
+>>>>>>>>> Temporary merge branch 2
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
                                 <input
@@ -850,8 +885,6 @@
                                     required
                                 >
                             </div>
-
-                            {{-- Row 3: Date + Time --}}
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
@@ -865,7 +898,34 @@
                                 </div>
                             </div>
 
-                            {{-- Row 4: Phone --}}
+                            {{-- Treatment / Package --}}
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600">Treatment / Package</label>
+                                <select
+                                    name="treatment"
+                                    id="bookingTreatmentSelect"
+                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    required>
+                                    <option value="">Select treatment or package</option>
+                                </select>
+                            </div>
+<<<<<<<<< Temporary merge branch 1
+
+                            {{-- Service Type --}}
+=========
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
+                                    <input type="date" name="appointment_date" id="bookingDateInput" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Start Time</label>
+                                    <input type="time" name="start_time" id="bookingTimeInput" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                            </div>
+>>>>>>>>> Temporary merge branch 2
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Service Type</label>
                                 <select
@@ -878,7 +938,9 @@
                                 <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500"></p>
                             </div>
 
-                            {{-- Row 5: Address (hidden until Home Service selected) --}}
+                            {{-- Home address --}}
+=========
+>>>>>>>>> Temporary merge branch 2
                             <div id="addressWrapper" class="hidden">
                                 <label class="block text-xs font-semibold text-gray-600">
                                     Home Address <span class="text-red-500">*</span>
@@ -892,7 +954,35 @@
                                 >
                                 <p class="mt-1 text-[11px] text-gray-500">Required for home service bookings.</p>
                             </div>
+<<<<<<<<< Temporary merge branch 1
 
+                            {{-- Date + Time --}}
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
+                                    <input
+                                        type="date"
+                                        name="appointment_date"
+                                        id="bookingDateInput"
+                                        required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    >
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600">Start Time</label>
+                                    <input
+                                        type="time"
+                                        name="start_time"
+                                        id="bookingTimeInput"
+                                        required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                    >
+                                </div>
+                            </div>
+
+=========
+>>>>>>>>> Temporary merge branch 2
                             <button type="submit"
                                     class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
                                 Proceed to 50% Payment
@@ -1277,129 +1367,277 @@ document.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
 
 closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
 
+<<<<<<<<< Temporary merge branch 1
 
 // =====================================================
 // BOOKING MODAL — elements
 // =====================================================
+const bookingModal = document.getElementById('bookingModal');
+const openBookingBtn = document.getElementById('openBookingModalBtn');
+const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
+const bookingSpaMeta = document.getElementById('bookingSpaMeta');
+=========
 const bookingModal      = document.getElementById('bookingModal');
 const openBookingBtn    = document.getElementById('openBookingModalBtn');
 const closeBookingBtns  = document.querySelectorAll('[data-close-booking-modal]');
 const bookingSpaMeta    = document.getElementById('bookingSpaMeta');
+>>>>>>>>> Temporary merge branch 2
 const bookingSpaIdInput = document.getElementById('bookingSpaIdInput');
 const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
 const serviceTypeSelect = document.getElementById('bookingServiceType');
-const branchSelect      = document.getElementById('bookingBranchSelect');
-const treatmentSelect   = document.getElementById('bookingTreatmentSelect');
+const serviceTypeHint = document.getElementById('bookingServiceTypeHint');
+const treatmentSelect = document.getElementById('bookingTreatmentSelect');
+const bookingDateInput = document.getElementById('bookingDateInput');
+const bookingTimeInput = document.getElementById('bookingTimeInput');
+const addressWrapper = document.getElementById('addressWrapper');
+const addressInput = document.getElementById('bookingAddressInput');
 
+<<<<<<<<< Temporary merge branch 1
+function clearBookingSelections() {
+    if (treatmentSelect) {
+        treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
+        treatmentSelect.value = '';
+    }
 
-// ---------------- Populate Branches ----------------
-function populateBranchDropdown(filterHomeService = false) {
-    if (!branchSelect || !selectedSpa) return;
+    if (bookingBranchIdInput) bookingBranchIdInput.value = '';
 
-    const branches = selectedSpa.branches ?? [];
-    const filtered = filterHomeService
-        ? branches.filter(b => b.has_home_service)
-        : branches;
+    resetServiceType();
 
-    branchSelect.innerHTML = '<option value="">Select branch</option>';
+    if (bookingDateInput) bookingDateInput.value = '';
+    if (bookingTimeInput) {
+        bookingTimeInput.value = '';
+        bookingTimeInput.disabled = false;
+        bookingTimeInput.removeAttribute('min');
+        bookingTimeInput.removeAttribute('max');
+    }
 
-    filtered.forEach(b => {
-        const opt = document.createElement('option');
-        opt.value   = String(b.id);
-        opt.textContent = b.location
-            ? `${b.name} — ${b.location}`
-            : b.name;
-        branchSelect.appendChild(opt);
+    if (addressInput) {
+        addressInput.value = '';
+        addressInput.required = false;
+    }
+
+    if (addressWrapper) {
+        addressWrapper.classList.add('hidden');
+    }
+}
+
+function populateTreatmentsForSelectedBranch() {
+    if (!selectedSpa || !treatmentSelect) return;
+
+    treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
+
+    (selectedSpa.treatments ?? []).forEach(t => {
+        const option = document.createElement('option');
+        option.value = `treatment_${t.id}`;
+        option.textContent = t.price !== null && t.price !== undefined
+            ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}`
+            : t.name;
+        option.dataset.serviceType = t.service_type ?? 'in_branch_only';
+        option.dataset.itemType = 'treatment';
+        treatmentSelect.appendChild(option);
     });
 
+    (selectedSpa.packages ?? []).forEach(p => {
+        const option = document.createElement('option');
+        option.value = `package_${p.id}`;
+        option.textContent = p.price !== null && p.price !== undefined
+            ? `${p.name} (Package) — ₱${parseFloat(p.price).toLocaleString()}`
+            : `${p.name} (Package)`;
+        option.dataset.serviceType = p.service_type ?? 'in_branch_only';
+        option.dataset.itemType = 'package';
+        treatmentSelect.appendChild(option);
+=========
+function populateBranchDropdown(filterHomeService = false) {
+    if (!branchSelect || !selectedSpa) return;
+    const branches = selectedSpa.branches ?? [];
+    const filtered = filterHomeService ? branches.filter(b => b.has_home_service) : branches;
+    branchSelect.innerHTML = '<option value="">Select branch</option>';
+    filtered.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = String(b.id);
+        opt.textContent = b.location ? `${b.name} — ${b.location}` : b.name;
+        branchSelect.appendChild(opt);
+    });
     if (filtered.length) {
         branchSelect.value = String(filtered[0].id);
         if (bookingBranchIdInput) bookingBranchIdInput.value = filtered[0].id;
     }
-
     populateTreatmentsForBranch();
 }
 
-
-// ---------------- Populate Treatments for selected branch ----------------
 function populateTreatmentsForBranch() {
     if (!treatmentSelect || !selectedSpa) return;
-
     const selectedBranchId = branchSelect?.value;
-    const branch = (selectedSpa.branches ?? [])
-        .find(b => String(b.id) === String(selectedBranchId));
-
+    const branch = (selectedSpa.branches ?? []).find(b => String(b.id) === String(selectedBranchId));
     treatmentSelect.innerHTML = '<option value="">Select treatment</option>';
-
     if (!branch) return;
-
     (branch.treatments ?? []).forEach(t => {
         const opt = document.createElement('option');
         opt.value = `treatment_${t.id}`;
-        opt.textContent = t.price
-            ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}`
-            : t.name;
+        opt.textContent = t.price ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}` : t.name;
         treatmentSelect.appendChild(opt);
     });
-
     (branch.packages ?? []).forEach(p => {
         const opt = document.createElement('option');
         opt.value = `package_${p.id}`;
         opt.textContent = `${p.name} (Package)`;
         treatmentSelect.appendChild(opt);
+>>>>>>>>> Temporary merge branch 2
     });
+
+    resetServiceType();
 }
 
-// Alias kept for compatibility
-function populateTreatments() {
-    populateTreatmentsForBranch();
+<<<<<<<<< Temporary merge branch 1
+function resetServiceType() {
+    if (!serviceTypeSelect) return;
+
+    serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
+    serviceTypeSelect.value = '';
+
+    if (serviceTypeHint) {
+        serviceTypeHint.textContent = '';
+    }
+
+    if (addressWrapper) {
+        addressWrapper.classList.add('hidden');
+    }
+
+    if (addressInput) {
+        addressInput.required = false;
+    }
 }
 
+function populateServiceTypeOptions() {
+    resetServiceType();
 
-// ---------------- Service Type → filter branches ----------------
+    if (!treatmentSelect || !serviceTypeSelect) return;
+
+    const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
+    if (!selectedOption || !selectedOption.value) return;
+
+    const serviceType = selectedOption.dataset.serviceType || 'in_branch_only';
+
+    if (serviceType === 'in_branch_only') {
+        serviceTypeSelect.innerHTML = `
+            <option value="in_branch">In-Branch</option>
+        `;
+        serviceTypeSelect.value = 'in_branch';
+
+        if (serviceTypeHint) {
+            serviceTypeHint.textContent = 'This selection is available for in-branch service only.';
+        }
+    } else if (serviceType === 'in_branch_and_home') {
+        serviceTypeSelect.innerHTML = `
+            <option value="">Select service type</option>
+            <option value="in_branch">In-Branch</option>
+            <option value="in_home">Home Service</option>
+        `;
+
+        if (serviceTypeHint) {
+            serviceTypeHint.textContent = 'This selection is available for both in-branch and home service.';
+        }
+    }
+
+    toggleAddressField();
+}
+
+function toggleAddressField() {
+    const isHome = serviceTypeSelect && serviceTypeSelect.value === 'in_home';
+
+    if (addressWrapper) {
+        addressWrapper.classList.toggle('hidden', !isHome);
+    }
+
+    if (addressInput) {
+        addressInput.required = isHome;
+    }
+}
+
+async function updateAvailableTimes() {
+    const branchId = bookingBranchIdInput?.value;
+    const dateValue = bookingDateInput?.value;
+
+    if (!branchId || !dateValue || !bookingTimeInput) return;
+
+    const day = new Date(dateValue).toLocaleDateString('en-US', { weekday: 'long' });
+
+    try {
+        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
+        const data = await response.json();
+
+        if (data.is_closed) {
+            bookingTimeInput.value = '';
+            bookingTimeInput.disabled = true;
+            alert('This branch is closed on the selected day.');
+        } else {
+            bookingTimeInput.disabled = false;
+            bookingTimeInput.min = data.opening_time;
+            bookingTimeInput.max = data.closing_time;
+        }
+    } catch (error) {
+        console.error('Failed to load operating hours:', error);
+    }
+}
+
+function openBookingModal() {
+    if (!selectedSpa || !bookingModal) return;
+
+    clearBookingSelections();
+
+    if (bookingSpaIdInput) {
+        bookingSpaIdInput.value = selectedSpa.id ?? '';
+    }
+
+    if (bookingBranchIdInput) {
+        bookingBranchIdInput.value = selectedSpa.branch_id ?? '';
+    }
+
+    if (bookingSpaMeta) {
+        bookingSpaMeta.textContent = selectedSpa.branch_location
+            ? `${selectedSpa.name} • ${selectedSpa.branch_location} Branch`
+            : `${selectedSpa.name} • ${selectedSpa.branch_name ?? ''}`;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    if (bookingDateInput) {
+        bookingDateInput.min = today;
+    }
+
+    populateTreatmentsForSelectedBranch();
+
+=========
+function populateTreatments() { populateTreatmentsForBranch(); }
+
 serviceTypeSelect?.addEventListener('change', function () {
     const isHome = this.value === 'in_home';
-
     populateBranchDropdown(isHome);
-
-    // Show / hide address field
-    const addressWrapper   = document.getElementById('addressWrapper');
-    const addressInput     = document.getElementById('bookingAddressInput');
+    const addressWrapper = document.getElementById('addressWrapper');
+    const addressInput   = document.getElementById('bookingAddressInput');
     if (addressWrapper) addressWrapper.classList.toggle('hidden', !isHome);
     if (addressInput)   addressInput.toggleAttribute('required', isHome);
 });
 
-
-// ---------------- Branch change → refresh treatments ----------------
 branchSelect?.addEventListener('change', function () {
     if (bookingBranchIdInput) bookingBranchIdInput.value = this.value;
     populateTreatmentsForBranch();
 });
 
-
-// ---------------- Open Booking Modal ----------------
 function openBookingModal() {
     if (!selectedSpa) return;
-
     const branches = selectedSpa.branches ?? [];
     const chosen   = branches[0];
-
     bookingSpaMeta.textContent = chosen?.location
         ? `${selectedSpa.name} • ${chosen.location}`
         : selectedSpa.name;
-
     if (bookingSpaIdInput) bookingSpaIdInput.value = selectedSpa.id ?? '';
-
-    // Reset service type then populate branches + treatments fresh
     if (serviceTypeSelect) serviceTypeSelect.value = '';
     populateBranchDropdown(false);
-
-    // Hide address field on fresh open
     const addressWrapper = document.getElementById('addressWrapper');
     const addressInput   = document.getElementById('bookingAddressInput');
     if (addressWrapper) addressWrapper.classList.add('hidden');
     if (addressInput)   addressInput.removeAttribute('required');
-
+>>>>>>>>> Temporary merge branch 2
     bookingModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
 }
@@ -1413,6 +1651,16 @@ function closeBookingModal() {
 openBookingBtn?.addEventListener('click', openBookingModal);
 closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal));
 
+<<<<<<<<< Temporary merge branch 1
+treatmentSelect?.addEventListener('change', function () {
+    populateServiceTypeOptions();
+});
+
+serviceTypeSelect?.addEventListener('change', function () {
+    toggleAddressField();
+});
+
+bookingDateInput?.addEventListener('change', updateAvailableTimes);
 
 // =====================================================
 // MY APPOINTMENTS MODAL
@@ -1444,12 +1692,18 @@ function loadAppointments() {
 function updateTabCounts() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('tab-count-upcoming').textContent =
+<<<<<<<<< Temporary merge branch 1
         allAppointments.filter(b =>
             ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
     document.getElementById('tab-count-past').textContent =
         allAppointments.filter(b =>
             b.status === 'completed' ||
-            (['reserved', 'confirmed'].includes(b.status) && b.date_raw < today)).length;
+            (['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw < today)).length;
+=========
+        allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
+    document.getElementById('tab-count-past').textContent =
+        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'confirmed'].includes(b.status) && b.date_raw < today)).length;
+>>>>>>>>> Temporary merge branch 2
     document.getElementById('tab-count-cancelled').textContent =
         allAppointments.filter(b => b.status === 'cancelled').length;
 }
@@ -1473,12 +1727,18 @@ function renderTab(tab) {
     const today  = new Date().toISOString().split('T')[0];
     let filtered = [];
     if (tab === 'upcoming') {
+<<<<<<<<< Temporary merge branch 1
         filtered = allAppointments.filter(b =>
             ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
     } else if (tab === 'past') {
         filtered = allAppointments.filter(b =>
             b.status === 'completed' ||
-            (['reserved', 'confirmed'].includes(b.status) && b.date_raw < today));
+            (['reserved', 'pending'].includes(b.status) && b.date_raw < today));
+=========
+        filtered = allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
+    } else if (tab === 'past') {
+        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'confirmed'].includes(b.status) && b.date_raw < today));
+>>>>>>>>> Temporary merge branch 2
     } else {
         filtered = allAppointments.filter(b => b.status === 'cancelled');
     }
