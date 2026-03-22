@@ -147,15 +147,6 @@
                                 @enderror
                             </div>
 
-                            {{-- Has Home Service Toggle --}}
-                            <div class="flex items-center gap-3 p-3 rounded-xl bg-[#F6EFE6] ring-1 ring-black/5 dark:bg-amber-500/10 dark:border-amber-400/20">
-                                <input type="checkbox" name="has_home_service" id="has_home_service" value="1"
-                                    class="w-4 h-4 rounded text-[#8B7355] border-gray-300 focus:ring-[#8B7355]/40"/>
-                                <label for="has_home_service" class="text-xs text-gray-800 dark:text-gray-200">
-                                    This branch offers <span class="text-[#6F5430] ">Home Service</span>
-                                </label>
-                            </div>
-
                             <button type="submit"
                                 class="w-full mt-2 bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:from-[#6F5430] hover:to-[#5A4526] text-white text-sm font-semibold py-2.5 px-4 rounded-xl transition-all shadow-sm hover:shadow-md active:translate-y-0.5">
                                 Add Branch
@@ -182,12 +173,6 @@
                                             <div>
                                                 <h4 class="text-sm font-semibold text-[#3C2F23] dark:text-white">{{ $branch->name }}</h4>
                                                 <p class="mt-0.5 text-xs text-gray-500">{{ $branch->location }}</p>
-                                                @if($branch->has_home_service)
-                                                    <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 text-[10px] font-semibold text-[#6F5430] bg-[#F6EFE6] rounded-full ring-1 ring-black/5">
-                                                        <i class="fa-solid fa-house-chimney text-[#8B7355]"></i>
-                                                        Home Service
-                                                    </span>
-                                                @endif
                                             </div>
 
                                             <div class="flex gap-2">

@@ -98,6 +98,8 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'permission:create booking'])->group(function () {
     Route::get('/booking', [BookingController::class, 'create'])->name('booking');
     Route::post('/booking', [BookingController::class, 'store'])->name('bookings.store');
+    Route::get('/booking/available-therapists', [BookingController::class, 'availableTherapists'])
+        ->name('booking.available-therapists');
 });
 
 Route::post('/bookings/online', [BookingController::class, 'storeOnline'])

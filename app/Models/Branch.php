@@ -16,12 +16,10 @@ class Branch extends Model
         'name',
         'location',
         'is_main',
-        'has_home_service',
     ];
 
     protected $casts = [
         'is_main'          => 'boolean',
-        'has_home_service' => 'boolean',
     ];
 
     public function spa(): BelongsTo

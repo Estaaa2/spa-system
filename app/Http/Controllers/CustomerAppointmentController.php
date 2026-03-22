@@ -26,7 +26,7 @@ class CustomerAppointmentController extends Controller
 
         $bookings = Booking::with(['spa', 'branch', 'therapist'])
             ->where('customer_user_id', $user->id)
-            ->whereIn('status', ['reserved', 'confirmed'])
+            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
             ->where('appointment_date', '>=', now()->toDateString())
             ->orderBy('appointment_date', 'asc')
             ->get()

@@ -212,9 +212,11 @@
                                 <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                                 <select id="edit_status" name="status"
                                     class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
-                                    <option value="pending">Pending</option>
                                     <option value="reserved">Reserved</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="ongoing">Ongoing</option>
                                     <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
                                 </select>
                             </div>
 

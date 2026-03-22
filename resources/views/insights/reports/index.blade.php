@@ -43,8 +43,8 @@
                     <p class="text-xl font-semibold text-gray-800 dark:text-white">{{ $summary['reserved'] }}</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Confirmed</p>
-                    <p class="text-xl font-semibold text-gray-800 dark:text-white">{{ $summary['confirmed'] }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Pending</p>
+                    <p class="text-xl font-semibold text-gray-800 dark:text-white">{{ $summary['pending'] }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Completed</p>
