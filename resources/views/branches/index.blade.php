@@ -4,12 +4,10 @@
 
 @section('content')
 <div class="p-6">
-    <!-- Header with Date & Time -->
     <x-page-header
         title="Branches"
         subtitle="Manage all branches for your spa. Add, edit, or remove branches as needed."
     />
-
 
     <!-- Current Branch Info Card -->
     @if(session('current_branch_id'))
@@ -190,33 +188,86 @@
 
                 <div class="px-6 py-4">
                     <div class="space-y-4">
+
+                        {{-- Branch Name --}}
                         <div>
                             <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Branch Name *
                             </label>
                             <input type="text" id="name" name="name" required
-                                   class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                                   class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 Give your branch a descriptive name
                             </p>
                         </div>
 
+                        {{-- Location — Dropdown + manual toggle --}}
                         <div>
-                            <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Location *
-                            </label>
-                            <textarea id="location" name="location" rows="2" required
-                                      class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"></textarea>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Location / City *</label>
+                                <button type="button" id="toggleLocationMode"
+                                    class="text-[10px] font-semibold text-[#8B7355] hover:text-[#6F5430] transition underline">
+                                    Type manually
+                                </button>
+                            </div>
+
+                            {{-- Dropdown mode (default) --}}
+                            <div id="locationDropdownWrapper">
+                                <select id="locationSelect"
+                                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                                    <option value="">Select by city or location.</option>
+                                    <optgroup label="Cities">
+                                        <option value="Bacoor">Bacoor</option>
+                                        <option value="Cavite City">Cavite City</option>
+                                        <option value="Dasmariñas">Dasmariñas</option>
+                                        <option value="General Trias">General Trias</option>
+                                        <option value="Imus">Imus</option>
+                                        <option value="Carmona">Carmona</option>
+                                        <option value="Tagaytay">Tagaytay</option>
+                                        <option value="Trece Martires">Trece Martires</option>
+                                    </optgroup>
+                                    <optgroup label="Municipalities">
+                                        <option value="Alfonso">Alfonso</option>
+                                        <option value="Amadeo">Amadeo</option>
+                                        <option value="Carmen">Carmen</option>
+                                        <option value="General Emilio Aguinaldo">General Emilio Aguinaldo</option>
+                                        <option value="General Mariano Alvarez">General Mariano Alvarez</option>
+                                        <option value="Indang">Indang</option>
+                                        <option value="Kawit">Kawit</option>
+                                        <option value="Magallanes">Magallanes</option>
+                                        <option value="Maragondon">Maragondon</option>
+                                        <option value="Mendez">Mendez</option>
+                                        <option value="Naic">Naic</option>
+                                        <option value="Noveleta">Noveleta</option>
+                                        <option value="Rosario">Rosario</option>
+                                        <option value="Silang">Silang</option>
+                                        <option value="Tanza">Tanza</option>
+                                        <option value="Ternate">Ternate</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            {{-- Manual input mode (hidden by default) --}}
+                            <div id="locationInputWrapper" class="hidden mt-1">
+                                <input type="text" id="locationManualInput"
+                                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                                    placeholder="Type city / area manually"/>
+                            </div>
+
+                            {{-- Hidden input that actually gets submitted --}}
+                            <input type="hidden" name="location" id="locationValue"/>
+
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 Full address of the branch
                             </p>
                         </div>
 
+                        {{-- Is Main --}}
                         <div class="flex items-center">
                             <input type="hidden" name="is_main" value="0" id="is_main_hidden">
                             <input type="checkbox" id="is_main" name="is_main"
-                                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
-                            <label for="is_main" class="block ml-2 text-sm text-gray-700 dark:text-gray-300">
+                                   class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-600">
+                            <label for="is_main" id="is_main_label" class="block ml-2 text-sm text-gray-700 dark:text-gray-300">
                                 Set as main branch
                             </label>
                         </div>
@@ -226,7 +277,7 @@
                     </div>
 
                     <!-- Operating Hours Section -->
-                    <div x-data>
+                    <div>
                         <h3 class="mt-6 mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Operating Hours</h3>
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                             @php
@@ -238,7 +289,6 @@
                                 <div class="flex items-center justify-between mb-3">
                                     <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $day }}</h4>
                                     <label class="flex items-center gap-2 cursor-pointer">
-                                        <!-- Hidden input ensures '0' is submitted if unchecked -->
                                         <input type="hidden" name="hours[{{ $index }}][is_closed]" value="0" />
                                         <input type="checkbox"
                                             name="hours[{{ $index }}][is_closed]"
@@ -258,7 +308,6 @@
                                             name="hours[{{ $index }}][opening_time]"
                                             value="09:00"
                                             class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white">
-                                        <!-- Always include the day_of_week hidden field -->
                                         <input type="hidden" name="hours[{{ $index }}][day_of_week]" value="{{ $day }}">
                                     </div>
                                     <div>
@@ -348,11 +397,47 @@
 
 <script>
 let currentBranchId = null;
-let deleteBranchId = null;
-let isSubmitting = false;
-let isEditMode = false; // ✅ IMPORTANT FIX
+let deleteBranchId  = null;
+let isSubmitting    = false;
+let isEditMode      = false;
+let isManualMode    = false;
 
 const HAS_NO_BRANCHES = {{ $branches->count() === 0 ? 'true' : 'false' }};
+
+/* =========================
+   LOCATION DROPDOWN TOGGLE
+========================= */
+const toggleBtn           = document.getElementById('toggleLocationMode');
+const dropdownWrapper     = document.getElementById('locationDropdownWrapper');
+const inputWrapper        = document.getElementById('locationInputWrapper');
+const locationSelect      = document.getElementById('locationSelect');
+const locationManualInput = document.getElementById('locationManualInput');
+const locationValue       = document.getElementById('locationValue');
+
+locationSelect.addEventListener('change', () => {
+    locationValue.value = locationSelect.value;
+});
+
+locationManualInput.addEventListener('input', () => {
+    locationValue.value = locationManualInput.value;
+});
+
+toggleBtn.addEventListener('click', () => {
+    isManualMode = !isManualMode;
+
+    if (isManualMode) {
+        dropdownWrapper.classList.add('hidden');
+        inputWrapper.classList.remove('hidden');
+        locationManualInput.focus();
+        locationValue.value   = locationManualInput.value;
+        toggleBtn.textContent = 'Pick from list';
+    } else {
+        dropdownWrapper.classList.remove('hidden');
+        inputWrapper.classList.add('hidden');
+        locationValue.value   = locationSelect.value;
+        toggleBtn.textContent = 'Type manually';
+    }
+});
 
 /* =========================
    CREATE MODAL
@@ -363,18 +448,27 @@ function openCreateModal() {
     const form = document.getElementById('branchForm');
     form.reset();
 
+    // Reset location fields
+    locationSelect.value      = '';
+    locationManualInput.value = '';
+    locationValue.value       = '';
+    isManualMode              = false;
+    dropdownWrapper.classList.remove('hidden');
+    inputWrapper.classList.add('hidden');
+    toggleBtn.textContent = 'Type manually';
+
     document.getElementById('modalTitle').textContent = 'Add New Branch';
     form.action = '{{ route("branches.store") }}';
 
     const isMainCheckbox = document.getElementById('is_main');
-    const isMainLabel = document.getElementById('is_main_label');
+    const isMainLabel    = document.getElementById('is_main_label');
 
     if (HAS_NO_BRANCHES) {
-        isMainCheckbox.checked = true;
+        isMainCheckbox.checked  = true;
         isMainCheckbox.disabled = true;
         if (isMainLabel) isMainLabel.textContent = 'Set as main branch (required for first branch)';
     } else {
-        isMainCheckbox.checked = false;
+        isMainCheckbox.checked  = false;
         isMainCheckbox.disabled = false;
         if (isMainLabel) isMainLabel.textContent = 'Set as main branch';
     }
@@ -400,64 +494,10 @@ function toggleTimeInputs(checkbox, openingId, closingId) {
     }
 }
 
-function editBranch(ev, branchId) {
-    ev.preventDefault();
-
-    const button = ev.currentTarget;
-    const originalHTML = button.innerHTML;
-    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    button.disabled = true;
-
-    fetch(`/branches/${branchId}`, {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw { status: response.status, data };
-        return data;
-    })
-    .then(data => {
-        if (data.success && data.branch) {
-            const form = document.getElementById('branchForm');
-
-            document.getElementById('modalTitle').textContent = 'Edit Branch';
-            form.action = `/branches/${branchId}`;
-
-            document.getElementById('name').value = data.branch.name || '';
-            document.getElementById('location').value = data.branch.location || '';
-            document.getElementById('is_main').checked = !!data.branch.is_main;
-
-            document.getElementById('submitBtn').textContent = 'Update Branch';
-            currentBranchId = branchId;
-
-            document.getElementById('branchModal').classList.remove('hidden');
-        } else {
-            // ❌ Don't show JS toast - use sessionStorage then reload so bottom blocks apply
-            sessionStorage.setItem('toast_type', 'error');
-            sessionStorage.setItem('toast_message', data.message || 'Failed to load branch data');
-            window.location.reload();
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching branch:', error);
-        sessionStorage.setItem('toast_type', 'error');
-        sessionStorage.setItem('toast_message', 'An error occurred. Please try again.');
-        window.location.reload();
-    })
-    .finally(() => {
-        button.innerHTML = originalHTML;
-        button.disabled = false;
-    });
-}
-
 function closeModal() {
     document.getElementById('branchModal').classList.add('hidden');
     currentBranchId = null;
-    isSubmitting = false;
+    isSubmitting    = false;
 }
 
 /* =========================
@@ -477,10 +517,10 @@ function closeDeleteModal() {
 function confirmDelete() {
     if (!deleteBranchId) return;
 
-    const button = document.getElementById('deleteConfirmBtn');
+    const button       = document.getElementById('deleteConfirmBtn');
     const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
-    button.disabled = true;
+    button.innerHTML   = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
+    button.disabled    = true;
 
     fetch(`/branches/${deleteBranchId}`, {
         method: 'DELETE',
@@ -508,7 +548,7 @@ function confirmDelete() {
     })
     .finally(() => {
         button.innerHTML = originalText;
-        button.disabled = false;
+        button.disabled  = false;
     });
 }
 
@@ -520,20 +560,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
+
+        // Validate location before submitting
+        if (!locationValue.value.trim()) {
+            if (isManualMode) {
+                locationManualInput.focus();
+            } else {
+                locationSelect.focus();
+            }
+            showSpaToast('Please select or enter a location.', 'error');
+            return;
+        }
+
         if (isSubmitting) return;
         isSubmitting = true;
 
-        const button = document.getElementById('submitBtn');
+        const button       = document.getElementById('submitBtn');
         const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-        button.disabled = true;
+        button.innerHTML   = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        button.disabled    = true;
 
-        // ✅ Use FormData to include all inputs (hours, checkboxes, hidden fields, etc.)
         const formData = new FormData(form);
 
         try {
             const response = await fetch(form.action, {
-                method: isEditMode ? 'POST' : 'POST', // Laravel accepts POST for create, PUT for update is optional if you handle method spoofing
+                method: 'POST',
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -544,23 +595,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
 
             if (!response.ok) {
-                // Handle validation errors
                 let msgs = [];
                 if (data.errors) {
                     for (const key in data.errors) msgs.push(data.errors[key][0]);
                 } else {
                     msgs.push(data.message || 'Validation failed.');
                 }
-
-                Toastify({
-                    text: msgs.join('\n'),
-                    duration: 3000,
-                    gravity: "top",
-                    position: "right",
-                    backgroundColor: "#ef4444",
-                    close: true
-                }).showToast();
-
+                showSpaToast(msgs.join(' '), 'error');
                 return;
             }
 
@@ -581,8 +622,8 @@ document.addEventListener('DOMContentLoaded', function () {
             window.location.reload();
         } finally {
             button.innerHTML = originalText;
-            button.disabled = false;
-            isSubmitting = false;
+            button.disabled  = false;
+            isSubmitting     = false;
         }
     });
 });

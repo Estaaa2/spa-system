@@ -6,13 +6,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<div class="max-w-5xl py-6 mx-auto">
-    <div class="mb-6">
-        <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Edit Branch</h1>
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Update branch information, operating hours, and public listing details.
-        </p>
-    </div>
+<div class="max-w-5xl py-3 mx-auto">
 
     <form method="POST" action="{{ route('branches.update', $branch->id) }}" enctype="multipart/form-data" class="space-y-6">
         @csrf
@@ -120,7 +114,7 @@
                     </p>
                 </div>
 
-                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700">
+                <div class="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-full dark:bg-gray-700">
                     <svg x-show="!open" x-cloak class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
@@ -131,9 +125,9 @@
                 </div>
             </button>
 
-            <div x-show="open" x-transition class="p-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div x-show="open" x-transition class="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
                 @foreach($operatingHours as $hour)
-                <div class="p-4 bg-white border rounded-2xl dark:bg-gray-800 dark:border-gray-700 shadow-sm"
+                <div class="p-4 bg-white border shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
                     id="card_{{ $hour->id ?? $loop->index }}">
                     <div class="flex items-center justify-between mb-4">
                         <h4 class="text-sm font-semibold text-gray-800 dark:text-white">
@@ -168,7 +162,7 @@
                                 id="opening_{{ $hour->id ?? $loop->index }}"
                                 name="hours[{{ $loop->index }}][opening_time]"
                                 value="{{ $hour->opening_time ?? '09:00' }}"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
                                 {{ isset($hour->is_closed) && $hour->is_closed ? 'disabled' : '' }}
                             />
                         </div>
@@ -182,7 +176,7 @@
                                 id="closing_{{ $hour->id ?? $loop->index }}"
                                 name="hours[{{ $loop->index }}][closing_time]"
                                 value="{{ $hour->closing_time ?? '18:00' }}"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
                                 {{ isset($hour->is_closed) && $hour->is_closed ? 'disabled' : '' }}
                             />
                         </div>
@@ -208,7 +202,7 @@
             </div>
 
             <div class="p-6 space-y-6">
-                <div class="p-4 border rounded-xl bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800">
+                <div class="p-4 border border-green-200 rounded-xl bg-green-50 dark:bg-green-900/10 dark:border-green-800">
                     <p class="text-sm font-medium text-green-800 dark:text-green-300">
                         This spa is verified and eligible for public branch listing.
                     </p>
@@ -245,7 +239,7 @@
                             type="text"
                             value="{{ $branch->spa->name }} - {{ $city }}"
                             readonly
-                            class="block w-full border-gray-300 rounded-xl shadow-sm bg-gray-100 dark:bg-gray-700 dark:text-gray-300 sm:text-sm"
+                            class="block w-full bg-gray-100 border-gray-300 shadow-sm rounded-xl dark:bg-gray-700 dark:text-gray-300 sm:text-sm"
                         >
                     </div>
 
@@ -418,7 +412,7 @@
 
                                         <div class="mt-3">
                                             <label for="gallery_image_{{ $i }}"
-                                                class="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 transition bg-gray-100 rounded-xl cursor-pointer hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                                                class="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 transition bg-gray-100 cursor-pointer rounded-xl hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
                                                 <i class="mr-2 fa-solid fa-plus"></i>
                                                 {{ $existingImage ? 'Replace Image' : 'Upload Image' }}
                                             </label>
@@ -437,43 +431,116 @@
                         </div>
                     </div>
 
-                    <div class="p-4 border rounded-xl dark:border-gray-700">
-                        <label class="block mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Amenities
-                        </label>
+                    {{-- Amenities --}}
+                    <div x-data="amenitiesManager()" class="p-4 border rounded-xl dark:border-gray-700">
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Amenities
+                            </label>
+                            <button
+                                type="button"
+                                @click="openModal = true"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-colors"
+                                style="background-color: #8B7355;"
+                                onmouseover="this.style.backgroundColor='#7a6449'"
+                                onmouseout="this.style.backgroundColor='#8B7355'"
+                            >
+                                <i class="fa-solid fa-plus text-[10px]"></i>
+                                Add Amenity
+                            </button>
+                        </div>
 
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            @php
-                                $selectedAmenities = $branch->profile->amenities ?? [];
-                            @endphp
-
-                            @foreach([
-                                'aircon' => 'Air Conditioning',
-                                'private_rooms' => 'Private Rooms',
-                                'shower' => 'Shower',
-                                'parking' => 'Parking',
-                                'wifi' => 'WiFi',
-                                'locker' => 'Locker',
-                                'pet_friendly' => 'Pet Friendly',
-                                'sauna' => 'Sauna',
-                            ] as $value => $label)
-                                <label class="flex items-center gap-3 p-3 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition">
+                            <template x-for="(amenity, index) in amenities" :key="amenity.value">
+                                <label class="flex items-center gap-3 p-3 transition bg-white border border-gray-200 cursor-pointer dark:bg-gray-700 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600">
                                     <input
                                         type="checkbox"
-                                        name="amenities[]"
-                                        value="{{ $value }}"
-                                        {{ in_array($value, $selectedAmenities) ? 'checked' : '' }}
+                                        :name="'amenities[]'"
+                                        :value="amenity.value"
+                                        x-model="amenity.checked"
                                         class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-500"
                                     >
-                                    <span class="text-sm text-gray-700 dark:text-gray-200">{{ $label }}</span>
+                                    <span class="text-sm text-gray-700 dark:text-gray-200" x-text="amenity.label"></span>
+                                    <button
+                                        x-show="amenity.custom"
+                                        type="button"
+                                        @click.prevent="removeCustomAmenity(index)"
+                                        class="ml-auto text-gray-400 transition-colors hover:text-red-500"
+                                        title="Remove"
+                                    >
+                                        <i class="text-xs fa-solid fa-xmark"></i>
+                                    </button>
                                 </label>
-                            @endforeach
+                            </template>
+                        </div>
+
+                        {{-- Add Amenity Modal --}}
+                        <div
+                            x-show="openModal"
+                            x-transition.opacity
+                            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+                            @click.self="openModal = false"
+                        >
+                            <div class="w-full max-w-sm p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800" @click.stop>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Add Custom Amenity</h3>
+                                    <button type="button" @click="openModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+
+                                <input
+                                    type="text"
+                                    x-model="newAmenityLabel"
+                                    @keydown.enter.prevent="addCustomAmenity()"
+                                    placeholder="e.g. Steam Room, Jacuzzi, Foot Bath..."
+                                    class="block w-full border-gray-300 rounded-xl shadow-sm text-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                >
+
+                                <p x-show="errorMsg" x-text="errorMsg" class="mt-2 text-xs text-red-500"></p>
+
+                                <div class="flex justify-end gap-2 mt-4">
+                                    <button
+                                        type="button"
+                                        @click="openModal = false"
+                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="addCustomAmenity()"
+                                        class="px-4 py-2 text-sm font-medium text-white transition-colors rounded-lg"
+                                        style="background-color: #8B7355;"
+                                        onmouseover="this.style.backgroundColor='#7a6449'"
+                                        onmouseout="this.style.backgroundColor='#8B7355'"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
                 </div>
             </div>
+
+            {{-- ✅ Submit Buttons moved inside card --}}
+            <div class="flex justify-end gap-3 px-6 py-4 border-t dark:border-gray-700">
+                <a href="{{ route('branches.index') }}"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500">
+                    Cancel
+                </a>
+                <button type="submit"
+                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-[#8B7355]/30">
+                    Update Branch
+                </button>
+            </div>
         </div>
+
         @else
+
+        {{-- Unverified spa card --}}
         <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <div class="px-6 py-4 border-b dark:border-gray-700">
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Public Branch Profile</h2>
@@ -483,7 +550,7 @@
             </div>
 
             <div class="p-6">
-                <div class="p-4 border rounded-xl bg-yellow-50 border-yellow-200 dark:bg-yellow-900/10 dark:border-yellow-800">
+                <div class="p-4 border border-yellow-200 rounded-xl bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-800">
                     <p class="text-sm text-yellow-800 dark:text-yellow-300">
                         This spa is not yet verified, so this branch cannot be listed publicly yet.
                     </p>
@@ -498,23 +565,85 @@
                     </div>
                 @endif
             </div>
+
+            {{-- ✅ Submit Buttons inside unverified card too --}}
+            <div class="flex justify-end gap-3 px-6 py-4 border-t dark:border-gray-700">
+                <a href="{{ route('branches.index') }}"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500">
+                    Cancel
+                </a>
+                <button type="submit"
+                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-[#8B7355]/30">
+                    Update Branch
+                </button>
+            </div>
         </div>
         @endif
 
-        {{-- Submit Buttons --}}
-        <div class="flex justify-end gap-3">
-            <a href="{{ route('branches.index') }}"
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500">
-                Cancel
-            </a>
-
-            <button type="submit"
-                class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-[#8B7355]/30">
-                Update Branch
-            </button>
-        </div>
     </form>
 </div>
+
+<script>
+function amenitiesManager() {
+    return {
+        openModal: false,
+        newAmenityLabel: '',
+        errorMsg: '',
+
+        amenities: [
+            @php
+                $selectedAmenities = $branch->profile->amenities ?? [];
+                $defaultAmenities = [
+                    'aircon'          => 'Air Conditioning',
+                    'private_rooms'   => 'Private Rooms',
+                    'shower'          => 'Shower',
+                    'parking'         => 'Parking',
+                    'wifi'            => 'WiFi',
+                    'locker'          => 'Locker',
+                    'pet_friendly'    => 'Pet Friendly',
+                    'sauna'           => 'Sauna',
+                ];
+                // Detect custom amenities saved previously (not in default list)
+                $customAmenities = array_diff($selectedAmenities, array_keys($defaultAmenities));
+            @endphp
+
+            @foreach($defaultAmenities as $value => $label)
+                { value: '{{ $value }}', label: '{{ $label }}', checked: {{ in_array($value, $selectedAmenities) ? 'true' : 'false' }}, custom: false },
+            @endforeach
+
+            @foreach($customAmenities as $customValue)
+                { value: '{{ $customValue }}', label: '{{ ucwords(str_replace('_', ' ', $customValue)) }}', checked: true, custom: true },
+            @endforeach
+        ],
+
+        addCustomAmenity() {
+            this.errorMsg = '';
+            const label = this.newAmenityLabel.trim();
+
+            if (!label) {
+                this.errorMsg = 'Please enter an amenity name.';
+                return;
+            }
+
+            const value = label.toLowerCase().replace(/\s+/g, '_');
+            const exists = this.amenities.some(a => a.value === value);
+
+            if (exists) {
+                this.errorMsg = 'This amenity already exists.';
+                return;
+            }
+
+            this.amenities.push({ value, label, checked: true, custom: true });
+            this.newAmenityLabel = '';
+            this.openModal = false;
+        },
+
+        removeCustomAmenity(index) {
+            this.amenities.splice(index, 1);
+        }
+    };
+}
+</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -533,12 +662,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const defaultLat = parseFloat(latInput.value) || 14.4323;
     const defaultLng = parseFloat(lngInput.value) || 120.9269;
 
+    let mapInitialized = false;
+
     function initMap() {
+        if (mapInitialized) return;
+        mapInitialized = true;
+
         const map = L.map('map', {
             maxBounds: caviteBounds,
             maxBoundsViscosity: 0.8,
             zoomControl: true
-        }).setView([defaultLat, defaultLng], 10);
+        }).setView([defaultLat, defaultLng], 12);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
@@ -574,22 +708,16 @@ document.addEventListener('DOMContentLoaded', function () {
             .catch(err => console.log(err));
         }
 
-        setTimeout(() => map.invalidateSize(), 200);
+        setTimeout(() => map.invalidateSize(), 300);
     }
 
-    const observer = new MutationObserver(() => {
-        if (mapContainer.offsetParent !== null && !mapContainer.dataset.initialized) {
+    // ✅ Poll until map container is visible — works with Alpine x-show
+    const checkVisible = setInterval(() => {
+        if (mapContainer.offsetParent !== null && mapContainer.offsetHeight > 0) {
+            clearInterval(checkVisible);
             initMap();
-            mapContainer.dataset.initialized = true;
         }
-    });
-
-    observer.observe(mapContainer, { attributes: true, attributeFilter: ['style'] });
-
-    if (mapContainer.offsetParent !== null) {
-        initMap();
-        mapContainer.dataset.initialized = true;
-    }
+    }, 100);
 });
 
 function previewCoverImage(event) {
@@ -597,7 +725,6 @@ function previewCoverImage(event) {
     const preview = document.getElementById('coverPreview');
     const removeBtn = document.getElementById('removeCoverBtn');
     const removeInput = document.getElementById('remove_cover_image');
-    const wrapper = document.getElementById('coverPreviewWrapper');
     const placeholder = document.getElementById('coverPlaceholder');
 
     if (!file) return;
@@ -608,10 +735,7 @@ function previewCoverImage(event) {
         preview.classList.remove('hidden');
         removeBtn.classList.remove('hidden');
         removeInput.value = '0';
-
-        if (placeholder) {
-            placeholder.classList.add('hidden');
-        }
+        if (placeholder) placeholder.classList.add('hidden');
     };
     reader.readAsDataURL(file);
 }
@@ -628,10 +752,7 @@ function removeCoverImage() {
     input.value = '';
     removeBtn.classList.add('hidden');
     removeInput.value = '1';
-
-    if (placeholder) {
-        placeholder.classList.remove('hidden');
-    }
+    if (placeholder) placeholder.classList.remove('hidden');
 }
 
 function previewGalleryImage(event, index) {
@@ -649,10 +770,7 @@ function previewGalleryImage(event, index) {
         preview.classList.remove('hidden');
         removeBtn.classList.remove('hidden');
         removeInput.value = '0';
-
-        if (placeholder) {
-            placeholder.classList.add('hidden');
-        }
+        if (placeholder) placeholder.classList.add('hidden');
     };
     reader.readAsDataURL(file);
 }
@@ -669,10 +787,7 @@ function removeGalleryImage(index) {
     input.value = '';
     removeBtn.classList.add('hidden');
     removeInput.value = '1';
-
-    if (placeholder) {
-        placeholder.classList.remove('hidden');
-    }
+    if (placeholder) placeholder.classList.remove('hidden');
 }
 
 function toggleTimeInputs(checkbox, openingId, closingId, cardId) {

@@ -1,65 +1,58 @@
 @php
     $user = Auth::user();
-    $spa = $user?->spa;
+    $spa  = $user?->spa;
 
-    // If owner → show all branches
     if ($user?->hasRole('owner')) {
-    $branches = $spa?->branches ?? collect();
+        $branches = $spa?->branches ?? collect();
     } else {
         $branches = $spa?->branches
             ? $spa->branches->where('id', $user->branch_id)
             : collect();
     }
 
-    $firstBranch = $branches->first();
+    $firstBranch     = $branches->first();
     $currentBranchId = session('current_branch_id');
-    $currentBranch = $branches->firstWhere('id', $currentBranchId);
+    $currentBranch   = $branches->firstWhere('id', $currentBranchId);
 
-    // Operations permissions
-    $canBooking = $user?->can('create booking') ?? false;
-    $canAppointments = $user?->can('view appointments') ?? false;
-    $canSchedule = $user?->can('view schedule') ?? false;
-    $canStaffAvailability = ($user?->can('view staff availability') ?? false) || ($user?->can('manage staff availability') ?? false);
+    // Branch-aware permission helper
+    $can = fn($permission) => $user?->hasBranchPermission($permission) ?? false;
 
-    $showOperations = $canBooking || $canAppointments || $canSchedule || $canStaffAvailability;
+    // Operations
+    $canBooking           = $can('create booking');
+    $canAppointments      = $can('view appointments');
+    $canSchedule          = $can('view schedule');
+    $canStaffAvailability = $can('view staff availability') || $can('manage staff availability');
+    $showOperations       = $canBooking || $canAppointments || $canSchedule || $canStaffAvailability;
 
-    // Management permissions
-    $canServices = ($user?->can('view services') ?? false) || ($user?->can('manage services') ?? false);
-    $canStaff = ($user?->can('view staff') ?? false) || ($user?->can('manage staff') ?? false);
-    $canBranches = ($user?->can('view branches') ?? false) || ($user?->can('manage branches') ?? false);
-
+    // Management
+    $canServices    = $can('view services') || $can('manage services');
+    $canStaff       = $can('view staff') || $can('manage staff');
+    $canBranches    = $can('view branches') || $can('manage branches');
     $showManagement = $canServices || $canStaff || $canBranches;
 
-    // Insights permissions
-    $canDecisionSupport = $user?->can('view decision support') ?? false;
-    $canReports = $user?->can('view reports') ?? false;
+    // Insights
+    $canDecisionSupport = $can('view decision support');
+    $canReports         = $can('view reports');
+    $showInsights       = $canDecisionSupport || $canReports;
 
-    $showInsights = $canDecisionSupport || $canReports;
+    // Inventory
+    $canInventoryProducts = $can('view inventory');
+    $canInventoryLogs     = $can('view inventory logs');
+    $canManageInventory   = $can('manage inventory');
+    $showInventory        = $canManageInventory || $canInventoryProducts || $canInventoryLogs;
 
-    //Inventory permissions(manager-only)
-    //Inventory permissions
-    $canInventoryProducts = $user?->can('view inventory') ?? false;
-    $canInventoryLogs     = $user?->can('view inventory logs') ?? false;
-    $canManageInventory   = $user?->can('manage inventory') ?? false;
-
-$showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLogs;
-
-    // Brand link: if dashboard is hidden, go to Booking
     $brandHref = $user?->hasRole('owner')
-    ? route('dashboard')
-    : route('booking');
+        ? route('dashboard')
+        : route('booking');
 @endphp
 
 <div x-data="sidebar()" class="flex h-screen bg-gray-100 dark:bg-gray-900">
 
     <!-- MOBILE TOPBAR -->
-    <div
-        class="fixed top-0 z-40 flex items-center justify-between w-full px-4 py-3 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
+    <div class="fixed top-0 z-40 flex items-center justify-between w-full px-4 py-3 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
         <button @click="open = true" class="text-gray-700 dark:text-gray-200">
             <i class="text-xl fa-solid fa-bars"></i>
         </button>
-
-
 
         <!-- Mobile Branch Switcher -->
         @role('owner')
@@ -70,7 +63,6 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                 <i class="text-xs fa-solid fa-chevron-down" :class="mobileBranchesOpen ? 'rotate-180' : ''"></i>
             </button>
 
-            <!-- Mobile Dropdown -->
             <div x-show="mobileBranchesOpen" @click.outside="mobileBranchesOpen = false"
                 x-transition:enter="transition ease-out duration-100"
                 x-transition:enter-start="transform opacity-0 scale-95"
@@ -79,11 +71,8 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                 x-transition:leave-start="transform opacity-100 scale-100"
                 x-transition:leave-end="transform opacity-0 scale-95"
                 class="absolute right-0 z-50 w-56 mt-2 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
-                <div class="py-1" role="menu" aria-orientation="vertical">
-                    <div class="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-                        SWITCH BRANCH
-                    </div>
-
+                <div class="py-1" role="menu">
+                    <div class="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">SWITCH BRANCH</div>
                     @foreach ($branches as $branch)
                         <button
                             @click="
@@ -102,27 +91,23 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                             <div class="flex-1 min-w-0">
                                 <span class="truncate">{{ $branch->name }}</span>
                                 @if ($branch->location)
-                                    <p class="text-xs text-gray-500 truncate dark:text-gray-400">
-                                        {{ Str::limit($branch->location, 20) }}
-                                    </p>
+                                    <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Str::limit($branch->location, 20) }}</p>
                                 @endif
                             </div>
-                            <span x-show="selectedBranchId == {{ $branch->id }}"
-                                class="ml-2 text-blue-600 dark:text-blue-400">
+                            <span x-show="selectedBranchId == {{ $branch->id }}" class="ml-2 text-blue-600 dark:text-blue-400">
                                 <i class="fa-solid fa-check"></i>
                             </span>
                         </button>
                     @endforeach
 
-                    @can('manage branches')
+                    @if($canBranches)
                         <div class="px-4 py-2 text-xs text-gray-500 border-t dark:text-gray-400 dark:border-gray-700">
-                            <a href="{{ route('branches.index') }}"
-                                class="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                            <a href="{{ route('branches.index') }}" class="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400">
                                 <i class="w-4 mr-1 fa-solid fa-cog"></i>
                                 Manage Branches
                             </a>
                         </div>
-                    @endcan
+                    @endif
                 </div>
             </div>
         </div>
@@ -134,9 +119,9 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
         class="fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 transform bg-white border-r dark:bg-gray-800 dark:border-gray-700 md:translate-x-0"
         :class="open ? 'translate-x-0' : '-translate-x-full'">
         <div class="flex flex-col h-full">
+
             <!-- Brand with Branch Switcher -->
             <div class="flex-shrink-0 border-b dark:border-gray-700">
-                <!-- Spa Brand -->
                 <div class="px-6 py-4">
                     <a href="{{ $brandHref }}" class="flex items-center space-x-3">
                         <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
@@ -144,9 +129,7 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                             <span class="text-2xl font-semibold text-[#8B7355] dark:text-white font-['Playfair_Display']">
                                 {{ $spa?->name ?? 'Spa Management' }}
                             </span>
-                            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">
-                                SPA | WELLNESS
-                            </p>
+                            <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">SPA | WELLNESS</p>
                         </div>
                     </a>
                 </div>
@@ -155,7 +138,6 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                 @if ($branches->isNotEmpty())
                     <div class="px-6 pb-4">
                         <div class="relative">
-                            <!-- Branch Switcher Button -->
                             <button @click="branchesDropdown = !branchesDropdown"
                                 class="flex items-center justify-between w-full px-4 py-3 text-sm text-left transition-colors rounded-lg bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/50 dark:hover:bg-gray-700 dark:text-gray-200">
                                 <div class="flex items-center flex-1 min-w-0">
@@ -163,8 +145,7 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                     <div class="flex-1 min-w-0">
                                         <p class="font-medium truncate" x-text="selectedBranch"></p>
                                         <p class="text-xs text-gray-500 truncate dark:text-gray-400">
-                                            {{ $branches->count() }}
-                                            {{ Str::plural('branch', $branches->count()) }} available
+                                            {{ $branches->count() }} {{ Str::plural('branch', $branches->count()) }} available
                                         </p>
                                     </div>
                                 </div>
@@ -172,7 +153,6 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                    :class="branchesDropdown ? 'transform rotate-180' : ''"></i>
                             </button>
 
-                            <!-- Branch Switcher Dropdown -->
                             <div x-show="branchesDropdown" @click.outside="branchesDropdown = false"
                                 x-transition:enter="transition ease-out duration-100"
                                 x-transition:enter-start="transform opacity-0 scale-95"
@@ -182,17 +162,11 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                 x-transition:leave-end="transform opacity-0 scale-95"
                                 class="absolute left-0 right-0 z-50 mx-6 mt-1 overflow-y-auto origin-top bg-white rounded-lg shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5 max-h-96">
                                 <div class="py-2">
-                                    <!-- Dropdown Header -->
                                     <div class="flex items-center justify-between px-4 py-2 border-b dark:border-gray-700">
-                                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                            SELECT BRANCH
-                                        </span>
-                                        <span class="text-xs text-gray-400 dark:text-gray-500">
-                                            {{ $branches->count() }} total
-                                        </span>
+                                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">SELECT BRANCH</span>
+                                        <span class="text-xs text-gray-400 dark:text-gray-500">{{ $branches->count() }} total</span>
                                     </div>
 
-                                    <!-- Branches List -->
                                     <div class="py-1">
                                         @foreach ($branches as $branch)
                                             <button
@@ -221,14 +195,10 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                                             {{ $branch->name }}
                                                         </p>
                                                         @if ($branch->location)
-                                                            <p class="text-xs text-gray-500 truncate dark:text-gray-400">
-                                                                {{ Str::limit($branch->location, 25) }}
-                                                            </p>
+                                                            <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Str::limit($branch->location, 25) }}</p>
                                                         @endif
                                                         @if ($branch->phone)
-                                                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                                {{ $branch->phone }}
-                                                            </p>
+                                                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $branch->phone }}</p>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -241,8 +211,7 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                         @endforeach
                                     </div>
 
-                                    @can('manage branches')
-                                        <!-- Branch Management Link -->
+                                    @if($canBranches)
                                         <div class="pt-1 mt-1 border-t dark:border-gray-700">
                                             <a href="{{ route('branches.index') }}"
                                                class="flex items-center justify-center px-4 py-2 text-sm text-center text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700">
@@ -250,13 +219,12 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                                 Manage All Branches
                                             </a>
                                         </div>
-                                    @endcan
+                                    @endif
                                 </div>
                             </div>
                         </div>
                     </div>
                 @else
-                    <!-- No branches message -->
                     <div class="px-6 pb-4">
                         <div class="px-4 py-3 text-sm text-center rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
                             <p class="text-yellow-800 dark:text-yellow-200">
@@ -278,18 +246,18 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                 @endif
             </div>
 
-            <!-- Navigation (scrollable) -->
+            <!-- Navigation -->
             <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
 
                 <!-- Dashboard -->
-                @can('view owner dashboard')
+                @if($user?->hasRole('owner'))
                     <div class="mb-1 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                             <i class="fa-solid fa-gauge-high w-4 mr-1 text-[#8B7355]"></i>
                             Dashboard
                         </x-nav-link>
                     </div>
-                @endcan
+                @endif
 
                 <!-- Operations -->
                 @if($showOperations)
@@ -301,29 +269,29 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                 Operations
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                            :class="operationsOpen ? 'transform rotate-180' : ''"></i>
+                               :class="operationsOpen ? 'transform rotate-180' : ''"></i>
                         </button>
 
                         <div x-show="operationsOpen" x-collapse class="ml-4 space-y-1">
-                            @can('create booking')
+                            @if($canBooking)
                                 <x-nav-link :href="route('booking')" :active="request()->routeIs('booking')">
                                     Book an Appointment
                                 </x-nav-link>
-                            @endcan
+                            @endif
 
-                            @can('view appointments')
+                            @if($canAppointments)
                                 <x-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
                                     Appointments
                                 </x-nav-link>
-                            @endcan
+                            @endif
 
-                            @can('view schedule')
+                            @if($canSchedule)
                                 <x-nav-link :href="route('schedule.index')" :active="request()->routeIs('schedule.*')">
                                     Schedule
                                 </x-nav-link>
-                            @endcan
+                            @endif
 
-                            @if(auth()->user()->can('view staff availability') || auth()->user()->can('manage staff availability'))
+                            @if($canStaffAvailability)
                                 <x-nav-link :href="route('staff.availability')" :active="request()->routeIs('staff.availability*')">
                                     Staff Availability
                                 </x-nav-link>
@@ -342,23 +310,23 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                 Management
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                            :class="managementOpen ? 'transform rotate-180' : ''"></i>
+                               :class="managementOpen ? 'transform rotate-180' : ''"></i>
                         </button>
 
                         <div x-show="managementOpen" x-collapse class="ml-4 space-y-1">
-                            @if(auth()->user()->can('view services') || auth()->user()->can('manage services'))
+                            @if($canServices)
                                 <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')">
                                     Services
                                 </x-nav-link>
                             @endif
 
-                            @if(auth()->user()->can('view staff') || auth()->user()->can('manage staff'))
+                            @if($canStaff)
                                 <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
                                     Staff
                                 </x-nav-link>
                             @endif
 
-                            @if(auth()->user()->can('view branches') || auth()->user()->can('manage branches'))
+                            @if($canBranches)
                                 <x-nav-link :href="route('branches.index')" :active="request()->routeIs('branches.*')">
                                     Branches
                                 </x-nav-link>
@@ -377,21 +345,21 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                 Insights
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                            :class="insightsOpen ? 'transform rotate-180' : ''"></i>
+                               :class="insightsOpen ? 'transform rotate-180' : ''"></i>
                         </button>
 
                         <div x-show="insightsOpen" x-collapse class="ml-4 space-y-1">
-                            @can('view decision support')
+                            @if($canDecisionSupport)
                                 <x-nav-link :href="route('decision-support.index')" :active="request()->routeIs('decision-support.*')">
                                     Decision Support
                                 </x-nav-link>
-                            @endcan
+                            @endif
 
-                            @can('view reports')
+                            @if($canReports)
                                 <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
                                     Reports
                                 </x-nav-link>
-                            @endcan
+                            @endif
                         </div>
                     </div>
                 @endif
@@ -406,21 +374,21 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                                 Inventory
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                            :class="inventoryOpen ? 'transform rotate-180' : ''"></i>
+                               :class="inventoryOpen ? 'transform rotate-180' : ''"></i>
                         </button>
 
                         <div x-show="inventoryOpen" x-collapse class="ml-4 space-y-1">
-                            @can('view inventory')
+                            @if($canInventoryProducts)
                                 <x-nav-link :href="route('inventory.products')" :active="request()->routeIs('inventory.products')">
                                     Product Inventory
                                 </x-nav-link>
-                            @endcan
+                            @endif
 
-                            @can('view inventory logs')
+                            @if($canInventoryLogs)
                                 <x-nav-link :href="route('inventory.logs')" :active="request()->routeIs('inventory.logs')">
                                     Product Logs
                                 </x-nav-link>
-                            @endcan
+                            @endif
                         </div>
                     </div>
                 @endif
@@ -434,36 +402,28 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
                             Settings
                         </span>
                         <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                        :class="settingsOpen ? 'transform rotate-180' : ''"></i>
+                           :class="settingsOpen ? 'transform rotate-180' : ''"></i>
                     </button>
 
                     <div x-show="settingsOpen" x-collapse class="ml-4 space-y-1">
-                        <x-nav-link
-                            :href="route('profile.edit')"
-                            :active="request()->routeIs('profile.*')">
+                        <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
                             User Profile
                         </x-nav-link>
 
                         @role('owner')
-                        <x-nav-link
-                            :href="route('owner.spa-profile.edit')"
-                            :active="request()->routeIs('owner.spa-profile.*')">
+                        <x-nav-link :href="route('owner.spa-profile.edit')" :active="request()->routeIs('owner.spa-profile.*')">
                             Spa Profile
                         </x-nav-link>
                         @endrole
 
                         @role('owner')
-                        <x-nav-link
-                            :href="route('owner.roles-permissions.index')"
-                            :active="request()->routeIs('owner.roles-permissions.*')">
+                        <x-nav-link :href="route('owner.roles-permissions.index')" :active="request()->routeIs('owner.roles-permissions.*')">
                             Roles &amp; Permissions
                         </x-nav-link>
                         @endrole
 
                         @role('owner')
-                        <x-nav-link
-                            :href="route('owner.subscription.index')"
-                            :active="request()->routeIs('owner.subscription.*')">
+                        <x-nav-link :href="route('owner.subscription.index')" :active="request()->routeIs('owner.subscription.*')">
                             Subscription & Billing
                         </x-nav-link>
                         @endrole
@@ -472,14 +432,13 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
 
             </nav>
 
-            <!-- USER INFO pinned at bottom -->
+            <!-- USER INFO -->
             <div class="flex-shrink-0 p-3 border-t dark:border-gray-700">
                 <div class="flex items-center justify-between">
                     <div class="flex-1">
                         <p class="text-sm font-medium text-gray-800 dark:text-white">{{ Auth::user()->name }}</p>
                         <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</p>
                     </div>
-
                     <button type="button" @click="showLogoutModal = true"
                         class="flex items-center justify-center text-gray-600 transition-colors rounded-full w-9 h-9 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                         title="Log Out">
@@ -506,11 +465,8 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
             x-transition:leave-end="opacity-0 transform scale-95">
 
             <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Confirm Logout
-                </h3>
-                <button @click="showLogoutModal = false"
-                    class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Confirm Logout</h3>
+                <button @click="showLogoutModal = false" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
                     <i class="text-xl fa-solid fa-times"></i>
                 </button>
             </div>
@@ -547,7 +503,7 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
         </div>
     </div>
 
-    <!-- MAIN CONTENT (only this scrolls) -->
+    <!-- MAIN CONTENT -->
     <main class="flex-1 h-screen overflow-y-auto md:ml-64">
         <div class="p-4 pt-16 md:p-4 md:pt-4">
             @yield('content')
@@ -579,46 +535,20 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
         })
         .then(data => {
             if (data.success) {
-                showToast('Branch switched successfully', 'success');
-                setTimeout(() => window.location.reload(), 800);
+                showSpaToast('Branch switched successfully', 'success');
+                setTimeout(() => window.location.reload(), 1000);
             } else {
-                showToast(data.message || 'Failed to switch branch', 'error');
+                showSpaToast(data.message || 'Failed to switch branch', 'error');
                 button.innerHTML = originalContent;
                 button.disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showToast('An error occurred. Please try again.', 'error');
+            showSpaToast('An error occurred. Please try again.', 'error');
             button.innerHTML = originalContent;
             button.disabled = false;
         });
-    }
-
-    function showToast(message, type = 'info') {
-        const existingToasts = document.querySelectorAll('.branch-toast');
-        existingToasts.forEach(toast => toast.remove());
-
-        const toast = document.createElement('div');
-        toast.className = `branch-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-0 ${
-            type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-            type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-            'bg-blue-100 text-blue-800 border border-blue-200'
-        }`;
-
-        toast.innerHTML = `
-            <div class="flex items-center">
-                <i class="mr-2 fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-                <span>${message}</span>
-            </div>
-        `;
-
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.transform = 'translateX(100%)';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
     }
 
     function sidebar() {
@@ -632,7 +562,6 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
             mobileBranchesOpen: false,
             inventoryOpen: false,
             settingsOpen: false,
-
             selectedBranch: @json($currentBranch?->name ?? ($firstBranch?->name ?? 'Select Branch')),
             selectedBranchId: @json($currentBranchId ?? ($firstBranch?->id ?? null)),
         };
@@ -640,7 +569,6 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
 
     document.addEventListener('alpine:init', () => {
         window.switchBranch = switchBranch;
-        window.showToast = showToast;
     });
 </script>
 
@@ -656,13 +584,6 @@ $showInventory = $canManageInventory || $canInventoryProducts || $canInventoryLo
     [x-collapse] {
         overflow: hidden;
         transition: all 0.3s ease-in-out;
-    }
-
-    .branch-toast { animation: slideIn 0.3s ease-out; }
-
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
     }
 
     .relative .fa-crown {

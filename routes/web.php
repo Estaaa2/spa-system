@@ -37,6 +37,7 @@ use Illuminate\Support\Facades\Route;
 | SMTP Test Route (temporary)
 |--------------------------------------------------------------------------
 */
+
 Route::get('/send-mail', [MailController::class, 'sendWelcomeMail']);
 Route::get('/test-mail', function () {
     $data = [
@@ -352,7 +353,7 @@ Route::middleware(['auth', 'role:owner'])
             ->name('spa-profile.documents.upload');
         Route::delete('/spa-profile/documents/{document}', [SpaProfileController::class, 'destroyDocument'])
             ->name('spa-profile.documents.destroy');
-        
+
         // Roles & Permissions
         Route::get('/roles-permissions', [OwnerRolePermissionController::class, 'index'])
             ->name('roles-permissions.index');

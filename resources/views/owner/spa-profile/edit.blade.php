@@ -53,7 +53,7 @@
         <div class="p-6 border shadow-sm rounded-2xl {{ $statusClasses['card'] }}">
             <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div class="flex items-start gap-4">
-                    <div class="flex items-center justify-center w-14 h-14 bg-white rounded-full shadow-sm dark:bg-gray-800">
+                    <div class="flex items-center justify-center bg-white rounded-full shadow-sm w-14 h-14 dark:bg-gray-800">
                         <i class="text-2xl fa-solid {{ $statusClasses['icon'] }}"></i>
                     </div>
 
@@ -217,8 +217,8 @@
                                     </p>
 
                                     <a href="{{ asset('storage/' . $document->file_path) }}"
-                                    target="_blank"
-                                    class="inline-flex mt-3 text-sm text-blue-600 underline dark:text-blue-400">
+                                        target="_blank"
+                                        class="inline-flex mt-3 text-sm text-blue-600 underline dark:text-blue-400">
                                         View Current Document
                                     </a>
                                 @else
@@ -235,13 +235,36 @@
                                         :value="$document ? __('Replace File') : __('Upload File')"
                                     />
 
+                                    {{-- Hidden native file input --}}
                                     <input
                                         id="document_file_{{ $type }}"
                                         type="file"
                                         name="documents[{{ $type }}]"
                                         accept=".pdf,.jpg,.jpeg,.png"
-                                        class="block w-full mt-2 text-sm text-gray-700 border-gray-300 rounded-lg shadow-sm dark:text-gray-200 dark:bg-gray-900 dark:border-gray-600 focus:border-[#8B7355] focus:ring-[#8B7355]"
+                                        style="position: fixed; top: -9999px; left: -9999px; opacity: 0; width: 0; height: 0;"
+                                        onchange="handleFileChange(this, 'file_label_{{ $type }}')"
                                     />
+
+                                    {{-- Themed upload button + selected filename --}}
+                                    <div class="flex flex-wrap items-center gap-3 mt-2">
+                                        <label
+                                            for="document_file_{{ $type }}"
+                                            class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 rounded-lg cursor-pointer"
+                                            style="background-color: #8B7355;"
+                                            onmouseover="this.style.backgroundColor='#7a6449'"
+                                            onmouseout="this.style.backgroundColor='#8B7355'"
+                                        >
+                                            <i class="text-xs fa-solid fa-arrow-up-from-bracket"></i>
+                                            {{ $document ? 'Replace File' : 'Choose File' }}
+                                        </label>
+
+                                        <span
+                                            id="file_label_{{ $type }}"
+                                            class="text-sm italic text-gray-500 dark:text-gray-400"
+                                        >
+                                            No file chosen
+                                        </span>
+                                    </div>
                                 </div>
                             @endif
                         </div>
@@ -263,4 +286,20 @@
         </div>
     </div>
 </div>
+
+<script>
+    function handleFileChange(input, labelId) {
+        const label = document.getElementById(labelId);
+        if (input.files && input.files.length > 0) {
+            label.textContent = input.files[0].name;
+            label.classList.remove('italic', 'text-gray-500', 'dark:text-gray-400');
+            label.classList.add('text-gray-800', 'dark:text-gray-200', 'font-medium');
+        } else {
+            label.textContent = 'No file chosen';
+            label.classList.add('italic', 'text-gray-500', 'dark:text-gray-400');
+            label.classList.remove('text-gray-800', 'dark:text-gray-200', 'font-medium');
+        }
+    }
+</script>
+
 @endsection

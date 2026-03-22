@@ -108,6 +108,7 @@
                     class="w-full px-3 py-2 mb-4 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white">
                 @foreach($roles as $role)
                     @continue($role->name === 'admin')
+                    @continue($role->name === 'customer')
 
                     <option value="{{ $role->name }}">
                         {{ $role->name }}
