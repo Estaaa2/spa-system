@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->foreignId('created_by_user_id')->nullable()->constrained('users')->nullOnDelete(); // Staff/receptionist who created the booking (nullable).
             $table->string('booking_source')->nullable(); //if they booked online or walk-in.
-            $table->string('status')->default('reserved');   //if reserved, confirmed, completed.
+            $table->string('status')->default('reserved');   //if reserved, pending, completed.
             $table->string('service_type');//if in-branch or home service.
             $table->string('treatment');//type of treatment.
             $table->string('customer_phone')->nullable(); //phone for contacting walk-in.

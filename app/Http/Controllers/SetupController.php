@@ -82,7 +82,6 @@ class SetupController extends Controller
         $validated = $request->validate([
         'branch_name' => ['required', 'string', 'max:255'],
         'location' => ['required', 'string', 'max:255'],
-        'has_home_service' => ['nullable', 'boolean'],
         ]);
 
         $spa = auth()->user()->spa;
@@ -90,7 +89,6 @@ class SetupController extends Controller
         $branch = $spa->branches()->create([
             'name'             => $request->branch_name,
             'location'         => $request->location,
-            'has_home_service' => $request->boolean('has_home_service'),
             'is_main'          => $spa->branches()->count() === 0,
         ]);
 

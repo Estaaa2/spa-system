@@ -30,7 +30,7 @@ class ReportsController extends Controller
         // Booking Summary
         $totalBookings = (clone $base)->count();
         $reserved      = (clone $base)->where('status', 'reserved')->count();
-        $confirmed     = (clone $base)->where('status', 'confirmed')->count();
+        $pending     = (clone $base)->where('status', 'pending')->count();
         $completed     = (clone $base)->where('status', 'completed')->count();
 
         // Service Summary (based on bookings.treatment code)
@@ -115,7 +115,7 @@ class ReportsController extends Controller
             'summary' => [
                 'totalBookings' => $totalBookings,
                 'reserved' => $reserved,
-                'confirmed' => $confirmed,
+                'pending' => $pending,
                 'completed' => $completed,
                 'treatmentCount' => $treatmentCount,
                 'packageCount' => $packageCount,

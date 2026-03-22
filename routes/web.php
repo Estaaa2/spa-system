@@ -15,10 +15,12 @@ use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\MailController;
+use App\Http\Controllers\OnlineBookingCheckoutController;
 use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
 use App\Http\Controllers\Owner\SpaProfileController;
 use App\Http\Controllers\Owner\SubscriptionController;
 use App\Http\Controllers\PackageController;
+use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
@@ -81,6 +83,22 @@ Route::get('/', [LandingController::class, 'index'])
     ->name('landing.page');
 
 /*
+/*
+|--------------------------------------------------------------------------
+| Landing Page Online Booking (public)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+    Route::post('/bookings/online/checkout', [OnlineBookingCheckoutController::class, 'store'])
+        ->name('bookings.online.checkout');
+
+    Route::get('/bookings/online/payment/success', [OnlineBookingCheckoutController::class, 'success'])
+        ->name('bookings.online.payment.success');
+
+    Route::get('/bookings/online/payment/cancel', [OnlineBookingCheckoutController::class, 'cancel'])
+        ->name('bookings.online.payment.cancel');
+});
+/*
 |--------------------------------------------------------------------------
 | Customer Routes
 |--------------------------------------------------------------------------
@@ -98,6 +116,8 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'permission:create booking'])->group(function () {
     Route::get('/booking', [BookingController::class, 'create'])->name('booking');
     Route::post('/booking', [BookingController::class, 'store'])->name('bookings.store');
+    Route::get('/booking/available-therapists', [BookingController::class, 'availableTherapists'])
+        ->name('booking.available-therapists');
 });
 
 Route::post('/bookings/online', [BookingController::class, 'storeOnline'])
