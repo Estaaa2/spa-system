@@ -31,7 +31,7 @@
                 <tbody>
                     @forelse($roles as $role)
                         <tr class="border-t dark:border-gray-700">
-                            <td class="px-6 py-3 font-medium text-gray-800 dark:text-gray-100">
+                            <td class="px-6 py-3 font-medium text-gray-800 capitalize dark:text-gray-100">
                                 {{ $role->name }}
                             </td>
 

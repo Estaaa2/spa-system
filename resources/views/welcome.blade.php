@@ -65,8 +65,6 @@
                 @else
                     @role('customer')
                     <div class="flex items-center gap-3">
-
-                        <!-- Navigation Links -->
                         <div class="flex items-center gap-1">
                             <a href="#" onclick="openAppointmentsModal()"
                                 class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
@@ -78,7 +76,6 @@
                             </a>
                         </div>
 
-                        <!-- Profile Dropdown -->
                         <div class="relative" id="profileDropdownWrapper">
                             <button type="button" id="profileDropdownBtn"
                                 class="flex items-center gap-2 px-3 py-2 transition rounded-full hover:bg-white/60 ring-1 ring-black/5">
@@ -88,15 +85,12 @@
                                 <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200" id="profileChevron"></i>
                             </button>
 
-                            <!-- Dropdown Menu -->
                             <div id="profileDropdownMenu"
                                 class="absolute right-0 z-50 hidden w-48 mt-2 overflow-hidden bg-white shadow-xl rounded-2xl ring-1 ring-black/10">
-
                                 <div class="px-4 py-3 border-b border-black/5 bg-[#F6EFE6]/60">
                                     <p class="text-xs font-semibold text-[#3C2F23] truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
                                     <p class="text-[11px] text-gray-400 truncate">{{ auth()->user()?->email ?? '' }}</p>
                                 </div>
-
                                 <div class="py-1">
                                     <button type="button"
                                         onclick="closeProfileDropdown(); openProfileModal();"
@@ -104,7 +98,6 @@
                                         <i class="fa-solid fa-user text-[#8B7355] w-4"></i>
                                         Profile
                                     </button>
-
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
                                         <button type="submit"
@@ -129,113 +122,93 @@
             </div>
         </div>
     </div>
-        @auth
-        <!-- Profile Modal -->
-        <div id="profileModal" class="fixed inset-0 z-[130] hidden">
-            <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeProfileModal()"></div>
 
-            <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-                <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-
-                    @auth
-                        <!-- Header -->
-                        <div class="relative px-6 py-8 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center">
-                            <!-- Avatar -->
-                            <div class="flex items-center justify-center w-16 h-16 mx-auto text-2xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
-                                {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
-                            </div>
-                            <h3 class="mt-3 text-lg font-semibold font-['Playfair_Display']">
-                                {{ auth()->user()?->name ?? 'Guest' }}
-                            </h3>
-                            <p class="mt-1 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
-
-                            <button onclick="closeProfileModal()"
-                                class="absolute flex items-center justify-center w-8 h-8 transition top-4 right-4 rounded-xl bg-white/10 hover:bg-white/20">
-                                <i class="text-sm fa-solid fa-xmark"></i>
-                            </button>
+    @auth
+    <div id="profileModal" class="fixed inset-0 z-[130] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeProfileModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="relative px-6 py-8 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center">
+                    <div class="flex items-center justify-center w-16 h-16 mx-auto text-2xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
+                        {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
+                    </div>
+                    <h3 class="mt-3 text-lg font-semibold font-['Playfair_Display']">
+                        {{ auth()->user()?->name ?? 'Guest' }}
+                    </h3>
+                    <p class="mt-1 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
+                    <button onclick="closeProfileModal()"
+                        class="absolute flex items-center justify-center w-8 h-8 transition top-4 right-4 rounded-xl bg-white/10 hover:bg-white/20">
+                        <i class="text-sm fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+                        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
+                            <i class="fa-solid fa-user text-[#8B7355] text-sm"></i>
                         </div>
-                    @endauth
-
-                    <!-- Content -->
-                    <div class="p-6 space-y-4">
-
-                        <!-- Full Name -->
-                        <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-                            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
-                                <i class="fa-solid fa-user text-[#8B7355] text-sm"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-[11px] text-gray-400 uppercase tracking-wide">Full Name</p>
-                                <p class="text-sm font-semibold text-[#3C2F23] truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
-                            </div>
+                        <div class="min-w-0">
+                            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Full Name</p>
+                            <p class="text-sm font-semibold text-[#3C2F23] truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
                         </div>
-
-                        <!-- Email — partially masked -->
-                        <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-                            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
-                                <i class="fa-solid fa-envelope text-[#8B7355] text-sm"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-[11px] text-gray-400 uppercase tracking-wide">Email Address</p>
-                                @php
-                                    $email = auth()->user()?->email ?? '';
-                                    $parts = explode('@', $email);
-                                    $name = $parts[0];
-                                    $domain = $parts[1] ?? '';
-                                    $maskedName = strlen($name) > 3
-                                        ? substr($name, 0, 2) . str_repeat('*', strlen($name) - 2)
-                                        : str_repeat('*', strlen($name));
-                                    $maskedEmail = $maskedName . '@' . $domain;
-                                @endphp
-                                <div class="flex items-center gap-2">
-                                    <p id="emailDisplay" class="text-sm font-semibold text-[#3C2F23] truncate">{{ $maskedEmail }}</p>
-                                    <button type="button" id="emailToggleBtn" onclick="toggleEmail(this)"
-                                        data-masked="{{ $maskedEmail }}"
-                                        data-real="{{ $email }}"
-                                        class="text-[#8B7355] hover:text-[#6F5430] transition flex-shrink-0"
-                                        title="Show/Hide email">
-                                        <i id="emailToggleIcon" class="text-xs fa-solid fa-eye"></i>
-                                    </button>
-                                </div>
-                            </div>
+                    </div>
+                    <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+                        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
+                            <i class="fa-solid fa-envelope text-[#8B7355] text-sm"></i>
                         </div>
-
-                        <!-- Email Verified Status -->
-                        <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-                            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
-                                <i class="fa-solid fa-shield-halved text-[#8B7355] text-sm"></i>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-[11px] text-gray-400 uppercase tracking-wide">Account Status</p>
-                                <div class="flex items-center gap-2 mt-0.5">
-                                    @if(auth()->user()?->hasVerifiedEmail())
-                                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
-                                            <i class="fa-solid fa-circle-check"></i> Verified
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-500">
-                                            <i class="fa-solid fa-circle-exclamation"></i> Unverified
-                                        </span>
-                                    @endif
-                                </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Email Address</p>
+                            @php
+                                $email = auth()->user()?->email ?? '';
+                                $parts = explode('@', $email);
+                                $name = $parts[0];
+                                $domain = $parts[1] ?? '';
+                                $maskedName = strlen($name) > 3
+                                    ? substr($name, 0, 2) . str_repeat('*', strlen($name) - 2)
+                                    : str_repeat('*', strlen($name));
+                                $maskedEmail = $maskedName . '@' . $domain;
+                            @endphp
+                            <div class="flex items-center gap-2">
+                                <p id="emailDisplay" class="text-sm font-semibold text-[#3C2F23] truncate">{{ $maskedEmail }}</p>
+                                <button type="button" id="emailToggleBtn" onclick="toggleEmail(this)"
+                                    data-masked="{{ $maskedEmail }}"
+                                    data-real="{{ $email }}"
+                                    class="text-[#8B7355] hover:text-[#6F5430] transition flex-shrink-0">
+                                    <i id="emailToggleIcon" class="text-xs fa-solid fa-eye"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Footer -->
-                    <div class="px-6 pb-6">
-                        <button onclick="closeProfileModal()"
-                            class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                            Close
-                        </button>
+                    <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+                        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
+                            <i class="fa-solid fa-shield-halved text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Account Status</p>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                @if(auth()->user()?->hasVerifiedEmail())
+                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
+                                        <i class="fa-solid fa-circle-check"></i> Verified
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-500">
+                                        <i class="fa-solid fa-circle-exclamation"></i> Unverified
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="h-10">
-
+                <div class="px-6 pb-6">
+                    <button onclick="closeProfileModal()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                        Close
+                    </button>
                 </div>
             </div>
+            <div class="h-10"></div>
         </div>
-        @endauth
+    </div>
+    @endauth
 
     <div id="mobile-menu" class="hidden bg-[#F6EFE6]/95 border-t border-black/10 shadow-lg md:hidden">
         <div class="px-3 pt-3 pb-5 space-y-2">
@@ -244,14 +217,12 @@
                {{ request()->is('/') ? 'bg-white/70 text-[#6F5430] ring-1 ring-black/5' : 'text-gray-700 hover:bg-white/60' }}">
                 Home
             </a>
-
             @guest
                 <a href="{{ route('login') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Login</a>
                 <a href="{{ route('register') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Register</a>
                 <a href="{{ route('register.business') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Join as a Partner</a>
             @else
                 @role('customer')
-
                     <a href="#" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Profile</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
@@ -279,26 +250,34 @@
                     <i class="fa-solid fa-spa text-white/80"></i>
                     Wellness • Relaxation • Care
                 </p>
-
                 <h1 class="mt-6 text-4xl md:text-6xl font-['Playfair_Display'] text-white font-semibold leading-tight">
                     Find and Book the Best Spa
                 </h1>
-
                 <p class="mt-4 text-lg md:text-xl text-white/90">
                     Relaxation, wellness, and pampering — made easy.
                 </p>
             </div>
 
-            <form action="{{ route('booking') }}" method="GET"
+            <form action="{{ url('/') }}" method="GET"
                   class="grid max-w-4xl grid-cols-1 gap-4 p-4 mx-auto mt-10 shadow-2xl bg-white/90 rounded-2xl ring-1 ring-black/5 md:grid-cols-12">
                 <div class="flex items-center gap-3 px-4 py-3 bg-white border border-black/10 md:col-span-8 rounded-xl">
                     <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-[#F6EFE6] ring-1 ring-black/5">
                         <i class="fa-solid fa-location-dot text-[#8B7355]"></i>
                     </span>
-                    <input type="text" name="city" placeholder="Where are you at?"
-                        class="w-full text-sm bg-transparent border-0 focus:ring-0 soft-ring placeholder:text-gray-400">
+                    <input
+                        type="text"
+                        name="city"
+                        value="{{ $city ?? '' }}"
+                        placeholder="Search by city or location..."
+                        class="w-full text-sm bg-transparent border-0 focus:ring-0 soft-ring placeholder:text-gray-400"
+                        autocomplete="off"
+                    >
+                    @if(!empty($city))
+                        <a href="{{ url('/') }}" class="flex-shrink-0 text-gray-400 transition hover:text-red-400" title="Clear search">
+                            <i class="text-sm fa-solid fa-xmark"></i>
+                        </a>
+                    @endif
                 </div>
-
                 <button class="md:col-span-4 booking-btn text-white rounded-xl font-semibold hover:opacity-95 transition shadow-lg active:translate-y-0.5">
                     <span class="inline-flex items-center justify-center gap-2 py-3">
                         <i class="fa-solid fa-magnifying-glass"></i>
@@ -314,11 +293,8 @@
     <!-- ================= MY APPOINTMENTS MODAL ================= -->
     <div id="appointmentsModal" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeAppointmentsModal()"></div>
-
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-
-                <!-- Header -->
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
                     <h3 class="text-lg font-semibold text-[#3C2F23]">My Appointments</h3>
                     <button onclick="closeAppointmentsModal()"
@@ -326,8 +302,6 @@
                         <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-
-                <!-- Tabs -->
                 <div class="flex border-b border-black/5">
                     @foreach(['upcoming' => 'Upcoming', 'past' => 'Past', 'cancelled' => 'Cancelled'] as $key => $label)
                     <button onclick="switchTab('{{ $key }}')"
@@ -340,8 +314,6 @@
                     </button>
                     @endforeach
                 </div>
-
-                <!-- Tab Content -->
                 <div class="overflow-y-auto max-h-[60vh] p-6" id="appointmentsContent">
                     <div class="flex items-center justify-center py-12">
                         <i class="text-2xl text-gray-300 fa-solid fa-spinner fa-spin"></i>
@@ -355,11 +327,8 @@
     <!-- ================= MY SCHEDULE MODAL ================= -->
     <div id="scheduleModal" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeScheduleModal()"></div>
-
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-
-                <!-- Header -->
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
                     <div class="flex items-center gap-3">
                         <button onclick="changeMonth(-1)"
@@ -377,19 +346,13 @@
                         <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-
-                <!-- Calendar -->
                 <div class="p-6">
-                    <!-- Day headers -->
                     <div class="grid grid-cols-7 mb-2">
                         @foreach(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $day)
                         <div class="py-2 text-xs font-semibold text-center text-gray-400">{{ $day }}</div>
                         @endforeach
                     </div>
-                    <!-- Calendar grid -->
                     <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
-
-                    <!-- Selected day bookings -->
                     <div id="selectedDayBookings" class="hidden mt-6 space-y-3">
                         <h4 id="selectedDayTitle" class="text-sm font-semibold text-[#3C2F23]"></h4>
                         <div id="selectedDayContent"></div>
@@ -406,21 +369,25 @@
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
                     <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">
-                        Featured Spas
-                    </h2>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Featured Spas</h2>
                     <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                 </div>
                 <p class="mt-3 text-sm text-gray-600">
-                    Curated picks for a premium relaxation experience.
+                    @if(!empty($city))
+                        Featured spas in <span class="font-semibold text-[#8B7355]">{{ $city }}</span>
+                    @else
+                        Curated picks for a premium relaxation experience.
+                    @endif
                 </p>
             </div>
 
             <div class="grid grid-cols-1 gap-6 mt-12 sm:grid-cols-2 lg:grid-cols-4">
+                @php $featuredCount = 0; @endphp
                 @forelse($spas as $spa)
                     @foreach($spa->branches as $branch)
                         @if($spa->verification_status === 'verified' && $branch->profile?->is_listed)
                             @php
+                                $featuredCount++;
                                 $lowestPrice = \App\Models\Treatment::withoutGlobalScopes()
                                     ->where('spa_id', $spa->id)
                                     ->where('branch_id', $branch->id)
@@ -452,12 +419,12 @@
                                     ->where('spa_id', $spa->id)
                                     ->get()
                                     ->map(fn($t) => [
-                                        'id' => $t->id,
-                                        'name' => $t->name,
-                                        'price' => $t->price,
-                                        'duration' => $t->duration,
+                                        'id'           => $t->id,
+                                        'name'         => $t->name,
+                                        'price'        => $t->price,
+                                        'duration'     => $t->duration,
                                         'service_type' => $t->service_type,
-                                        'type' => 'treatment',
+                                        'type'         => 'treatment',
                                     ])
                                     ->values()
                                     ->toArray();
@@ -467,33 +434,33 @@
                                     ->where('spa_id', $spa->id)
                                     ->get()
                                     ->map(fn($p) => [
-                                        'id' => $p->id,
-                                        'name' => $p->name,
-                                        'price' => $p->price ?? null,
-                                        'duration' => $p->duration ?? null,
+                                        'id'           => $p->id,
+                                        'name'         => $p->name,
+                                        'price'        => $p->price ?? null,
+                                        'duration'     => $p->duration ?? null,
                                         'service_type' => $p->service_type ?? 'in_branch_only',
-                                        'type' => 'package',
+                                        'type'         => 'package',
                                     ])
                                     ->values()
                                     ->toArray();
 
                                 $spaPayload = [
-                                    'id' => $spa->id,
-                                    'name' => $spa->name,
-                                    'tag' => 'Featured Spa',
-                                    'branch_id' => $branch->id,
-                                    'branch_name' => $branch->name,
+                                    'id'              => $spa->id,
+                                    'name'            => $spa->name,
+                                    'tag'             => 'Featured Spa',
+                                    'branch_id'       => $branch->id,
+                                    'branch_name'     => $branch->name,
                                     'branch_location' => $branch->location ?? '',
-                                    'desc' => $profile->description ?? '',
-                                    'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
-                                    'photos' => $photos,
-                                    'address' => $profile->address ?? $branch->location ?? 'Location unavailable',
-                                    'phone' => $profile->phone ?? '',
-                                    'lat' => $profile->latitude,
-                                    'lng' => $profile->longitude,
-                                    'treatments' => $branchTreatments,
-                                    'packages' => $branchPackages,
-                                    'amenities' => $profile->amenities ?? [],
+                                    'desc'            => $profile->description ?? '',
+                                    'price_note'      => $lowestPrice ? number_format($lowestPrice, 2) : null,
+                                    'photos'          => $photos,
+                                    'address'         => $profile->address ?? $branch->location ?? 'Location unavailable',
+                                    'phone'           => $profile->phone ?? '',
+                                    'lat'             => $profile->latitude,
+                                    'lng'             => $profile->longitude,
+                                    'treatments'      => $branchTreatments,
+                                    'packages'        => $branchPackages,
+                                    'amenities'       => $profile->amenities ?? [],
                                 ];
                             @endphp
 
@@ -504,179 +471,316 @@
                                 <div class="relative overflow-hidden">
                                     <img src="{{ $thumb }}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $spa->name }}">
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
-
                                     <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#6F5430]/90 text-white text-[11px] font-semibold backdrop-blur-sm">
                                         <i class="fa-solid fa-star text-[#F5C842] text-[10px]"></i>
                                         Featured
                                     </div>
-
                                 </div>
                                 <div class="p-5">
                                     <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
                                     @php
-                                        $fullAddress = $spaPayload['address'] ?? null;
-
-                                        if (!$fullAddress) {
-                                            $addressSummary = 'Location unavailable';
-                                        } else {
-                                            $parts = array_map('trim', explode(',', $fullAddress));
-
-                                            if (count($parts) < 3) {
-                                                $addressSummary = $fullAddress;
-                                            } else {
-                                                $withoutZipCountry = array_slice($parts, 0, count($parts) - 2);
-                                                $addressSummary = implode(', ', array_slice($withoutZipCountry, -3));
-                                            }
-                                        }
+                                        $addr = $spaPayload['address'] ?? '';
+                                        $addrParts = array_map('trim', explode(',', $addr));
+                                        $addrSummary = count($addrParts) >= 3
+                                            ? implode(', ', array_slice(array_slice($addrParts, 0, count($addrParts) - 2), -3))
+                                            : ($addr ?: 'Location unavailable');
                                     @endphp
-
-                                    <p class="mt-1 text-xs text-gray-500">{{ $addressSummary }}</p>
+                                    <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
                                     <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
                                 </div>
                             </button>
                         @endif
                     @endforeach
                 @empty
-                    <div class="text-center text-gray-600 col-span-full">No spas found yet.</div>
                 @endforelse
+
+                @if($featuredCount === 0)
+                    <div class="py-16 text-center col-span-full">
+                        <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
+                            <i class="fa-solid fa-star text-xl text-[#8B7355]"></i>
+                        </div>
+                        <p class="font-semibold text-[#3C2F23]">No featured spas found</p>
+                        <p class="mt-1 text-sm text-gray-500">
+                            @if(!empty($city))
+                                No featured spas match "{{ $city }}". Try a different location.
+                            @else
+                                No featured spas available yet.
+                            @endif
+                        </p>
+                    </div>
+                @endif
             </div>
         </div>
+
+        <!-- ================= LISTED SPAS ================= -->
+        <section class="pb-20 mt-24">
+            <div class="px-6 mx-auto max-w-7xl">
+                <div class="text-center">
+                    <div class="flex items-center justify-center gap-6">
+                        <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
+                        <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">More Spas Near You</h2>
+                        <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                    </div>
+                    <p class="mt-3 text-sm text-gray-600">
+                        @if(!empty($city))
+                            Verified spas in <span class="font-semibold text-[#8B7355]">{{ $city }}</span>
+                        @else
+                            Explore more verified wellness destinations.
+                        @endif
+                    </p>
+                </div>
+
+                @php
+                    $hasListedBasic = $basicSpas->flatMap->branches->contains(fn($b) => $b->profile?->is_listed);
+                @endphp
+
+                @if($hasListedBasic)
+                    <div class="grid grid-cols-1 gap-5 mt-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        @foreach($basicSpas as $spa)
+                            @foreach($spa->branches as $branch)
+                                @if($branch->profile?->is_listed)
+                                    @php
+                                        $lowestPrice = \App\Models\Treatment::withoutGlobalScopes()
+                                            ->where('spa_id', $spa->id)
+                                            ->where('branch_id', $branch->id)
+                                            ->min('price');
+
+                                        $profile = $branch->profile;
+                                        $fallbackImage = asset('storage/branch_profiles/emptyspa.jpg');
+
+                                        $coverPhoto = !empty($profile?->cover_image)
+                                            ? asset('storage/' . $profile->cover_image)
+                                            : $fallbackImage;
+
+                                        $galleryPhotos = collect($profile->gallery_images ?? [])
+                                            ->filter()
+                                            ->map(fn($img) => asset('storage/' . $img))
+                                            ->values();
+
+                                        $photos = collect([$coverPhoto])
+                                            ->merge($galleryPhotos)
+                                            ->take(5)
+                                            ->pad(5, $fallbackImage)
+                                            ->values()
+                                            ->toArray();
+
+                                        $branchTreatments = \App\Models\Treatment::withoutGlobalScopes()
+                                            ->where('branch_id', $branch->id)
+                                            ->where('spa_id', $spa->id)
+                                            ->get()
+                                            ->map(fn($t) => [
+                                                'id'           => $t->id,
+                                                'name'         => $t->name,
+                                                'price'        => $t->price,
+                                                'duration'     => $t->duration,
+                                                'service_type' => $t->service_type,
+                                                'type'         => 'treatment',
+                                            ])
+                                            ->values()
+                                            ->toArray();
+
+                                        $branchPackages = \App\Models\Package::withoutGlobalScopes()
+                                            ->where('branch_id', $branch->id)
+                                            ->where('spa_id', $spa->id)
+                                            ->get()
+                                            ->map(fn($p) => [
+                                                'id'           => $p->id,
+                                                'name'         => $p->name,
+                                                'price'        => $p->price ?? null,
+                                                'duration'     => $p->duration ?? null,
+                                                'service_type' => $p->service_type ?? 'in_branch_only',
+                                                'type'         => 'package',
+                                            ])
+                                            ->values()
+                                            ->toArray();
+
+                                        $spaPayload = [
+                                            'id'              => $spa->id,
+                                            'name'            => $spa->name,
+                                            'tag'             => 'Listed Spa',
+                                            'branch_id'       => $branch->id,
+                                            'branch_name'     => $branch->name,
+                                            'branch_location' => $branch->location ?? '',
+                                            'desc'            => $profile->description ?? '',
+                                            'price_note'      => $lowestPrice ? number_format($lowestPrice, 2) : null,
+                                            'photos'          => $photos,
+                                            'address'         => $profile->address ?? $branch->location ?? 'Location unavailable',
+                                            'phone'           => $profile->phone ?? '',
+                                            'lat'             => $profile->latitude,
+                                            'lng'             => $profile->longitude,
+                                            'treatments'      => $branchTreatments,
+                                            'packages'        => $branchPackages,
+                                            'amenities'       => $profile->amenities ?? [],
+                                        ];
+                                    @endphp
+
+                                    <button type="button"
+                                        class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-xl"
+                                        data-open-spa-modal
+                                        data-spa='@json($spaPayload)'>
+                                        <div class="relative overflow-hidden">
+                                            <img src="{{ $coverPhoto }}" class="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $spa->name }}">
+                                            <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-transparent"></div>
+                                            <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 text-[#6F5430] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5">
+                                                <i class="fa-solid fa-spa text-[#8B7355] text-[10px]"></i>
+                                                Verified
+                                            </div>
+                                        </div>
+                                        <div class="p-4">
+                                            <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
+                                            @php
+                                                $addr = $spaPayload['address'] ?? '';
+                                                $addrParts = array_map('trim', explode(',', $addr));
+                                                $addrSummary = count($addrParts) >= 3
+                                                    ? implode(', ', array_slice(array_slice($addrParts, 0, count($addrParts) - 2), -3))
+                                                    : ($addr ?: 'Location unavailable');
+                                            @endphp
+                                            <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
+                                            @if($lowestPrice)
+                                                <p class="mt-2 text-xs font-medium text-[#8B7355]">
+                                                    Starts at ₱{{ number_format($lowestPrice, 2) }}
+                                                </p>
+                                            @endif
+                                            <p class="mt-2 text-sm text-gray-500 line-clamp-2">
+                                                {{ $spaPayload['desc'] ?: 'No description yet.' }}
+                                            </p>
+                                        </div>
+                                    </button>
+                                @endif
+                            @endforeach
+                        @endforeach
+                    </div>
+                @else
+                    <div class="flex flex-col items-center justify-center py-20 mt-12 border border-dashed border-[#C4A97D]/40 rounded-3xl bg-white/50">
+                        <div class="flex items-center justify-center w-16 h-16 mb-5 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
+                            <i class="fa-solid fa-spa text-2xl text-[#8B7355]"></i>
+                        </div>
+                        @if(!empty($city))
+                            <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23]">No spas found in "{{ $city }}"</h3>
+                            <p class="max-w-xs mt-2 text-sm text-center text-gray-500">
+                                Try searching a nearby city or browse all available spas.
+                            </p>
+                            <a href="{{ url('/') }}"
+                                class="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white rounded-xl booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                <i class="text-xs fa-solid fa-arrow-left"></i>
+                                Browse All Spas
+                            </a>
+                        @else
+                            <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23]">No spas listed yet</h3>
+                            <p class="max-w-xs mt-2 text-sm text-center text-gray-500">
+                                Be the first to list your spa and reach customers looking for wellness experiences.
+                            </p>
+                            <a href="{{ route('register.business') }}"
+                                class="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white rounded-xl booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                <i class="text-xs fa-solid fa-plus"></i>
+                                List Your Spa
+                            </a>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        </section>
     </section>
 
     <!-- ================= SPA MODAL ================= -->
     <div id="spaModal" class="fixed inset-0 z-[100] hidden">
-
-        <!-- Overlay -->
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-spa-modal></div>
-
-        <!-- Modal container -->
         <div class="relative mx-auto w-[92%] max-w-5xl mt-8 mb-8">
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl flex flex-col max-h-[90vh]">
-
-                <!-- Header -->
-                <div class="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-white border-b">
+                <div class="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-white/95 backdrop-blur-sm border-black/5">
                     <div>
-                        <h3 id="spaModalName" class="text-2xl font-bold tracking-tight text-gray-900">Spa Name</h3>
-                        <div class="flex items-center gap-1 text-sm text-gray-500 mt-0.5">
-                            <span id="spaModalTag">Featured Spa</span>
-                            <span class="mx-1">·</span>
-                            <span id="spaModalAddressSummary" class="font-medium underline">Location</span>
+                        <h3 id="spaModalName" class="text-2xl font-['Playfair_Display'] font-bold tracking-tight text-[#3C2F23]">Spa Name</h3>
+                        <div class="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F6EFE6] text-[#6F5430] text-xs font-semibold ring-1 ring-[#8B7355]/20">
+                                <i class="fa-solid fa-star text-[#D2A85B] text-[10px]"></i>
+                                <span id="spaModalTag">Featured Spa</span>
+                            </span>
+                            <span class="text-gray-300">·</span>
+                            <i class="fa-solid fa-location-dot text-[#8B7355] text-xs"></i>
+                            <span id="spaModalAddressSummary" class="font-medium text-[#6F5430] underline underline-offset-2 decoration-dotted">Location</span>
                         </div>
                     </div>
-
-                    <button data-close-spa-modal class="p-2 text-gray-900 transition-colors rounded-full hover:bg-gray-100">
-                        <i class="text-lg fa-solid fa-xmark"></i>
+                    <button data-close-spa-modal
+                        class="flex items-center justify-center w-9 h-9 text-gray-500 transition rounded-xl hover:bg-[#F6EFE6] hover:text-[#3C2F23] ring-1 ring-black/5">
+                        <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-
-                <!-- Body -->
                 <div class="overflow-y-auto">
-
-                    <!-- Photo gallery -->
                     <div class="p-6">
-                        <div class="grid grid-cols-4 grid-rows-2 gap-2 h-[400px] rounded-2xl overflow-hidden">
-                            <div class="col-span-2 row-span-2 bg-gray-200">
-                                <img id="spaModalMainPhoto" src="" class="object-cover w-full h-full transition-opacity cursor-pointer hover:opacity-90">
+                        <div class="grid grid-cols-4 grid-rows-2 gap-2 h-[380px] rounded-2xl overflow-hidden">
+                            <div class="relative col-span-2 row-span-2 bg-gray-100 cursor-pointer group">
+                                <img id="spaModalMainPhoto" src="" class="object-cover w-full h-full transition duration-500 group-hover:scale-[1.02]">
+                                <div class="absolute inset-0 transition opacity-0 bg-gradient-to-t from-black/20 to-transparent group-hover:opacity-100"></div>
                             </div>
-                            <div class="col-span-1 row-span-1 bg-gray-200">
-                                <img id="gallery_1" class="object-cover w-full h-full transition-opacity hover:opacity-90">
+                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100">
+                                <img id="gallery_1" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
                             </div>
-                            <div class="col-span-1 row-span-1 bg-gray-200">
-                                <img id="gallery_2" class="object-cover w-full h-full transition-opacity hover:opacity-90">
+                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100">
+                                <img id="gallery_2" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
                             </div>
-                            <div class="col-span-1 row-span-1 bg-gray-200">
-                                <img id="gallery_3" class="object-cover w-full h-full transition-opacity hover:opacity-90">
+                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100">
+                                <img id="gallery_3" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
                             </div>
-                            <div class="relative col-span-1 row-span-1 bg-gray-200">
-                                <img id="gallery_4" class="object-cover w-full h-full transition-opacity hover:opacity-90">
-                                <div id="spaModalGalleryCount" class="absolute inset-0 flex items-center justify-center font-semibold text-white bg-black/40">
-                                    + View All
+                            <div class="relative col-span-1 row-span-1 overflow-hidden bg-gray-100 cursor-pointer group">
+                                <img id="gallery_4" class="object-cover w-full h-full transition duration-300 group-hover:scale-105">
+                                <div id="spaModalGalleryCount"
+                                    class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white bg-black/40 backdrop-blur-[1px] transition group-hover:bg-black/50">
+                                    <span class="flex flex-col items-center gap-1">
+                                        <i class="text-lg fa-solid fa-images"></i>
+                                        View All
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Content -->
-                    <div class="grid gap-8 px-6 pb-6 md:grid-cols-3">
-
-                        <!-- Left / Main content -->
-                        <div class="space-y-8 md:col-span-2">
-
-                            <!-- About -->
+                    <div class="grid gap-8 px-6 pb-8 md:grid-cols-3">
+                        <div class="space-y-7 md:col-span-2">
                             <div>
-                                <h4 class="mb-3 text-xl font-semibold text-gray-900">About this spa</h4>
-                                <p id="spaModalDesc" class="leading-relaxed text-gray-600"></p>
+                                <h4 class="mb-2 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23]">About this spa</h4>
+                                <p id="spaModalDesc" class="text-sm leading-relaxed text-gray-600"></p>
                             </div>
-
-                            <hr class="border-gray-200">
-
-                            <!-- Amenities -->
+                            <hr class="border-[#E8DDD0]">
                             <div>
-                                @php
-                                    $amenityIcons = [
-                                        'aircon' => 'fa-fan',
-                                        'private_rooms' => 'fa-door-closed',
-                                        'shower' => 'fa-shower',
-                                        'parking' => 'fa-car',
-                                        'wifi' => 'fa-wifi',
-                                        'locker' => 'fa-lock',
-                                        'pet_friendly' => 'fa-dog',
-                                        'sauna' => 'fa-hot-tub-person',
-                                        // add more as needed
-                                    ];
-                                    $amenities = $profile->amenities ?? [];
-                                @endphp
-                                <h4 class="mb-4 text-xl font-semibold text-gray-900">What this place offers</h4>
-                                @foreach($amenities as $a)
-                                    <div class="flex items-center gap-2 mt-2">
-                                        <i class="fa-solid {{ $amenityIcons[$a] ?? 'fa-star' }} text-[#8B7355]"></i> 
-                                        <span class="mr-4 text-sm text-gray-700 capitalize">{{ str_replace('_', ' ', $a) }}</span>
-                                    </div>
-                                @endforeach
+                                <h4 class="mb-4 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23]">What this place offers</h4>
+                                <div id="spaModalAmenities">
+                                    <p class="text-sm italic text-gray-400">No amenities listed yet.</p>
+                                </div>
                             </div>
-
                         </div>
-
-                        <!-- Right / Sidebar -->
                         <div class="md:col-span-1">
-                            <div class="sticky p-6 space-y-4 border shadow-sm rounded-2xl top-4">
-
-                                <!-- Address -->
-                                <div class="flex items-start gap-3">
-                                    <i class="mt-1 text-gray-900 fa-solid fa-location-dot"></i>
+                            <div class="sticky top-4 p-5 space-y-3 border border-[#E8DDD0] shadow-sm rounded-2xl bg-[#FDFAF6]">
+                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white ring-1 ring-black/5 flex-shrink-0 mt-0.5">
+                                        <i class="fa-solid fa-location-dot text-[#8B7355] text-sm"></i>
+                                    </div>
                                     <div>
-                                        <p class="font-semibold">Address</p>
-                                        <p id="spaModalAddress" class="text-sm text-gray-500"></p>
+                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Address</p>
+                                        <p id="spaModalAddress" class="mt-0.5 text-sm text-[#3C2F23] leading-snug"></p>
                                     </div>
                                 </div>
-
-                                <!-- Contact -->
-                                <div class="flex items-start gap-3">
-                                    <i class="mt-1 text-gray-900 fa-solid fa-phone"></i>
+                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white ring-1 ring-black/5 flex-shrink-0 mt-0.5">
+                                        <i class="fa-solid fa-phone text-[#8B7355] text-sm"></i>
+                                    </div>
                                     <div>
-                                        <p class="font-semibold">Contact</p>
-                                        <p id="spaModalPhone" class="text-sm text-gray-500"></p>
+                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Contact</p>
+                                        <p id="spaModalPhone" class="mt-0.5 text-sm text-[#3C2F23]"></p>
                                     </div>
                                 </div>
-
-                                <!-- Price -->
-                                <div class="flex items-center gap-3">
-                                    <i class="mt-1 text-gray-900 fa-solid fa-tag"></i>
+                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white ring-1 ring-black/5 flex-shrink-0 mt-0.5">
+                                        <i class="fa-solid fa-tag text-[#8B7355] text-sm"></i>
+                                    </div>
                                     <div>
-                                        <p class="font-semibold">Price</p>
-                                        <p id="spaModalPrice" class="text-sm text-gray-500"></p>
+                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Price</p>
+                                        <p id="spaModalPrice" class="mt-0.5 text-sm font-semibold text-[#6F5430]"></p>
                                     </div>
                                 </div>
-
-                                <!-- Map -->
-                                <div id="spaModalMap" class="w-full h-[180px] rounded-xl border bg-gray-50 overflow-hidden"></div>
-
-                                <!-- Reserve button -->
-                                <button
-                                type="button"
-                                id="openBookingModalBtn"
-                                class="block w-full mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                                Reserve An Appointment
+                                <div id="spaModalMap" class="w-full h-[170px] rounded-xl border border-[#E8DDD0] bg-[#F6EFE6] overflow-hidden shadow-inner"></div>
+                                <button type="button" id="openBookingModalBtn"
+                                    class="flex items-center justify-center w-full gap-2 py-3 mt-1 text-sm font-semibold text-white transition rounded-xl booking-btn shadow-md hover:shadow-lg active:translate-y-0.5">
+                                    <i class="fa-solid fa-calendar-check"></i>
+                                    Reserve An Appointment
                                 </button>
                             </div>
                         </div>
@@ -689,7 +793,6 @@
     <!-- ================= BOOKING MODAL ================= -->
     <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>
-
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
             <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
@@ -697,91 +800,54 @@
                         <h3 class="text-lg font-semibold text-[#3C2F23]">Make a Reservation</h3>
                         <p id="bookingSpaMeta" class="mt-1 text-xs text-gray-500">Spa • Branch</p>
                     </div>
-
                     <button type="button"
                             class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5"
-                            data-close-booking-modal
-                            aria-label="Close">
+                            data-close-booking-modal aria-label="Close">
                         <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-
                 <div class="p-6">
                     @auth
                         <form method="POST" action="{{ route('bookings.online.checkout') }}" class="space-y-4">
                             @csrf
-
                             <input type="hidden" name="spa_id" id="bookingSpaIdInput">
                             <input type="hidden" name="branch_id" id="bookingBranchIdInput">
 
-                            {{-- Customer Info --}}
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Full Name</label>
-                                    <input
-                                        type="text"
-                                        name="customer_name"
-                                        id="bookingCustomerName"
-                                        value="{{ auth()->user()->name }}"
-                                        readonly
-                                        class="w-full mt-1 rounded-xl border-black/10 bg-gray-100 ring-1 ring-black/5 text-gray-700"
-                                    >
+                                    <input type="text" name="customer_name" id="bookingCustomerName"
+                                        value="{{ auth()->user()->name }}" readonly
+                                        class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
                                 </div>
-
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Email</label>
-                                    <input
-                                        type="email"
-                                        name="customer_email"
-                                        id="bookingCustomerEmail"
-                                        value="{{ auth()->user()->email }}"
-                                        readonly
-                                        class="w-full mt-1 rounded-xl border-black/10 bg-gray-100 ring-1 ring-black/5 text-gray-700"
-                                    >
+                                    <input type="email" name="customer_email" id="bookingCustomerEmail"
+                                        value="{{ auth()->user()->email }}" readonly
+                                        class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
                                 </div>
                             </div>
 
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
-                                <input
-                                    type="text"
-                                    name="customer_phone"
-                                    id="bookingCustomerPhone"
+                                <input type="text" name="customer_phone" id="bookingCustomerPhone"
                                     placeholder="09xxxxxxxxx"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    required
-                                >
+                                    required>
                             </div>
 
-                            {{-- Treatment / Package --}}
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Treatment / Package</label>
-                                <select
-                                    name="treatment"
-                                    id="bookingTreatmentSelect"
+                                <select name="treatment" id="bookingTreatmentSelect"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
                                     required>
                                     <option value="">Select treatment or package</option>
                                 </select>
                             </div>
 
-                            <div id="bookingPriceSummary" class="hidden p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5">
-                                <div class="flex items-center justify-between text-sm text-gray-700">
-                                    <span>Service Price</span>
-                                    <span id="bookingFullPrice">₱0.00</span>
-                                </div>
-                                <div class="flex items-center justify-between mt-2 text-sm font-semibold text-[#3C2F23]">
-                                    <span>Reservation Fee (50%)</span>
-                                    <span id="bookingDownpayment">₱0.00</span>
-                                </div>
-                            </div>
-
-                            {{-- Service Type --}}
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Service Type</label>
-                                <select
-                                    name="service_type"
-                                    id="bookingServiceType"
+                                <select name="service_type" id="bookingServiceType"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
                                     required>
                                     <option value="">Select service type</option>
@@ -789,50 +855,35 @@
                                 <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500"></p>
                             </div>
 
-                            {{-- Home address --}}
                             <div id="addressWrapper" class="hidden">
                                 <label class="block text-xs font-semibold text-gray-600">
                                     Home Address <span class="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    name="customer_address"
-                                    id="bookingAddressInput"
+                                <input type="text" name="customer_address" id="bookingAddressInput"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    placeholder="Enter your full address"
-                                >
+                                    placeholder="Enter your full address">
                                 <p class="mt-1 text-[11px] text-gray-500">Required for home service bookings.</p>
                             </div>
 
-                            {{-- Date + Time --}}
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
-                                    <input
-                                        type="date"
-                                        name="appointment_date"
-                                        id="bookingDateInput"
-                                        required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    >
+                                    <input type="date" name="appointment_date" id="bookingDateInput" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
-
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Start Time</label>
-                                    <input
-                                        type="time"
-                                        name="start_time"
-                                        id="bookingTimeInput"
-                                        required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    >
+                                    <input type="time" name="start_time" id="bookingTimeInput" required
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                             </div>
 
-                            <div id="reservationFeeNotice" class="p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5 text-sm text-gray-700">
-                                A 50% downpayment is required to reserve this appointment.
-                                Your booking will only be confirmed after successful payment.
-                            </div>
+                            @if($errors->has('start_time'))
+                                <div class="p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200">
+                                    <i class="mr-1 fa-solid fa-circle-exclamation"></i>
+                                    {{ $errors->first('start_time') }}
+                                </div>
+                            @endif
 
                             <button type="submit"
                                     class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
@@ -841,10 +892,7 @@
                         </form>
                     @else
                         <div class="p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5">
-                            <p class="text-sm text-gray-700">
-                                Please log in to book an appointment.
-                            </p>
-
+                            <p class="text-sm text-gray-700">Please log in to book an appointment.</p>
                             <a href="{{ route('login') }}"
                             class="block mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
                                 Login to Continue
@@ -853,7 +901,6 @@
                     @endauth
                 </div>
             </div>
-
             <div class="h-10"></div>
         </div>
     </div>
@@ -864,17 +911,11 @@
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
                     <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">
-                        How It Works
-                    </h2>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">How It Works</h2>
                     <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                 </div>
-
-                <p class="mt-3 text-sm text-gray-600">
-                    Book in minutes with a simple flow.
-                </p>
+                <p class="mt-3 text-sm text-gray-600">Book in minutes with a simple flow.</p>
             </div>
-
             <div class="grid gap-6 mt-12 md:grid-cols-3">
                 <div class="p-8 text-center transition shadow-sm bg-white/70 rounded-3xl ring-1 ring-black/5 hover:shadow-lg">
                     <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
@@ -883,7 +924,6 @@
                     <h3 class="mt-5 font-semibold text-[#3C2F23]">Find Your Spa</h3>
                     <p class="mt-2 text-sm text-gray-600">Browse verified spas near you.</p>
                 </div>
-
                 <div class="p-8 text-center transition shadow-sm bg-white/70 rounded-3xl ring-1 ring-black/5 hover:shadow-lg">
                     <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
                         <i class="fa-solid fa-list-check text-2xl text-[#8B7355]"></i>
@@ -891,7 +931,6 @@
                     <h3 class="mt-5 font-semibold text-[#3C2F23]">Choose Service</h3>
                     <p class="mt-2 text-sm text-gray-600">Select the service you want.</p>
                 </div>
-
                 <div class="p-8 text-center transition shadow-sm bg-white/70 rounded-3xl ring-1 ring-black/5 hover:shadow-lg">
                     <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
                         <i class="fa-solid fa-spa text-2xl text-[#8B7355]"></i>
@@ -909,17 +948,11 @@
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
                     <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">
-                        Why Book With Us
-                    </h2>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Why Book With Us</h2>
                     <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                 </div>
-
-                <p class="mt-3 text-sm text-gray-600">
-                    Built for convenience and trust.
-                </p>
+                <p class="mt-3 text-sm text-gray-600">Built for convenience and trust.</p>
             </div>
-
             <div class="grid gap-6 mt-12 md:grid-cols-4">
                 <div class="transition bg-white shadow-sm p-7 rounded-3xl ring-1 ring-black/5 hover:shadow-xl">
                     <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
@@ -928,7 +961,6 @@
                     <h4 class="mt-5 font-semibold text-[#3C2F23]">Verified Spas</h4>
                     <p class="mt-2 text-sm text-gray-600">Only trusted listings appear on the platform.</p>
                 </div>
-
                 <div class="transition bg-white shadow-sm p-7 rounded-3xl ring-1 ring-black/5 hover:shadow-xl">
                     <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
                         <i class="fa-solid fa-calendar-check text-xl text-[#8B7355]"></i>
@@ -936,7 +968,6 @@
                     <h4 class="mt-5 font-semibold text-[#3C2F23]">Easy Booking</h4>
                     <p class="mt-2 text-sm text-gray-600">Reserve quickly with clear scheduling.</p>
                 </div>
-
                 <div class="transition bg-white shadow-sm p-7 rounded-3xl ring-1 ring-black/5 hover:shadow-xl">
                     <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
                         <i class="fa-solid fa-user-nurse text-xl text-[#8B7355]"></i>
@@ -944,7 +975,6 @@
                     <h4 class="mt-5 font-semibold text-[#3C2F23]">Expert Therapists</h4>
                     <p class="mt-2 text-sm text-gray-600">Quality care from professional practitioners.</p>
                 </div>
-
                 <div class="transition bg-white shadow-sm p-7 rounded-3xl ring-1 ring-black/5 hover:shadow-xl">
                     <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
                         <i class="fa-solid fa-lock text-xl text-[#8B7355]"></i>
@@ -965,7 +995,6 @@
                                             radial-gradient(circle at 80% 30%, rgba(255,255,255,.25) 0, transparent 40%),
                                             radial-gradient(circle at 50% 90%, rgba(255,255,255,.18) 0, transparent 45%);">
                 </div>
-
                 <div class="relative">
                     <h2 class="text-3xl md:text-4xl font-['Playfair_Display'] font-semibold">
                         Own a Spa? List Your Business with Us!
@@ -973,7 +1002,6 @@
                     <p class="mt-3 text-sm text-white/90 md:text-base">
                         Reach more customers and manage bookings easily.
                     </p>
-
                     <a href="{{ route('register') }}"
                        class="inline-flex items-center justify-center gap-2 mt-7 bg-white text-[#6F5430] px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition active:translate-y-0.5">
                         <i class="fa-solid fa-arrow-right"></i>
@@ -983,7 +1011,6 @@
             </div>
         </div>
     </section>
-
 </main>
 
 <!-- ================= FOOTER ================= -->
@@ -993,7 +1020,6 @@
         <div class="absolute inset-0 bg-black/65"></div>
         <div class="absolute inset-0 bg-gradient-to-b from-black/30 to-black/70"></div>
     </div>
-
     <div class="relative px-6 mx-auto text-white py-14 max-w-7xl">
         <div class="grid gap-10 md:grid-cols-12">
             <div class="md:col-span-5">
@@ -1001,16 +1027,12 @@
                     <img src="{{ asset('images/1.png') }}" alt="Levictas" class="h-10 rounded-md ring-1 ring-white/10">
                     <div>
                         <h3 class="font-['Playfair_Display'] text-2xl font-semibold">Levictas</h3>
-                        <p class="mt-1 text-xs tracking-[0.18em] uppercase text-white/70">
-                            Spa & Wellness Sanctuary
-                        </p>
+                        <p class="mt-1 text-xs tracking-[0.18em] uppercase text-white/70">Spa & Wellness Sanctuary</p>
                     </div>
                 </div>
-
                 <p class="max-w-md mt-5 text-sm text-white/75">
                     Find trusted spas and reserve appointments with ease — your relaxation journey starts here.
                 </p>
-
                 <div class="flex items-center gap-3 mt-6">
                     <a href="#" class="inline-flex items-center justify-center w-10 h-10 transition rounded-xl bg-white/10 ring-1 ring-white/10 hover:bg-white/15">
                         <i class="fa-brands fa-facebook-f"></i>
@@ -1023,7 +1045,6 @@
                     </a>
                 </div>
             </div>
-
             <div class="md:col-span-7">
                 <div class="grid gap-8 sm:grid-cols-3">
                     <div>
@@ -1034,7 +1055,6 @@
                             <a class="block transition hover:text-white" href="#">FAQ</a>
                         </div>
                     </div>
-
                     <div>
                         <p class="text-sm font-semibold tracking-wide">Legal</p>
                         <div class="mt-4 space-y-2 text-sm text-white/75">
@@ -1042,7 +1062,6 @@
                             <a class="block transition hover:text-white" href="#">Privacy</a>
                         </div>
                     </div>
-
                     <div>
                         <p class="text-sm font-semibold tracking-wide">Get Started</p>
                         <div class="mt-4 space-y-2 text-sm text-white/75">
@@ -1054,7 +1073,6 @@
                 </div>
             </div>
         </div>
-
         <div class="flex flex-col gap-3 pt-6 mt-12 border-t border-white/10 md:flex-row md:items-center md:justify-between">
             <p class="text-xs text-white/60">© {{ date('Y') }} Levictas. All rights reserved.</p>
             <p class="text-xs text-white/55">Made with care for comfort & wellness.</p>
@@ -1063,29 +1081,19 @@
 </footer>
 
 <script>
-// ---------------- Mobile menu ----------------
 const btn = document.getElementById('mobile-menu-button');
 const menu = document.getElementById('mobile-menu');
 btn?.addEventListener('click', () => menu.classList.toggle('hidden'));
 
-
-// ---------------- Nav scroll effect ----------------
 const nav = document.getElementById('topNav');
 window.addEventListener('scroll', () => {
     if (window.scrollY > 10) nav?.classList.add('nav-scrolled');
     else nav?.classList.remove('nav-scrolled');
 });
 
+let selectedSpa = null;
+let spaMap      = null;
 
-// ---------------- Shared state ----------------
-let selectedSpa      = null;
-let preferredBranchId = null;
-let spaMap           = null;
-
-
-// =====================================================
-// PROFILE DROPDOWN
-// =====================================================
 const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
 const profileDropdownMenu = document.getElementById('profileDropdownMenu');
 const profileChevron      = document.getElementById('profileChevron');
@@ -1111,10 +1119,6 @@ document.addEventListener('click', function (e) {
     if (wrapper && !wrapper.contains(e.target)) closeProfileDropdown();
 });
 
-
-// =====================================================
-// PROFILE MODAL
-// =====================================================
 function openProfileModal() {
     document.getElementById('profileModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
@@ -1123,7 +1127,6 @@ function openProfileModal() {
 function closeProfileModal() {
     document.getElementById('profileModal').classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
-
     const btn     = document.getElementById('emailToggleBtn');
     const display = document.getElementById('emailDisplay');
     const icon    = document.getElementById('emailToggleIcon');
@@ -1139,7 +1142,6 @@ function toggleEmail() {
     const btn     = document.getElementById('emailToggleBtn');
     const icon    = document.getElementById('emailToggleIcon');
     if (!display || !btn || !icon) return;
-
     const isHidden = icon.classList.contains('fa-eye');
     if (isHidden) {
         display.textContent = btn.dataset.real;
@@ -1150,53 +1152,26 @@ function toggleEmail() {
     }
 }
 
-
 // =====================================================
-// SPA MODAL — elements
+// SPA MODAL
 // =====================================================
 const spaModal     = document.getElementById('spaModal');
 const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
-
 let photos     = [];
 let photoIndex = 0;
 
-
-// ---------------- Photo viewer ----------------
-function setPhoto(i) {
-    const elMainPhoto = document.getElementById('spaModalMainPhoto');
-    if (!photos.length || !elMainPhoto) return;
-
-    photoIndex = (i + photos.length) % photos.length;
-    elMainPhoto.src = photos[photoIndex];
-}
-
-
-// ---------------- Open Spa Modal ----------------
 function openSpaModal(spaData) {
     selectedSpa = spaData;
 
-    const elName           = document.getElementById('spaModalName');
-    const elTag            = document.getElementById('spaModalTag');
-    const elDesc           = document.getElementById('spaModalDesc');
-    const elAddress        = document.getElementById('spaModalAddress');
-    const elAddressSummary = document.getElementById('spaModalAddressSummary');
-    const elPhone          = document.getElementById('spaModalPhone');
-    const elPrice          = document.getElementById('spaModalPrice');
-    const elMap            = document.getElementById('spaModalMap');
-    const elMainPhoto      = document.getElementById('spaModalMainPhoto');
-    const elAmenities = document.getElementById('spaModalAmenities');
-
-    // Fill text content
-    elName.textContent  = spaData.name    ?? 'Spa';
-    elTag.textContent   = spaData.tag     ?? 'Featured Spa';
-    elDesc.textContent  = spaData.desc    ?? '';
-    elPhone.textContent = spaData.phone   ?? 'No contact info';
-    elAddress.textContent = spaData.address ?? 'Address unavailable';
-    elPrice.textContent = spaData.price_note
+    document.getElementById('spaModalName').textContent    = spaData.name    ?? 'Spa';
+    document.getElementById('spaModalTag').textContent     = spaData.tag     ?? 'Featured Spa';
+    document.getElementById('spaModalDesc').textContent    = spaData.desc    ?? '';
+    document.getElementById('spaModalPhone').textContent   = spaData.phone   ?? 'No contact info';
+    document.getElementById('spaModalAddress').textContent = spaData.address ?? 'Address unavailable';
+    document.getElementById('spaModalPrice').textContent   = spaData.price_note
         ? `Starts at ₱${spaData.price_note}`
         : 'Prices vary per treatment';
 
-    // Address summary helper
     function getAddressSummary(fullAddress) {
         if (!fullAddress) return 'Location unavailable';
         const parts = fullAddress.split(',').map(p => p.trim());
@@ -1204,63 +1179,73 @@ function openSpaModal(spaData) {
         const withoutZipCountry = parts.slice(0, parts.length - 2);
         return withoutZipCountry.slice(-3).join(', ');
     }
-    elAddressSummary.textContent = getAddressSummary(spaData.address);
+    document.getElementById('spaModalAddressSummary').textContent = getAddressSummary(spaData.address);
+
+    // Amenities
+    const amenitiesContainer = document.getElementById('spaModalAmenities');
+    if (amenitiesContainer) {
+        const amenities = spaData.amenities ?? [];
+        if (amenities.length) {
+            amenitiesContainer.innerHTML = `
+                <div class="grid grid-cols-2 gap-2">
+                    ${amenities.map(a => {
+                        const label = a.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        return `
+                            <div class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F6EFE6]/70 ring-1 ring-[#8B7355]/10">
+                                <div class="flex items-center justify-center flex-shrink-0 bg-white rounded-lg w-7 h-7 ring-1 ring-black/5">
+                                    <i class="fa-solid fa-spa text-[#8B7355] text-xs"></i>
+                                </div>
+                                <span class="text-xs font-medium text-[#3C2F23]">${label}</span>
+                            </div>`;
+                    }).join('')}
+                </div>`;
+        } else {
+            amenitiesContainer.innerHTML = `<p class="text-sm italic text-gray-400">No amenities listed yet.</p>`;
+        }
+    }
 
     // Photos
     const fallbackImage = "{{ asset('storage/branch_profiles/emptyspa.jpg') }}";
-
     photos = Array.isArray(spaData.photos) && spaData.photos.length
         ? spaData.photos
         : [fallbackImage, fallbackImage, fallbackImage, fallbackImage, fallbackImage];
 
-    if (elMainPhoto) {
-        elMainPhoto.src = photos[0] || fallbackImage;
-    }
+    const elMainPhoto = document.getElementById('spaModalMainPhoto');
+    if (elMainPhoto) elMainPhoto.src = photos[0] || fallbackImage;
 
     ['gallery_1', 'gallery_2', 'gallery_3', 'gallery_4'].forEach((id, i) => {
         const el = document.getElementById(id);
-        if (el) {
-            el.src = photos[i + 1] || fallbackImage;
-        }
+        if (el) el.src = photos[i + 1] || fallbackImage;
     });
 
-    // Hide the gallery count overlay (no "View All" needed for now)
     const galleryCount = document.getElementById('spaModalGalleryCount');
     if (galleryCount) galleryCount.classList.add('hidden');
 
-    // Show modal
     spaModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
 
-    // Leaflet map
+    // Map
+    const elMap = document.getElementById('spaModalMap');
     if (spaMap) { spaMap.remove(); spaMap = null; }
     if (elMap && spaData.lat && spaData.lng) {
         setTimeout(() => {
             spaMap = L.map(elMap).setView([spaData.lat, spaData.lng], 15);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap'
+                maxZoom: 19, attribution: '&copy; OpenStreetMap'
             }).addTo(spaMap);
             L.marker([spaData.lat, spaData.lng])
-                .addTo(spaMap)
-                .bindPopup(spaData.name)
-                .openPopup();
+                .addTo(spaMap).bindPopup(spaData.name).openPopup();
             spaMap.invalidateSize();
         }, 300);
     }
-
     photoIndex = 0;
 }
 
-
-// ---------------- Close Spa Modal ----------------
 function closeSpaModal() {
     spaModal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
 }
 
-
-// ---------------- Spa Modal Events ----------------
 document.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
     btn.addEventListener('click', () => {
         try {
@@ -1274,14 +1259,13 @@ document.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
 
 closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
 
-
 // =====================================================
-// BOOKING MODAL — elements
+// BOOKING MODAL
 // =====================================================
-const bookingModal         = document.getElementById('bookingModal');
-const openBookingBtn       = document.getElementById('openBookingModalBtn');
-const closeBookingBtns     = document.querySelectorAll('[data-close-booking-modal]');
-const bookingSpaMeta       = document.getElementById('bookingSpaMeta');
+const bookingModal     = document.getElementById('bookingModal');
+const openBookingBtn   = document.getElementById('openBookingModalBtn');
+const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
+const bookingSpaMeta   = document.getElementById('bookingSpaMeta');
 const bookingSpaIdInput    = document.getElementById('bookingSpaIdInput');
 const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
 const serviceTypeSelect    = document.getElementById('bookingServiceType');
@@ -1292,51 +1276,25 @@ const bookingTimeInput     = document.getElementById('bookingTimeInput');
 const addressWrapper       = document.getElementById('addressWrapper');
 const addressInput         = document.getElementById('bookingAddressInput');
 
-// NEW: reservation summary elements
-const bookingPriceSummary = document.getElementById('bookingPriceSummary');
-const bookingFullPrice    = document.getElementById('bookingFullPrice');
-const bookingDownpayment  = document.getElementById('bookingDownpayment');
-
-// NEW: form + submit button loading state
-const bookingForm         = bookingModal?.querySelector('form');
-const bookingSubmitBtn    = bookingForm?.querySelector('button[type="submit"]');
-
 function clearBookingSelections() {
     if (treatmentSelect) {
         treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
         treatmentSelect.value = '';
     }
-
     if (bookingBranchIdInput) bookingBranchIdInput.value = '';
-
     resetServiceType();
-
     if (bookingDateInput) bookingDateInput.value = '';
-
     if (bookingTimeInput) {
         bookingTimeInput.value = '';
         bookingTimeInput.disabled = false;
         bookingTimeInput.removeAttribute('min');
         bookingTimeInput.removeAttribute('max');
     }
-
     if (addressInput) {
         addressInput.value = '';
         addressInput.required = false;
     }
-
-    if (addressWrapper) {
-        addressWrapper.classList.add('hidden');
-    }
-
-    if (bookingPriceSummary) bookingPriceSummary.classList.add('hidden');
-    if (bookingFullPrice) bookingFullPrice.textContent = '₱0.00';
-    if (bookingDownpayment) bookingDownpayment.textContent = '₱0.00';
-
-    if (bookingSubmitBtn) {
-        bookingSubmitBtn.disabled = false;
-        bookingSubmitBtn.innerHTML = 'Pay 50% to Reserve';
-    }
+    if (addressWrapper) addressWrapper.classList.add('hidden');
 }
 
 function populateTreatmentsForSelectedBranch() {
@@ -1351,8 +1309,7 @@ function populateTreatmentsForSelectedBranch() {
             ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}`
             : t.name;
         option.dataset.serviceType = t.service_type ?? 'in_branch_only';
-        option.dataset.itemType = 'treatment';
-        option.dataset.price = t.price ?? '';
+        option.dataset.itemType    = 'treatment';
         treatmentSelect.appendChild(option);
     });
 
@@ -1363,37 +1320,24 @@ function populateTreatmentsForSelectedBranch() {
             ? `${p.name} (Package) — ₱${parseFloat(p.price).toLocaleString()}`
             : `${p.name} (Package)`;
         option.dataset.serviceType = p.service_type ?? 'in_branch_only';
-        option.dataset.itemType = 'package';
-        option.dataset.price = p.price ?? '';
+        option.dataset.itemType    = 'package';
         treatmentSelect.appendChild(option);
     });
 
     resetServiceType();
-    updateReservationSummary();
 }
 
 function resetServiceType() {
     if (!serviceTypeSelect) return;
-
     serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
     serviceTypeSelect.value = '';
-
-    if (serviceTypeHint) {
-        serviceTypeHint.textContent = '';
-    }
-
-    if (addressWrapper) {
-        addressWrapper.classList.add('hidden');
-    }
-
-    if (addressInput) {
-        addressInput.required = false;
-    }
+    if (serviceTypeHint) serviceTypeHint.textContent = '';
+    if (addressWrapper) addressWrapper.classList.add('hidden');
+    if (addressInput) addressInput.required = false;
 }
 
 function populateServiceTypeOptions() {
     resetServiceType();
-
     if (!treatmentSelect || !serviceTypeSelect) return;
 
     const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
@@ -1402,24 +1346,16 @@ function populateServiceTypeOptions() {
     const serviceType = selectedOption.dataset.serviceType || 'in_branch_only';
 
     if (serviceType === 'in_branch_only') {
-        serviceTypeSelect.innerHTML = `
-            <option value="in_branch">In-Branch</option>
-        `;
+        serviceTypeSelect.innerHTML = `<option value="in_branch">In-Branch</option>`;
         serviceTypeSelect.value = 'in_branch';
-
-        if (serviceTypeHint) {
-            serviceTypeHint.textContent = 'This selection is available for in-branch service only.';
-        }
+        if (serviceTypeHint) serviceTypeHint.textContent = 'This selection is available for in-branch service only.';
     } else if (serviceType === 'in_branch_and_home') {
         serviceTypeSelect.innerHTML = `
             <option value="">Select service type</option>
             <option value="in_branch">In-Branch</option>
             <option value="in_home">Home Service</option>
         `;
-
-        if (serviceTypeHint) {
-            serviceTypeHint.textContent = 'This selection is available for both in-branch and home service.';
-        }
+        if (serviceTypeHint) serviceTypeHint.textContent = 'This selection is available for both in-branch and home service.';
     }
 
     toggleAddressField();
@@ -1427,60 +1363,19 @@ function populateServiceTypeOptions() {
 
 function toggleAddressField() {
     const isHome = serviceTypeSelect && serviceTypeSelect.value === 'in_home';
-
-    if (addressWrapper) {
-        addressWrapper.classList.toggle('hidden', !isHome);
-    }
-
-    if (addressInput) {
-        addressInput.required = isHome;
-    }
-}
-
-function updateReservationSummary() {
-    if (!treatmentSelect || !bookingPriceSummary || !bookingFullPrice || !bookingDownpayment) return;
-
-    const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
-    const rawPrice = selectedOption?.dataset?.price;
-
-    if (!rawPrice || !selectedOption?.value) {
-        bookingPriceSummary.classList.add('hidden');
-        bookingFullPrice.textContent = '₱0.00';
-        bookingDownpayment.textContent = '₱0.00';
-        return;
-    }
-
-    const full = parseFloat(rawPrice);
-
-    if (Number.isNaN(full) || full <= 0) {
-        bookingPriceSummary.classList.add('hidden');
-        bookingFullPrice.textContent = '₱0.00';
-        bookingDownpayment.textContent = '₱0.00';
-        return;
-    }
-
-    const half = full * 0.5;
-
-    bookingFullPrice.textContent =
-        `₱${full.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    bookingDownpayment.textContent =
-        `₱${half.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-    bookingPriceSummary.classList.remove('hidden');
+    if (addressWrapper) addressWrapper.classList.toggle('hidden', !isHome);
+    if (addressInput) addressInput.required = isHome;
 }
 
 async function updateAvailableTimes() {
-    const branchId = bookingBranchIdInput?.value;
+    const branchId  = bookingBranchIdInput?.value;
     const dateValue = bookingDateInput?.value;
-
     if (!branchId || !dateValue || !bookingTimeInput) return;
 
     const day = new Date(dateValue).toLocaleDateString('en-US', { weekday: 'long' });
-
     try {
         const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
         const data = await response.json();
-
         if (data.is_closed) {
             bookingTimeInput.value = '';
             bookingTimeInput.disabled = true;
@@ -1500,13 +1395,8 @@ function openBookingModal() {
 
     clearBookingSelections();
 
-    if (bookingSpaIdInput) {
-        bookingSpaIdInput.value = selectedSpa.id ?? '';
-    }
-
-    if (bookingBranchIdInput) {
-        bookingBranchIdInput.value = selectedSpa.branch_id ?? '';
-    }
+    if (bookingSpaIdInput)    bookingSpaIdInput.value    = selectedSpa.id ?? '';
+    if (bookingBranchIdInput) bookingBranchIdInput.value = selectedSpa.branch_id ?? '';
 
     if (bookingSpaMeta) {
         bookingSpaMeta.textContent = selectedSpa.branch_location
@@ -1515,9 +1405,7 @@ function openBookingModal() {
     }
 
     const today = new Date().toISOString().split('T')[0];
-    if (bookingDateInput) {
-        bookingDateInput.min = today;
-    }
+    if (bookingDateInput) bookingDateInput.min = today;
 
     populateTreatmentsForSelectedBranch();
 
@@ -1534,29 +1422,9 @@ function closeBookingModal() {
 openBookingBtn?.addEventListener('click', openBookingModal);
 closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal));
 
-treatmentSelect?.addEventListener('change', function () {
-    populateServiceTypeOptions();
-    updateReservationSummary();
-});
-
-serviceTypeSelect?.addEventListener('change', function () {
-    toggleAddressField();
-});
-
+treatmentSelect?.addEventListener('change', populateServiceTypeOptions);
+serviceTypeSelect?.addEventListener('change', toggleAddressField);
 bookingDateInput?.addEventListener('change', updateAvailableTimes);
-
-// NEW: loading state before redirect to PayMongo
-bookingForm?.addEventListener('submit', function () {
-    if (bookingSubmitBtn) {
-        bookingSubmitBtn.disabled = true;
-        bookingSubmitBtn.innerHTML = `
-            <span class="inline-flex items-center justify-center gap-2">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                Redirecting to Payment...
-            </span>
-        `;
-    }
-});
 
 // =====================================================
 // MY APPOINTMENTS MODAL
@@ -1588,12 +1456,9 @@ function loadAppointments() {
 function updateTabCounts() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('tab-count-upcoming').textContent =
-        allAppointments.filter(b =>
-            ['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw >= today).length;
+        allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
     document.getElementById('tab-count-past').textContent =
-        allAppointments.filter(b =>
-            b.status === 'completed' ||
-            (['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw < today)).length;
+        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw < today)).length;
     document.getElementById('tab-count-cancelled').textContent =
         allAppointments.filter(b => b.status === 'cancelled').length;
 }
@@ -1614,22 +1479,17 @@ function switchTab(tab) {
 }
 
 function renderTab(tab) {
-    const today    = new Date().toISOString().split('T')[0];
-    let filtered   = [];
-
+    const today  = new Date().toISOString().split('T')[0];
+    let filtered = [];
     if (tab === 'upcoming') {
-        filtered = allAppointments.filter(b =>
-            ['reserved', 'pending'].includes(b.status) && b.date_raw >= today);
+        filtered = allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
     } else if (tab === 'past') {
-        filtered = allAppointments.filter(b =>
-            b.status === 'completed' ||
-            (['reserved', 'pending'].includes(b.status) && b.date_raw < today));
+        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending'].includes(b.status) && b.date_raw < today));
     } else {
         filtered = allAppointments.filter(b => b.status === 'cancelled');
     }
 
     const container = document.getElementById('appointmentsContent');
-
     if (!filtered.length) {
         container.innerHTML = `
             <div class="py-12 text-center text-gray-400">
@@ -1638,7 +1498,6 @@ function renderTab(tab) {
             </div>`;
         return;
     }
-
     container.innerHTML = filtered.map(b => `
         <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5">
             <div class="flex items-start justify-between">
@@ -1651,19 +1510,10 @@ function renderTab(tab) {
                 </span>
             </div>
             <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
-                <div class="flex items-center gap-1">
-                    <i class="fa-solid fa-spa text-[#8B7355]"></i> ${b.treatment}
-                </div>
-                <div class="flex items-center gap-1">
-                    <i class="fa-solid fa-user-nurse text-[#8B7355]"></i> ${b.therapist}
-                </div>
-                <div class="flex items-center gap-1">
-                    <i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}
-                </div>
-                <div class="flex items-center gap-1">
-                    <i class="fa-solid fa-clock text-[#8B7355]"></i>
-                    ${formatTime(b.start_time)} – ${formatTime(b.end_time)}
-                </div>
+                <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355]"></i> ${b.treatment}</div>
+                <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355]"></i> ${b.therapist}</div>
+                <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}</div>
+                <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
             </div>
         </div>
     `).join('');
@@ -1672,7 +1522,7 @@ function renderTab(tab) {
 function statusBadge(status) {
     const map = {
         reserved:  'bg-blue-100 text-blue-700',
-        ongoing: 'bg-green-100 text-green-700',
+        ongoing:   'bg-green-100 text-green-700',
         completed: 'bg-gray-100 text-gray-600',
         cancelled: 'bg-red-100 text-red-600',
         pending:   'bg-yellow-100 text-yellow-700',
@@ -1680,9 +1530,8 @@ function statusBadge(status) {
     return map[status] ?? 'bg-gray-100 text-gray-600';
 }
 
-
 // =====================================================
-// MY SCHEDULE (CALENDAR)
+// MY SCHEDULE MODAL
 // =====================================================
 let scheduleBookings = [];
 let calendarDate     = new Date();
@@ -1702,9 +1551,9 @@ function loadSchedule() {
     fetch('/my-schedule')
         .then(r => r.json())
         .then(data => {
+            console.log('Schedule data:', data);
             scheduleBookings = data;
-            renderCalendar();
-        });
+            renderCalendar(); });
 }
 
 function changeMonth(dir) {
@@ -1717,28 +1566,23 @@ function renderCalendar() {
     const year  = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
     const today = new Date().toISOString().split('T')[0];
-
     document.getElementById('calendarTitle').textContent =
         calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
     const firstDay    = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
     const grid        = document.getElementById('calendarGrid');
     grid.innerHTML    = '';
-
     for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-
     for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr   = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const isToday   = dateStr === today;
+        const dateStr    = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const isToday    = dateStr === today;
         const hasBooking = bookedDates.has(dateStr);
-        const isPast    = dateStr < today;
-
-        grid.innerHTML += `
+        const isPast     = dateStr < today;
+        grid.innerHTML  += `
             <button onclick="selectDay('${dateStr}')"
                 class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
-                ${isToday   ? 'bg-[#8B7355] text-white font-bold' : ''}
+                ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
                 ${hasBooking && !isToday ? 'bg-[#F6EFE6] text-[#6F5430] font-semibold ring-1 ring-[#8B7355]/30' : ''}
                 ${isPast && !isToday ? 'text-gray-300 cursor-default' : 'hover:bg-[#F6EFE6]'}
                 ${!hasBooking && !isToday && !isPast ? 'text-gray-700' : ''}">
@@ -1751,19 +1595,15 @@ function renderCalendar() {
 function selectDay(dateStr) {
     const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
     if (!dayBookings.length) return;
-
     const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
         weekday: 'long', month: 'long', day: 'numeric'
     });
-
     document.getElementById('selectedDayTitle').textContent = title;
     document.getElementById('selectedDayContent').innerHTML = dayBookings.map(b => `
         <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
             <div class="flex items-center justify-between">
                 <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
-                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                    ${b.status}
-                </span>
+                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
             </div>
             <p class="mt-1 text-xs text-gray-500">${b.branch_name} • ${b.treatment}</p>
             <p class="mt-1 text-xs text-gray-500">
@@ -1772,7 +1612,6 @@ function selectDay(dateStr) {
             </p>
         </div>
     `).join('');
-
     document.getElementById('selectedDayBookings').classList.remove('hidden');
 }
 
@@ -1785,18 +1624,72 @@ function formatTime(timeStr) {
     return `${h12}:${minute} ${ampm}`;
 }
 
-
-// =====================================================
-// ESCAPE KEY
-// =====================================================
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (!spaModal?.classList.contains('hidden'))     closeSpaModal();
         if (!bookingModal?.classList.contains('hidden')) closeBookingModal();
     }
 });
+
+// =====================================================
+// TOAST
+// =====================================================
+function showSpaToast(message, type = 'success') {
+    const isSuccess = type === 'success';
+    Toastify({
+        text: `
+            <div style="display:flex;align-items:center;gap:12px;padding:2px 0;">
+                <div style="width:36px;height:36px;border-radius:50%;background:${isSuccess?'#f0fdf4':'#fef2f2'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="${isSuccess?'fa-solid fa-spa':'fa-solid fa-circle-xmark'}" style="color:${isSuccess?'#16a34a':'#dc2626'};font-size:15px;"></i>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${isSuccess?'#15803d':'#b91c1c'};">${isSuccess?'Success':'Error'}</span>
+                    <span style="font-size:13px;color:#374151;font-weight:400;line-height:1.4;">${message}</span>
+                </div>
+            </div>`,
+        duration: 3500,
+        gravity: 'top',
+        position: 'right',
+        close: false,
+        escapeMarkup: false,
+        style: {
+            background: '#ffffff',
+            border: isSuccess ? '1px solid #bbf7d0' : '1px solid #fecaca',
+            borderLeft: isSuccess ? '4px solid #16a34a' : '4px solid #dc2626',
+            borderRadius: '10px',
+            minWidth: '300px',
+            maxWidth: '360px',
+            padding: '14px 18px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+        }
+    }).showToast();
+}
+
 </script>
+
+@if(session('booking_error'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        showSpaToast(@json(session('booking_error')), 'error');
+    });
+</script>
+@endif
+
+@if(session('success'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        showSpaToast(@json(session('success')), 'success');
+    });
+</script>
+@endif
+
+@if(session('error'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        showSpaToast(@json(session('error')), 'error');
+    });
+</script>
+@endif
 
 </body>
 </html>
-

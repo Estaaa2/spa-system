@@ -22,7 +22,7 @@
     ];
 @endphp
 
-<div class="mx-auto max-w-7xl p-6 space-y-6">
+<div class="p-6 mx-auto space-y-6 max-w-7xl">
 
     <x-page-header
         title="Appointments"
@@ -33,15 +33,15 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Today’s Appointments</p>
-            <div class="mt-3 flex items-end justify-between">
+            <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-gray-900 dark:text-white">{{ $summary['today_total'] }}</h3>
                 <span class="text-sm text-gray-500 dark:text-gray-400">Scheduled today</span>
             </div>
         </div>
 
-        <div class="p-5 bg-amber-50 border border-amber-200 shadow-sm rounded-2xl dark:bg-amber-900/10 dark:border-amber-800">
-            <p class="text-xs font-semibold tracking-wide text-amber-700 uppercase dark:text-amber-300">Needs Action</p>
-            <div class="mt-3 flex items-end justify-between">
+        <div class="p-5 border shadow-sm bg-amber-50 border-amber-200 rounded-2xl dark:bg-amber-900/10 dark:border-amber-800">
+            <p class="text-xs font-semibold tracking-wide uppercase text-amber-700 dark:text-amber-300">Needs Action</p>
+            <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-amber-900 dark:text-amber-200">{{ $summary['pending_today'] }}</h3>
                 <span class="text-sm text-amber-700 dark:text-amber-300">Pending check-ins</span>
             </div>
@@ -49,7 +49,7 @@
 
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Upcoming</p>
-            <div class="mt-3 flex items-end justify-between">
+            <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-gray-900 dark:text-white">{{ $summary['upcoming_total'] }}</h3>
                 <span class="text-sm text-gray-500 dark:text-gray-400">Future reservations</span>
             </div>
@@ -57,7 +57,7 @@
 
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Collected Today</p>
-            <div class="mt-3 flex items-end justify-between">
+            <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-gray-900 dark:text-white">₱{{ number_format($summary['collected_today'], 2) }}</h3>
                 <span class="text-sm text-gray-500 dark:text-gray-400">Recorded payments</span>
             </div>
@@ -65,7 +65,7 @@
     </div>
 
     {{-- Needs Attention --}}
-    <div class="overflow-hidden bg-white border border-amber-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-amber-800">
+    <div class="overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
         <div class="flex items-center justify-between px-6 py-4 border-b border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
             <div>
                 <h2 class="text-lg font-semibold text-amber-900 dark:text-amber-200">Needs Attention Today</h2>
@@ -80,29 +80,29 @@
 
         <div class="p-6">
             @if($todayPending->count() === 0)
-                <div class="rounded-2xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-600">
+                <div class="p-8 text-center border border-gray-300 border-dashed rounded-2xl dark:border-gray-600">
                     <p class="text-sm text-gray-500 dark:text-gray-400">No pending appointments need staff action right now.</p>
                 </div>
             @else
                 <div class="space-y-4">
                     @foreach($todayPending as $booking)
-                        <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-800 dark:bg-amber-900/10">
+                        <div class="p-4 border rounded-2xl border-amber-200 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-900/10">
                             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                                 <div class="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <div>
-                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Customer</p>
+                                        <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Customer</p>
                                         <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ $booking->customer_name ?? 'Walk-in Customer' }}</p>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ $booking->customer_phone ?? 'No contact number' }}</p>
                                     </div>
 
                                     <div>
-                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Service</p>
+                                        <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Service</p>
                                         <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ $booking->treatment_label }}</p>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ $booking->service_type_label }}</p>
                                     </div>
 
                                     <div>
-                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Schedule</p>
+                                        <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Schedule</p>
                                         <p class="mt-1 font-medium text-gray-900 dark:text-white">
                                             {{ $booking->appointment_date?->format('M d, Y') }}
                                         </p>
@@ -114,7 +114,7 @@
                                     </div>
 
                                     <div>
-                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Payment</p>
+                                        <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Payment</p>
                                         <p class="mt-1 font-medium text-gray-900 dark:text-white">
                                             Paid: ₱{{ number_format($booking->resolved_amount_paid, 2) }}
                                         </p>
@@ -140,7 +140,7 @@
                                             data-total="{{ $booking->resolved_total_amount }}"
                                             data-paid="{{ $booking->resolved_amount_paid }}"
                                             data-due="{{ $booking->resolved_balance_amount }}"
-                                            class="inline-flex items-center rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">
+                                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-xl bg-amber-600 hover:bg-amber-700">
                                             Process Now
                                         </button>
                                     </div>
@@ -178,7 +178,7 @@
                     </tr>
                 </thead>
 
-                <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
                     @forelse($todayAppointments as $booking)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40 {{ $booking->status === 'pending' ? 'bg-amber-50/50 dark:bg-amber-900/10' : '' }}">
                             <td class="px-6 py-4">
@@ -259,14 +259,14 @@
                                                 data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
                                                 data-start-time="{{ $booking->start_time }}"
                                                 data-status="{{ $booking->status }}"
-                                                class="px-3 py-1.5 text-sm text-white bg-yellow-500 rounded-lg hover:bg-yellow-600">
+                                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                                 Edit
                                             </button>
                                         @endcan
 
                                         @can('delete appointments')
                                             <button onclick="openDeleteModal({{ $booking->id }})"
-                                                    class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">
+                                                    class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
                                                 Delete
                                             </button>
                                         @endcan
@@ -276,7 +276,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $showActions ? 7 : 6 }}" class="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                            <td colspan="{{ $showActions ? 7 : 6 }}" class="px-6 py-10 text-sm text-center text-gray-500 dark:text-gray-400">
                                 No appointments scheduled for today.
                             </td>
                         </tr>
@@ -307,7 +307,7 @@
                         @endif
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
                     @forelse($upcomingAppointments as $booking)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
                             <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
@@ -372,7 +372,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $showActions ? 6 : 5 }}" class="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                            <td colspan="{{ $showActions ? 6 : 5 }}" class="px-6 py-10 text-sm text-center text-gray-500 dark:text-gray-400">
                                 No upcoming reservations found.
                             </td>
                         </tr>
@@ -400,7 +400,7 @@
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+                <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
                     @forelse($historyAppointments as $booking)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
                             <td class="px-6 py-4">
@@ -431,7 +431,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                            <td colspan="5" class="px-6 py-10 text-sm text-center text-gray-500 dark:text-gray-400">
                                 No historical records found.
                             </td>
                         </tr>
@@ -448,9 +448,9 @@
 
 {{-- PROCESS PENDING MODAL --}}
 @can('edit appointments')
-<div id="processModal" class="fixed inset-0 z-50 hidden bg-black/50 p-4">
-    <div class="mx-auto mt-16 w-full max-w-lg rounded-2xl bg-white shadow-xl dark:bg-gray-800">
-        <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+<div id="processModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+    <div class="w-full max-w-lg mx-auto mt-16 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Process Appointment</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Record customer payment and continue the appointment flow.</p>
@@ -458,14 +458,14 @@
             <button type="button" onclick="closeProcessModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
         </div>
 
-        <form id="processForm" method="POST" class="space-y-4 px-6 py-6">
+        <form id="processForm" method="POST" class="px-6 py-6 space-y-4">
             @csrf
             @method('PUT')
 
-            <div class="rounded-2xl bg-gray-50 p-4 dark:bg-gray-900/40">
+            <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
                 <p class="text-sm font-semibold text-gray-900 dark:text-white" id="process_customer"></p>
                 <p class="text-sm text-gray-500 dark:text-gray-400" id="process_treatment"></p>
-                <div class="mt-3 grid grid-cols-3 gap-3 text-sm">
+                <div class="grid grid-cols-3 gap-3 mt-3 text-sm">
                     <div>
                         <p class="text-gray-500 dark:text-gray-400">Total</p>
                         <p class="font-medium text-gray-900 dark:text-white" id="process_total"></p>
@@ -482,24 +482,24 @@
             </div>
 
             <div>
-                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Next Status</label>
+                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Next Status</label>
                 <select id="process_status" name="status"
-                        class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                     <option value="ongoing">Mark as Ongoing</option>
                     <option value="cancelled">Cancel Appointment</option>
                 </select>
             </div>
 
             <div id="process_amount_wrapper">
-                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Amount Collected Now</label>
+                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Amount Collected Now</label>
                 <input type="number" step="0.01" min="0" id="process_amount_paid" name="amount_paid"
-                       class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                 <p id="process_hint" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></p>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeProcessModal()"
-                        class="rounded-xl bg-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
                     Close
                 </button>
                 <button type="submit"
@@ -519,9 +519,9 @@
     $allPackages   = \App\Models\Package::orderBy('name')->get();
 @endphp
 
-<div id="editModal" class="fixed inset-0 z-50 hidden bg-black/50 p-4">
-    <div class="mx-auto mt-12 w-full max-w-2xl rounded-2xl bg-white shadow-xl dark:bg-gray-800">
-        <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+<div id="editModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+    <div class="w-full max-w-2xl mx-auto mt-12 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Edit Appointment</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Update appointment details, therapist assignment, and schedule.</p>
@@ -529,48 +529,48 @@
             <button type="button" onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
         </div>
 
-        <form id="editForm" method="POST" class="space-y-4 px-6 py-6">
+        <form id="editForm" method="POST" class="px-6 py-6 space-y-4">
             @csrf
             @method('PUT')
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="md:col-span-2">
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
                     <input type="text" id="edit_customer_name" name="customer_name"
-                           class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Email</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Email</label>
                     <input type="email" id="edit_customer_email" name="customer_email"
-                           class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Phone</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Phone</label>
                     <input type="text" id="edit_customer_phone" name="customer_phone"
-                           class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                 </div>
 
                 <div class="md:col-span-2">
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Address</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Address</label>
                     <input type="text" id="edit_customer_address" name="customer_address"
-                           class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Service Type</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Service Type</label>
                     <select id="edit_service_type" name="service_type"
-                            class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="in_branch">In Branch</option>
                         <option value="in_home">In Home</option>
                     </select>
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Treatment / Package</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Treatment / Package</label>
                     <select id="edit_treatment" name="treatment"
-                            class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         @if($allTreatments->isNotEmpty())
                             <optgroup label="Treatments">
                                 @foreach($allTreatments as $treatment)
@@ -589,9 +589,9 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Therapist</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Therapist</label>
                     <select id="edit_therapist_id" name="therapist_id"
-                            class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="">— No Therapist Assigned —</option>
                         @foreach($therapists as $therapist)
                             <option value="{{ $therapist->id }}" data-branch="{{ $therapist->branch_id }}">
@@ -602,9 +602,9 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                     <select id="edit_status" name="status"
-                            class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="reserved">Reserved</option>
                         <option value="pending">Pending</option>
                         <option value="ongoing">Ongoing</option>
@@ -614,21 +614,21 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Appointment Date</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Appointment Date</label>
                     <input type="date" id="edit_appointment_date" name="appointment_date"
-                           class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Start Time</label>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Start Time</label>
                     <input type="time" id="edit_start_time" name="start_time"
-                           class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                 </div>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeEditModal()"
-                        class="rounded-xl bg-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
                     Cancel
                 </button>
                 <button type="submit"
@@ -643,16 +643,16 @@
 
 {{-- DELETE MODAL --}}
 @can('delete appointments')
-<div id="deleteModal" class="fixed inset-0 z-50 hidden bg-black/50 p-4">
-    <div class="mx-auto mt-24 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800">
+<div id="deleteModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Delete Appointment</h2>
         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
             This will permanently remove the selected appointment record.
         </p>
 
-        <div class="mt-6 flex justify-end gap-2">
+        <div class="flex justify-end gap-2 mt-6">
             <button type="button" onclick="closeDeleteModal()"
-                    class="rounded-xl bg-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                    class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
                 Cancel
             </button>
 
@@ -660,7 +660,7 @@
                 @csrf
                 @method('DELETE')
                 <button type="submit"
-                        class="rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700">
+                        class="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700">
                     Yes, Delete
                 </button>
             </form>

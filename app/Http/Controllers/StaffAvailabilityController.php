@@ -12,30 +12,39 @@ class StaffAvailabilityController extends Controller
 {
     public function index(Request $request)
     {
-        $branchId = auth()->user()->branch_id;
+        $user = auth()->user();
+
+        // Use currentBranchId() so owners work too
+        $branchId = $user->currentBranchId();
+
+        if (!$branchId) {
+            return back()->with('error', 'No branch selected.');
+        }
 
         $startOfWeek = Carbon::parse($request->week ?? now())->startOfWeek();
-        $endOfWeek = $startOfWeek->copy()->endOfWeek();
+        $endOfWeek   = $startOfWeek->copy()->endOfWeek();
 
+        // Also filter by spa_id to be safe
         $staff = User::where('branch_id', $branchId)
-    ->role('therapist')
-    ->get();
+            ->where('spa_id', $user->spa_id)
+            ->role('therapist')
+            ->get();
 
         $availabilities = StaffAvailability::where('branch_id', $branchId)
             ->whereBetween('date', [$startOfWeek, $endOfWeek])
             ->get()
-            ->groupBy('user_id') // group by staff
+            ->groupBy('user_id')
             ->map(function ($group) {
                 return $group->keyBy(function ($item) {
-                    return $item->date->format('Y-m-d'); // key by date
+                    return $item->date->format('Y-m-d');
                 });
             });
 
         $operatingHours = OperatingHours::where('branch_id', $branchId)->get();
 
         $branchOperatingHours = [];
-        foreach($staff as $s){
-            foreach(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] as $dayName){
+        foreach ($staff as $s) {
+            foreach (['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] as $dayName) {
                 $day = $operatingHours->firstWhere('day_of_week', $dayName);
                 $branchOperatingHours[$s->id][date('N', strtotime($dayName))] = [
                     'opening' => $day ? $day->opening_time : null,
@@ -45,10 +54,9 @@ class StaffAvailabilityController extends Controller
             }
         }
 
-        // For week navigation links (optional lang naman, pero good to have).
         $prevWeek = $startOfWeek->copy()->subWeek()->format('Y-m-d');
         $nextWeek = $startOfWeek->copy()->addWeek()->format('Y-m-d');
-        $weekDays = collect(range(0,6))->map(fn($i) => $startOfWeek->copy()->addDays($i));
+        $weekDays = collect(range(0, 6))->map(fn($i) => $startOfWeek->copy()->addDays($i));
 
         return view('staff.availability.index', compact(
             'staff',
@@ -73,7 +81,7 @@ class StaffAvailabilityController extends Controller
             'end_time'   => 'required_if:status,partial|nullable|date_format:H:i:s|after:start_time',
         ]);
 
-        $branchId = auth()->user()->branch_id;
+        $branchId = auth()->user()->currentBranchId();
 
         if ($request->status === 'available') {
             StaffAvailability::where('user_id', $request->user_id)

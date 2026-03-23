@@ -96,12 +96,24 @@
     </div>
 
     <script>
-        // Simply reload the page every 5 seconds.
-        // When the page reloads, Laravel's 'verified' middleware will
-        // catch the verified status from the database and redirect properly.
-        // This avoids all session/cookie issues with fetch-based polling.
-        setTimeout(function () {
+    // Only reload when this tab is visible — prevents unwanted reloads
+    // when the user switches to the email tab to click the verify link
+    function checkAndReload() {
+        if (!document.hidden) {
             window.location.reload();
-        }, 5000);
-    </script>
+        }
+    }
+
+    let reloadTimer = setTimeout(checkAndReload, 5000);
+
+    // If the user comes back to this tab (e.g. after clicking verify link),
+    // reset and check immediately so they don't wait 5 seconds
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            clearTimeout(reloadTimer);
+            // Small delay to let Laravel process the verification first
+            reloadTimer = setTimeout(checkAndReload, 1500);
+        }
+    });
+</script>
 </x-guest-layout>

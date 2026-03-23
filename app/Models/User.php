@@ -98,14 +98,56 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function currentBranchId(): ?int
     {
-        if ($this->hasRole('manager')) {
-            return $this->branch_id;
-        }
-
         if ($this->hasRole('owner')) {
-            return session('current_branch_id'); // returns null if not set
+            $sessionBranchId = session('current_branch_id');
+
+            if ($sessionBranchId) {
+                // Validate the session branch actually belongs to this spa
+                $valid = Branch::where('id', $sessionBranchId)
+                    ->where('spa_id', $this->spa_id)
+                    ->exists();
+
+                if ($valid) {
+                    return $sessionBranchId;
+                }
+            }
+
+            // Fallback: auto-select main branch (same logic as getCurrentBranch())
+            $branch = Branch::where('spa_id', $this->spa_id)
+                ->where('is_main', true)
+                ->first()
+                ?? Branch::where('spa_id', $this->spa_id)->first();
+
+            if ($branch) {
+                session(['current_branch_id' => $branch->id]);
+                return $branch->id;
+            }
+
+            return null;
         }
 
+        // Managers and all other staff use their assigned branch
         return $this->branch_id;
+    }
+
+    // In User.php — add this method
+    public function hasBranchPermission(string $permission): bool
+    {
+        $branchId = $this->currentBranchId();
+
+        if (!$branchId) {
+            return $this->hasPermissionTo($permission); // fallback to global
+        }
+
+        $override = \App\Models\BranchRolePermission::where('branch_id', $branchId)
+            ->where('role_name', $this->getRoleNames()->first())
+            ->where('permission_name', $permission)
+            ->first();
+
+        if ($override) {
+            return $override->granted; // branch override takes precedence
+        }
+
+        return $this->hasPermissionTo($permission); // fall back to global
     }
 }

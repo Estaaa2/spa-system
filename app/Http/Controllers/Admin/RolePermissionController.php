@@ -13,7 +13,7 @@ class RolePermissionController extends Controller
     public function index()
     {
         $roles = Role::query()
-            ->whereRaw('LOWER(name) != ?', ['admin']) // hide admin
+            ->whereNotIn('name', ['admin', 'customer'])
             ->withCount('users')
             ->with('permissions')
             ->orderBy('name')

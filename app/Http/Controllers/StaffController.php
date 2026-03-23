@@ -20,11 +20,11 @@ class StaffController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-
         $branchId = $user->currentBranchId();
 
         if (!$branchId) {
-            abort(409, 'Branch context not initialized');
+            return redirect()->route('branches.index')
+                ->with('error', 'No branch found. Please create a branch first.');
         }
 
         $staff = Staff::with(['user.roles', 'branch'])
@@ -52,7 +52,7 @@ class StaffController extends Controller
         $spa         = $currentUser->spa;
 
         if (!$branchId) {
-            return back()->with('error', 'No branch selected.');
+            return back()->with('error', 'No valid branch selected. Please switch to a valid branch and try again.');
         }
 
         if (in_array($validated['roles'], ['hr', 'finance']) && !$spa->isProfessional()) {

@@ -13,6 +13,17 @@
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+        <style>
+            @keyframes fadeInDown {
+                from { opacity: 0; transform: translateY(-12px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fade-in {
+                animation: fadeInDown 0.3s ease forwards;
+            }
+        </style>
+
     </head>
 
     <body class="font-sans antialiased text-gray-900">
@@ -48,6 +59,7 @@
 
         </div>
     </div>
+    @stack('toasts')
 </body>
 
 </html>
