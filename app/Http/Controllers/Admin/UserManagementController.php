@@ -14,20 +14,22 @@ class UserManagementController extends Controller
         $q = $request->get('q');
 
         $users = User::query()
-    // ❌ Exclude admins completely
-    ->whereDoesntHave('roles', function ($query) {
-        $query->where('name', 'admin');
-    })
-    ->when($q, function ($query) use ($q) {
-        $query->where(function ($q2) use ($q) {
-            $q2->where('name', 'like', "%{$q}%")
-               ->orWhere('email', 'like', "%{$q}%");
-        });
-    })
-    ->with('roles')
-    ->orderBy('name')
-    ->paginate(15)
-    ->withQueryString();
+
+            // Exclude users with 'admin' role
+            ->whereDoesntHave('roles', function ($query) {
+                $query->where('name', 'admin');
+            })
+            ->when($q, function ($query) use ($q) {
+                $query->where(function ($q2) use ($q) {
+                    $q2->where('name', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%");
+                });
+            })
+
+            ->with('roles')
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
 
 
         $roles = Role::orderBy('name')->get();
@@ -47,6 +49,34 @@ class UserManagementController extends Controller
         $user->syncRoles([$validated['role']]);
 
         return back()->with('success', "Role updated for {$user->email}.");
+    }
+
+    public function destroy(User $user)
+    {
+        // Extra protection: do not allow deleting admin users
+        if ($user->hasRole('admin')) {
+            return back()->with('error', 'Admin users cannot be deleted.');
+        }
+
+        // Optional: do not allow deleting your own account
+        if (auth()->id() === $user->id) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+
+        $userEmail = $user->email;
+
+        $user->delete();
+
+        return back()->with('success', "User {$userEmail} deleted successfully.");
+    }
+
+    public function restore($id)
+    {
+        $user = User::onlyTrashed()->findOrFail($id);
+
+        $user->restore();
+
+        return back()->with('success', "User {$user->email} restored successfully.");
     }
 }
 

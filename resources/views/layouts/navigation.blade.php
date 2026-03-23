@@ -20,7 +20,7 @@
     // Operations
     $canBooking           = $can('create booking');
     $canAppointments      = $can('view appointments');
-    $canSchedule          = $can('view schedule');
+    $canSchedule          = $can('view schedule') || $can('manage schedule');
     $canStaffAvailability = $can('view staff availability') || $can('manage staff availability');
     $showOperations       = $canBooking || $canAppointments || $canSchedule || $canStaffAvailability;
 
@@ -36,10 +36,9 @@
     $showInsights       = $canDecisionSupport || $canReports;
 
     // Inventory
-    $canInventoryProducts = $can('view inventory');
+    $canInventoryProducts = $can('view inventory') || $can('manage inventory');
     $canInventoryLogs     = $can('view inventory logs');
-    $canManageInventory   = $can('manage inventory');
-    $showInventory        = $canManageInventory || $canInventoryProducts || $canInventoryLogs;
+    $showInventory        = $canInventoryProducts || $canInventoryLogs;
 
     $brandHref = $user?->hasRole('owner')
         ? route('dashboard')

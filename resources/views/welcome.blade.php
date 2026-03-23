@@ -364,8 +364,8 @@
     </div>
 
     <!-- ================= FEATURED SPAS ================= -->
-    <section class="py-20">
-        <div class="px-6 mx-auto mt-10 max-w-7xl">
+    <section class="py-5">
+        <div class="px-6 mx-auto mt-5 max-w-7xl">
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
                     <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
@@ -381,7 +381,7 @@
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-6 mt-12 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid grid-cols-1 gap-6 mt-5 sm:grid-cols-2 lg:grid-cols-4">
                 @php $featuredCount = 0; @endphp
                 @forelse($spas as $spa)
                     @foreach($spa->branches as $branch)
@@ -513,12 +513,12 @@
         </div>
 
         <!-- ================= LISTED SPAS ================= -->
-        <section class="pb-20 mt-24">
+        <section class="pb-10 mt-10 ">
             <div class="px-6 mx-auto max-w-7xl">
                 <div class="text-center">
                     <div class="flex items-center justify-center gap-6">
                         <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                        <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">More Spas Near You</h2>
+                        <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Other Spas in Cavite</h2>
                         <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                     </div>
                     <p class="mt-3 text-sm text-gray-600">
@@ -651,7 +651,7 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="flex flex-col items-center justify-center py-20 mt-12 border border-dashed border-[#C4A97D]/40 rounded-3xl bg-white/50">
+                    <div class="flex flex-col items-center justify-center py-16 mt-12 border border-dashed border-[#C4A97D]/40 rounded-3xl bg-white/50">
                         <div class="flex items-center justify-center w-16 h-16 mb-5 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
                             <i class="fa-solid fa-spa text-2xl text-[#8B7355]"></i>
                         </div>

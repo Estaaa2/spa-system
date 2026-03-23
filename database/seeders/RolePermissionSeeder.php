@@ -120,13 +120,14 @@ class RolePermissionSeeder extends Seeder
             'create booking', 'view appointments', 'edit appointments', 'delete appointments',
             'view schedule', 'manage schedule',
             'view inventory', 'view inventory logs', 'manage inventory',
-            'manage staff availability',
+            'view staff availability', 'manage staff availability',
             'view staff', 'manage staff', 'create staff', 'edit staff', 'delete staff',
             'view branches', 'manage branches', 'create branches', 'edit branches', 'delete branches',
             'view services', 'manage services',
             'create treatments', 'edit treatments', 'delete treatments',
             'create packages', 'edit packages', 'delete packages',
             'view reports', 'view decision support',
+
             // HR & Finance visibility for owner
             'view hr dashboard', 'view finance dashboard',
             'view hiring', 'view applications', 'view interviews',

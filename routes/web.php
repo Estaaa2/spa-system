@@ -325,6 +325,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::middleware('permission:manage users')->group(function () {
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
         Route::put('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.updateRole');
+        Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
     });
 
     Route::middleware('permission:manage roles')->group(function () {

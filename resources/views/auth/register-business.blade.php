@@ -30,7 +30,7 @@
                 <div class="mb-10 text-center">
                     <div class="flex items-center justify-between mb-6">
                         <!-- Back Button on Left -->
-                        <a href="{{ url('/login') }}"
+                        <a href="{{ url('/') }}"
                            class="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
                             <i class="fa-solid fa-circle-chevron-left text-3xl text-[#8B7355]"></i>
                         </a>

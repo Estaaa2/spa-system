@@ -59,15 +59,31 @@
                                 </span>
                             </td>
                             <td class="px-6 py-3 text-center">
-                                <button
-                                    onclick="openEditRoleModal(
-                                        {{ $user->id }},
-                                        '{{ $user->name }}',
-                                        '{{ $currentRole }}'
-                                    )"
-                                    class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                    Edit
-                                </button>
+                                <div class="flex items-center justify-center gap-2">
+                                    <button
+                                        onclick="openEditRoleModal(
+                                            {{ $user->id }},
+                                            '{{ $user->name }}',
+                                            '{{ $currentRole }}'
+                                        )"
+                                        class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                        Edit
+                                    </button>
+
+                                    <form method="POST"
+                                        action="{{ route('admin.users.destroy', $user->id) }}"
+                                        onsubmit="return confirm('Are you sure you want to delete this user?');"
+                                        class="inline">
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button
+                                            type="submit"
+                                            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
