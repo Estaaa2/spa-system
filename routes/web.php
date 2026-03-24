@@ -400,82 +400,91 @@ Route::middleware(['auth', 'role:owner'])
             ->name('subscription.cancel-subscription');
     });
 
-// =====================================================
-// HR Routes
-// =====================================================
-Route::middleware(['auth', 'role:hr|owner'])
-    ->prefix('hr')
-    ->name('hr.')
-    ->group(function () {
+/*
+|--------------------------------------------------------------------------
+| People / HR Modules (staff side, permission-based)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+	
+    Route::get('/hr-overview', [HRController::class, 'hr-overview'])->name('hr-overview');
 
-        Route::get('/dashboard', [HRController::class, 'dashboard'])->name('dashboard');
-
-        // Hiring
-        Route::middleware('permission:view hiring|manage hiring')->group(function () {
-            Route::get('/hiring', [HRController::class, 'hiring'])->name('hiring');
-        });
-        Route::middleware('permission:manage hiring')->group(function () {
-            Route::post('/hiring', [HRController::class, 'hiringStore'])->name('hiring.store');
-            Route::put('/hiring/{posting}', [HRController::class, 'hiringUpdate'])->name('hiring.update');
-            Route::delete('/hiring/{posting}', [HRController::class, 'hiringDestroy'])->name('hiring.destroy');
-        });
-
-        // Applications
-        Route::middleware('permission:view applications|manage applications')->group(function () {
-            Route::get('/applications', [HRController::class, 'applications'])->name('applications');
-        });
-        Route::middleware('permission:manage applications')->group(function () {
-            Route::post('/applications', [HRController::class, 'applicationsStore'])->name('applications.store');
-            Route::post('/applications/{applicant}/schedule-interview', [HRController::class, 'applicationsScheduleInterview'])->name('applications.schedule-interview');
-        });
-
-        // Interviews
-        Route::middleware('permission:view interviews|manage interviews')->group(function () {
-            Route::get('/interviews', [HRController::class, 'interviews'])->name('interviews');
-        });
-        Route::middleware('permission:manage interviews')->group(function () {
-            Route::post('/interviews/{interview}/approve', [HRController::class, 'interviewApprove'])->name('interviews.approve');
-            Route::post('/interviews/{interview}/reject', [HRController::class, 'interviewReject'])->name('interviews.reject');
-            Route::post('/interviews/{interview}/create-staff', [HRController::class, 'createStaffFromInterview'])->name('interviews.create-staff');
-        });
-
-        // Attendance
-        Route::middleware('permission:view attendance|manage attendance')->group(function () {
-            Route::get('/attendance', [HRController::class, 'attendance'])->name('attendance');
-        });
-        Route::middleware('permission:manage attendance')->group(function () {
-            Route::post('/attendance', [HRController::class, 'attendanceStore'])->name('attendance.store');
-        });
-
-        // Payroll
-        Route::middleware('permission:view payroll|manage payroll')->group(function () {
-            Route::get('/payroll', [HRController::class, 'payroll'])->name('payroll');
-        });
-        Route::middleware('permission:manage payroll')->group(function () {
-            Route::post('/payroll/generate', [HRController::class, 'payrollGenerate'])->name('payroll.generate');
-            Route::post('/payroll/{payroll}/finalize', [HRController::class, 'payrollFinalize'])->name('payroll.finalize');
-        });
+    // Hiring
+    Route::middleware('permission:view hiring|manage hiring')->group(function () {
+        Route::get('/hiring', [HRController::class, 'hiring'])->name('hiring.index');
     });
 
-// =====================================================
-// Finance Routes
-// =====================================================
-Route::middleware(['auth', 'role:finance|owner'])
-    ->prefix('finance')
-    ->name('finance.')
-    ->group(function () {
-        Route::get('/dashboard', [FinanceController::class, 'dashboard'])->name('dashboard');
-
-        Route::middleware('permission:view revenue|manage revenue')
-            ->get('/revenue', [FinanceController::class, 'revenue'])->name('revenue');
-
-        Route::middleware('permission:view billing|manage billing')
-            ->get('/billing', fn() => view('finance.billing'))->name('billing');
-
-        Route::middleware('permission:view finance inventory|manage finance inventory')
-            ->get('/inventory', fn() => view('finance.inventory'))->name('inventory');
+    Route::middleware('permission:manage hiring')->group(function () {
+        Route::post('/hiring', [HRController::class, 'hiringStore'])->name('hiring.store');
+        Route::put('/hiring/{posting}', [HRController::class, 'hiringUpdate'])->name('hiring.update');
+        Route::delete('/hiring/{posting}', [HRController::class, 'hiringDestroy'])->name('hiring.destroy');
     });
 
+    // Applicants
+    Route::middleware('permission:view applications|manage applications')->group(function () {
+        Route::get('/applications', [HRController::class, 'applications'])->name('applications.index');
+    });
+
+    Route::middleware('permission:manage applications')->group(function () {
+        Route::post('/applications', [HRController::class, 'applicationsStore'])->name('applications.store');
+        Route::post('/applications/{applicant}/schedule-interview', [HRController::class, 'applicationsScheduleInterview'])
+            ->name('applications.schedule-interview');
+    });
+
+    // Interviews
+    Route::middleware('permission:view interviews|manage interviews')->group(function () {
+        Route::get('/interviews', [HRController::class, 'interviews'])->name('interviews.index');
+    });
+
+    Route::middleware('permission:manage interviews')->group(function () {
+        Route::post('/interviews/{interview}/approve', [HRController::class, 'interviewApprove'])->name('interviews.approve');
+        Route::post('/interviews/{interview}/reject', [HRController::class, 'interviewReject'])->name('interviews.reject');
+        Route::post('/interviews/{interview}/create-staff', [HRController::class, 'createStaffFromInterview'])
+            ->name('interviews.create-staff');
+    });
+
+    // Attendance & Leave
+    Route::middleware('permission:view attendance|manage attendance')->group(function () {
+        Route::get('/attendance', [HRController::class, 'attendance'])->name('attendance.index');
+    });
+
+    Route::middleware('permission:manage attendance')->group(function () {
+        Route::post('/attendance', [HRController::class, 'attendanceStore'])->name('attendance.store');
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Finance Modules (staff side, permission-based)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+
+    // Payroll
+    Route::middleware('permission:view payroll|manage payroll')->group(function () {
+        Route::get('/payroll', [FinanceController::class, 'payroll'])->name('payroll.index');
+    });
+
+    Route::middleware('permission:manage payroll')->group(function () {
+        Route::post('/payroll/generate', [FinanceController::class, 'payrollGenerate'])->name('payroll.generate');
+        Route::post('/payroll/{payroll}/finalize', [FinanceController::class, 'payrollFinalize'])->name('payroll.finalize');
+    });
+
+    // Revenue
+    Route::middleware('permission:view revenue|manage revenue')->group(function () {
+        Route::get('/revenue', [FinanceController::class, 'revenue'])->name('revenue.index');
+    });
+
+    // Billing / Expenses
+    Route::middleware('permission:view billing|manage billing')->group(function () {
+        Route::get('/billing', fn() => view('finance.billing'))->name('billing.index');
+    });
+
+    // Finance Inventory (optional / future)
+    Route::middleware('permission:view finance inventory|manage finance inventory')->group(function () {
+        Route::get('/finance-inventory', fn() => view('finance.inventory'))->name('finance-inventory.index');
+    });
+});
 /*
 |--------------------------------------------------------------------------
 | User Profile

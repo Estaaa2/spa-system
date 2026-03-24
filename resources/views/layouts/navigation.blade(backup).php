@@ -1,6 +1,4 @@
 @php
-    use Illuminate\Support\Str;
-
     $user = Auth::user();
     $spa  = $user?->spa;
 
@@ -14,87 +12,37 @@
 
     $firstBranch     = $branches->first();
     $currentBranchId = session('current_branch_id');
-    $currentBranch   = $branches->firstWhere('id', $currentBranchId) ?? $firstBranch;
+    $currentBranch   = $branches->firstWhere('id', $currentBranchId);
 
     // Branch-aware permission helper
     $can = fn($permission) => $user?->hasBranchPermission($permission) ?? false;
 
-    // Suite enabled only if:
-    // 1) spa is professional tier
-    // 2) current branch has the suite enabled
-    $suiteEnabled = (($spa?->business_tier ?? null) === 'professional')
-        && (bool) ($currentBranch?->has_workforce_finance_suite ?? false);
+    // Operations
+    $canBooking           = $can('create booking');
+    $canAppointments      = $can('view appointments');
+    $canSchedule          = $can('view schedule') || $can('manage schedule');
+    $canStaffAvailability = $can('view staff availability') || $can('manage staff availability');
+    $showOperations       = $canBooking || $canAppointments || $canSchedule || $canStaffAvailability;
 
-    // Dashboard
-    $canDashboard = $user?->hasRole('owner') || $can('view owner dashboard') || $can('view branch dashboard');
+    // Management
+    $canServices    = $can('view services') || $can('manage services');
+    $canStaff       = $can('view staff') || $can('manage staff');
+    $canBranches    = $can('view branches') || $can('manage branches');
+    $showManagement = $canServices || $canStaff || $canBranches;
 
-    // =========================
-    // OPERATIONS
-    // =========================
-    $canBooking      = $can('create booking');
-    $canAppointments = $can('view appointments');
-    $canSchedule     = $can('view schedule') || $can('manage schedule');
-
-    // Reusing existing attendance/leave permission source from current system
-    $canAttendanceLeave = $can('view staff availability') || $can('manage staff availability');
-
-    // In default mode, Attendance & Leave stays under Operations
-    $showOperations = $canBooking || $canAppointments || $canSchedule || (!$suiteEnabled && $canAttendanceLeave);
-
-    // =========================
-    // PEOPLE (suite-enabled only)
-    // =========================
-    $canStaffAccounts = $can('view staff') || $can('manage staff');
-
-    $canHiring       = $can('view hiring') || $can('manage hiring');
-    $canApplicants   = $can('view applications') || $can('manage applications');
-    $canInterviews   = $can('view interviews') || $can('manage interviews');
-
-    $showPeople = $suiteEnabled && (
-        $canStaffAccounts ||
-        $canAttendanceLeave ||
-        $canHiring ||
-        $canApplicants ||
-        $canInterviews
-    );
-
-    // =========================
-    // MANAGEMENT
-    // =========================
-    $canServices = $can('view services') || $can('manage services');
-    $canBranches = $can('view branches') || $can('manage branches');
-
-    // Staff only belongs here when suite is NOT enabled
-    $canManagementStaff = !$suiteEnabled && ($can('view staff') || $can('manage staff'));
-
-    $showManagement = $canServices || $canManagementStaff || $canBranches;
-
-    // =========================
-    // FINANCE (suite-enabled only)
-    // =========================
-    $canPayroll  = $can('view payroll') || $can('manage payroll');
-    $canRevenue  = $can('view revenue') || $can('manage revenue');
-    $canBilling  = $can('view billing') || $can('manage billing');
-
-    $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling);
-
-    // =========================
-    // INSIGHTS
-    // =========================
+    // Insights
     $canDecisionSupport = $can('view decision support');
     $canReports         = $can('view reports');
     $showInsights       = $canDecisionSupport || $canReports;
 
-    // =========================
-    // INVENTORY
-    // =========================
+    // Inventory
     $canInventoryProducts = $can('view inventory') || $can('manage inventory');
     $canInventoryLogs     = $can('view inventory logs');
     $showInventory        = $canInventoryProducts || $canInventoryLogs;
 
     $brandHref = $user?->hasRole('owner')
         ? route('dashboard')
-        : ($canDashboard ? route('dashboard') : route('booking'));
+        : route('booking');
 @endphp
 
 <div x-data="sidebar()" class="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -124,7 +72,6 @@
                 class="absolute right-0 z-50 w-56 mt-2 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
                 <div class="py-1" role="menu">
                     <div class="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">SWITCH BRANCH</div>
-
                     @foreach ($branches as $branch)
                         <button
                             @click="
@@ -140,20 +87,12 @@
                             @else
                                 <i class="w-4 mr-2 text-gray-400 fa-solid fa-store"></i>
                             @endif
-
                             <div class="flex-1 min-w-0">
                                 <span class="truncate">{{ $branch->name }}</span>
                                 @if ($branch->location)
                                     <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Str::limit($branch->location, 20) }}</p>
                                 @endif
                             </div>
-
-                            @if(($spa?->business_tier ?? null) === 'professional')
-                                <span class="ml-2 text-[10px] px-2 py-0.5 rounded-full {{ $branch->has_workforce_finance_suite ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' }}">
-                                    {{ $branch->has_workforce_finance_suite ? 'Suite' : 'Basic' }}
-                                </span>
-                            @endif
-
                             <span x-show="selectedBranchId == {{ $branch->id }}" class="ml-2 text-blue-600 dark:text-blue-400">
                                 <i class="fa-solid fa-check"></i>
                             </span>
@@ -249,30 +188,20 @@
                                                             <i class="text-gray-400 fa-solid fa-store"></i>
                                                         @endif
                                                     </div>
-
                                                     <div class="flex-1 min-w-0">
                                                         <p class="font-medium text-gray-900 truncate dark:text-white"
                                                             :class="selectedBranchId == {{ $branch->id }} ? 'text-blue-600 dark:text-blue-400' : ''">
                                                             {{ $branch->name }}
                                                         </p>
-
                                                         @if ($branch->location)
                                                             <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Str::limit($branch->location, 25) }}</p>
                                                         @endif
-
                                                         @if ($branch->phone)
                                                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ $branch->phone }}</p>
                                                         @endif
                                                     </div>
                                                 </div>
-
-                                                <div class="flex items-center gap-2">
-                                                    @if(($spa?->business_tier ?? null) === 'professional')
-                                                        <span class="text-[10px] px-2 py-0.5 rounded-full {{ $branch->has_workforce_finance_suite ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' }}">
-                                                            {{ $branch->has_workforce_finance_suite ? 'Suite' : 'Basic' }}
-                                                        </span>
-                                                    @endif
-
+                                                <div class="flex items-end">
                                                     <span x-show="selectedBranchId == {{ $branch->id }}" class="text-blue-600 dark:text-blue-400">
                                                         <i class="fa-solid fa-check"></i>
                                                     </span>
@@ -304,7 +233,6 @@
                             <p class="mt-1 text-xs text-yellow-700 dark:text-yellow-300">
                                 You need to create at least one branch to use the system
                             </p>
-
                             @if (\Illuminate\Support\Facades\Route::has('setup.branches'))
                                 <a href="{{ route('setup.branches') }}"
                                    class="inline-flex items-center justify-center w-full px-3 py-2 mt-2 text-xs font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600">
@@ -321,7 +249,7 @@
             <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
 
                 <!-- Dashboard -->
-                @if($canDashboard)
+                @if($user?->hasRole('owner'))
                     <div class="mb-1 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                             <i class="fa-solid fa-gauge-high w-4 mr-1 text-[#8B7355]"></i>
@@ -362,56 +290,9 @@
                                 </x-nav-link>
                             @endif
 
-                            @if(!$suiteEnabled && $canAttendanceLeave)
+                            @if($canStaffAvailability)
                                 <x-nav-link :href="route('staff.availability')" :active="request()->routeIs('staff.availability*')">
-                                    Attendance &amp; Leave
-                                </x-nav-link>
-                            @endif
-                        </div>
-                    </div>
-                @endif
-
-                <!-- People -->
-                @if($showPeople)
-                    <div class="mb-1">
-                        <button @click="peopleOpen = !peopleOpen"
-                            class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-users w-4 text-[#8B7355]"></i>
-                                People
-                            </span>
-                            <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                               :class="peopleOpen ? 'transform rotate-180' : ''"></i>
-                        </button>
-
-                        <div x-show="peopleOpen" x-collapse class="ml-4 space-y-1">
-                            @if($canStaffAccounts)
-                                <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
-                                    Staff Accounts
-                                </x-nav-link>
-                            @endif
-
-                            @if($canAttendanceLeave)
-                                <x-nav-link :href="route('staff.availability')" :active="request()->routeIs('staff.availability*')">
-                                    Attendance &amp; Leave
-                                </x-nav-link>
-                            @endif
-
-                            @if($canHiring)
-                                <x-nav-link :href="route('hiring.index')" :active="request()->routeIs('hiring.*')">
-                                    Hiring
-                                </x-nav-link>
-                            @endif
-
-                            @if($canApplicants)
-                                <x-nav-link :href="route('applications.index')" :active="request()->routeIs('applications.*')">
-                                    Applicants
-                                </x-nav-link>
-                            @endif
-
-                            @if($canInterviews)
-                                <x-nav-link :href="route('interviews.index')" :active="request()->routeIs('interviews.*')">
-                                    Interviews
+                                    Staff Availability
                                 </x-nav-link>
                             @endif
                         </div>
@@ -438,7 +319,7 @@
                                 </x-nav-link>
                             @endif
 
-                            @if($canManagementStaff)
+                            @if($canStaff)
                                 <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
                                     Staff
                                 </x-nav-link>
@@ -447,41 +328,6 @@
                             @if($canBranches)
                                 <x-nav-link :href="route('branches.index')" :active="request()->routeIs('branches.*')">
                                     Branches
-                                </x-nav-link>
-                            @endif
-                        </div>
-                    </div>
-                @endif
-
-                <!-- Finance -->
-                @if($showFinance)
-                    <div class="mb-1">
-                        <button @click="financeOpen = !financeOpen"
-                            class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-wallet w-4 text-[#8B7355]"></i>
-                                Finance
-                            </span>
-                            <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                               :class="financeOpen ? 'transform rotate-180' : ''"></i>
-                        </button>
-
-                        <div x-show="financeOpen" x-collapse class="ml-4 space-y-1">
-                            @if($canPayroll)
-                                <x-nav-link :href="route('payroll.index')" :active="request()->routeIs('payroll.*')">
-                                    Payroll
-                                </x-nav-link>
-                            @endif
-
-                            @if($canRevenue)
-                                <x-nav-link :href="route('finance.revenue.index')" :active="request()->routeIs('finance.revenue.*')">
-                                    Revenue
-                                </x-nav-link>
-                            @endif
-
-                            @if($canBilling)
-                                <x-nav-link :href="route('finance.billing.index')" :active="request()->routeIs('finance.billing.*')">
-                                    Billing &amp; Expenses
                                 </x-nav-link>
                             @endif
                         </div>
@@ -577,7 +423,7 @@
 
                         @role('owner')
                         <x-nav-link :href="route('owner.subscription.index')" :active="request()->routeIs('owner.subscription.*')">
-                            Subscription &amp; Billing
+                            Subscription & Billing
                         </x-nav-link>
                         @endrole
                     </div>
@@ -709,16 +555,14 @@
             open: false,
             showLogoutModal: false,
             operationsOpen: false,
-            peopleOpen: false,
             managementOpen: false,
-            financeOpen: false,
             insightsOpen: false,
             branchesDropdown: false,
             mobileBranchesOpen: false,
             inventoryOpen: false,
             settingsOpen: false,
             selectedBranch: @json($currentBranch?->name ?? ($firstBranch?->name ?? 'Select Branch')),
-            selectedBranchId: @json($currentBranch?->id ?? ($firstBranch?->id ?? null)),
+            selectedBranchId: @json($currentBranchId ?? ($firstBranch?->id ?? null)),
         };
     }
 

@@ -17,10 +17,12 @@ class Branch extends Model
         'name',
         'location',
         'is_main',
+        'has_workforce_finance_suite',
     ];
 
     protected $casts = [
         'is_main'          => 'boolean',
+        'has_workforce_finance_suite' => 'boolean',
     ];
 
     public function spa(): BelongsTo
@@ -58,5 +60,10 @@ class Branch extends Model
     public function packages(): HasMany
     {
         return $this->hasMany(Package::class);
+    }
+
+    public function getUsesWorkforceFinanceSuiteAttribute(): bool
+    {
+        return (bool) $this->has_workforce_finance_suite;
     }
 }

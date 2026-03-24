@@ -26,12 +26,14 @@ class BranchController extends Controller
         if ($user->hasRole('owner')) {
             // Owner sees all branches
             $branches = $spa->branches()
+                ->with(['profile'])
                 ->withCount('users')
                 ->get();
         } else {
             // Manager / Staff see ONLY their assigned branch
             $branches = $spa->branches()
                 ->where('id', $user->branch_id)
+                ->with(['profile'])
                 ->withCount('users')
                 ->get();
         }
@@ -89,12 +91,25 @@ class BranchController extends Controller
             'name' => 'required|string|max:255',
             'location' => 'required|string',
             'is_main' => 'nullable',
+            'has_workforce_finance_suite' => 'nullable|boolean',
             'hours' => 'required|array',
             'hours.*.day_of_week' => 'required|string',
             'hours.*.opening_time' => 'required|date_format:H:i',
             'hours.*.closing_time' => 'required|date_format:H:i',
             'hours.*.is_closed' => 'required|boolean',
         ]);
+
+        if ($spa->business_tier !== 'professional' && $request->boolean('has_workforce_finance_suite')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Workforce & Finance Suite is only available for spas on the Professional business tier.',
+                'errors' => [
+                    'has_workforce_finance_suite' => [
+                        'Workforce & Finance Suite is only available for spas on the Professional business tier.',
+                    ],
+                ],
+            ], 422);
+        }
 
         $wantsMain = filter_var($request->input('is_main'), FILTER_VALIDATE_BOOLEAN);
 
@@ -107,11 +122,16 @@ class BranchController extends Controller
             $spa->branches()->update(['is_main' => false]);
         }
 
+        $canUseSuite = ($spa->business_tier === 'professional');
+
         $branch = Branch::create([
             'spa_id' => $spa->id,
             'name' => $validated['name'],
             'location' => $validated['location'],
             'is_main' => $wantsMain,
+            'has_workforce_finance_suite' => $canUseSuite
+                ? $request->boolean('has_workforce_finance_suite')
+                : false,
         ]);
 
         // Save operating hours from the request
@@ -162,7 +182,14 @@ class BranchController extends Controller
             'name' => 'required|string|max:255',
             'location' => 'required|string',
             'is_main' => 'nullable',
+            'has_workforce_finance_suite' => 'nullable|boolean',
         ]);
+
+        if ($spa->business_tier !== 'professional' && $request->boolean('has_workforce_finance_suite')) {
+            return back()->withErrors([
+                'has_workforce_finance_suite' => 'Workforce & Finance Suite is only available for spas on the Professional business tier.',
+            ])->withInput();
+        }
 
         $wantsMain = $request->boolean('is_main');
 
@@ -172,10 +199,15 @@ class BranchController extends Controller
                 ->update(['is_main' => false]);
         }
 
+        $canUseSuite = ($spa->business_tier === 'professional');
+
         $branch->update([
             'name' => $validatedBranch['name'],
             'location' => $validatedBranch['location'],
             'is_main' => $wantsMain,
+            'has_workforce_finance_suite' => $canUseSuite
+                ? $request->boolean('has_workforce_finance_suite')
+                : false,
         ]);
 
         // ----- Branch Profile Fields -----
@@ -293,14 +325,14 @@ class BranchController extends Controller
         if ($branch->is_main) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete the main branch. Please set another branch as main first.'
+                'message' => 'Cannot remove the main branch. Please set another branch as main first.'
             ], 422);
         }
 
         if ($branch->users()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete branch with assigned users. Reassign users first.'
+                'message' => 'Cannot remove branch with assigned users. Reassign users first.'
             ], 422);
         }
 
@@ -308,7 +340,7 @@ class BranchController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Branch deleted successfully'
+            'message' => 'Branch removed successfully'
         ]);
     }
 

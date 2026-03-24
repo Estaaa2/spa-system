@@ -68,7 +68,7 @@ class HRController extends Controller
             ->latest()
             ->get();
 
-        return view('hr.hiring', compact('applicants'));
+        return view('hiring', compact('applicants'));
     }
 
     public function hiringStore(Request $request)
@@ -131,7 +131,7 @@ class HRController extends Controller
             ->latest()
             ->get();
 
-        return view('hr.applications', compact('applicants'));
+        return view('hr.applications.index', compact('applicants'));
     }
 
     public function applicationsStore(Request $request)

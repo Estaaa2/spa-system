@@ -127,7 +127,7 @@
                         <p class="text-sm text-gray-400">No applicants yet.</p>
                         <p class="mt-1 text-xs text-gray-300">
                             Go to
-                            <a href="{{ route('hr.hiring') }}" class="text-[#8B7355] underline">Hiring</a>
+                            <a href="{{ route('hiring.index') }}" class="text-[#8B7355] underline">Hiring</a>
                             to add applicants.
                         </p>
                     </td>

@@ -1,0 +1,15 @@
+Create a new branch checkbox that enabled "Workforce & Finance Suite"
+
+HR Flow:
+
+1. Hiring page
+    HR manually creates application intake / hiring form.
+2. Applicants page
+    Shows submitted applicants. HR can review and schedule interview.
+3. Interviews page
+    Shows applicants scheduled for interview. HR can:
+4. mark as passed
+    mark as rejected
+    click Proceed to Onboarding
+5. Staff Onboarding page/modal
+    This is where the actual staff account is created using the applicant/interview data.

@@ -97,6 +97,79 @@
             </div>
         </div>
 
+        {{-- Workforce & Finance Suite --}}
+        @php
+            $isProfessionalTier = ($spa->business_tier ?? null) === 'professional';
+        @endphp
+
+        <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="px-6 py-4 border-b dark:border-gray-700">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Workforce &amp; Finance Suite</h2>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    Control whether this branch can use advanced workforce and finance tools such as hiring, applicants,
+                    interviews, attendance, and future payroll features.
+                </p>
+            </div>
+
+            <div class="p-6 space-y-4">
+                @if($isProfessionalTier)
+                    <div class="p-4 border border-green-200 rounded-xl bg-green-50 dark:bg-green-900/10 dark:border-green-800">
+                        <p class="text-sm text-green-800 dark:text-green-300">
+                            This spa is currently on the <span class="font-semibold">Professional</span> business tier, so this
+                            branch can enable the Workforce &amp; Finance Suite.
+                        </p>
+                    </div>
+                @else
+                    <div class="p-4 border border-yellow-200 rounded-xl bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-800">
+                        <p class="text-sm text-yellow-800 dark:text-yellow-300">
+                            This suite is only available on the <span class="font-semibold">Professional</span> business tier.
+                            Upgrade your spa subscription first before enabling it for this branch.
+                        </p>
+
+                        @if(Route::has('owner.subscription.index'))
+                            <div class="mt-3">
+                                <a href="{{ route('owner.subscription.index') }}"
+                                class="inline-flex items-center px-3 py-2 text-xs font-medium text-white rounded-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430]">
+                                    <i class="mr-2 fa-solid fa-arrow-up-right-from-square"></i>
+                                    View Subscription &amp; Billing
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+
+                <div class="flex items-start gap-3">
+                    <input type="hidden" name="has_workforce_finance_suite" value="0">
+
+                    <input
+                        type="checkbox"
+                        name="has_workforce_finance_suite"
+                        id="has_workforce_finance_suite"
+                        value="1"
+                        {{ old('has_workforce_finance_suite', $branch->has_workforce_finance_suite) ? 'checked' : '' }}
+                        {{ $isProfessionalTier ? '' : 'disabled' }}
+                        class="w-4 h-4 mt-1 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-600 {{ $isProfessionalTier ? '' : 'opacity-60 cursor-not-allowed' }}"
+                    >
+
+                    <div>
+                        <label for="has_workforce_finance_suite" class="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            Enable Workforce &amp; Finance Suite for this branch
+                        </label>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            When enabled, this branch can access advanced workforce and finance-related modules like
+                            Hiring, Applicants, Interviews, Attendance, and future Payroll tools.
+                        </p>
+
+                        @unless($isProfessionalTier)
+                            <p class="mt-2 text-xs font-medium text-yellow-700 dark:text-yellow-300">
+                                This option is locked because the spa is not yet on the Professional business tier.
+                            </p>
+                        @endunless
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Operating Hours --}}
         @if($branch->operatingHours)
         <div x-data="{ open: false }"
