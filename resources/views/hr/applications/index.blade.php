@@ -1,5 +1,19 @@
 @extends('layouts.app')
 @section('content')
+@php
+    $user = auth()->user();
+
+    $canViewApplications = $user?->hasBranchPermission('view applications') ?? false;
+    $canEditApplications = $user?->hasBranchPermission('edit applications') ?? false;
+    $canDeleteApplications = $user?->hasBranchPermission('delete applications') ?? false;
+
+    $canScheduleInterview = $canEditApplications;
+
+    $formatLabel = function ($value) {
+        return filled($value) ? ucwords(str_replace('_', ' ', $value)) : 'N/A';
+    };
+@endphp
+
 <div class="p-6 mx-auto max-w-7xl">
 
     <x-page-header title="Applications" subtitle="List of all applicants from hiring."/>
@@ -28,7 +42,7 @@
             <thead class="bg-gray-50 dark:bg-gray-900">
                 <tr>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applicant</th>
-                    <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Position</th>
+                    <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applied Position</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Contact</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Education</th>
                     <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applied</th>
@@ -56,10 +70,10 @@
                         </div>
                     </td>
 
-                    {{-- Position --}}
+                    {{-- Applied Position --}}
                     <td class="px-6 py-4">
                         <span class="px-2 py-1 text-xs font-semibold rounded-full bg-[#F6EFE6] text-[#6F5430]">
-                            {{ ucfirst($applicant->role ?? 'N/A') }}
+                            {{ $formatLabel($applicant->position_applied ?? $applicant->role) }}
                         </span>
                     </td>
 
@@ -73,7 +87,7 @@
 
                     {{-- Education --}}
                     <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                        {{ $applicant->education ? ucwords(str_replace('_', ' ', $applicant->education)) : 'N/A' }}
+                        {{ $formatLabel($applicant->education) }}
                     </td>
 
                     {{-- Applied date --}}
@@ -96,12 +110,16 @@
                     {{-- Action --}}
                     <td class="px-6 py-4">
                         @if($applicant->status === 'pending')
-                            @can('manage applications')
-                            <button onclick="openScheduleModal({{ $applicant->id }}, '{{ addslashes($applicant->full_name) }}')"
-                                class="px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition">
-                                <i class="mr-1 fa-solid fa-calendar-plus"></i> Schedule
-                            </button>
-                            @endcan
+                            @if($canScheduleInterview)
+                                <button onclick="openScheduleModal({{ $applicant->id }}, '{{ addslashes($applicant->full_name) }}')"
+                                    class="px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition">
+                                    <i class="mr-1 fa-solid fa-calendar-plus"></i> Schedule
+                                </button>
+                            @else
+                                <span class="text-xs text-gray-400">
+                                    {{ ucfirst($applicant->status) }}
+                                </span>
+                            @endif
                         @elseif($applicant->status === 'interview')
                             <span class="text-xs font-medium text-blue-500">
                                 <i class="mr-1 fa-solid fa-clock"></i> Interview set
@@ -140,6 +158,7 @@
 </div>
 
 {{-- Schedule Interview Modal --}}
+@if($canScheduleInterview)
 <div id="scheduleModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-xl dark:bg-gray-800">
         <div class="flex items-center justify-between mb-4">
@@ -177,9 +196,11 @@
         </form>
     </div>
 </div>
+@endif
 
 <script>
-const baseScheduleUrl = @json(url('/hr/applications'));
+@if($canScheduleInterview)
+const baseScheduleUrl = @json(url('/applications'));
 
 function openScheduleModal(applicantId, name) {
     document.getElementById('scheduleApplicantName').textContent = 'Applicant: ' + name;
@@ -190,6 +211,7 @@ function openScheduleModal(applicantId, name) {
 function closeScheduleModal() {
     document.getElementById('scheduleModal').classList.add('hidden');
 }
+@endif
 
 function filterStatus(status) {
     document.querySelectorAll('.applicant-row').forEach(row => {

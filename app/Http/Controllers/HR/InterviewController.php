@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\HR\Concerns\ResolvesSpaBranchContext;
 use App\Mail\StaffCredentialsMail;
 use App\Models\Interview;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -16,7 +16,13 @@ use Illuminate\Support\Str;
 
 class InterviewController extends Controller
 {
-    use ResolvesSpaBranchContext;
+    private function getSpaAndBranch()
+    {
+        $user     = Auth::user();
+        $spa      = $user->spa;
+        $branchId = $user->currentBranchId();
+        return [$spa, $branchId];
+    }
 
     public function index()
     {

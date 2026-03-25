@@ -39,39 +39,21 @@ class RolePermissionController extends Controller
      * Flexible suite checker so this controller still works
      * even if your Spa model uses a slightly different method/column name.
      */
-    private function suiteEnabled(string $suite): bool
+    private function branchSuiteEnabled(): bool
     {
-        $spa = auth()->user()->spa;
+        $branch = $this->getCurrentBranch();
 
-        return match ($suite) {
-            'workforce' => (bool) (
-                (method_exists($spa, 'hasWorkforceSuite') && $spa->hasWorkforceSuite()) ||
-                (method_exists($spa, 'workforceSuiteEnabled') && $spa->workforceSuiteEnabled()) ||
-                data_get($spa, 'workforce_suite_enabled') ||
-                data_get($spa, 'workforce_enabled') ||
-                (method_exists($spa, 'isProfessional') && $spa->isProfessional())
-            ),
-
-            'finance' => (bool) (
-                (method_exists($spa, 'hasFinanceSuite') && $spa->hasFinanceSuite()) ||
-                (method_exists($spa, 'financeSuiteEnabled') && $spa->financeSuiteEnabled()) ||
-                data_get($spa, 'finance_suite_enabled') ||
-                data_get($spa, 'finance_enabled') ||
-                (method_exists($spa, 'isProfessional') && $spa->isProfessional())
-            ),
-
-            default => false,
-        };
+        return (bool) ($branch->has_workforce_finance_suite ?? false);
     }
 
     private function workforceEnabled(): bool
     {
-        return $this->suiteEnabled('workforce');
+        return $this->branchSuiteEnabled();
     }
 
     private function financeEnabled(): bool
     {
-        return $this->suiteEnabled('finance');
+        return $this->branchSuiteEnabled();
     }
 
     private function getManageableRoles(): array

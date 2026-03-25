@@ -15,6 +15,7 @@ class HiringController extends Controller
         $user     = Auth::user();
         $spa      = $user->spa;
         $branchId = $user->currentBranchId();
+
         return [$spa, $branchId];
     }
 
@@ -34,19 +35,25 @@ class HiringController extends Controller
     {
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
-            'email' => 'required|email',
+            'email' => 'required|email|max:255',
             'phone' => 'required|string|max:20',
-            'role' => 'required|in:therapist,receptionist,manager,hr,finance',
-            'gender' => 'required|in:male,female,other',
-            'date_of_birth' => 'required|date',
-            'civil_status' => 'nullable|string',
-            'address' => 'required|string',
-            'education' => 'nullable|string',
+
+            'position_applied' => 'required|in:therapist,receptionist,manager,hr,finance',
+            'availability' => 'nullable|string|max:255',
+            'source' => 'nullable|string|max:255',
+
+            'gender' => 'nullable|in:male,female,other',
+            'date_of_birth' => 'nullable|date',
+            'civil_status' => 'nullable|string|max:255',
+            'address' => 'required|string|max:255',
+            'education' => 'nullable|string|max:255',
             'work_experience' => 'nullable|string',
             'skills' => 'nullable|string',
-            'emergency_contact_name' => 'nullable|string',
-            'emergency_contact_relation' => 'nullable|string',
-            'emergency_contact_phone' => 'nullable|string',
+
+            'emergency_contact_name' => 'nullable|string|max:255',
+            'emergency_contact_relation' => 'nullable|string|max:255',
+            'emergency_contact_phone' => 'nullable|string|max:255',
+
             'expected_start_date' => 'nullable|date',
             'notes' => 'nullable|string',
         ]);
@@ -63,6 +70,7 @@ class HiringController extends Controller
         return back()->with('success', 'Application submitted successfully.');
     }
 
+    // Optional: remove these if Hiring no longer manages job postings
     public function update(Request $request, JobPosting $posting)
     {
         $validated = $request->validate([

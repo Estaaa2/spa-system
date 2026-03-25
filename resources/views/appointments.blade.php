@@ -2,8 +2,10 @@
 
 @section('content')
 @php
-    $canEdit = auth()->user()->can('edit appointments');
-    $canDelete = auth()->user()->can('delete appointments');
+    $user = auth()->user();
+
+    $canEdit = $user?->hasBranchPermission('edit appointments') ?? false;
+    $canDelete = $user?->hasBranchPermission('delete appointments') ?? false;
     $showActions = $canEdit || $canDelete;
 
     $statusClasses = [
@@ -124,7 +126,7 @@
                                     </div>
                                 </div>
 
-                                @can('edit appointments')
+                                @if($canEdit)
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full {{ $sourceClasses[$booking->booking_source ?? ''] ?? $sourceClasses[''] }}">
                                             {{ strtoupper($booking->booking_source ?: 'STAFF') }}
@@ -144,7 +146,7 @@
                                             Process Now
                                         </button>
                                     </div>
-                                @endcan
+                                @endif
                             </div>
                         </div>
                     @endforeach
@@ -227,7 +229,7 @@
                             @if($showActions)
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        @can('edit appointments')
+                                        @if($canEdit)
                                             @if($booking->status === 'pending')
                                                 <button
                                                     type="button"
@@ -262,14 +264,14 @@
                                                 class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                                 Edit
                                             </button>
-                                        @endcan
+                                        @endif
 
-                                        @can('delete appointments')
+                                        @if($canDelete)
                                             <button onclick="openDeleteModal({{ $booking->id }})"
                                                     class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
                                                 Delete
                                             </button>
-                                        @endcan
+                                        @endif
                                     </div>
                                 </td>
                             @endif
@@ -339,7 +341,7 @@
                             @if($showActions)
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
-                                        @can('edit appointments')
+                                        @if($canEdit)
                                             <button
                                                 type="button"
                                                 onclick="openEditModal(this)"
@@ -358,14 +360,14 @@
                                                 class="px-3 py-1.5 text-sm text-white bg-yellow-500 rounded-lg hover:bg-yellow-600">
                                                 Edit
                                             </button>
-                                        @endcan
+                                        @endif
 
-                                        @can('delete appointments')
+                                        @if($canDelete)
                                             <button onclick="openDeleteModal({{ $booking->id }})"
                                                     class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">
                                                 Delete
                                             </button>
-                                        @endcan
+                                        @endif
                                     </div>
                                 </td>
                             @endif
@@ -447,7 +449,7 @@
 </div>
 
 {{-- PROCESS PENDING MODAL --}}
-@can('edit appointments')
+@if($canEdit)
 <div id="processModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
     <div class="w-full max-w-lg mx-auto mt-16 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -510,10 +512,10 @@
         </form>
     </div>
 </div>
-@endcan
+@endif
 
 {{-- EDIT MODAL --}}
-@can('edit appointments')
+@if($canEdit)
 @php
     $allTreatments = \App\Models\Treatment::orderBy('name')->get();
     $allPackages   = \App\Models\Package::orderBy('name')->get();
@@ -639,10 +641,10 @@
         </form>
     </div>
 </div>
-@endcan
+@endif
 
 {{-- DELETE MODAL --}}
-@can('delete appointments')
+@if($canDelete)
 <div id="deleteModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Delete Appointment</h2>
@@ -667,10 +669,10 @@
         </div>
     </div>
 </div>
-@endcan
+@endif
 
 <script>
-    @can('edit appointments')
+    @if($canEdit)
     function openProcessModal(btn) {
         const d = btn.dataset;
 
@@ -739,9 +741,9 @@
     function closeEditModal() {
         document.getElementById('editModal').classList.add('hidden');
     }
-    @endcan
+    @endif
 
-    @can('delete appointments')
+    @if($canDelete)
     function openDeleteModal(id) {
         document.getElementById('deleteForm').action = '/appointments/' + id;
         document.getElementById('deleteModal').classList.remove('hidden');
@@ -750,6 +752,6 @@
     function closeDeleteModal() {
         document.getElementById('deleteModal').classList.add('hidden');
     }
-    @endcan
+    @endif
 </script>
 @endsection

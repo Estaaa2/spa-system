@@ -412,18 +412,6 @@
                         </button>
 
                         <div x-show="peopleOpen" x-collapse class="ml-4 space-y-1">
-                            @if($canStaffAccounts)
-                                <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
-                                    Staff Accounts
-                                </x-nav-link>
-                            @endif
-
-                            @if($canAttendanceLeave)
-                                <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.index*')">
-                                    Attendance &amp; Leave
-                                </x-nav-link>
-                            @endif
-
                             @if($canHiring)
                                 <x-nav-link :href="route('hiring.index')" :active="request()->routeIs('hiring.*')">
                                     Hiring
@@ -439,6 +427,18 @@
                             @if($canInterviews)
                                 <x-nav-link :href="route('interviews.index')" :active="request()->routeIs('interviews.*')">
                                     Interviews
+                                </x-nav-link>
+                            @endif
+
+                            @if($canStaffAccounts)
+                                <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
+                                    Staff Accounts
+                                </x-nav-link>
+                            @endif
+
+                            @if($canAttendanceLeave)
+                                <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.index*')">
+                                    Attendance &amp; Leave
                                 </x-nav-link>
                             @endif
                         </div>
@@ -476,6 +476,12 @@
                                     Branches
                                 </x-nav-link>
                             @endif
+
+                            @role('owner')
+                            <x-nav-link :href="route('owner.roles-permissions.index')" :active="request()->routeIs('owner.roles-permissions.*')">
+                                Roles &amp; Permissions
+                            </x-nav-link>
+                            @endrole
                         </div>
                     </div>
                 @endif
@@ -593,12 +599,6 @@
                         @role('owner')
                         <x-nav-link :href="route('owner.spa-profile.edit')" :active="request()->routeIs('owner.spa-profile.*')">
                             Spa Profile
-                        </x-nav-link>
-                        @endrole
-
-                        @role('owner')
-                        <x-nav-link :href="route('owner.roles-permissions.index')" :active="request()->routeIs('owner.roles-permissions.*')">
-                            Roles &amp; Permissions
                         </x-nav-link>
                         @endrole
 

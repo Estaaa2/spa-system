@@ -53,21 +53,21 @@
                 <!-- Administration -->
                 <div class="mb-2">
                     <div class="space-y-1">
-                        @can('manage spas')
+                        @can('view registered spas')
                         <x-nav-link :href="route('admin.registered-spas.index')" :active="request()->routeIs('admin.registered-spas.*')">
                             <i class="fa-solid fa-spa w-4 mr-1 text-[#8B7355]"></i>
                             Registered Spas
                         </x-nav-link>
                         @endcan
 
-                        @can('manage users')
+                        @can('view registered users')
                         <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                             <i class="fa-solid fa-users w-4 mr-1 text-[#8B7355]"></i>
                             Registered Users
                         </x-nav-link>
                         @endcan
 
-                        @can('manage roles')
+                        @can('view system roles')
                         <x-nav-link :href="route('admin.roles-permissions.index')" :active="request()->routeIs('admin.roles-permissions.*')">
                             <i class="fa-solid fa-key w-4 mr-1 text-[#8B7355]"></i>
                             Roles & Permissions

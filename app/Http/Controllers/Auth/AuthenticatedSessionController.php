@@ -55,8 +55,8 @@ class AuthenticatedSessionController extends Controller
             'manager'      => route('dashboard'),
             'receptionist' => route('dashboard'),
             'therapist'    => route('dashboard'),
-            'hr'           => route('hr.dashboard'),
-            'finance'      => route('finance.dashboard'),
+            'hr'           => route('dashboard'),
+            'finance'      => route('dashboard'),
         ];
 
         foreach ($redirectMap as $role => $route) {

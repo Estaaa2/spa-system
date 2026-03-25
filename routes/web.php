@@ -8,8 +8,12 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CustomerAppointmentController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Finance\FinanceController;
-use App\Http\Controllers\HR\HRController;
+use App\Http\Controllers\Finance\PayrollController;
+use App\Http\Controllers\Finance\RevenueController;
+use App\Http\Controllers\HR\ApplicationController;
+use App\Http\Controllers\HR\AttendanceController;
+use App\Http\Controllers\HR\HiringController;
+use App\Http\Controllers\HR\InterviewController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
@@ -338,60 +342,60 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     */
     Route::middleware('branch.permission:view hr dashboard')->group(function () {
         // Rename to hrOverview in controller if your current method name still has a dash.
-        Route::get('/hr-overview', [HRController::class, 'hrOverview'])->name('hr-overview');
+        Route::get('/hr-overview', [HiringController::class, 'hrOverview'])->name('hr-overview');
     });
 
     // Hiring
     Route::middleware('branch.permission:view hiring')->group(function () {
-        Route::get('/hiring', [HRController::class, 'hiring'])->name('hiring.index');
+        Route::get('/hiring', [HiringController::class, 'index'])->name('hiring.index');
     });
 
     Route::middleware('branch.permission:create hiring')->group(function () {
-        Route::post('/hiring', [HRController::class, 'hiringStore'])->name('hiring.store');
+        Route::post('/hiring', [HiringController::class, 'store'])->name('hiring.store');
     });
 
     Route::middleware('branch.permission:edit hiring')->group(function () {
-        Route::put('/hiring/{posting}', [HRController::class, 'hiringUpdate'])->name('hiring.update');
+        Route::put('/hiring/{posting}', [HiringController::class, 'update'])->name('hiring.update');
     });
 
     Route::middleware('branch.permission:delete hiring')->group(function () {
-        Route::delete('/hiring/{posting}', [HRController::class, 'hiringDestroy'])->name('hiring.destroy');
+        Route::delete('/hiring/{posting}', [HiringController::class, 'destroy'])->name('hiring.destroy');
     });
 
     // Applications
     Route::middleware('branch.permission:view applications')->group(function () {
-        Route::get('/applications', [HRController::class, 'applications'])->name('applications.index');
+        Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
     });
 
     Route::middleware('branch.permission:edit applications')->group(function () {
-        Route::post('/applications', [HRController::class, 'applicationsStore'])->name('applications.store');
-        Route::post('/applications/{applicant}/schedule-interview', [HRController::class, 'applicationsScheduleInterview'])
+        Route::post('/applications', [ApplicationController::class, 'store'])->name('applications.store');
+        Route::post('/applications/{applicant}/schedule-interview', [ApplicationController::class, 'scheduleInterview'])
             ->name('applications.schedule-interview');
     });
 
     Route::middleware('branch.permission:delete applications')->group(function () {
-        Route::delete('/applications/{applicant}', [HRController::class, 'applicationsDestroy'])->name('applications.destroy');
+        Route::delete('/applications/{applicant}', [ApplicationController::class, 'destroy'])->name('applications.destroy');
     });
 
     // Interviews
     Route::middleware('branch.permission:view interviews')->group(function () {
-        Route::get('/interviews', [HRController::class, 'interviews'])->name('interviews.index');
+        Route::get('/interviews', [InterviewController::class, 'index'])->name('interviews.index');
     });
 
     Route::middleware('branch.permission:create interviews,edit interviews')->group(function () {
-        Route::post('/interviews/{interview}/approve', [HRController::class, 'interviewApprove'])->name('interviews.approve');
-        Route::post('/interviews/{interview}/reject', [HRController::class, 'interviewReject'])->name('interviews.reject');
-        Route::post('/interviews/{interview}/create-staff', [HRController::class, 'createStaffFromInterview'])
+        Route::post('/interviews/{interview}/approve', [InterviewController::class, 'approve'])->name('interviews.approve');
+        Route::post('/interviews/{interview}/reject', [InterviewController::class, 'reject'])->name('interviews.reject');
+        Route::post('/interviews/{interview}/create-staff', [InterviewController::class, 'createStaff'])
             ->name('interviews.create-staff');
     });
 
     // Attendance & Leave
     Route::middleware('branch.permission:view attendance,view leave requests,create leave requests,edit leave requests,delete leave requests')->group(function () {
-        Route::get('/attendance', [HRController::class, 'attendance'])->name('attendance.index');
+        Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     });
 
     Route::middleware('branch.permission:edit attendance')->group(function () {
-        Route::post('/attendance', [HRController::class, 'attendanceStore'])->name('attendance.store');
+        Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
     });
 
     /*
@@ -400,16 +404,16 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     |--------------------------------------------------------------------------
     */
     Route::middleware('branch.permission:view payroll')->group(function () {
-        Route::get('/payroll', [FinanceController::class, 'payroll'])->name('payroll.index');
+        Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');
     });
 
     Route::middleware('branch.permission:edit payroll')->group(function () {
-        Route::post('/payroll/generate', [FinanceController::class, 'payrollGenerate'])->name('payroll.generate');
-        Route::post('/payroll/{payroll}/finalize', [FinanceController::class, 'payrollFinalize'])->name('payroll.finalize');
+        Route::post('/payroll/generate', [PayrollController::class, 'generate'])->name('payroll.generate');
+        Route::post('/payroll/{payroll}/finalize', [PayrollController::class, 'finalize'])->name('payroll.finalize');
     });
 
     Route::middleware('branch.permission:view revenue')->group(function () {
-        Route::get('/revenue', [FinanceController::class, 'revenue'])->name('revenue.index');
+        Route::get('/revenue', [RevenueController::class, 'index'])->name('revenue.index');
     });
 
     Route::middleware('branch.permission:view billing')->group(function () {
@@ -417,15 +421,15 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     });
 
     Route::middleware('branch.permission:create billing')->group(function () {
-        // Add billing store routes here when your controller is ready.
+        // Wala pang billing create routes here.
     });
 
     Route::middleware('branch.permission:edit billing')->group(function () {
-        // Add billing update routes here when your controller is ready.
+        // Wala pang billing edit routes here.
     });
 
     Route::middleware('branch.permission:delete billing')->group(function () {
-        // Add billing delete routes here when your controller is ready.
+        // Wala pang billing delete routes here.
     });
 
     Route::middleware('branch.permission:view finance inventory')->group(function () {

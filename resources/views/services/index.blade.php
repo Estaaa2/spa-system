@@ -1,6 +1,27 @@
 @extends('layouts.app')
 
 @section('content')
+
+@php
+    $user = auth()->user();
+
+    $canViewServices      = $user?->hasBranchPermission('view services') ?? false;
+
+    $canCreateTreatments  = $user?->hasBranchPermission('create treatments') ?? false;
+    $canEditTreatments    = $user?->hasBranchPermission('edit treatments') ?? false;
+    $canDeleteTreatments  = $user?->hasBranchPermission('delete treatments') ?? false;
+
+    $canCreatePackages    = $user?->hasBranchPermission('create packages') ?? false;
+    $canEditPackages      = $user?->hasBranchPermission('edit packages') ?? false;
+    $canDeletePackages    = $user?->hasBranchPermission('delete packages') ?? false;
+
+    $canManageTreatments  = $canCreateTreatments || $canEditTreatments || $canDeleteTreatments;
+    $canManagePackages    = $canCreatePackages || $canEditPackages || $canDeletePackages;
+
+    $showTreatmentActions = $canEditTreatments || $canDeleteTreatments;
+    $showPackageActions   = $canEditPackages || $canDeletePackages;
+@endphp
+
 <div class="p-6">
     <!-- Services Header -->
     <x-page-header
@@ -19,13 +40,15 @@
                         {{ $treatments->count() }} treatment(s) available
                     </span>
 
-                    @can('manage services')
+                    @if($canManageTreatments)
 
-                        <button onclick="openAddTreatmentModal()"
-                            class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center justify-center gap-2">
-                            <i class="fas fa-plus"></i>
-                            Add Treatment
-                        </button>
+                        @if($canCreateTreatments)
+                            <button onclick="openAddTreatmentModal()"
+                                class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center justify-center gap-2">
+                                <i class="fas fa-plus"></i>
+                                Add Treatment
+                            </button>
+                        @endif
 
                         <a href="{{ route('treatments.export') }}"
                             class="px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] flex items-center justify-center gap-2 dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
@@ -52,7 +75,7 @@
                                 Import CSV
                             </button>
                         </form>
-                    @endcan
+                    @endif
                 </div>
             </div>
 
@@ -64,7 +87,9 @@
                             <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Duration</th>
                             <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Price</th>
                             <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Service Type</th>
-                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Actions</th>
+                            @if($showTreatmentActions)
+                                <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Actions</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
@@ -100,34 +125,39 @@
                                     {{ $treatment->service_type_label }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-2">
-                                    @can('manage services')
-                                        <button
-                                            type="button"
-                                            onclick="openEditTreatmentModal(this)"
-                                            data-id="{{ $treatment->id }}"
-                                            data-name="{{ $treatment->name }}"
-                                            data-duration="{{ $treatment->duration }}"
-                                            data-price="{{ $treatment->price }}"
-                                            data-service-type="{{ $treatment->service_type }}"
-                                            data-description="{{ $treatment->description }}"
-                                            class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                            Edit
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onclick="openDeleteTreatmentModal({{ $treatment->id }}, '{{ addslashes($treatment->name) }}')"
-                                            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                            Delete
-                                        </button>
-                                    @endcan
-                                </div>
-                            </td>
+                            @if($showTreatmentActions)
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-2">
+                                        @if($canEditTreatments)
+                                            <button
+                                                type="button"
+                                                onclick="openEditTreatmentModal(this)"
+                                                data-id="{{ $treatment->id }}"
+                                                data-name="{{ $treatment->name }}"
+                                                data-duration="{{ $treatment->duration }}"
+                                                data-price="{{ $treatment->price }}"
+                                                data-service-type="{{ $treatment->service_type }}"
+                                                data-description="{{ $treatment->description }}"
+                                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                                Edit
+                                            </button>
+                                        @endif
+
+                                        @if($canDeleteTreatments)
+                                            <button
+                                                type="button"
+                                                onclick="openDeleteTreatmentModal({{ $treatment->id }}, '{{ addslashes($treatment->name) }}')"
+                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                                Delete
+                                            </button>
+                                        @endif
+                                    </div>
+                                </td>
+                            @endif
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                            <td colspan="{{ $showTreatmentActions ? 5 : 4 }}" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                                 <div class="flex flex-col items-center justify-center">
                                     <i class="mb-3 text-4xl text-gray-400 fas fa-spa"></i>
                                     <p class="mb-2 text-gray-600 dark:text-gray-400">No treatments available</p>
@@ -153,13 +183,14 @@
                         {{ $packages->count() }} package(s) available
                     </span>
 
-                    @can('manage services')
-
-                        <button onclick="openAddPackageModal()"
-                            class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center justify-center gap-2">
-                            <i class="fas fa-plus"></i>
-                            Add Package
-                        </button>
+                    @if($canManagePackages)
+                        @if($canCreatePackages)
+                            <button onclick="openAddPackageModal()"
+                                class="px-4 py-2 text-sm text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] flex items-center justify-center gap-2">
+                                <i class="fas fa-plus"></i>
+                                Add Package
+                            </button>
+                        @endif
 
                         <a href="{{ route('packages.export') }}"
                             class="px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] flex items-center justify-center gap-2 dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
@@ -186,7 +217,7 @@
                                 Import CSV
                             </button>
                         </form>
-                    @endcan
+                    @endif
                 </div>
             </div>
 
@@ -198,7 +229,9 @@
                             <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Duration</th>
                             <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Price</th>
                             <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Included Treatments</th>
-                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Actions</th>
+                            @if($showPackageActions)
+                                <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Actions</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
@@ -247,34 +280,39 @@
                                     <span class="text-sm text-gray-500 dark:text-gray-400">No treatments included</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-2">
-                                    @can('manage services')
-                                        <button
-                                            type="button"
-                                            onclick="openEditPackageModal(this)"
-                                            data-id="{{ $package->id }}"
-                                            data-name="{{ $package->name }}"
-                                            data-duration="{{ $package->duration }}"
-                                            data-price="{{ $package->price }}"
-                                            data-description="{{ $package->description }}"
-                                            data-treatments="{{ $package->treatments->pluck('id')->join(',') }}"
-                                            class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                            Edit
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onclick="openDeletePackageModal({{ $package->id }}, '{{ addslashes($package->name) }}')"
-                                            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                            Delete
-                                        </button>
-                                    @endcan
-                                </div>
-                            </td>
+                            @if($showPackageActions)
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-2">
+                                        @if($canEditPackages)
+                                            <button
+                                                type="button"
+                                                onclick="openEditPackageModal(this)"
+                                                data-id="{{ $package->id }}"
+                                                data-name="{{ $package->name }}"
+                                                data-duration="{{ $package->duration }}"
+                                                data-price="{{ $package->price }}"
+                                                data-description="{{ $package->description }}"
+                                                data-treatments="{{ $package->treatments->pluck('id')->join(',') }}"
+                                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
+                                                Edit
+                                            </button>
+                                        @endif
+
+                                        @if($canDeletePackages)
+                                            <button
+                                                type="button"
+                                                onclick="openDeletePackageModal({{ $package->id }}, '{{ addslashes($package->name) }}')"
+                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                                Delete
+                                            </button>
+                                        @endif
+                                    </div>
+                                </td>
+                            @endif
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                            <td colspan="{{ $showPackageActions ? 5 : 4 }}" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                                 <div class="flex flex-col items-center justify-center">
                                     <i class="mb-3 text-4xl text-gray-400 fas fa-gift"></i>
                                     <p class="mb-2 text-gray-600 dark:text-gray-400">No packages available</p>
@@ -352,8 +390,7 @@
     </div>
 </div>
 
-@can('manage services')
-
+@if($canCreateTreatments)
 {{-- ADD TREATMENT MODAL --}}
 <div id="addTreatmentModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-md p-6 mx-auto mt-16 bg-white rounded-lg dark:bg-gray-800">
@@ -399,7 +436,9 @@
         </form>
     </div>
 </div>
+@endif
 
+@if($canEditTreatments)
 {{-- EDIT TREATMENT MODAL --}}
 <div id="editTreatmentModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-md p-6 mx-auto mt-16 bg-white rounded-lg dark:bg-gray-800">
@@ -446,7 +485,9 @@
         </form>
     </div>
 </div>
+@endif
 
+@if($canDeleteTreatments)
 {{-- DELETE TREATMENT MODAL --}}
 <div id="deleteTreatmentModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
@@ -467,7 +508,9 @@
         </div>
     </div>
 </div>
+@endif
 
+@if($canCreatePackages)
 {{-- ADD PACKAGE MODAL --}}
 <div id="addPackageModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-lg p-6 mx-auto mt-10 bg-white rounded-lg dark:bg-gray-800">
@@ -530,7 +573,9 @@
         </form>
     </div>
 </div>
+@endif
 
+@if($canEditPackages)
 {{-- EDIT PACKAGE MODAL --}}
 <div id="editPackageModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-lg p-6 mx-auto mt-10 bg-white rounded-lg dark:bg-gray-800">
@@ -594,7 +639,9 @@
         </form>
     </div>
 </div>
+@endif
 
+@if($canDeletePackages)
 {{-- DELETE PACKAGE MODAL --}}
 <div id="deletePackageModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
@@ -615,8 +662,7 @@
         </div>
     </div>
 </div>
-
-@endcan
+@endif
 
 <script>
     function openAddTreatmentModal() {

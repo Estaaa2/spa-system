@@ -124,7 +124,7 @@
 
         <div class="p-6 space-y-4">
             @foreach($sections as $section)
-                <details class="overflow-hidden border rounded-2xl group dark:border-gray-700" open>
+                <details class="overflow-hidden border rounded-2xl group dark:border-gray-700" closed>
                     <summary class="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer select-none bg-gray-50 dark:bg-gray-900/20">
                         <div class="flex items-start gap-3">
                             <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-[#8B7355]/10 text-[#8B7355]">
