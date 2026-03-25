@@ -26,7 +26,6 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceImportExportController;
 use App\Http\Controllers\SetupController;
-use App\Http\Controllers\StaffAvailabilityController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Middleware\LandingPageRedirect;
@@ -44,17 +43,68 @@ Route::get('/send-mail', [MailController::class, 'sendWelcomeMail']);
 Route::get('/test-mail', function () {
     $data = [
         'name'    => 'Test User',
-        'message' => 'This is a test email from Mailtrap!'
+        'message' => 'This is a test email from Mailtrap!',
     ];
+
     Mail::to('anyone@example.com')->send(new WelcomeMail($data));
+
     return 'Email sent! Check your Mailtrap inbox.';
 });
 
 /*
 |--------------------------------------------------------------------------
-| Dashboard
+| Landing Page (public)
 |--------------------------------------------------------------------------
 */
+
+Route::get('/', [LandingController::class, 'index'])
+    ->middleware(LandingPageRedirect::class)
+    ->name('landing.page');
+
+/*
+|--------------------------------------------------------------------------
+| Landing Page Online Booking / PayMongo
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/bookings/online/checkout', [OnlineBookingCheckoutController::class, 'store'])
+        ->name('bookings.online.checkout');
+
+    Route::get('/bookings/online/payment/success', [OnlineBookingCheckoutController::class, 'success'])
+        ->name('bookings.online.payment.success');
+
+    Route::get('/bookings/online/payment/cancel', [OnlineBookingCheckoutController::class, 'cancel'])
+        ->name('bookings.online.payment.cancel');
+});
+
+Route::post('/webhooks/paymongo', [PaymongoWebhookController::class, 'handle'])
+    ->name('webhooks.paymongo');
+
+/*
+|--------------------------------------------------------------------------
+| Customer Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/my-appointments', [CustomerAppointmentController::class, 'appointments'])
+        ->name('customer.appointments');
+
+    Route::get('/my-schedule', [CustomerAppointmentController::class, 'schedule'])
+        ->name('customer.schedule');
+
+    Route::post('/bookings/online', [BookingController::class, 'storeOnline'])
+        ->middleware('role:customer')
+        ->name('bookings.online.store');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Staff Dashboard
+|--------------------------------------------------------------------------
+*/
+
 Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('role:owner|manager|therapist|receptionist')
@@ -66,284 +116,378 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 | Admin Dashboard
 |--------------------------------------------------------------------------
 */
+
 Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])
+            ->name('dashboard');
     });
 
 /*
 |--------------------------------------------------------------------------
-| Landing Page (public)
+| Business-side Routes (branch-aware permissions)
 |--------------------------------------------------------------------------
 */
-Route::get('/', [LandingController::class, 'index'])
-    ->middleware(LandingPageRedirect::class)
-    ->name('landing.page');
 
-/*
-/*
-|--------------------------------------------------------------------------
-| Landing Page Online Booking (public)
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth'])->group(function () {
-    Route::post('/bookings/online/checkout', [OnlineBookingCheckoutController::class, 'store'])
-        ->name('bookings.online.checkout');
+Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
 
-    Route::get('/bookings/online/payment/success', [OnlineBookingCheckoutController::class, 'success'])
-        ->name('bookings.online.payment.success');
+    /*
+    |--------------------------------------------------------------------------
+    | Operations: Book Appointment
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:book appointments')->group(function () {
+        Route::get('/booking', [BookingController::class, 'create'])->name('booking');
+        Route::post('/booking', [BookingController::class, 'store'])->name('bookings.store');
+        Route::get('/booking/available-therapists', [BookingController::class, 'availableTherapists'])
+            ->name('booking.available-therapists');
+    });
 
-    Route::get('/bookings/online/payment/cancel', [OnlineBookingCheckoutController::class, 'cancel'])
-        ->name('bookings.online.payment.cancel');
+    /*
+    |--------------------------------------------------------------------------
+    | Appointments
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:view appointments')->group(function () {
+        Route::get('/appointments', [BookingController::class, 'adminIndex'])->name('appointments.index');
+        Route::get('/booking/history', [BookingController::class, 'history'])->name('bookings.history');
+    });
 
-    Route::post('/webhooks/paymongo', [PaymongoWebhookController::class, 'handle'])
-    ->name('webhooks.paymongo');
-});
-/*
-|--------------------------------------------------------------------------
-| Customer Routes
-|--------------------------------------------------------------------------
-*/
-Route::middleware('auth')->group(function () {
-    Route::get('/my-appointments', [CustomerAppointmentController::class, 'appointments'])->name('customer.appointments');
-    Route::get('/my-schedule', [CustomerAppointmentController::class, 'schedule'])->name('customer.schedule');
-});
+    Route::middleware('branch.permission:edit appointments')->group(function () {
+        Route::post('/appointments/{booking}/reserve', [BookingController::class, 'reserve'])->name('appointments.reserve');
+        Route::put('/appointments/{booking}/status', [BookingController::class, 'updateStatus'])->name('appointments.updateStatus');
+        Route::put('/appointments/{booking}', [BookingController::class, 'update'])->name('appointments.update');
+    });
 
-/*
-|--------------------------------------------------------------------------
-| Operations: Booking
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'permission:create booking'])->group(function () {
-    Route::get('/booking', [BookingController::class, 'create'])->name('booking');
-    Route::post('/booking', [BookingController::class, 'store'])->name('bookings.store');
-    Route::get('/booking/available-therapists', [BookingController::class, 'availableTherapists'])
-        ->name('booking.available-therapists');
-});
+    Route::middleware('branch.permission:delete appointments')->group(function () {
+        Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
+    });
 
-Route::post('/bookings/online', [BookingController::class, 'storeOnline'])
-    ->middleware(['auth', 'role:customer'])
-    ->name('bookings.online.store');
+    /*
+    |--------------------------------------------------------------------------
+    | Schedule
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:view schedule')->group(function () {
+        Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
+        Route::get('/schedule/data', [ScheduleController::class, 'data'])->name('schedule.data');
+    });
 
-Route::middleware(['auth', 'permission:view appointments'])->group(function () {
-    Route::get('/booking/history', [BookingController::class, 'history'])->name('bookings.history');
-});
+    /*
+    |--------------------------------------------------------------------------
+    | Branch Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:view branches')->group(function () {
+        Route::post('/branch/switch', [BranchController::class, 'switch'])->name('branch.switch');
+        Route::get('/branch/current', [BranchController::class, 'getCurrentBranch'])->name('branch.current');
 
-/*
-|--------------------------------------------------------------------------
-| Schedule
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'permission:view schedule|manage schedule'])->group(function () {
-    Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
-    Route::get('/schedule/data', [ScheduleController::class, 'data'])->name('schedule.data');
-});
+        Route::prefix('branches')->group(function () {
+            Route::get('/', [BranchController::class, 'index'])->name('branches.index');
+            Route::get('/{branch}', [BranchController::class, 'show'])->name('branches.show');
+        });
+    });
 
-/*
-|--------------------------------------------------------------------------
-| Staff Availability
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'permission:view staff availability|manage staff availability'])->group(function () {
-    Route::get('/staff-availability', [StaffAvailabilityController::class, 'index'])->name('staff.availability');
-    Route::post('/staff-availability', [StaffAvailabilityController::class, 'store'])->name('staff.availability.store');
-});
+    Route::middleware('branch.permission:create branches')->group(function () {
+        Route::post('/branches', [BranchController::class, 'store'])->name('branches.store');
+    });
 
-/*
-|--------------------------------------------------------------------------
-| Branch Routes
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'permission:view branches|manage branches'])->group(function () {
-    Route::post('/branch/switch', [BranchController::class, 'switch'])->name('branch.switch');
-    Route::get('/branch/current', [BranchController::class, 'getCurrentBranch'])->name('branch.current');
+    Route::middleware('branch.permission:edit branches')->group(function () {
+        Route::get('/branches/{branch}/edit', [BranchController::class, 'edit'])->name('branches.edit');
+        Route::put('/branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
+    });
 
-    Route::prefix('branches')->group(function () {
-        Route::get('/', [BranchController::class, 'index'])->name('branches.index');
-        Route::get('/{branch}', [BranchController::class, 'show'])->name('branches.show');
+    Route::middleware('branch.permission:delete branches')->group(function () {
+        Route::delete('/branches/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Services / Treatments / Packages
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:view services')->group(function () {
+        Route::get('/services', [ServiceController::class, 'index'])->name('services.index');
+    });
+
+    Route::middleware('branch.permission:create treatments,edit treatments,delete treatments,create packages,edit packages,delete packages')->group(function () {
+        Route::resource('treatments', TreatmentController::class)->except(['index', 'create', 'edit']);
+        Route::resource('packages', PackageController::class)->except(['index', 'create', 'edit']);
+
+        Route::get('/services/treatments/export', [ServiceImportExportController::class, 'exportTreatments'])
+            ->name('treatments.export');
+
+        Route::post('/services/treatments/import', [ServiceImportExportController::class, 'importTreatments'])
+            ->name('treatments.import');
+
+        Route::get('/services/packages/export', [ServiceImportExportController::class, 'exportPackages'])
+            ->name('packages.export');
+
+        Route::post('/services/packages/import', [ServiceImportExportController::class, 'importPackages'])
+            ->name('packages.import');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | API: Operating Hours
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:book appointments,view services')->group(function () {
+        Route::get('/api/operating-hours/{branch}/{day}', function ($branchId, $day) {
+            $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
+                ->where('day_of_week', $day)
+                ->first();
+
+            if (!$hours) {
+                return response()->json(['is_closed' => true]);
+            }
+
+            return response()->json([
+                'is_closed'    => $hours->is_closed,
+                'opening_time' => $hours->opening_time,
+                'closing_time' => $hours->closing_time,
+            ]);
+        })->name('api.operating-hours');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Staff
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:view staff')->group(function () {
+        Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
+        Route::get('/staff/{staff}', [StaffController::class, 'show'])->name('staff.show');
+    });
+
+    Route::middleware('branch.permission:create staff')->group(function () {
+        Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+    });
+
+    Route::middleware('branch.permission:edit staff')->group(function () {
+        Route::put('/staff/{staff}', [StaffController::class, 'update'])->name('staff.update');
+    });
+
+    Route::middleware('branch.permission:delete staff')->group(function () {
+        Route::delete('/staff/{staff}', [StaffController::class, 'destroy'])->name('staff.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Inventory
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+
+        Route::middleware('branch.permission:view inventory')->group(function () {
+            Route::get('/products', [\App\Http\Controllers\InventoryController::class, 'products'])
+                ->name('products');
+        });
+
+        Route::middleware('branch.permission:view inventory logs')->group(function () {
+            Route::get('/logs', [\App\Http\Controllers\InventoryController::class, 'logs'])
+                ->name('logs');
+        });
+
+        Route::middleware('branch.permission:create inventory items')->group(function () {
+            Route::post('/products', [\App\Http\Controllers\InventoryController::class, 'store'])
+                ->name('products.store');
+
+            Route::post('/products/import', [InventoryImportExportController::class, 'importProducts'])
+                ->name('products.import');
+        });
+
+        Route::middleware('branch.permission:edit inventory items')->group(function () {
+            Route::post('/products/{product}/deduct', [\App\Http\Controllers\InventoryController::class, 'deduct'])
+                ->name('products.deduct');
+
+            Route::put('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'update'])
+                ->name('products.update');
+
+            Route::get('/products/export', [InventoryImportExportController::class, 'exportProducts'])
+                ->name('products.export');
+        });
+
+        Route::middleware('branch.permission:delete inventory items')->group(function () {
+            Route::delete('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'destroy'])
+                ->name('products.destroy');
+        });
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Insights
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:view decision support')->group(function () {
+        Route::get('/decision-support', [DecisionSupportController::class, 'index'])
+            ->name('decision-support.index');
+    });
+
+    Route::middleware('branch.permission:view reports')->group(function () {
+        Route::get('/reports', [ReportsController::class, 'index'])
+            ->name('reports.index');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | HR Modules
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:view hr dashboard')->group(function () {
+        // Rename to hrOverview in controller if your current method name still has a dash.
+        Route::get('/hr-overview', [HRController::class, 'hrOverview'])->name('hr-overview');
+    });
+
+    // Hiring
+    Route::middleware('branch.permission:view hiring')->group(function () {
+        Route::get('/hiring', [HRController::class, 'hiring'])->name('hiring.index');
+    });
+
+    Route::middleware('branch.permission:create hiring')->group(function () {
+        Route::post('/hiring', [HRController::class, 'hiringStore'])->name('hiring.store');
+    });
+
+    Route::middleware('branch.permission:edit hiring')->group(function () {
+        Route::put('/hiring/{posting}', [HRController::class, 'hiringUpdate'])->name('hiring.update');
+    });
+
+    Route::middleware('branch.permission:delete hiring')->group(function () {
+        Route::delete('/hiring/{posting}', [HRController::class, 'hiringDestroy'])->name('hiring.destroy');
+    });
+
+    // Applications
+    Route::middleware('branch.permission:view applications')->group(function () {
+        Route::get('/applications', [HRController::class, 'applications'])->name('applications.index');
+    });
+
+    Route::middleware('branch.permission:edit applications')->group(function () {
+        Route::post('/applications', [HRController::class, 'applicationsStore'])->name('applications.store');
+        Route::post('/applications/{applicant}/schedule-interview', [HRController::class, 'applicationsScheduleInterview'])
+            ->name('applications.schedule-interview');
+    });
+
+    Route::middleware('branch.permission:delete applications')->group(function () {
+        Route::delete('/applications/{applicant}', [HRController::class, 'applicationsDestroy'])->name('applications.destroy');
+    });
+
+    // Interviews
+    Route::middleware('branch.permission:view interviews')->group(function () {
+        Route::get('/interviews', [HRController::class, 'interviews'])->name('interviews.index');
+    });
+
+    Route::middleware('branch.permission:create interviews,edit interviews')->group(function () {
+        Route::post('/interviews/{interview}/approve', [HRController::class, 'interviewApprove'])->name('interviews.approve');
+        Route::post('/interviews/{interview}/reject', [HRController::class, 'interviewReject'])->name('interviews.reject');
+        Route::post('/interviews/{interview}/create-staff', [HRController::class, 'createStaffFromInterview'])
+            ->name('interviews.create-staff');
+    });
+
+    // Attendance & Leave
+    Route::middleware('branch.permission:view attendance,view leave requests,create leave requests,edit leave requests,delete leave requests')->group(function () {
+        Route::get('/attendance', [HRController::class, 'attendance'])->name('attendance.index');
+    });
+
+    Route::middleware('branch.permission:edit attendance')->group(function () {
+        Route::post('/attendance', [HRController::class, 'attendanceStore'])->name('attendance.store');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Finance Modules
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('branch.permission:view payroll')->group(function () {
+        Route::get('/payroll', [FinanceController::class, 'payroll'])->name('payroll.index');
+    });
+
+    Route::middleware('branch.permission:edit payroll')->group(function () {
+        Route::post('/payroll/generate', [FinanceController::class, 'payrollGenerate'])->name('payroll.generate');
+        Route::post('/payroll/{payroll}/finalize', [FinanceController::class, 'payrollFinalize'])->name('payroll.finalize');
+    });
+
+    Route::middleware('branch.permission:view revenue')->group(function () {
+        Route::get('/revenue', [FinanceController::class, 'revenue'])->name('revenue.index');
+    });
+
+    Route::middleware('branch.permission:view billing')->group(function () {
+        Route::get('/billing', fn() => view('finance.billing'))->name('billing.index');
+    });
+
+    Route::middleware('branch.permission:create billing')->group(function () {
+        // Add billing store routes here when your controller is ready.
+    });
+
+    Route::middleware('branch.permission:edit billing')->group(function () {
+        // Add billing update routes here when your controller is ready.
+    });
+
+    Route::middleware('branch.permission:delete billing')->group(function () {
+        // Add billing delete routes here when your controller is ready.
+    });
+
+    Route::middleware('branch.permission:view finance inventory')->group(function () {
+        Route::get('/finance-inventory', fn() => view('finance.inventory'))->name('finance-inventory.index');
     });
 });
 
-Route::middleware(['auth', 'permission:manage branches'])->group(function () {
-    Route::prefix('branches')->group(function () {
-        Route::post('/', [BranchController::class, 'store'])->name('branches.store');
-        Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('branches.edit');
-        Route::put('/{branch}', [BranchController::class, 'update'])->name('branches.update');
-        Route::delete('/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
-    });
-});
-
 /*
 |--------------------------------------------------------------------------
-| Services / Treatments / Packages
+| Administration (Admin only, global permissions)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'permission:view services|manage services'])->group(function () {
-    Route::get('/services', [ServiceController::class, 'index'])->name('services.index');
-});
 
-Route::middleware(['auth', 'permission:manage services'])->group(function () {
-    Route::resource('treatments', TreatmentController::class)->except(['index', 'create', 'edit']);
-    Route::resource('packages', PackageController::class)->except(['index', 'create', 'edit']);
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
 
-    Route::get('/services/treatments/export', [ServiceImportExportController::class, 'exportTreatments'])
-        ->name('treatments.export');
+        Route::middleware('permission:view registered spas')->group(function () {
+            Route::get('/registered-spas', [RegisteredSpaController::class, 'index'])->name('registered-spas.index');
+        });
 
-    Route::post('/services/treatments/import', [ServiceImportExportController::class, 'importTreatments'])
-        ->name('treatments.import');
+        // No separate "delete registered spas" permission exists in your current seeder,
+        // so edit permission is currently the closest match for edit/update/destroy.
+        Route::middleware('permission:edit registered spas')->group(function () {
+            Route::get('/registered-spas/{spa}/edit', [RegisteredSpaController::class, 'edit'])->name('registered-spas.edit');
+            Route::put('/registered-spas/{spa}', [RegisteredSpaController::class, 'update'])->name('registered-spas.update');
+            Route::delete('/registered-spas/{spa}', [RegisteredSpaController::class, 'destroy'])->name('registered-spas.destroy');
+        });
 
-    Route::get('/services/packages/export', [ServiceImportExportController::class, 'exportPackages'])
-        ->name('packages.export');
+        Route::middleware('permission:view registered users')->group(function () {
+            Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+        });
 
-    Route::post('/services/packages/import', [ServiceImportExportController::class, 'importPackages'])
-        ->name('packages.import');
-});
+        Route::middleware('permission:edit registered users')->group(function () {
+            Route::put('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.updateRole');
+        });
 
-/*
-|--------------------------------------------------------------------------
-| API: Operating Hours
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'permission:create booking|manage services'])->group(function () {
-});
+        Route::middleware('permission:delete registered users')->group(function () {
+            Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
+        });
 
-Route::get('/api/operating-hours/{branch}/{day}', function ($branchId, $day) {
-        $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
-            ->where('day_of_week', $day)
-            ->first();
+        Route::middleware('permission:view system roles')->group(function () {
+            Route::get('/roles-permissions', [RolePermissionController::class, 'index'])->name('roles-permissions.index');
+        });
 
-        if (!$hours) return response()->json(['is_closed' => true]);
+        Route::middleware('permission:edit system roles')->group(function () {
+            Route::get('/roles-permissions/{role}/edit', [RolePermissionController::class, 'edit'])->name('roles-permissions.edit');
+            Route::put('/roles-permissions/{role}', [RolePermissionController::class, 'update'])->name('roles-permissions.update');
+        });
 
-        return response()->json([
-            'is_closed'    => $hours->is_closed,
-            'opening_time' => $hours->opening_time,
-            'closing_time' => $hours->closing_time,
-        ]);
-    })->name('api.operating-hours');
-
-/*
-|--------------------------------------------------------------------------
-| Staff
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'permission:view staff|manage staff'])->group(function () {
-    Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
-    Route::get('/staff/{staff}', [StaffController::class, 'show'])->name('staff.show');
-});
-
-Route::middleware(['auth', 'permission:manage staff'])->group(function () {
-    Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
-    Route::put('/staff/{staff}', [StaffController::class, 'update'])->name('staff.update');
-    Route::delete('/staff/{staff}', [StaffController::class, 'destroy'])->name('staff.destroy');
-});
-
-/*
-|--------------------------------------------------------------------------
-| Inventory — ✅ FIXED: was role:manager, now permission-based
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth'])->prefix('inventory')->name('inventory.')->group(function () {
-
-    // View products — view inventory OR manage inventory
-    Route::middleware('permission:view inventory|manage inventory')->group(function () {
-        Route::get('/products', [\App\Http\Controllers\InventoryController::class, 'products'])
-            ->name('products');
+        Route::middleware('permission:manage system settings')->group(function () {
+            Route::get('/settings', fn() => view('settings'))->name('settings.index');
+        });
     });
-
-    // View logs — view inventory logs OR manage inventory
-    Route::middleware('permission:view inventory logs|manage inventory')->group(function () {
-        Route::get('/logs', [\App\Http\Controllers\InventoryController::class, 'logs'])
-            ->name('logs');
-    });
-
-    // Manage inventory — manage inventory only
-    Route::middleware('permission:manage inventory')->group(function () {
-        Route::post('/products', [\App\Http\Controllers\InventoryController::class, 'store'])
-            ->name('products.store');
-        Route::post('/products/{product}/deduct', [\App\Http\Controllers\InventoryController::class, 'deduct'])
-            ->name('products.deduct');
-        Route::put('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'update'])
-            ->name('products.update');
-        Route::delete('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'destroy'])
-            ->name('products.destroy');
-
-        Route::get('/products/export', [InventoryImportExportController::class, 'exportProducts'])
-            ->name('products.export');
-        Route::post('/products/import', [InventoryImportExportController::class, 'importProducts'])
-            ->name('products.import');
-    });
-});
-
-/*
-|--------------------------------------------------------------------------
-| Insights
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'permission:view decision support'])->group(function () {
-    Route::get('/decision-support', [DecisionSupportController::class, 'index'])
-        ->name('decision-support.index');
-});
-
-Route::middleware(['auth', 'permission:view reports'])->group(function () {
-    Route::get('/reports', [ReportsController::class, 'index'])
-        ->name('reports.index');
-});
-
-/*
-|--------------------------------------------------------------------------
-| Appointments
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'permission:view appointments'])->group(function () {
-    Route::get('/appointments', [BookingController::class, 'adminIndex'])->name('appointments.index');
-});
-
-Route::middleware(['auth', 'permission:delete appointments'])->group(function () {
-    Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
-});
-
-Route::middleware(['auth', 'permission:edit appointments'])->group(function () {
-    Route::post('/appointments/{booking}/reserve', [BookingController::class, 'reserve'])->name('appointments.reserve');
-    Route::put('/appointments/{booking}/status', [BookingController::class, 'updateStatus'])->name('appointments.updateStatus');
-    Route::put('/appointments/{booking}', [BookingController::class, 'update'])->name('appointments.update');
-});
-
-/*
-|--------------------------------------------------------------------------
-| Administration (Admin only)
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
-
-    Route::get('/registered-spas', [RegisteredSpaController::class, 'index'])->name('registered-spas.index');
-    Route::get('/registered-spas/{spa}/edit', [RegisteredSpaController::class, 'edit'])->name('registered-spas.edit');
-    Route::put('/registered-spas/{spa}', [RegisteredSpaController::class, 'update'])->name('registered-spas.update');
-    Route::delete('/registered-spas/{spa}', [RegisteredSpaController::class, 'destroy'])->name('registered-spas.destroy');
-
-    Route::middleware('permission:manage users')->group(function () {
-        Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
-        Route::put('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.updateRole');
-        Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
-    });
-
-    Route::middleware('permission:manage roles')->group(function () {
-        Route::get('/roles-permissions', [RolePermissionController::class, 'index'])->name('roles-permissions.index');
-        Route::get('/roles-permissions/{role}/edit', [RolePermissionController::class, 'edit'])->name('roles-permissions.edit');
-        Route::put('/roles-permissions/{role}', [RolePermissionController::class, 'update'])->name('roles-permissions.update');
-    });
-
-    Route::middleware('permission:manage settings')->group(function () {
-        Route::get('/settings', fn() => view('settings'))->name('settings.index');
-    });
-});
 
 /*
 |--------------------------------------------------------------------------
 | Setup Wizard (Owner Only)
 |--------------------------------------------------------------------------
 */
+
 Route::middleware(['auth', 'owner-only'])->group(function () {
     Route::get('/setup/index', [SetupController::class, 'index'])->name('setup.index');
     Route::post('/setup/spa', [SetupController::class, 'storeSpa'])->name('setup.store-spa');
@@ -365,135 +509,40 @@ Route::middleware(['auth', 'owner-only'])->group(function () {
 | Owner Routes
 |--------------------------------------------------------------------------
 */
+
 Route::middleware(['auth', 'role:owner'])
     ->prefix('owner')
     ->name('owner.')
     ->group(function () {
         // Spa Profile
-        Route::get('/spa-profile', [SpaProfileController::class, 'edit'])
-            ->name('spa-profile.edit');
-        Route::patch('/spa-profile', [SpaProfileController::class, 'update'])
-            ->name('spa-profile.update');
-        Route::post('/spa-profile/documents', [SpaProfileController::class, 'uploadDocument'])
-            ->name('spa-profile.documents.upload');
-        Route::delete('/spa-profile/documents/{document}', [SpaProfileController::class, 'destroyDocument'])
-            ->name('spa-profile.documents.destroy');
+        Route::get('/spa-profile', [SpaProfileController::class, 'edit'])->name('spa-profile.edit');
+        Route::patch('/spa-profile', [SpaProfileController::class, 'update'])->name('spa-profile.update');
+        Route::post('/spa-profile/documents', [SpaProfileController::class, 'uploadDocument'])->name('spa-profile.documents.upload');
+        Route::delete('/spa-profile/documents/{document}', [SpaProfileController::class, 'destroyDocument'])->name('spa-profile.documents.destroy');
 
         // Roles & Permissions
-        Route::get('/roles-permissions', [OwnerRolePermissionController::class, 'index'])
-            ->name('roles-permissions.index');
-        Route::get('/roles-permissions/{role}/edit', [OwnerRolePermissionController::class, 'edit'])
-            ->name('roles-permissions.edit');
-        Route::put('/roles-permissions/{role}', [OwnerRolePermissionController::class, 'update'])
-            ->name('roles-permissions.update');
+        Route::get('/roles-permissions', [OwnerRolePermissionController::class, 'index'])->name('roles-permissions.index');
+        Route::get('/roles-permissions/{role}/edit', [OwnerRolePermissionController::class, 'edit'])->name('roles-permissions.edit');
+        Route::put('/roles-permissions/{role}', [OwnerRolePermissionController::class, 'update'])->name('roles-permissions.update');
 
         // Subscription Management
-        Route::get('/subscription', [SubscriptionController::class, 'index'])
-            ->name('subscription.index');
-        Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])
-            ->name('subscription.checkout');
-        Route::get('/subscription/success', [SubscriptionController::class, 'success'])
-            ->name('subscription.success');
-        Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel'])
-            ->name('subscription.cancel');
-        Route::post('/subscription/cancel-subscription', [SubscriptionController::class, 'cancelSubscription'])
-            ->name('subscription.cancel-subscription');
+        Route::get('/subscription', [SubscriptionController::class, 'index'])->name('subscription.index');
+        Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
+        Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
+        Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
+        Route::post('/subscription/cancel-subscription', [SubscriptionController::class, 'cancelSubscription'])->name('subscription.cancel-subscription');
     });
 
-/*
-|--------------------------------------------------------------------------
-| People / HR Modules (staff side, permission-based)
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth'])->group(function () {
-	
-    Route::get('/hr-overview', [HRController::class, 'hr-overview'])->name('hr-overview');
-
-    // Hiring
-    Route::middleware('permission:view hiring|manage hiring')->group(function () {
-        Route::get('/hiring', [HRController::class, 'hiring'])->name('hiring.index');
-    });
-
-    Route::middleware('permission:manage hiring')->group(function () {
-        Route::post('/hiring', [HRController::class, 'hiringStore'])->name('hiring.store');
-        Route::put('/hiring/{posting}', [HRController::class, 'hiringUpdate'])->name('hiring.update');
-        Route::delete('/hiring/{posting}', [HRController::class, 'hiringDestroy'])->name('hiring.destroy');
-    });
-
-    // Applicants
-    Route::middleware('permission:view applications|manage applications')->group(function () {
-        Route::get('/applications', [HRController::class, 'applications'])->name('applications.index');
-    });
-
-    Route::middleware('permission:manage applications')->group(function () {
-        Route::post('/applications', [HRController::class, 'applicationsStore'])->name('applications.store');
-        Route::post('/applications/{applicant}/schedule-interview', [HRController::class, 'applicationsScheduleInterview'])
-            ->name('applications.schedule-interview');
-    });
-
-    // Interviews
-    Route::middleware('permission:view interviews|manage interviews')->group(function () {
-        Route::get('/interviews', [HRController::class, 'interviews'])->name('interviews.index');
-    });
-
-    Route::middleware('permission:manage interviews')->group(function () {
-        Route::post('/interviews/{interview}/approve', [HRController::class, 'interviewApprove'])->name('interviews.approve');
-        Route::post('/interviews/{interview}/reject', [HRController::class, 'interviewReject'])->name('interviews.reject');
-        Route::post('/interviews/{interview}/create-staff', [HRController::class, 'createStaffFromInterview'])
-            ->name('interviews.create-staff');
-    });
-
-    // Attendance & Leave
-    Route::middleware('permission:view attendance|manage attendance')->group(function () {
-        Route::get('/attendance', [HRController::class, 'attendance'])->name('attendance.index');
-    });
-
-    Route::middleware('permission:manage attendance')->group(function () {
-        Route::post('/attendance', [HRController::class, 'attendanceStore'])->name('attendance.store');
-    });
-});
-
-/*
-|--------------------------------------------------------------------------
-| Finance Modules (staff side, permission-based)
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth'])->group(function () {
-
-    // Payroll
-    Route::middleware('permission:view payroll|manage payroll')->group(function () {
-        Route::get('/payroll', [FinanceController::class, 'payroll'])->name('payroll.index');
-    });
-
-    Route::middleware('permission:manage payroll')->group(function () {
-        Route::post('/payroll/generate', [FinanceController::class, 'payrollGenerate'])->name('payroll.generate');
-        Route::post('/payroll/{payroll}/finalize', [FinanceController::class, 'payrollFinalize'])->name('payroll.finalize');
-    });
-
-    // Revenue
-    Route::middleware('permission:view revenue|manage revenue')->group(function () {
-        Route::get('/revenue', [FinanceController::class, 'revenue'])->name('revenue.index');
-    });
-
-    // Billing / Expenses
-    Route::middleware('permission:view billing|manage billing')->group(function () {
-        Route::get('/billing', fn() => view('finance.billing'))->name('billing.index');
-    });
-
-    // Finance Inventory (optional / future)
-    Route::middleware('permission:view finance inventory|manage finance inventory')->group(function () {
-        Route::get('/finance-inventory', fn() => view('finance.inventory'))->name('finance-inventory.index');
-    });
-});
 /*
 |--------------------------------------------------------------------------
 | User Profile
 |--------------------------------------------------------------------------
 */
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

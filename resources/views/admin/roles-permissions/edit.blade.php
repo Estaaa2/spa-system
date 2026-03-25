@@ -3,94 +3,83 @@
 @section('content')
 <div class="p-6">
     <x-page-header
-        title="Edit Role — {{ ucfirst($role->name) }}"
-        subtitle="Modify the permissions assigned to this role."
+        title="Edit Default Role — {{ ucfirst($role->name) }}"
+        subtitle="These permissions become the default template for newly initialized spa branches."
     />
 
-    @php
-        $isAdminRole = strtolower($role->name) === 'admin';
-        $actions = ['view', 'create', 'edit', 'delete', 'manage'];
-    @endphp
-
-    @if($isAdminRole)
-        <div class="p-5 bg-white border rounded-lg dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Admin role is protected</p>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                This role can't be edited from the UI to avoid locking yourself out.
-            </p>
-            <div class="mt-4">
-                <a href="{{ route('admin.roles-permissions.index') }}"
-                   class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
-                    Back to Roles
-                </a>
+    <div class="p-4 mb-5 border rounded-xl bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-700">
+        <div class="flex items-start gap-3">
+            <i class="mt-0.5 fa-solid fa-circle-info text-amber-600 dark:text-amber-400"></i>
+            <div>
+                <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">Default role template</p>
+                <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                    Changes here affect newly initialized spa branches only. Existing branches keep their current role setup unless manually changed by the spa owner.
+                </p>
             </div>
         </div>
-    @else
-        <form method="POST" action="{{ route('admin.roles-permissions.update', $role) }}"
-              class="bg-white border rounded-lg dark:bg-gray-800 dark:border-gray-700">
-            @csrf
-            @method('PUT')
+    </div>
 
-            <div class="p-5 space-y-4">
-                @foreach($groups as $group => $perms)
-                    @php
-                        // ✅ FIX: Group by FIRST WORD only — not str_contains
-                        $sections = collect($actions)->mapWithKeys(fn($a) => [$a => collect()]);
-                        $sections['other'] = collect();
+    <form method="POST" action="{{ route('admin.roles-permissions.update', $role) }}"
+          class="bg-white border rounded-xl dark:bg-gray-800 dark:border-gray-700">
+        @csrf
+        @method('PUT')
 
-                        foreach ($perms as $perm) {
-                            $name      = strtolower($perm->name);
-                            $firstWord = explode(' ', $name)[0]; // ✅ use first word only
+        <div class="p-5 space-y-4">
+            @foreach($groups as $group => $perms)
+                <details class="overflow-hidden border rounded-xl group dark:border-gray-700">
+                    <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-gray-50 dark:bg-gray-700/40">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ $group }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $perms->count() }} permissions</p>
+                        </div>
 
-                            if (in_array($firstWord, $actions)) {
-                                $sections[$firstWord]->push($perm);
-                            } else {
-                                $sections['other']->push($perm);
-                            }
-                        }
+                        <div class="flex items-center gap-2">
+                            <button type="button"
+                                    class="section-check-all px-2.5 py-1 text-xs font-medium text-[#8B7355] border border-[#8B7355]/30 rounded-lg hover:bg-[#8B7355]/5"
+                                    data-group="{{ \Illuminate\Support\Str::slug($group) }}">
+                                Select all
+                            </button>
+                            <button type="button"
+                                    class="section-clear-all px-2.5 py-1 text-xs font-medium text-gray-600 border rounded-lg hover:bg-gray-50 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
+                                    data-group="{{ \Illuminate\Support\Str::slug($group) }}">
+                                Clear
+                            </button>
+                            <i class="fa-solid fa-chevron-down text-xs text-gray-400 transition group-open:rotate-180"></i>
+                        </div>
+                    </summary>
 
-                        $sections = $sections->filter(fn($c) => $c->count() > 0);
-                    @endphp
-
-                    {{-- One dropdown per group --}}
-                    <details class="border rounded-lg group dark:border-gray-700">
-                        <summary class="flex items-center justify-between px-4 py-3 cursor-pointer select-none bg-gray-50 dark:bg-gray-700/40">
-                            <p class="text-xs font-semibold tracking-wider text-gray-600 uppercase dark:text-gray-200">
-                                <i class="mr-2 fa-brands fa-creative-commons-by"></i>
-                                {{ $group }} Permissions
-                            </p>
-                            <svg class="w-4 h-4 text-gray-400 transition-transform duration-200 group-open:rotate-180"
-                                 viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
-                            </svg>
-                        </summary>
-
-                        <div class="p-4 space-y-5 bg-white details-anim dark:bg-gray-800">
-                            @foreach($sections as $action => $items)
-                                <div>
-                                    <p class="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-300">
-                                        {{ $action }}
-                                    </p>
-                                    <div class="grid gap-2 md:grid-cols-2">
-                                        @foreach($items as $perm)
-                                            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer dark:text-gray-200">
-                                                <input type="checkbox"
-                                                       name="permissions[]"
-                                                       value="{{ $perm->name }}"
-                                                       @checked($role->permissions->contains('name', $perm->name))
-                                                       class="border-gray-300 rounded dark:border-gray-600 text-[#8B7355] focus:ring-[#8B7355]/30">
-                                                <span>{{ $perm->name }}</span>
-                                            </label>
-                                        @endforeach
+                    <div class="p-4 bg-white dark:bg-gray-800">
+                        <div class="grid gap-3 md:grid-cols-2">
+                            @foreach($perms as $perm)
+                                <label class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/40">
+                                    <input
+                                        type="checkbox"
+                                        name="permissions[]"
+                                        value="{{ $perm->name }}"
+                                        data-group="{{ \Illuminate\Support\Str::slug($group) }}"
+                                        @checked($role->permissions->contains('name', $perm->name))
+                                        class="mt-1 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355]/30"
+                                    >
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ ucwords($perm->name) }}</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            Grants this role access to {{ strtolower($perm->name) }}.
+                                        </p>
                                     </div>
-                                </div>
+                                </label>
                             @endforeach
                         </div>
-                    </details>
-                @endforeach
-            </div>
+                    </div>
+                </details>
+            @endforeach
+        </div>
 
-            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t bg-gray-50 dark:bg-gray-700/50 dark:border-gray-700">
+        <div class="flex items-center justify-between gap-3 px-5 py-4 border-t bg-gray-50 dark:bg-gray-700/40 dark:border-gray-700">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Only business-role defaults are shown here.
+            </p>
+
+            <div class="flex items-center gap-2">
                 <a href="{{ route('admin.roles-permissions.index') }}"
                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
                     Cancel
@@ -99,29 +88,27 @@
                     Save Changes
                 </button>
             </div>
-        </form>
-    @endif
+        </div>
+    </form>
 </div>
 
-<style>
-details > .details-anim {
-    overflow: hidden;
-}
-details[open] > .details-anim {
-    animation: details-slide-down 300ms ease-out;
-    transform-origin: top;
-}
-details:not([open]) > .details-anim {
-    animation: details-slide-up 180ms ease-in;
-    transform-origin: top;
-}
-@keyframes details-slide-down {
-    from { opacity: 0; transform: translateY(-6px) scaleY(0.98); }
-    to   { opacity: 1; transform: translateY(0) scaleY(1); }
-}
-@keyframes details-slide-up {
-    from { opacity: 1; transform: translateY(0) scaleY(1); }
-    to   { opacity: 0; transform: translateY(-6px) scaleY(0.98); }
-}
-</style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.section-check-all').forEach(button => {
+        button.addEventListener('click', function () {
+            const group = this.dataset.group;
+            document.querySelectorAll(`input[type="checkbox"][data-group="${group}"]`)
+                .forEach(cb => cb.checked = true);
+        });
+    });
+
+    document.querySelectorAll('.section-clear-all').forEach(button => {
+        button.addEventListener('click', function () {
+            const group = this.dataset.group;
+            document.querySelectorAll(`input[type="checkbox"][data-group="${group}"]`)
+                .forEach(cb => cb.checked = false);
+        });
+    });
+});
+</script>
 @endsection

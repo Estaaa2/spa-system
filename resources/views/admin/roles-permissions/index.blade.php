@@ -3,9 +3,9 @@
 @section('content')
 <div class="p-6">
     <x-page-header
-    title="Roles & Permissions"
-    subtitle="Edit what each role can access."
-/>
+        title="Default Roles & Permissions"
+        subtitle="Manage the platform-wide default role template used for newly initialized spa branches."
+    />
 
     <!-- CARD -->
     <div class="bg-white border shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
@@ -68,6 +68,9 @@
             Click <strong>Edit</strong> to manage permissions for a role.
         </div>
     </div>
+</div>
+<div class="px-6 py-4 text-xs text-gray-500 border-t dark:border-gray-700 dark:text-gray-400">
+    These are platform defaults only. Existing spa branches keep their current role settings unless changed by the spa owner.
 </div>
 
 @if (session('success'))

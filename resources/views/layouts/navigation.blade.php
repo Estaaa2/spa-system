@@ -16,39 +16,52 @@
     $currentBranchId = session('current_branch_id');
     $currentBranch   = $branches->firstWhere('id', $currentBranchId) ?? $firstBranch;
 
-    // Branch-aware permission helper
     $can = fn($permission) => $user?->hasBranchPermission($permission) ?? false;
 
-    // Suite enabled only if:
-    // 1) spa is professional tier
-    // 2) current branch has the suite enabled
     $suiteEnabled = (($spa?->business_tier ?? null) === 'professional')
         && (bool) ($currentBranch?->has_workforce_finance_suite ?? false);
 
     // Dashboard
-    $canDashboard = $user?->hasRole('owner') || $can('view owner dashboard') || $can('view branch dashboard');
+    $canDashboard = $user?->hasAnyRole(['owner', 'manager', 'therapist', 'receptionist']);
 
-    // =========================
-    // OPERATIONS
-    // =========================
-    $canBooking      = $can('create booking');
+    // Operations
+    $canBooking      = $can('book appointments');
     $canAppointments = $can('view appointments');
-    $canSchedule     = $can('view schedule') || $can('manage schedule');
+    $canSchedule     = $can('view schedule');
 
-    // Reusing existing attendance/leave permission source from current system
-    $canAttendanceLeave = $can('view staff availability') || $can('manage staff availability');
+    $canAttendanceLeave =
+        $can('view attendance') ||
+        $can('edit attendance') ||
+        $can('view leave requests') ||
+        $can('create leave requests') ||
+        $can('edit leave requests') ||
+        $can('delete leave requests');
 
-    // In default mode, Attendance & Leave stays under Operations
     $showOperations = $canBooking || $canAppointments || $canSchedule || (!$suiteEnabled && $canAttendanceLeave);
 
-    // =========================
-    // PEOPLE (suite-enabled only)
-    // =========================
-    $canStaffAccounts = $can('view staff') || $can('manage staff');
+    // People
+    $canStaffAccounts =
+        $can('view staff') ||
+        $can('create staff') ||
+        $can('edit staff') ||
+        $can('delete staff');
 
-    $canHiring       = $can('view hiring') || $can('manage hiring');
-    $canApplicants   = $can('view applications') || $can('manage applications');
-    $canInterviews   = $can('view interviews') || $can('manage interviews');
+    $canHiring =
+        $can('view hiring') ||
+        $can('create hiring') ||
+        $can('edit hiring') ||
+        $can('delete hiring');
+
+    $canApplicants =
+        $can('view applications') ||
+        $can('edit applications') ||
+        $can('delete applications');
+
+    $canInterviews =
+        $can('view interviews') ||
+        $can('create interviews') ||
+        $can('edit interviews') ||
+        $can('delete interviews');
 
     $showPeople = $suiteEnabled && (
         $canStaffAccounts ||
@@ -58,43 +71,57 @@
         $canInterviews
     );
 
-    // =========================
-    // MANAGEMENT
-    // =========================
-    $canServices = $can('view services') || $can('manage services');
-    $canBranches = $can('view branches') || $can('manage branches');
+    // Management
+    $canServices =
+        $can('view services') ||
+        $can('create treatments') ||
+        $can('edit treatments') ||
+        $can('delete treatments') ||
+        $can('create packages') ||
+        $can('edit packages') ||
+        $can('delete packages');
 
-    // Staff only belongs here when suite is NOT enabled
-    $canManagementStaff = !$suiteEnabled && ($can('view staff') || $can('manage staff'));
+    $canBranches =
+        $can('view branches') ||
+        $can('create branches') ||
+        $can('edit branches') ||
+        $can('delete branches');
+
+    $canManagementStaff = !$suiteEnabled && $canStaffAccounts;
 
     $showManagement = $canServices || $canManagementStaff || $canBranches;
 
-    // =========================
-    // FINANCE (suite-enabled only)
-    // =========================
-    $canPayroll  = $can('view payroll') || $can('manage payroll');
-    $canRevenue  = $can('view revenue') || $can('manage revenue');
-    $canBilling  = $can('view billing') || $can('manage billing');
+    // Finance
+    $canPayroll = $can('view payroll') || $can('edit payroll');
+    $canRevenue = $can('view revenue');
+    $canBilling =
+        $can('view billing') ||
+        $can('create billing') ||
+        $can('edit billing') ||
+        $can('delete billing');
 
     $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling);
 
-    // =========================
-    // INSIGHTS
-    // =========================
+    // Insights
     $canDecisionSupport = $can('view decision support');
     $canReports         = $can('view reports');
     $showInsights       = $canDecisionSupport || $canReports;
 
-    // =========================
-    // INVENTORY
-    // =========================
-    $canInventoryProducts = $can('view inventory') || $can('manage inventory');
-    $canInventoryLogs     = $can('view inventory logs');
-    $showInventory        = $canInventoryProducts || $canInventoryLogs;
+    // Inventory
+    $canInventoryProducts =
+        $can('view inventory') ||
+        $can('create inventory items') ||
+        $can('edit inventory items') ||
+        $can('delete inventory items');
 
-    $brandHref = $user?->hasRole('owner')
+    $canInventoryLogs = $can('view inventory logs');
+    $showInventory    = $canInventoryProducts || $canInventoryLogs;
+
+    $brandHref = $canDashboard
         ? route('dashboard')
-        : ($canDashboard ? route('dashboard') : route('booking'));
+        : ($canBooking
+            ? route('booking')
+            : ($canAppointments ? route('appointments.index') : route('profile.edit')));
 @endphp
 
 <div x-data="sidebar()" class="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -363,7 +390,7 @@
                             @endif
 
                             @if(!$suiteEnabled && $canAttendanceLeave)
-                                <x-nav-link :href="route('staff.availability')" :active="request()->routeIs('staff.availability*')">
+                                <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.*')">
                                     Attendance &amp; Leave
                                 </x-nav-link>
                             @endif
@@ -392,7 +419,7 @@
                             @endif
 
                             @if($canAttendanceLeave)
-                                <x-nav-link :href="route('staff.availability')" :active="request()->routeIs('staff.availability*')">
+                                <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.index*')">
                                     Attendance &amp; Leave
                                 </x-nav-link>
                             @endif
@@ -474,13 +501,13 @@
                             @endif
 
                             @if($canRevenue)
-                                <x-nav-link :href="route('finance.revenue.index')" :active="request()->routeIs('finance.revenue.*')">
+                                <x-nav-link :href="route('revenue.index')" :active="request()->routeIs('revenue.*')">
                                     Revenue
                                 </x-nav-link>
                             @endif
 
                             @if($canBilling)
-                                <x-nav-link :href="route('finance.billing.index')" :active="request()->routeIs('finance.billing.*')">
+                                <x-nav-link :href="route('billing.index')" :active="request()->routeIs('billing.*')">
                                     Billing &amp; Expenses
                                 </x-nav-link>
                             @endif
