@@ -14,6 +14,12 @@
 
     $showActions = $canEditStaff || $canDeleteStaff;
 
+    $staffLimit = 1;
+    $staffCount = $staff->count();
+    $hasUnlimitedStaff = $isProfessional;
+    $hasReachedStaffLimit = !$hasUnlimitedStaff && $staffCount >= $staffLimit;
+    $remainingStaffSlots = max($staffLimit - $staffCount, 0);
+
     $roleCounts = [
         'manager' => 0,
         'therapist' => 0,
@@ -44,7 +50,7 @@
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Staff</p>
             <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-gray-900 dark:text-white">{{ $staff->count() }}</h3>
+                <h3 class="text-3xl font-semibold text-gray-900 dark:text-white">{{ $staffCount }}</h3>
                 <span class="text-sm text-gray-500 dark:text-gray-400">Active members</span>
             </div>
         </div>
@@ -80,111 +86,168 @@
         </div>
     </div>
 
-    {{-- Add New Staff --}}
-    @if($canCreateStaff)
-    <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-start justify-between gap-4">
+    {{-- Staff Plan Limit Notice --}}
+    @if(!$hasUnlimitedStaff)
+        <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Add New Staff Member</h2>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Create a new staff account and assign the appropriate role for this branch.
+                    <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
+                        Basic Plan Staff Limit
+                    </h2>
+                    <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                        This branch can only have up to <span class="font-semibold">{{ $staffLimit }}</span> staff accounts on the Basic plan.
+                        @if($hasReachedStaffLimit)
+                            You have already reached the limit.
+                        @else
+                            You still have <span class="font-semibold">{{ $remainingStaffSlots }}</span> staff slot(s) remaining.
+                        @endif
                     </p>
                 </div>
 
-                @if(!$isProfessional)
-                    <div class="px-3 py-2 text-xs text-right rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                        <i class="mr-1 fa-solid fa-lock"></i>
-                        HR & Finance roles require Professional
-                    </div>
-                @endif
+                <a href="{{ route('owner.subscription.index') }}"
+                   class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-xl bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:opacity-90">
+                    <i class="mr-2 fa-solid fa-arrow-up-right-from-square"></i>
+                    Upgrade Subscription
+                </a>
             </div>
         </div>
+    @endif
 
-        <div class="p-6">
-            <form action="{{ route('staff.store') }}" method="POST" id="addStaffForm" class="space-y-6">
-                @csrf
-
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email *</label>
-                        <input
-                            type="email"
-                            name="email"
-                            required
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                            placeholder="staff@example.com"
-                            value="{{ old('email') }}"
-                        >
-                        @error('email')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name *</label>
-                        <input
-                            type="text"
-                            name="name"
-                            required
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                            placeholder="John Doe"
-                            value="{{ old('name') }}"
-                        >
-                        @error('name')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
-                        <select
-                            name="roles"
-                            required
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                        >
-                            <option value="">Select Role</option>
-
-                            <optgroup label="Spa Staff">
-                                <option value="therapist" {{ old('roles') == 'therapist' ? 'selected' : '' }}>Therapist</option>
-                                <option value="receptionist" {{ old('roles') == 'receptionist' ? 'selected' : '' }}>Receptionist</option>
-                                <option value="manager" {{ old('roles') == 'manager' ? 'selected' : '' }}>Manager</option>
-                            </optgroup>
-
-                            @if($isProfessional)
-                            <optgroup label="Professional Roles ✦">
-                                <option value="hr" {{ old('roles') == 'hr' ? 'selected' : '' }}>HR</option>
-                                <option value="finance" {{ old('roles') == 'finance' ? 'selected' : '' }}>Finance</option>
-                            </optgroup>
-                            @endif
-                        </select>
-                        @error('roles')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-
-                        @if(!$isProfessional)
-                            <p class="mt-1 text-xs text-gray-400">
-                                <i class="fa-solid fa-lock text-[#8B7355]"></i>
-                                HR & Finance roles require the
-                                <a href="{{ route('owner.subscription.index') }}" class="font-medium underline text-[#8B7355]">
-                                    Professional plan
-                                </a>
+    {{-- Add New Staff --}}
+    @if($canCreateStaff)
+        @if($hasReachedStaffLimit)
+            <div class="overflow-hidden bg-white border border-red-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-red-800">
+                <div class="px-6 py-5">
+                    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-red-700 dark:text-red-300">Staff Limit Reached</h2>
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                This branch already has {{ $staffCount }} staff account(s), which is the maximum allowed for the Basic plan.
+                                Upgrade your subscription to add more staff members.
                             </p>
+                        </div>
+
+                        <a href="{{ route('owner.subscription.index') }}"
+                           class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-xl bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:opacity-90">
+                            <i class="mr-2 fa-solid fa-crown"></i>
+                            Unlock Unlimited Staff
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @else
+        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Add New Staff Member</h2>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Create a new staff account and assign the appropriate role for this branch.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col items-end gap-2">
+                        @if(!$isProfessional)
+                            <div class="px-3 py-2 text-xs text-right rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                <i class="mr-1 fa-solid fa-lock"></i>
+                                HR & Finance roles require Professional
+                            </div>
+                        @endif
+
+                        @if(!$hasUnlimitedStaff)
+                            <div class="px-3 py-2 text-xs text-right text-gray-700 bg-gray-100 rounded-xl dark:bg-gray-700 dark:text-gray-300">
+                                {{ $remainingStaffSlots }} of {{ $staffLimit }} slot(s) remaining
+                            </div>
                         @endif
                     </div>
                 </div>
+            </div>
 
-                <div class="flex justify-end">
-                    <button
-                        type="submit"
-                        class="px-4 py-2.5 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348] focus:ring-4 focus:outline-none focus:ring-[#8B7355]/40"
-                    >
-                        Add Staff Member
-                    </button>
-                </div>
-            </form>
+            <div class="p-6">
+                <form action="{{ route('staff.store') }}" method="POST" id="addStaffForm" class="space-y-6">
+                    @csrf
+
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Email *</label>
+                            <input
+                                type="email"
+                                name="email"
+                                required
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                placeholder="staff@example.com"
+                                value="{{ old('email') }}"
+                            >
+                            @error('email')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name *</label>
+                            <input
+                                type="text"
+                                name="name"
+                                required
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                placeholder="John Doe"
+                                value="{{ old('name') }}"
+                            >
+                            @error('name')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
+                            <select
+                                name="roles"
+                                required
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                            >
+                                <option value="">Select Role</option>
+
+                                <optgroup label="Spa Staff">
+                                    <option value="therapist" {{ old('roles') == 'therapist' ? 'selected' : '' }}>Therapist</option>
+                                    <option value="receptionist" {{ old('roles') == 'receptionist' ? 'selected' : '' }}>Receptionist</option>
+                                    <option value="manager" {{ old('roles') == 'manager' ? 'selected' : '' }}>Manager</option>
+                                </optgroup>
+
+                                @if($isProfessional)
+                                <optgroup label="Professional Roles ✦">
+                                    <option value="hr" {{ old('roles') == 'hr' ? 'selected' : '' }}>HR</option>
+                                    <option value="finance" {{ old('roles') == 'finance' ? 'selected' : '' }}>Finance</option>
+                                </optgroup>
+                                @endif
+                            </select>
+                            @error('roles')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+
+                            @if(!$isProfessional)
+                                <p class="mt-1 text-xs text-gray-400">
+                                    <i class="fa-solid fa-lock text-[#8B7355]"></i>
+                                    HR & Finance roles require the
+                                    <a href="{{ route('owner.subscription.index') }}" class="font-medium underline text-[#8B7355]">
+                                        Professional plan
+                                    </a>
+                                </p>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button
+                            type="submit"
+                            class="px-4 py-2.5 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348] focus:ring-4 focus:outline-none focus:ring-[#8B7355]/40"
+                        >
+                            Add Staff Member
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
+        @endif
     @endif
 
     {{-- Staff Directory --}}
@@ -198,7 +261,7 @@
             </div>
 
             <span class="text-sm text-gray-500 dark:text-gray-400">
-                {{ $staff->count() }} staff member(s)
+                {{ $staffCount }} staff member(s)
             </span>
         </div>
 
@@ -347,7 +410,7 @@
                 <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900">
                     <div class="flex justify-end gap-3">
                         <button type="button" onclick="closeEditModal()"
-                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 shadow-sm rounded-xl hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
                             Cancel
                         </button>
                         <button type="submit"
@@ -425,44 +488,38 @@ function editStaff(staffId, isPro = false) {
         </optgroup>
     ` : '';
 
-    const formContent = `
-        <div>
-            <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Full Name</label>
-            <input type="text" name="name_display" readonly
-                class="block w-full p-2.5 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-xl cursor-not-allowed dark:bg-gray-600 dark:border-gray-500 dark:text-gray-200"
-                placeholder="Full name">
-            <p class="mt-1 text-xs text-gray-500">Full name cannot be edited here.</p>
-        </div>
+    document.getElementById('editFormContent').innerHTML = `
         <div>
             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
-            <select name="roles" required
-                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            <select
+                name="roles"
+                required
+                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            >
+                <option value="">Select Role</option>
+
                 <optgroup label="Spa Staff">
                     <option value="therapist">Therapist</option>
                     <option value="receptionist">Receptionist</option>
                     <option value="manager">Manager</option>
                 </optgroup>
+
                 ${professionalOptions}
             </select>
+
+            ${
+                !isPro
+                    ? `<p class="mt-2 text-xs text-gray-400">
+                        <i class="fa-solid fa-lock text-[#8B7355]"></i>
+                        HR & Finance roles require the Professional plan.
+                       </p>`
+                    : ''
+            }
         </div>
     `;
 
-    document.getElementById('editFormContent').innerHTML = formContent;
     document.getElementById('editStaffForm').action = `${staffBaseUrl}/${staffId}`;
     document.getElementById('editModal').classList.remove('hidden');
-
-    fetch(`${staffBaseUrl}/${staffId}`, {
-        headers: { Accept: 'application/json' }
-    })
-    .then(r => r.json())
-    .then(data => {
-        const nameEl = document.querySelector('[name="name_display"]');
-        const rolesEl = document.querySelector('[name="roles"]');
-
-        if (nameEl) nameEl.value = data.name || '';
-        if (rolesEl) rolesEl.value = data.roles || '';
-    })
-    .catch(err => console.error('Error fetching staff:', err));
 }
 @endif
 </script>

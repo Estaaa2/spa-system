@@ -75,95 +75,93 @@ class BranchController extends Controller
      * Store a newly created branch.
      */
     public function store(Request $request)
-    {
-        $user = Auth::user();
-        $spa = $user->spa;
-        $days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+{
+    $user = Auth::user();
+    $spa = $user->spa;
+    $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-        if (!$spa) {
+    if (!$spa) {
+        return response()->json([
+            'success' => false,
+            'message' => 'No spa assigned to this account.',
+        ], 403);
+    }
+
+    // Basic plan: maximum of 2 branches
+    if (($spa->business_tier ?? null) !== 'professional') {
+        $branchCount = Branch::where('spa_id', $spa->id)->count();
+
+        if ($branchCount >= 2) {
             return response()->json([
                 'success' => false,
-                'message' => 'No spa assigned to this account.'
-            ], 403);
-        }
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'location' => 'required|string',
-            'is_main' => 'nullable',
-            'has_workforce_finance_suite' => 'nullable|boolean',
-            'hours' => 'required|array',
-            'hours.*.day_of_week' => 'required|string',
-            'hours.*.opening_time' => 'required|date_format:H:i',
-            'hours.*.closing_time' => 'required|date_format:H:i',
-            'hours.*.is_closed' => 'required|boolean',
-        ]);
-
-        if ($spa->business_tier !== 'professional' && $request->boolean('has_workforce_finance_suite')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Workforce & Finance Suite is only available for spas on the Professional business tier.',
-                'errors' => [
-                    'has_workforce_finance_suite' => [
-                        'Workforce & Finance Suite is only available for spas on the Professional business tier.',
-                    ],
-                ],
+                'message' => 'Your Basic plan allows only up to 2 branches. Upgrade your subscription to add more.',
             ], 422);
         }
+    }
 
-        $wantsMain = filter_var($request->input('is_main'), FILTER_VALIDATE_BOOLEAN);
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'location' => 'required|string',
+        'is_main' => 'nullable',
+        'has_workforce_finance_suite' => 'nullable|boolean',
+        'hours' => 'required|array',
+        'hours.*.day_of_week' => 'required|string',
+        'hours.*.opening_time' => 'required|date_format:H:i',
+        'hours.*.closing_time' => 'required|date_format:H:i',
+        'hours.*.is_closed' => 'required|boolean',
+    ]);
 
-        $isFirstBranch = ($spa->branches()->count() === 0);
-        if ($isFirstBranch) {
-            $wantsMain = true;
-        }
-
-        if ($wantsMain) {
-            $spa->branches()->update(['is_main' => false]);
-        }
-
-        $canUseSuite = ($spa->business_tier === 'professional');
-
-        $branch = Branch::create([
-            'spa_id' => $spa->id,
-            'name' => $validated['name'],
-            'location' => $validated['location'],
-            'is_main' => $wantsMain,
-            'has_workforce_finance_suite' => $canUseSuite
-                ? $request->boolean('has_workforce_finance_suite')
-                : false,
-        ]);
-
-        // Save operating hours from the request
-        if ($request->has('hours')) {
-            foreach ($request->hours as $index => $hourData) {
-                OperatingHours::create([
-                    'branch_id' => $branch->id,
-                    'day_of_week' => $hourData['day_of_week'] ?? $days[$index],
-                    'opening_time' => $hourData['opening_time'] ?? '09:00',
-                    'closing_time' => $hourData['closing_time'] ?? '18:00',
-                    'is_closed' => isset($hourData['is_closed']) ? (bool)$hourData['is_closed'] : false,
-                ]);
-            }
-        } else {
-            // fallback to default hours if no data sent
-            foreach ($days as $day) {
-                OperatingHours::create([
-                    'branch_id' => $branch->id,
-                    'day_of_week' => $day,
-                    'opening_time' => '09:00',
-                    'closing_time' => '18:00',
-                    'is_closed' => false,
-                ]);
-            }
-        }
-
+    if (($spa->business_tier ?? null) !== 'professional' && $request->boolean('has_workforce_finance_suite')) {
         return response()->json([
-            'success' => true,
-            'message' => 'Branch created successfully',
-            'branch' => $branch
+            'success' => false,
+            'message' => 'Workforce & Finance Suite is only available for spas on the Professional business tier.',
+            'errors' => [
+                'has_workforce_finance_suite' => [
+                    'Workforce & Finance Suite is only available for spas on the Professional business tier.',
+                ],
+            ],
+        ], 422);
+    }
+
+    $wantsMain = filter_var($request->input('is_main'), FILTER_VALIDATE_BOOLEAN);
+
+    $isFirstBranch = ($spa->branches()->count() === 0);
+    if ($isFirstBranch) {
+        $wantsMain = true;
+    }
+
+    if ($wantsMain) {
+        $spa->branches()->update(['is_main' => false]);
+    }
+
+    $canUseSuite = (($spa->business_tier ?? null) === 'professional');
+
+    $branch = Branch::create([
+        'spa_id' => $spa->id,
+        'name' => $validated['name'],
+        'location' => $validated['location'],
+        'is_main' => $wantsMain,
+        'has_workforce_finance_suite' => $canUseSuite
+            ? $request->boolean('has_workforce_finance_suite')
+            : false,
+    ]);
+
+    foreach ($request->hours as $index => $hourData) {
+        OperatingHours::create([
+            'branch_id' => $branch->id,
+            'day_of_week' => $hourData['day_of_week'] ?? $days[$index],
+            'opening_time' => $hourData['opening_time'] ?? '09:00',
+            'closing_time' => $hourData['closing_time'] ?? '18:00',
+            'is_closed' => isset($hourData['is_closed']) ? (bool) $hourData['is_closed'] : false,
         ]);
     }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Branch created successfully.',
+        'branch' => $branch,
+    ]);
+}
 
     /**
      * Update the specified branch.
@@ -182,7 +180,6 @@ class BranchController extends Controller
             'name' => 'required|string|max:255',
             'location' => 'required|string',
             'is_main' => 'nullable',
-            'has_workforce_finance_suite' => 'nullable|boolean',
         ]);
 
         if ($spa->business_tier !== 'professional' && $request->boolean('has_workforce_finance_suite')) {
@@ -213,7 +210,6 @@ class BranchController extends Controller
         // ----- Branch Profile Fields -----
         if ($spa->verification_status === 'verified') {
 
-            // Validate all profile fields
             $profileData = $request->validate([
                 'cover_image' => 'nullable|image|max:2048',
                 'gallery_images.*' => 'nullable|image|max:2048',
@@ -226,10 +222,28 @@ class BranchController extends Controller
                 'amenities.*' => 'nullable|string|max:100',
             ]);
 
+            // Cavite-only coordinate validation
+            if ($request->filled('latitude') && $request->filled('longitude')) {
+                $lat = (float) $request->latitude;
+                $lng = (float) $request->longitude;
+
+                $withinCavite =
+                    $lat >= 13.983 && $lat <= 14.600 &&
+                    $lng >= 120.850 && $lng <= 121.200;
+
+                if (! $withinCavite) {
+                    return back()
+                        ->withErrors([
+                            'address' => 'Pinned location must be within Cavite only.',
+                        ])
+                        ->withInput();
+                }
+            }
+
             $profile = $branch->profile ?? $branch->profile()->create([
                 'branch_id' => $branch->id,
             ]);
-            
+
             $profileData['is_listed'] = $request->boolean('is_listed');
 
             // Handle cover image
@@ -255,7 +269,7 @@ class BranchController extends Controller
 
             for ($i = 0; $i < 4; $i++) {
                 $existingPath = $existingGalleryInputs[$i] ?? null;
-                $removeThis = isset($removeGalleryInputs[$i]) && (int)$removeGalleryInputs[$i] === 1;
+                $removeThis = isset($removeGalleryInputs[$i]) && (int) $removeGalleryInputs[$i] === 1;
                 $newFile = $newGalleryFiles[$i] ?? null;
 
                 if ($removeThis) {
@@ -277,7 +291,6 @@ class BranchController extends Controller
             }
 
             $profileData['gallery_images'] = array_values(array_filter($finalGallery));
-
             $profileData['amenities'] = $profileData['amenities'] ?? $profile->amenities ?? [];
 
             $profile->update($profileData);
@@ -293,13 +306,13 @@ class BranchController extends Controller
         if ($request->has('hours')) {
             foreach ($request->hours as $hourData) {
                 $hourId = $hourData['id'] ?? null;
-                $hour = $hourId ? \App\Models\OperatingHours::find($hourId) : null;
-                $hour = $hour ?? new \App\Models\OperatingHours();
+                $hour = $hourId ? OperatingHours::find($hourId) : null;
+                $hour = $hour ?? new OperatingHours();
                 $hour->branch_id = $branch->id;
                 $hour->day_of_week = $hourData['day_of_week'] ?? $hour->day_of_week;
                 $hour->opening_time = $hourData['opening_time'] ?? '09:00';
                 $hour->closing_time = $hourData['closing_time'] ?? '18:00';
-                $hour->is_closed = isset($hourData['is_closed']) ? (bool)$hourData['is_closed'] : false;
+                $hour->is_closed = isset($hourData['is_closed']) ? (bool) $hourData['is_closed'] : false;
                 $hour->save();
             }
         }

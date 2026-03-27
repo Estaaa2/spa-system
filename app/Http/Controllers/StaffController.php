@@ -59,6 +59,17 @@ class StaffController extends Controller
             return back()->with('error', 'HR and Finance accounts are only available on the Professional plan.');
         }
 
+        // Basic plan: maximum of 10 staff accounts per branch
+        if (!$spa->isProfessional()) {
+            $staffCountForBranch = Staff::where('spa_id', $currentUser->spa_id)
+                ->where('branch_id', $branchId)
+                ->count();
+
+            if ($staffCountForBranch >= 1) {
+                return back()->with('error', 'This branch can only have up to 10 staff accounts on the Basic plan. Upgrade your subscription to add more staff members.');
+            }
+        }
+
         DB::transaction(function () use ($validated, $currentUser, $branchId) {
             $tempPassword = Str::random(12);
 

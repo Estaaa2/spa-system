@@ -339,7 +339,7 @@
                         @php $serviceTypeCounts = $treatments->groupBy('service_type')->map->count(); @endphp
                         @foreach($serviceTypeCounts->take(3) as $type => $count)
                         <div class="flex items-center justify-between">
-                            <span class="text-sm">{{ $type }}</span>
+                            <span class="text-sm">{{ ucwords(str_replace('_', ' ', $type)) }}</span>
                             <span class="text-sm font-medium">{{ $count }}</span>
                         </div>
                         @endforeach

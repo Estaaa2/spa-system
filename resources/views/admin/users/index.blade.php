@@ -70,19 +70,12 @@
                                         Edit
                                     </button>
 
-                                    <form method="POST"
-                                        action="{{ route('admin.users.destroy', $user->id) }}"
-                                        onsubmit="return confirm('Are you sure you want to delete this user?');"
-                                        class="inline">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button
-                                            type="submit"
-                                            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                            Delete
-                                        </button>
-                                    </form>
+                                    <button
+                                        type="button"
+                                        onclick="openDeleteModal({{ $user->id }}, '{{ addslashes($user->name) }}')"
+                                        class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                        Delete
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -100,6 +93,45 @@
         <!-- Card Footer -->
         <div class="px-6 py-4 border-t dark:border-gray-700">
             {{ $users->links() }}
+        </div>
+    </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div id="deleteModal" class="fixed inset-0 z-50 flex items-center justify-center hidden p-4 bg-black bg-opacity-50">
+    <div class="w-full max-w-md bg-white shadow-xl rounded-xl dark:bg-gray-800">
+        <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Delete User</h3>
+            <button type="button" onclick="closeDeleteModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <i class="text-xl fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <p class="text-sm text-gray-600 dark:text-gray-300">
+                Are you sure you want to delete
+                <span id="deleteUserName" class="font-semibold text-red-600"></span>?
+                This action cannot be undone.
+            </p>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button
+                    type="button"
+                    onclick="closeDeleteModal()"
+                    class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
+                    Cancel
+                </button>
+
+                <form id="deleteForm" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button
+                        type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
+                        Yes, Delete
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -132,7 +164,6 @@
                 @endforeach
             </select>
 
-
             <div class="flex justify-end gap-2">
                 <button type="button"
                         onclick="closeEditRoleModal()"
@@ -150,6 +181,16 @@
 
 <!-- MODAL SCRIPT -->
 <script>
+function openDeleteModal(userId, userName) {
+    document.getElementById('deleteUserName').textContent = userName;
+    document.getElementById('deleteForm').action = `/admin/users/${userId}`;
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+}
+
 function openEditRoleModal(userId, userName, currentRole) {
     document.getElementById('modalUserName').textContent = userName;
     document.getElementById('modalRoleSelect').value = currentRole;

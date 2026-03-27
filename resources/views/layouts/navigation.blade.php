@@ -21,6 +21,10 @@
     $suiteEnabled = (($spa?->business_tier ?? null) === 'professional')
         && (bool) ($currentBranch?->has_workforce_finance_suite ?? false);
 
+    $canWorkforceFinanceSuiteSettings =
+        $user?->hasRole('owner') &&
+        (($spa?->business_tier ?? null) === 'professional');
+
     // Dashboard
     $canDashboard = $user?->hasAnyRole(['owner', 'manager', 'therapist', 'receptionist']);
 
@@ -108,20 +112,17 @@
     $showInsights       = $canDecisionSupport || $canReports;
 
     // Inventory
-    $canInventoryProducts =
-        $can('view inventory') ||
-        $can('create inventory items') ||
-        $can('edit inventory items') ||
-        $can('delete inventory items');
+    $canProductInventory =
+        $can('view product inventory') ||
+        $can('create product inventory') ||
+        $can('edit product inventory') ||
+        $can('delete product inventory');
 
-    $canInventoryLogs = $can('view inventory logs');
-    $showInventory    = $canInventoryProducts || $canInventoryLogs;
+    $canProductLogs = $can('view product logs');
 
-    $brandHref = $canDashboard
-        ? route('dashboard')
-        : ($canBooking
-            ? route('booking')
-            : ($canAppointments ? route('appointments.index') : route('profile.edit')));
+    $showInventory = $canProductInventory || $canProductLogs;
+
+    $brandHref = route('dashboard');
 @endphp
 
 <div x-data="sidebar()" class="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -601,6 +602,12 @@
                             Spa Profile
                         </x-nav-link>
                         @endrole
+
+                        @if($canWorkforceFinanceSuiteSettings)
+                            <x-nav-link :href="route('owner.workforce-finance-suite.index')" :active="request()->routeIs('owner.workforce-finance-suite.*')">
+                                Workforce &amp; Finance Suite
+                            </x-nav-link>
+                        @endif
 
                         @role('owner')
                         <x-nav-link :href="route('owner.subscription.index')" :active="request()->routeIs('owner.subscription.*')">

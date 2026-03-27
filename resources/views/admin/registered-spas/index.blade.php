@@ -116,7 +116,7 @@
                                 {{ $spa->owner->name ?? 'N/A' }}
                             </td>
                             <td class="px-6 py-3">
-                                <span class="px-2 py-1 text-xs rounded text-white 
+                                <span class="px-2 py-1 text-xs rounded text-white
                                     {{ $spa->business_tier == 'basic' ? 'bg-gray-700' : ($spa->business_tier == 'professional' ? 'bg-blue-500' : 'bg-yellow-500') }} rounded dark:text-gray-200">
                                     {{ ucfirst($spa->business_tier) }}
                                 </span>
@@ -135,26 +135,21 @@
                                         type="button"
                                         onclick="openSpaModal({{ $spa->id }})"
                                         class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                        View / Edit
+                                        Edit
                                     </button>
 
-                                    <form method="POST"
-                                          action="{{ route('admin.registered-spas.destroy', $spa) }}"
-                                          onsubmit="return confirm('Are you sure you want to delete this spa? This action cannot be undone.')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button
-                                            type="submit"
-                                            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                            Delete
-                                        </button>
-                                    </form>
+                                    <button
+                                        type="button"
+                                        onclick="openDeleteModal({{ $spa->id }}, '{{ addslashes($spa->name) }}')"
+                                        class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                        Delete
+                                    </button>
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                            <td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                                 No spas found.
                             </td>
                         </tr>
@@ -162,13 +157,53 @@
                 </tbody>
             </table>
         </div>
+
         <div class="px-6 py-4 border-t dark:border-gray-700">
             {{ $spas->withQueryString()->links() }}
         </div>
     </div>
 </div>
 
-<!-- EDIT TIER MODAL -->
+<!-- DELETE MODAL -->
+<div id="deleteModal" class="fixed inset-0 z-50 flex items-center justify-center hidden p-4 bg-black bg-opacity-50">
+    <div class="w-full max-w-md bg-white shadow-xl rounded-xl dark:bg-gray-800">
+        <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Delete Spa</h3>
+            <button type="button" onclick="closeDeleteModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <i class="text-xl fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <p class="text-sm text-gray-600 dark:text-gray-300">
+                Are you sure you want to delete
+                <span id="deleteSpaName" class="font-semibold text-red-600"></span>?
+                This action cannot be undone.
+            </p>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button
+                    type="button"
+                    onclick="closeDeleteModal()"
+                    class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
+                    Cancel
+                </button>
+
+                <form id="deleteForm" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button
+                        type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
+                        Yes, Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- REVIEW MODAL -->
 <div id="spaModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-4xl p-6 mx-auto mt-10 bg-white rounded-xl shadow-xl dark:bg-gray-800 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-4 border-b dark:border-gray-700">
@@ -189,44 +224,50 @@
         </div>
 
         <div id="spaModalContent" class="hidden">
-            <div class="grid grid-cols-1 gap-6 mt-6 lg:grid-cols-2">
-                <div class="p-5 border rounded-xl dark:border-gray-700">
-                    <h3 class="mb-4 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
-                        Business Information
-                    </h3>
+            <form id="spaReviewForm" method="POST" class="space-y-6">
+                @csrf
+                @method('PUT')
 
-                    <dl class="space-y-3 text-sm">
-                        <div>
-                            <dt class="text-gray-500 dark:text-gray-400">Spa Name</dt>
-                            <dd id="modalSpaName" class="font-medium text-gray-900 dark:text-white"></dd>
-                        </div>
-                        <div>
-                            <dt class="text-gray-500 dark:text-gray-400">Owner</dt>
-                            <dd id="modalOwnerName" class="font-medium text-gray-900 dark:text-white"></dd>
-                        </div>
-                        <div>
-                            <dt class="text-gray-500 dark:text-gray-400">Owner Email</dt>
-                            <dd id="modalOwnerEmail" class="font-medium text-gray-900 dark:text-white"></dd>
-                        </div>
-                        <div>
-                            <dt class="text-gray-500 dark:text-gray-400">Verified By</dt>
-                            <dd id="modalVerifiedBy" class="font-medium text-gray-900 dark:text-white">—</dd>
-                        </div>
-                        <div>
-                            <dt class="text-gray-500 dark:text-gray-400">Verified At</dt>
-                            <dd id="modalVerifiedAt" class="font-medium text-gray-900 dark:text-white">—</dd>
-                        </div>
-                    </dl>
-                </div>
+                <input type="hidden" name="verification_status" id="modalVerificationStatus" value="pending">
 
-                <div class="p-5 border rounded-xl dark:border-gray-700">
-                    <h3 class="mb-4 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
-                        Review Settings
-                    </h3>
+                <div class="grid grid-cols-1 gap-6 mt-6 lg:grid-cols-2">
+                    <div class="p-5 border rounded-xl dark:border-gray-700">
+                        <h3 class="mb-4 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
+                            Business Information
+                        </h3>
 
-                    <form id="spaReviewForm" method="POST" class="space-y-4">
-                        @csrf
-                        @method('PUT')
+                        <dl class="space-y-3 text-sm">
+                            <div>
+                                <dt class="text-gray-500 dark:text-gray-400">Spa Name</dt>
+                                <dd id="modalSpaName" class="font-medium text-gray-900 dark:text-white"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-gray-500 dark:text-gray-400">Owner</dt>
+                                <dd id="modalOwnerName" class="font-medium text-gray-900 dark:text-white"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-gray-500 dark:text-gray-400">Owner Email</dt>
+                                <dd id="modalOwnerEmail" class="font-medium text-gray-900 dark:text-white"></dd>
+                            </div>
+                            <div>
+                                <dt class="text-gray-500 dark:text-gray-400">Verified By</dt>
+                                <dd id="modalVerifiedBy" class="font-medium text-gray-900 dark:text-white">—</dd>
+                            </div>
+                            <div>
+                                <dt class="text-gray-500 dark:text-gray-400">Verified At</dt>
+                                <dd id="modalVerifiedAt" class="font-medium text-gray-900 dark:text-white">—</dd>
+                            </div>
+                            <div>
+                                <dt class="text-gray-500 dark:text-gray-400">Current Status</dt>
+                                <dd id="modalCurrentStatus" class="font-medium text-gray-900 dark:text-white">—</dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                    <div class="p-5 border rounded-xl dark:border-gray-700">
+                        <h3 class="mb-4 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
+                            Review Settings
+                        </h3>
 
                         <div>
                             <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -242,58 +283,49 @@
                                 <option value="professional">Professional</option>
                             </select>
                         </div>
-
-                        <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Verification Status
-                            </label>
-                            <select name="verification_status"
-                                    id="modalVerificationStatus"
-                                    class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                                    onchange="toggleRemarksField()">
-                                <option value="unverified">Unverified</option>
-                                <option value="pending">Pending</option>
-                                <option value="verified">Verified</option>
-                                <option value="rejected">Rejected</option>
-                            </select>
-                        </div>
-
-                        <div id="remarksWrapper" class="hidden">
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Verification Remarks
-                            </label>
-                            <textarea
-                                name="verification_remarks"
-                                id="modalVerificationRemarks"
-                                rows="4"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                                placeholder="Explain why the spa was rejected..."></textarea>
-                        </div>
-
-                        <div class="flex justify-end gap-2 pt-2">
-                            <button type="button"
-                                    onclick="closeSpaModal()"
-                                    class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-lg dark:bg-gray-700 dark:text-gray-300">
-                                Close
-                            </button>
-                            <button type="submit"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348]">
-                                Save Changes
-                            </button>
-                        </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
 
-            <div class="p-5 mt-6 border rounded-xl dark:border-gray-700">
-                <h3 class="mb-4 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
-                    Uploaded Verification Documents
-                </h3>
+                <div class="p-5 border rounded-xl dark:border-gray-700">
+                    <h3 class="mb-4 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
+                        Uploaded Verification Documents
+                    </h3>
 
-                <div id="documentsContainer" class="space-y-3">
-                    {{-- JS-rendered --}}
+                    <div id="documentsContainer" class="space-y-3">
+                        {{-- JS-rendered --}}
+                    </div>
+
+                    <div id="rejectionReasonWrapper" class="hidden mt-4">
+                        <label for="modalVerificationRemarks" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Reason for Rejection <span class="text-red-600">*</span>
+                        </label>
+                        <textarea
+                            name="verification_remarks"
+                            id="modalVerificationRemarks"
+                            rows="4"
+                            class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                            placeholder="Explain why the spa was rejected..."></textarea>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            This is required when rejecting a spa verification.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col-reverse gap-2 mt-4 sm:flex-row sm:justify-end">
+
+                        <button type="button"
+                                onclick="submitSpaReview('rejected')"
+                                class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
+                            Reject
+                        </button>
+
+                        <button type="button"
+                                onclick="submitSpaReview('verified')"
+                                class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
+                            Accept
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -313,15 +345,72 @@ function getDocumentLabel(type) {
     }
 }
 
-function toggleRemarksField() {
-    const status = document.getElementById('modalVerificationStatus').value;
-    const remarksWrapper = document.getElementById('remarksWrapper');
+function formatStatus(status) {
+    if (!status) return '—';
+
+    return status
+        .replaceAll('_', ' ')
+        .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function resetReviewDecision() {
+    const statusInput = document.getElementById('modalVerificationStatus');
+    const remarks = document.getElementById('modalVerificationRemarks');
+    const rejectionWrapper = document.getElementById('rejectionReasonWrapper');
+
+    statusInput.value = 'pending';
+    remarks.value = '';
+    remarks.removeAttribute('required');
+    rejectionWrapper.classList.add('hidden');
+}
+
+function showRejectionField() {
+    const remarks = document.getElementById('modalVerificationRemarks');
+    const rejectionWrapper = document.getElementById('rejectionReasonWrapper');
+
+    rejectionWrapper.classList.remove('hidden');
+    remarks.setAttribute('required', 'required');
+    remarks.focus();
+}
+
+function hideRejectionField() {
+    const remarks = document.getElementById('modalVerificationRemarks');
+    const rejectionWrapper = document.getElementById('rejectionReasonWrapper');
+
+    rejectionWrapper.classList.add('hidden');
+    remarks.removeAttribute('required');
+}
+
+function submitSpaReview(status) {
+    const form = document.getElementById('spaReviewForm');
+    const statusInput = document.getElementById('modalVerificationStatus');
+    const remarks = document.getElementById('modalVerificationRemarks');
+
+    statusInput.value = status;
 
     if (status === 'rejected') {
-        remarksWrapper.classList.remove('hidden');
+        showRejectionField();
+
+        if (!remarks.value.trim()) {
+            remarks.reportValidity();
+            return;
+        }
     } else {
-        remarksWrapper.classList.add('hidden');
+        hideRejectionField();
+        remarks.value = '';
     }
+
+    form.submit();
+}
+
+function openDeleteModal(spaId, spaName) {
+    document.getElementById('deleteSpaName').textContent = spaName;
+    document.getElementById('deleteForm').action = `/admin/registered-spas/${spaId}`;
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
 }
 
 function openSpaModal(spaId) {
@@ -333,6 +422,8 @@ function openSpaModal(spaId) {
     loading.classList.remove('hidden');
     content.classList.add('hidden');
 
+    resetReviewDecision();
+
     fetch(`/admin/registered-spas/${spaId}/edit`)
         .then(response => response.json())
         .then(data => {
@@ -343,13 +434,12 @@ function openSpaModal(spaId) {
             document.getElementById('modalOwnerEmail').textContent = spa.owner_email;
             document.getElementById('modalVerifiedBy').textContent = spa.verified_by ?? '—';
             document.getElementById('modalVerifiedAt').textContent = spa.verified_at ?? '—';
+            document.getElementById('modalCurrentStatus').textContent = formatStatus(spa.verification_status);
 
             document.getElementById('modalTier').value = spa.business_tier;
-            document.getElementById('modalVerificationStatus').value = spa.verification_status;
+            document.getElementById('modalVerificationStatus').value = spa.verification_status ?? 'pending';
             document.getElementById('modalVerificationRemarks').value = spa.verification_remarks ?? '';
             document.getElementById('spaReviewForm').action = `/admin/registered-spas/${spa.id}`;
-
-            toggleRemarksField();
 
             const docsContainer = document.getElementById('documentsContainer');
             docsContainer.innerHTML = '';
@@ -392,6 +482,7 @@ function openSpaModal(spaId) {
 
 function closeSpaModal() {
     document.getElementById('spaModal').classList.add('hidden');
+    resetReviewDecision();
 }
 </script>
 @endsection

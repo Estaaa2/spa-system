@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Levictas | Spa & Wellness</title>
 
-    @vite(['resources/css/app.css','resources/css/landing.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css','resources/css/landing.css', 'resources/js/app.js', 'resources/js/welcome.js'])
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -635,7 +635,7 @@
                                                     ? implode(', ', array_slice(array_slice($addrParts, 0, count($addrParts) - 2), -3))
                                                     : ($addr ?: 'Location unavailable');
                                             @endphp
-                                            <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
+                                            <p class="mt-1 text-xs text-gray-900">{{ $addrSummary }}</p>
                                             @if($lowestPrice)
                                                 <p class="mt-2 text-xs font-medium text-[#8B7355]">
                                                     Starts at ₱{{ number_format($lowestPrice, 2) }}
@@ -806,7 +806,7 @@
                         <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="p-6">
+                <div class="overflow-y-auto max-h-[80vh] p-6">
                     @auth
                         <form method="POST" action="{{ route('bookings.online.checkout') }}" class="space-y-4">
                             @csrf
@@ -875,6 +875,10 @@
                                     <label class="block text-xs font-semibold text-gray-600">Start Time</label>
                                     <input type="time" name="start_time" id="bookingTimeInput" required
                                         class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <p id="bookingTimeError" class="hidden mt-1 text-[11px] text-red-500">
+                                        <i class="fa-solid fa-circle-exclamation"></i>
+                                        Selected time has already passed. Please choose a future time.
+                                    </p>
                                 </div>
                             </div>
 
@@ -885,9 +889,37 @@
                                 </div>
                             @endif
 
-                            <button type="submit"
-                                    class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                                Proceed to 50% Payment
+                            <div class="p-4 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6] space-y-3">
+                                <p class="text-xs font-semibold text-[#3C2F23] uppercase tracking-wide flex items-center gap-2">
+                                    <i class="fa-solid fa-file-lines text-[#8B7355]"></i>
+                                    Terms & Agreements
+                                </p>
+                                <ul class="space-y-2 text-xs leading-relaxed text-gray-600">
+                                    <li class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0"></i>
+                                        <span><strong class="text-[#3C2F23]">Downpayment:</strong> A 20% non-refundable downpayment is required to confirm your reservation. The remaining 80% is payable at the spa on the day of your appointment.</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0"></i>
+                                        <span><strong class="text-[#3C2F23]">Cancellation:</strong> Cancellations must be made at least 24 hours before your appointment. The 20% downpayment is non-refundable regardless of cancellation timing.</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0"></i>
+                                        <span><strong class="text-[#3C2F23]">No-Show Policy:</strong> Failure to arrive without prior notice will forfeit your downpayment and may result in restricted future bookings on this platform.</span>
+                                    </li>
+                                </ul>
+                                <label class="flex items-center gap-3 pt-1 cursor-pointer group">
+                                    <input type="checkbox" id="bookingTermsCheckbox" name="terms_agreed" value="1"
+                                        class="w-4 h-4 rounded accent-[#8B7355] cursor-pointer flex-shrink-0" required>
+                                    <span class="text-xs font-medium text-gray-700 group-hover:text-[#6F5430] transition">
+                                        I have read and agree to the above terms and conditions.
+                                    </span>
+                                </label>
+                            </div>
+
+                            <button type="submit" id="bookingSubmitBtn"
+                                    class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0">
+                                Proceed to 20% Downpayment
                             </button>
                         </form>
                     @else
@@ -1080,593 +1112,12 @@
     </div>
 </footer>
 
+{{-- Pass Blade-only values to the external JS file --}}
 <script>
-const btn = document.getElementById('mobile-menu-button');
-const menu = document.getElementById('mobile-menu');
-btn?.addEventListener('click', () => menu.classList.toggle('hidden'));
-
-const nav = document.getElementById('topNav');
-window.addEventListener('scroll', () => {
-    if (window.scrollY > 10) nav?.classList.add('nav-scrolled');
-    else nav?.classList.remove('nav-scrolled');
-});
-
-let selectedSpa = null;
-let spaMap      = null;
-
-const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
-const profileDropdownMenu = document.getElementById('profileDropdownMenu');
-const profileChevron      = document.getElementById('profileChevron');
-
-function closeProfileDropdown() {
-    profileDropdownMenu?.classList.add('hidden');
-    profileChevron?.classList.remove('rotate-180');
-}
-
-profileDropdownBtn?.addEventListener('click', function (e) {
-    e.stopPropagation();
-    const isHidden = profileDropdownMenu.classList.contains('hidden');
-    if (isHidden) {
-        profileDropdownMenu.classList.remove('hidden');
-        profileChevron?.classList.add('rotate-180');
-    } else {
-        closeProfileDropdown();
-    }
-});
-
-document.addEventListener('click', function (e) {
-    const wrapper = document.getElementById('profileDropdownWrapper');
-    if (wrapper && !wrapper.contains(e.target)) closeProfileDropdown();
-});
-
-function openProfileModal() {
-    document.getElementById('profileModal').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-}
-
-function closeProfileModal() {
-    document.getElementById('profileModal').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-    const btn     = document.getElementById('emailToggleBtn');
-    const display = document.getElementById('emailDisplay');
-    const icon    = document.getElementById('emailToggleIcon');
-    if (btn && display && icon) {
-        display.textContent = btn.dataset.masked;
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-    }
-}
-
-function toggleEmail() {
-    const display = document.getElementById('emailDisplay');
-    const btn     = document.getElementById('emailToggleBtn');
-    const icon    = document.getElementById('emailToggleIcon');
-    if (!display || !btn || !icon) return;
-    const isHidden = icon.classList.contains('fa-eye');
-    if (isHidden) {
-        display.textContent = btn.dataset.real;
-        icon.classList.replace('fa-eye', 'fa-eye-slash');
-    } else {
-        display.textContent = btn.dataset.masked;
-        icon.classList.replace('fa-eye-slash', 'fa-eye');
-    }
-}
-
-// =====================================================
-// SPA MODAL
-// =====================================================
-const spaModal     = document.getElementById('spaModal');
-const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
-let photos     = [];
-let photoIndex = 0;
-
-function openSpaModal(spaData) {
-    selectedSpa = spaData;
-
-    document.getElementById('spaModalName').textContent    = spaData.name    ?? 'Spa';
-    document.getElementById('spaModalTag').textContent     = spaData.tag     ?? 'Featured Spa';
-    document.getElementById('spaModalDesc').textContent    = spaData.desc    ?? '';
-    document.getElementById('spaModalPhone').textContent   = spaData.phone   ?? 'No contact info';
-    document.getElementById('spaModalAddress').textContent = spaData.address ?? 'Address unavailable';
-    document.getElementById('spaModalPrice').textContent   = spaData.price_note
-        ? `Starts at ₱${spaData.price_note}`
-        : 'Prices vary per treatment';
-
-    function getAddressSummary(fullAddress) {
-        if (!fullAddress) return 'Location unavailable';
-        const parts = fullAddress.split(',').map(p => p.trim());
-        if (parts.length < 3) return fullAddress;
-        const withoutZipCountry = parts.slice(0, parts.length - 2);
-        return withoutZipCountry.slice(-3).join(', ');
-    }
-    document.getElementById('spaModalAddressSummary').textContent = getAddressSummary(spaData.address);
-
-    // Amenities
-    const amenitiesContainer = document.getElementById('spaModalAmenities');
-    if (amenitiesContainer) {
-        const amenities = spaData.amenities ?? [];
-        if (amenities.length) {
-            amenitiesContainer.innerHTML = `
-                <div class="grid grid-cols-2 gap-2">
-                    ${amenities.map(a => {
-                        const label = a.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                        return `
-                            <div class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F6EFE6]/70 ring-1 ring-[#8B7355]/10">
-                                <div class="flex items-center justify-center flex-shrink-0 bg-white rounded-lg w-7 h-7 ring-1 ring-black/5">
-                                    <i class="fa-solid fa-spa text-[#8B7355] text-xs"></i>
-                                </div>
-                                <span class="text-xs font-medium text-[#3C2F23]">${label}</span>
-                            </div>`;
-                    }).join('')}
-                </div>`;
-        } else {
-            amenitiesContainer.innerHTML = `<p class="text-sm italic text-gray-400">No amenities listed yet.</p>`;
-        }
-    }
-
-    // Photos
-    const fallbackImage = "{{ asset('storage/branch_profiles/emptyspa.jpg') }}";
-    photos = Array.isArray(spaData.photos) && spaData.photos.length
-        ? spaData.photos
-        : [fallbackImage, fallbackImage, fallbackImage, fallbackImage, fallbackImage];
-
-    const elMainPhoto = document.getElementById('spaModalMainPhoto');
-    if (elMainPhoto) elMainPhoto.src = photos[0] || fallbackImage;
-
-    ['gallery_1', 'gallery_2', 'gallery_3', 'gallery_4'].forEach((id, i) => {
-        const el = document.getElementById(id);
-        if (el) el.src = photos[i + 1] || fallbackImage;
-    });
-
-    const galleryCount = document.getElementById('spaModalGalleryCount');
-    if (galleryCount) galleryCount.classList.add('hidden');
-
-    spaModal.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-
-    // Map
-    const elMap = document.getElementById('spaModalMap');
-    if (spaMap) { spaMap.remove(); spaMap = null; }
-    if (elMap && spaData.lat && spaData.lng) {
-        setTimeout(() => {
-            spaMap = L.map(elMap).setView([spaData.lat, spaData.lng], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19, attribution: '&copy; OpenStreetMap'
-            }).addTo(spaMap);
-            L.marker([spaData.lat, spaData.lng])
-                .addTo(spaMap).bindPopup(spaData.name).openPopup();
-            spaMap.invalidateSize();
-        }, 300);
-    }
-    photoIndex = 0;
-}
-
-function closeSpaModal() {
-    spaModal.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-}
-
-document.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        try {
-            const data = JSON.parse(btn.getAttribute('data-spa'));
-            openSpaModal(data);
-        } catch (e) {
-            console.error('Invalid spa data', e);
-        }
-    });
-});
-
-closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
-
-// =====================================================
-// BOOKING MODAL
-// =====================================================
-const bookingModal     = document.getElementById('bookingModal');
-const openBookingBtn   = document.getElementById('openBookingModalBtn');
-const closeBookingBtns = document.querySelectorAll('[data-close-booking-modal]');
-const bookingSpaMeta   = document.getElementById('bookingSpaMeta');
-const bookingSpaIdInput    = document.getElementById('bookingSpaIdInput');
-const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
-const serviceTypeSelect    = document.getElementById('bookingServiceType');
-const serviceTypeHint      = document.getElementById('bookingServiceTypeHint');
-const treatmentSelect      = document.getElementById('bookingTreatmentSelect');
-const bookingDateInput     = document.getElementById('bookingDateInput');
-const bookingTimeInput     = document.getElementById('bookingTimeInput');
-const addressWrapper       = document.getElementById('addressWrapper');
-const addressInput         = document.getElementById('bookingAddressInput');
-
-function clearBookingSelections() {
-    if (treatmentSelect) {
-        treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
-        treatmentSelect.value = '';
-    }
-    if (bookingBranchIdInput) bookingBranchIdInput.value = '';
-    resetServiceType();
-    if (bookingDateInput) bookingDateInput.value = '';
-    if (bookingTimeInput) {
-        bookingTimeInput.value = '';
-        bookingTimeInput.disabled = false;
-        bookingTimeInput.removeAttribute('min');
-        bookingTimeInput.removeAttribute('max');
-    }
-    if (addressInput) {
-        addressInput.value = '';
-        addressInput.required = false;
-    }
-    if (addressWrapper) addressWrapper.classList.add('hidden');
-}
-
-function populateTreatmentsForSelectedBranch() {
-    if (!selectedSpa || !treatmentSelect) return;
-
-    treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
-
-    (selectedSpa.treatments ?? []).forEach(t => {
-        const option = document.createElement('option');
-        option.value = `treatment_${t.id}`;
-        option.textContent = t.price !== null && t.price !== undefined
-            ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}`
-            : t.name;
-        option.dataset.serviceType = t.service_type ?? 'in_branch_only';
-        option.dataset.itemType    = 'treatment';
-        treatmentSelect.appendChild(option);
-    });
-
-    (selectedSpa.packages ?? []).forEach(p => {
-        const option = document.createElement('option');
-        option.value = `package_${p.id}`;
-        option.textContent = p.price !== null && p.price !== undefined
-            ? `${p.name} (Package) — ₱${parseFloat(p.price).toLocaleString()}`
-            : `${p.name} (Package)`;
-        option.dataset.serviceType = p.service_type ?? 'in_branch_only';
-        option.dataset.itemType    = 'package';
-        treatmentSelect.appendChild(option);
-    });
-
-    resetServiceType();
-}
-
-function resetServiceType() {
-    if (!serviceTypeSelect) return;
-    serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
-    serviceTypeSelect.value = '';
-    if (serviceTypeHint) serviceTypeHint.textContent = '';
-    if (addressWrapper) addressWrapper.classList.add('hidden');
-    if (addressInput) addressInput.required = false;
-}
-
-function populateServiceTypeOptions() {
-    resetServiceType();
-    if (!treatmentSelect || !serviceTypeSelect) return;
-
-    const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
-    if (!selectedOption || !selectedOption.value) return;
-
-    const serviceType = selectedOption.dataset.serviceType || 'in_branch_only';
-
-    if (serviceType === 'in_branch_only') {
-        serviceTypeSelect.innerHTML = `<option value="in_branch">In-Branch</option>`;
-        serviceTypeSelect.value = 'in_branch';
-        if (serviceTypeHint) serviceTypeHint.textContent = 'This selection is available for in-branch service only.';
-    } else if (serviceType === 'in_branch_and_home') {
-        serviceTypeSelect.innerHTML = `
-            <option value="">Select service type</option>
-            <option value="in_branch">In-Branch</option>
-            <option value="in_home">Home Service</option>
-        `;
-        if (serviceTypeHint) serviceTypeHint.textContent = 'This selection is available for both in-branch and home service.';
-    }
-
-    toggleAddressField();
-}
-
-function toggleAddressField() {
-    const isHome = serviceTypeSelect && serviceTypeSelect.value === 'in_home';
-    if (addressWrapper) addressWrapper.classList.toggle('hidden', !isHome);
-    if (addressInput) addressInput.required = isHome;
-}
-
-async function updateAvailableTimes() {
-    const branchId  = bookingBranchIdInput?.value;
-    const dateValue = bookingDateInput?.value;
-    if (!branchId || !dateValue || !bookingTimeInput) return;
-
-    const day = new Date(dateValue).toLocaleDateString('en-US', { weekday: 'long' });
-    try {
-        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
-        const data = await response.json();
-        if (data.is_closed) {
-            bookingTimeInput.value = '';
-            bookingTimeInput.disabled = true;
-            alert('This branch is closed on the selected day.');
-        } else {
-            bookingTimeInput.disabled = false;
-            bookingTimeInput.min = data.opening_time;
-            bookingTimeInput.max = data.closing_time;
-        }
-    } catch (error) {
-        console.error('Failed to load operating hours:', error);
-    }
-}
-
-function openBookingModal() {
-    if (!selectedSpa || !bookingModal) return;
-
-    clearBookingSelections();
-
-    if (bookingSpaIdInput)    bookingSpaIdInput.value    = selectedSpa.id ?? '';
-    if (bookingBranchIdInput) bookingBranchIdInput.value = selectedSpa.branch_id ?? '';
-
-    if (bookingSpaMeta) {
-        bookingSpaMeta.textContent = selectedSpa.branch_location
-            ? `${selectedSpa.name} • ${selectedSpa.branch_location} Branch`
-            : `${selectedSpa.name} • ${selectedSpa.branch_name ?? ''}`;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    if (bookingDateInput) bookingDateInput.min = today;
-
-    populateTreatmentsForSelectedBranch();
-
-    bookingModal.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-}
-
-function closeBookingModal() {
-    if (!bookingModal) return;
-    bookingModal.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-}
-
-openBookingBtn?.addEventListener('click', openBookingModal);
-closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal));
-
-treatmentSelect?.addEventListener('change', populateServiceTypeOptions);
-serviceTypeSelect?.addEventListener('change', toggleAddressField);
-bookingDateInput?.addEventListener('change', updateAvailableTimes);
-
-// =====================================================
-// MY APPOINTMENTS MODAL
-// =====================================================
-let allAppointments = [];
-let currentTab      = 'upcoming';
-
-function openAppointmentsModal() {
-    document.getElementById('appointmentsModal').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-    loadAppointments();
-}
-
-function closeAppointmentsModal() {
-    document.getElementById('appointmentsModal').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-}
-
-function loadAppointments() {
-    fetch('/my-appointments')
-        .then(r => r.json())
-        .then(data => {
-            allAppointments = data;
-            updateTabCounts();
-            renderTab(currentTab);
-        });
-}
-
-function updateTabCounts() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('tab-count-upcoming').textContent =
-        allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
-    document.getElementById('tab-count-past').textContent =
-        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw < today)).length;
-    document.getElementById('tab-count-cancelled').textContent =
-        allAppointments.filter(b => b.status === 'cancelled').length;
-}
-
-function switchTab(tab) {
-    currentTab = tab;
-    ['upcoming', 'past', 'cancelled'].forEach(t => {
-        const el = document.getElementById(`tab-${t}`);
-        if (t === tab) {
-            el.classList.add('border-[#8B7355]', 'text-[#8B7355]');
-            el.classList.remove('border-transparent', 'text-gray-500');
-        } else {
-            el.classList.remove('border-[#8B7355]', 'text-[#8B7355]');
-            el.classList.add('border-transparent', 'text-gray-500');
-        }
-    });
-    renderTab(tab);
-}
-
-function renderTab(tab) {
-    const today  = new Date().toISOString().split('T')[0];
-    let filtered = [];
-    if (tab === 'upcoming') {
-        filtered = allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
-    } else if (tab === 'past') {
-        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending'].includes(b.status) && b.date_raw < today));
-    } else {
-        filtered = allAppointments.filter(b => b.status === 'cancelled');
-    }
-
-    const container = document.getElementById('appointmentsContent');
-    if (!filtered.length) {
-        container.innerHTML = `
-            <div class="py-12 text-center text-gray-400">
-                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
-                <p class="text-sm">No ${tab} appointments</p>
-            </div>`;
-        return;
-    }
-    container.innerHTML = filtered.map(b => `
-        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="font-semibold text-[#3C2F23]">${b.spa_name}</p>
-                    <p class="text-xs text-gray-500">${b.branch_name} • ${b.service_type}</p>
-                </div>
-                <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                    ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                </span>
-            </div>
-            <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
-                <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355]"></i> ${b.treatment}</div>
-                <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355]"></i> ${b.therapist}</div>
-                <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}</div>
-                <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
-            </div>
-        </div>
-    `).join('');
-}
-
-function statusBadge(status) {
-    const map = {
-        reserved:  'bg-blue-100 text-blue-700',
-        ongoing:   'bg-green-100 text-green-700',
-        completed: 'bg-gray-100 text-gray-600',
-        cancelled: 'bg-red-100 text-red-600',
-        pending:   'bg-yellow-100 text-yellow-700',
-    };
-    return map[status] ?? 'bg-gray-100 text-gray-600';
-}
-
-// =====================================================
-// MY SCHEDULE MODAL
-// =====================================================
-let scheduleBookings = [];
-let calendarDate     = new Date();
-
-function openScheduleModal() {
-    document.getElementById('scheduleModal').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-    loadSchedule();
-}
-
-function closeScheduleModal() {
-    document.getElementById('scheduleModal').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-}
-
-function loadSchedule() {
-    fetch('/my-schedule')
-        .then(r => r.json())
-        .then(data => {
-            console.log('Schedule data:', data);
-            scheduleBookings = data;
-            renderCalendar(); });
-}
-
-function changeMonth(dir) {
-    calendarDate.setMonth(calendarDate.getMonth() + dir);
-    renderCalendar();
-    document.getElementById('selectedDayBookings').classList.add('hidden');
-}
-
-function renderCalendar() {
-    const year  = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('calendarTitle').textContent =
-        calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const firstDay    = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
-    const grid        = document.getElementById('calendarGrid');
-    grid.innerHTML    = '';
-    for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr    = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const isToday    = dateStr === today;
-        const hasBooking = bookedDates.has(dateStr);
-        const isPast     = dateStr < today;
-        grid.innerHTML  += `
-            <button onclick="selectDay('${dateStr}')"
-                class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
-                ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
-                ${hasBooking && !isToday ? 'bg-[#F6EFE6] text-[#6F5430] font-semibold ring-1 ring-[#8B7355]/30' : ''}
-                ${isPast && !isToday ? 'text-gray-300 cursor-default' : 'hover:bg-[#F6EFE6]'}
-                ${!hasBooking && !isToday && !isPast ? 'text-gray-700' : ''}">
-                ${d}
-                ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355]'}"></span>` : ''}
-            </button>`;
-    }
-}
-
-function selectDay(dateStr) {
-    const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
-    if (!dayBookings.length) return;
-    const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric'
-    });
-    document.getElementById('selectedDayTitle').textContent = title;
-    document.getElementById('selectedDayContent').innerHTML = dayBookings.map(b => `
-        <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-            <div class="flex items-center justify-between">
-                <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
-                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
-            </div>
-            <p class="mt-1 text-xs text-gray-500">${b.branch_name} • ${b.treatment}</p>
-            <p class="mt-1 text-xs text-gray-500">
-                <i class="fa-solid fa-clock text-[#8B7355]"></i>
-                ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
-            </p>
-        </div>
-    `).join('');
-    document.getElementById('selectedDayBookings').classList.remove('hidden');
-}
-
-function formatTime(timeStr) {
-    if (!timeStr) return 'N/A';
-    const [hour, minute] = timeStr.split(':');
-    const h    = parseInt(hour);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12  = h % 12 || 12;
-    return `${h12}:${minute} ${ampm}`;
-}
-
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        if (!spaModal?.classList.contains('hidden'))     closeSpaModal();
-        if (!bookingModal?.classList.contains('hidden')) closeBookingModal();
-    }
-});
-
-// =====================================================
-// TOAST
-// =====================================================
-function showSpaToast(message, type = 'success') {
-    const isSuccess = type === 'success';
-    Toastify({
-        text: `
-            <div style="display:flex;align-items:center;gap:12px;padding:2px 0;">
-                <div style="width:36px;height:36px;border-radius:50%;background:${isSuccess?'#f0fdf4':'#fef2f2'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="${isSuccess?'fa-solid fa-spa':'fa-solid fa-circle-xmark'}" style="color:${isSuccess?'#16a34a':'#dc2626'};font-size:15px;"></i>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:2px;">
-                    <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${isSuccess?'#15803d':'#b91c1c'};">${isSuccess?'Success':'Error'}</span>
-                    <span style="font-size:13px;color:#374151;font-weight:400;line-height:1.4;">${message}</span>
-                </div>
-            </div>`,
-        duration: 3500,
-        gravity: 'top',
-        position: 'right',
-        close: false,
-        escapeMarkup: false,
-        style: {
-            background: '#ffffff',
-            border: isSuccess ? '1px solid #bbf7d0' : '1px solid #fecaca',
-            borderLeft: isSuccess ? '4px solid #16a34a' : '4px solid #dc2626',
-            borderRadius: '10px',
-            minWidth: '300px',
-            maxWidth: '360px',
-            padding: '14px 18px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-        }
-    }).showToast();
-}
-
+    window.LEVICTAS_FALLBACK_IMAGE = "{{ asset('storage/branch_profiles/emptyspa.jpg') }}";
 </script>
 
+{{-- Session flash toasts --}}
 @if(session('booking_error'))
 <script>
     document.addEventListener('DOMContentLoaded', function () {

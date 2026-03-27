@@ -102,18 +102,18 @@ class PaymongoWebhookController extends Controller
                         $durationMinutes = 60;
 
                         if ($reservation->bookable_type === 'treatment') {
-                            $treatment = \App\Models\Treatment::withoutGlobalScopes()->find($reservation->bookable_id);
+                            $treatment = Treatment::withoutGlobalScopes()->find($reservation->bookable_id);
                             $durationMinutes = $treatment?->duration ?? 60;
                         } elseif ($reservation->bookable_type === 'package') {
-                            $package = \App\Models\Package::withoutGlobalScopes()->find($reservation->bookable_id);
+                            $package = Package::withoutGlobalScopes()->find($reservation->bookable_id);
                             $durationMinutes = $package?->duration ?? $package?->total_duration ?? 60;
                         }
 
-                        $endTime = \Carbon\Carbon::parse($reservation->start_time)
+                        $endTime = Carbon::parse($reservation->start_time)
                             ->addMinutes($durationMinutes)
                             ->format('H:i:s');
 
-                        $therapists = \App\Models\User::role('therapist')
+                        $therapists = User::role('therapist')
                             ->whereHas('staff', function ($q) use ($reservation) {
                                 $q->where('spa_id', $reservation->spa_id)
                                     ->where('branch_id', $reservation->branch_id)
@@ -122,7 +122,7 @@ class PaymongoWebhookController extends Controller
                             ->orderBy('name')
                             ->get();
 
-                        $busyIds = \App\Models\Booking::query()
+                        $busyIds = Booking::query()
                             ->where('spa_id', $reservation->spa_id)
                             ->where('branch_id', $reservation->branch_id)
                             ->where('appointment_date', $reservation->appointment_date)

@@ -142,7 +142,7 @@ class OnlineBookingCheckoutController extends Controller
         // =====================================================
         // CREATE PENDING RESERVATION & PAYMONGO CHECKOUT
         // =====================================================
-        $downpaymentAmount = round($fullAmount * 0.50, 2);
+        $downpaymentAmount = round($fullAmount * 0.20, 2);
 
         $pending = DB::transaction(function () use ($validated, $item, $bookableType, $fullAmount, $downpaymentAmount) {
             return OnlineReservationPayment::create([
@@ -181,14 +181,14 @@ class OnlineBookingCheckoutController extends Controller
                         'send_email_receipt' => true,
                         'show_description'   => true,
                         'show_line_items'    => true,
-                        'description'        => '50% reservation fee for spa appointment',
+                        'description'        => '20% reservation fee for spa appointment',
                         'line_items'         => [
                             [
                                 'currency'    => 'PHP',
                                 'amount'      => (int) round($downpaymentAmount * 100),
                                 'name'        => $pending->bookable_name . ' Reservation Fee',
                                 'quantity'    => 1,
-                                'description' => '50% downpayment for appointment reservation',
+                                'description' => '20% downpayment for appointment reservation',
                             ],
                         ],
                         'payment_method_types' => ['gcash', 'paymaya'],

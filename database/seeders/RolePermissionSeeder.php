@@ -67,6 +67,11 @@ class RolePermissionSeeder extends Seeder
             'create inventory items',
             'edit inventory items',
             'delete inventory items',
+            'view product inventory',
+            'create product inventory',
+            'edit product inventory',
+            'delete product inventory',
+            'view product logs',
 
             // Staff-side Settings
             'edit own profile',

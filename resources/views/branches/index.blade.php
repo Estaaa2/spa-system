@@ -5,6 +5,12 @@
 @section('content')
 @php
     $canUseProfessionalSuite = ($spa->business_tier ?? null) === 'professional';
+
+    $branchLimit = 2;
+    $branchCount = $branches->count();
+    $hasUnlimitedBranches = $canUseProfessionalSuite;
+    $hasReachedBranchLimit = !$hasUnlimitedBranches && $branchCount >= $branchLimit;
+    $remainingBranchSlots = max($branchLimit - $branchCount, 0);
 @endphp
 
 <div class="p-6 space-y-6">
@@ -12,6 +18,33 @@
         title="Branches"
         subtitle="Manage all branches for your spa, including branch setup, public listing, and optional branch-level features."
     />
+
+    {{-- Basic Plan Branch Limit Notice --}}
+    @if(!$hasUnlimitedBranches)
+        <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
+                        Basic Plan Branch Limit
+                    </h2>
+                    <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                        Your spa can only have up to <span class="font-semibold">{{ $branchLimit }}</span> branches on the Basic plan.
+                        @if($hasReachedBranchLimit)
+                            You have already reached the limit.
+                        @else
+                            You still have <span class="font-semibold">{{ $remainingBranchSlots }}</span> branch slot(s) remaining.
+                        @endif
+                    </p>
+                </div>
+
+                <a href="{{ route('owner.subscription.index') }}"
+                   class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-[#8B7355]/30">
+                    <i class="mr-2 fa-solid fa-arrow-up-right-from-square"></i>
+                    Upgrade Subscription
+                </a>
+            </div>
+        </div>
+    @endif
 
     {{-- Current Branch Info Card --}}
     @if(session('current_branch_id'))
@@ -44,7 +77,7 @@
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Branches</p>
-            <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ $branches->count() }}</p>
+            <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ $branchCount }}</p>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">All active branches under this spa</p>
         </div>
 
@@ -60,15 +93,15 @@
 
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {{ $canUseProfessionalSuite ? 'Suite Enabled' : 'Professional Suite' }}
+                {{ $canUseProfessionalSuite ? 'Suite Enabled' : 'Branch Plan Limit' }}
             </p>
             <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
-                {{ $canUseProfessionalSuite ? $branches->where('has_workforce_finance_suite', true)->count() : 0 }}
+                {{ $canUseProfessionalSuite ? $branches->where('has_workforce_finance_suite', true)->count() : $remainingBranchSlots }}
             </p>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {{ $canUseProfessionalSuite
                     ? 'Branches using Workforce & Finance Suite'
-                    : 'Upgrade to Professional to enable branch-level advanced workforce and finance tools' }}
+                    : 'Remaining branch slots on your Basic plan' }}
             </p>
         </div>
     </div>
@@ -84,11 +117,20 @@
                     </p>
                 </div>
 
-                <button onclick="openCreateModal()"
-                        class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-[#8B7355]/30">
-                    <i class="mr-2 fa-solid fa-plus"></i>
-                    Add New Branch
-                </button>
+                @if($hasReachedBranchLimit)
+                    <button type="button"
+                            disabled
+                            class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-400 bg-gray-200 rounded-lg cursor-not-allowed dark:bg-gray-700 dark:text-gray-500">
+                        <i class="mr-2 fa-solid fa-lock"></i>
+                        Branch Limit Reached
+                    </button>
+                @else
+                    <button onclick="openCreateModal()"
+                            class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-[#8B7355]/30">
+                        <i class="mr-2 fa-solid fa-plus"></i>
+                        Add New Branch
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -199,7 +241,7 @@
             <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-700">
                 <div class="flex flex-col items-center justify-between gap-3 sm:flex-row">
                     <div class="text-sm text-gray-500 dark:text-gray-400">
-                        Showing <span class="font-medium">{{ $branches->count() }}</span> branches
+                        Showing <span class="font-medium">{{ $branchCount }}</span> branches
                     </div>
                     <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                         <span class="inline-flex items-center">
@@ -215,12 +257,17 @@
                                 <i class="mr-1 text-indigo-500 fa-solid fa-briefcase"></i>
                                 Suite Enabled: {{ $branches->where('has_workforce_finance_suite', true)->count() }}
                             </span>
+                        @else
+                            <span class="inline-flex items-center">
+                                <i class="mr-1 text-amber-500 fa-solid fa-layer-group"></i>
+                                Remaining Slots: {{ $remainingBranchSlots }}
+                            </span>
                         @endif
                     </div>
                 </div>
             </div>
         @else
-            <div class="px-6 py-14 text-center">
+            <div class="px-6 text-center py-14">
                 <div class="flex items-center justify-center w-16 h-16 mx-auto text-[#8B7355] bg-[#8B7355]/10 rounded-full">
                     <i class="text-2xl fa-solid fa-store"></i>
                 </div>
@@ -249,7 +296,7 @@
             <form id="branchForm" method="POST">
                 @csrf
 
-                <div class="px-6 py-4 border-b bg-white dark:bg-gray-800 dark:border-gray-700">
+                <div class="px-6 py-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 id="modalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -347,31 +394,6 @@
                         <p class="text-xs text-gray-500 dark:text-gray-400">
                             The main branch acts as the spa’s primary location. Only one branch can be marked as main at a time.
                         </p>
-
-                        @if($canUseProfessionalSuite)
-                        <div class="p-4 border border-blue-200 rounded-xl bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800">
-                            <div class="flex items-start gap-3">
-                                <input type="hidden" name="has_workforce_finance_suite" value="0">
-
-                                <input
-                                    type="checkbox"
-                                    id="has_workforce_finance_suite"
-                                    name="has_workforce_finance_suite"
-                                    value="1"
-                                    class="w-4 h-4 mt-1 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-600"
-                                >
-
-                                <div>
-                                    <label for="has_workforce_finance_suite" class="block text-sm font-medium text-gray-800 dark:text-white">
-                                        Enable Workforce &amp; Finance Suite
-                                    </label>
-                                    <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                                        Turn on advanced workforce and finance modules for this branch. This is available because your spa is on the Professional business tier.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
                     </div>
 
                     <div>
@@ -445,7 +467,7 @@
         <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"></div>
 
         <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white shadow-xl rounded-2xl dark:bg-gray-800 sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="px-6 py-4 border-b bg-white dark:bg-gray-800 dark:border-gray-700">
+            <div class="px-6 py-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         Remove Branch
@@ -500,6 +522,7 @@ let isEditMode      = false;
 let isManualMode    = false;
 
 const HAS_NO_BRANCHES = {{ $branches->count() === 0 ? 'true' : 'false' }};
+const HAS_REACHED_BRANCH_LIMIT = {{ $hasReachedBranchLimit ? 'true' : 'false' }};
 
 const toggleBtn           = document.getElementById('toggleLocationMode');
 const dropdownWrapper     = document.getElementById('locationDropdownWrapper');
@@ -534,6 +557,11 @@ toggleBtn.addEventListener('click', () => {
 });
 
 function openCreateModal() {
+    if (HAS_REACHED_BRANCH_LIMIT) {
+        showSpaToast('Your Basic plan allows only up to 2 branches. Upgrade your subscription to add more.', 'error');
+        return;
+    }
+
     isEditMode = false;
 
     const form = document.getElementById('branchForm');
@@ -644,6 +672,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
+
+        if (HAS_REACHED_BRANCH_LIMIT) {
+            showSpaToast('Your Basic plan allows only up to 2 branches. Upgrade your subscription to add more.', 'error');
+            return;
+        }
 
         if (!locationValue.value.trim()) {
             if (isManualMode) {

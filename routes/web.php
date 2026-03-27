@@ -32,6 +32,7 @@ use App\Http\Controllers\ServiceImportExportController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
+use App\Http\Controllers\Owner\WorkforceFinanceSuiteController;
 use App\Http\Middleware\LandingPageRedirect;
 use App\Mail\WelcomeMail;
 use Illuminate\Support\Facades\Mail;
@@ -536,6 +537,14 @@ Route::middleware(['auth', 'role:owner'])
         Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
         Route::post('/subscription/cancel-subscription', [SubscriptionController::class, 'cancelSubscription'])->name('subscription.cancel-subscription');
     });
+
+Route::middleware(['auth', 'verified', 'role:owner'])->group(function () {
+    Route::get('/owner/workforce-finance-suite', [WorkforceFinanceSuiteController::class, 'index'])
+        ->name('owner.workforce-finance-suite.index');
+
+    Route::put('/owner/workforce-finance-suite', [WorkforceFinanceSuiteController::class, 'update'])
+        ->name('owner.workforce-finance-suite.update');
+});
 
 /*
 |--------------------------------------------------------------------------

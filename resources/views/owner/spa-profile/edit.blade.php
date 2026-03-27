@@ -272,7 +272,7 @@
                 @endforeach
 
                 @if ($spa->verification_status !== 'verified')
-                    <div class="pt-2">
+                    <div class="flex justify-end pt-2">
                         <x-primary-button>
                             {{ __('Save Documents') }}
                         </x-primary-button>

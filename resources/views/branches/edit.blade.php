@@ -38,46 +38,27 @@
                     </div>
 
                     <div>
-                        <label for="locationSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label for="location_display" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Location <span class="text-red-500">*</span>
                         </label>
-                        <div id="locationDropdownWrapper" class="mt-2">
-                            <select
-                                id="locationSelect"
-                                name="location"
-                                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/20 focus:outline-none"
-                            >
-                                <option value="">Select a city in Cavite</option>
-                                <optgroup label="Cities">
-                                    <option value="Bacoor" {{ old('location', $branch->location) == 'Bacoor' ? 'selected' : '' }}>Bacoor</option>
-                                    <option value="Cavite City" {{ old('location', $branch->location) == 'Cavite City' ? 'selected' : '' }}>Cavite City</option>
-                                    <option value="Dasmariñas" {{ old('location', $branch->location) == 'Dasmariñas' ? 'selected' : '' }}>Dasmariñas</option>
-                                    <option value="General Trias" {{ old('location', $branch->location) == 'General Trias' ? 'selected' : '' }}>General Trias</option>
-                                    <option value="Imus" {{ old('location', $branch->location) == 'Imus' ? 'selected' : '' }}>Imus</option>
-                                    <option value="Carmona" {{ old('location', $branch->location) == 'Carmona' ? 'selected' : '' }}>Carmona</option>
-                                    <option value="Tagaytay" {{ old('location', $branch->location) == 'Tagaytay' ? 'selected' : '' }}>Tagaytay</option>
-                                    <option value="Trece Martires" {{ old('location', $branch->location) == 'Trece Martires' ? 'selected' : '' }}>Trece Martires</option>
-                                </optgroup>
-                                <optgroup label="Municipalities">
-                                    <option value="Alfonso" {{ old('location', $branch->location) == 'Alfonso' ? 'selected' : '' }}>Alfonso</option>
-                                    <option value="Amadeo" {{ old('location', $branch->location) == 'Amadeo' ? 'selected' : '' }}>Amadeo</option>
-                                    <option value="Carmen" {{ old('location', $branch->location) == 'Carmen' ? 'selected' : '' }}>Carmen</option>
-                                    <option value="General Emilio Aguinaldo" {{ old('location', $branch->location) == 'General Emilio Aguinaldo' ? 'selected' : '' }}>General Emilio Aguinaldo</option>
-                                    <option value="General Mariano Alvarez" {{ old('location', $branch->location) == 'General Mariano Alvarez' ? 'selected' : '' }}>General Mariano Alvarez</option>
-                                    <option value="Indang" {{ old('location', $branch->location) == 'Indang' ? 'selected' : '' }}>Indang</option>
-                                    <option value="Kawit" {{ old('location', $branch->location) == 'Kawit' ? 'selected' : '' }}>Kawit</option>
-                                    <option value="Magallanes" {{ old('location', $branch->location) == 'Magallanes' ? 'selected' : '' }}>Magallanes</option>
-                                    <option value="Maragondon" {{ old('location', $branch->location) == 'Maragondon' ? 'selected' : '' }}>Maragondon</option>
-                                    <option value="Mendez" {{ old('location', $branch->location) == 'Mendez' ? 'selected' : '' }}>Mendez</option>
-                                    <option value="Naic" {{ old('location', $branch->location) == 'Naic' ? 'selected' : '' }}>Naic</option>
-                                    <option value="Noveleta" {{ old('location', $branch->location) == 'Noveleta' ? 'selected' : '' }}>Noveleta</option>
-                                    <option value="Rosario" {{ old('location', $branch->location) == 'Rosario' ? 'selected' : '' }}>Rosario</option>
-                                    <option value="Silang" {{ old('location', $branch->location) == 'Silang' ? 'selected' : '' }}>Silang</option>
-                                    <option value="Tanza" {{ old('location', $branch->location) == 'Tanza' ? 'selected' : '' }}>Tanza</option>
-                                    <option value="Ternate" {{ old('location', $branch->location) == 'Ternate' ? 'selected' : '' }}>Ternate</option>
-                                </optgroup>
-                            </select>
-                        </div>
+
+                        <input
+                            type="text"
+                            id="location_display"
+                            value="{{ old('location', $branch->location) }}"
+                            readonly
+                            class="block w-full mt-2 text-gray-500 bg-gray-100 border-gray-300 shadow-sm cursor-not-allowed rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 sm:text-sm"
+                        >
+
+                        <input
+                            type="hidden"
+                            name="location"
+                            value="{{ old('location', $branch->location) }}"
+                        >
+
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Branch location cannot be changed after creation.
+                        </p>
                     </div>
                 </div>
 
@@ -93,79 +74,6 @@
                     <label for="is_main" class="text-sm text-gray-700 dark:text-gray-300">
                         Set as main branch
                     </label>
-                </div>
-            </div>
-        </div>
-
-        {{-- Workforce & Finance Suite --}}
-        @php
-            $isProfessionalTier = ($spa->business_tier ?? null) === 'professional';
-        @endphp
-
-        <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="px-6 py-4 border-b dark:border-gray-700">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Workforce &amp; Finance Suite</h2>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Control whether this branch can use advanced workforce and finance tools such as hiring, applicants,
-                    interviews, attendance, and future payroll features.
-                </p>
-            </div>
-
-            <div class="p-6 space-y-4">
-                @if($isProfessionalTier)
-                    <div class="p-4 border border-green-200 rounded-xl bg-green-50 dark:bg-green-900/10 dark:border-green-800">
-                        <p class="text-sm text-green-800 dark:text-green-300">
-                            This spa is currently on the <span class="font-semibold">Professional</span> business tier, so this
-                            branch can enable the Workforce &amp; Finance Suite.
-                        </p>
-                    </div>
-                @else
-                    <div class="p-4 border border-yellow-200 rounded-xl bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-800">
-                        <p class="text-sm text-yellow-800 dark:text-yellow-300">
-                            This suite is only available on the <span class="font-semibold">Professional</span> business tier.
-                            Upgrade your spa subscription first before enabling it for this branch.
-                        </p>
-
-                        @if(Route::has('owner.subscription.index'))
-                            <div class="mt-3">
-                                <a href="{{ route('owner.subscription.index') }}"
-                                class="inline-flex items-center px-3 py-2 text-xs font-medium text-white rounded-lg bg-gradient-to-r from-[#8B7355] to-[#6F5430]">
-                                    <i class="mr-2 fa-solid fa-arrow-up-right-from-square"></i>
-                                    View Subscription &amp; Billing
-                                </a>
-                            </div>
-                        @endif
-                    </div>
-                @endif
-
-                <div class="flex items-start gap-3">
-                    <input type="hidden" name="has_workforce_finance_suite" value="0">
-
-                    <input
-                        type="checkbox"
-                        name="has_workforce_finance_suite"
-                        id="has_workforce_finance_suite"
-                        value="1"
-                        {{ old('has_workforce_finance_suite', $branch->has_workforce_finance_suite) ? 'checked' : '' }}
-                        {{ $isProfessionalTier ? '' : 'disabled' }}
-                        class="w-4 h-4 mt-1 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-600 {{ $isProfessionalTier ? '' : 'opacity-60 cursor-not-allowed' }}"
-                    >
-
-                    <div>
-                        <label for="has_workforce_finance_suite" class="text-sm font-medium text-gray-800 dark:text-gray-200">
-                            Enable Workforce &amp; Finance Suite for this branch
-                        </label>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            When enabled, this branch can access advanced workforce and finance-related modules like
-                            Hiring, Applicants, Interviews, Attendance, and future Payroll tools.
-                        </p>
-
-                        @unless($isProfessionalTier)
-                            <p class="mt-2 text-xs font-medium text-yellow-700 dark:text-yellow-300">
-                                This option is locked because the spa is not yet on the Professional business tier.
-                            </p>
-                        @endunless
-                    </div>
                 </div>
             </div>
         </div>
@@ -656,6 +564,32 @@
     </form>
 </div>
 
+<div id="caviteLocationToast"
+     class="fixed top-5 right-5 z-[9999] hidden w-full max-w-sm overflow-hidden rounded-2xl border border-red-200 bg-white shadow-xl dark:border-red-800 dark:bg-gray-800">
+    <div class="flex items-start gap-3 px-4 py-4">
+        <div class="mt-0.5 text-red-600 dark:text-red-400">
+            <i class="fa-solid fa-location-crosshairs"></i>
+        </div>
+
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                Invalid Pin Location
+            </p>
+            <p id="caviteLocationToastMessage" class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                Please pin a location within Cavite only.
+            </p>
+        </div>
+
+        <button type="button"
+                onclick="hideCaviteLocationToast()"
+                class="text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-200">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <div class="h-1 bg-red-500" id="caviteLocationToastBar"></div>
+</div>
+
 <script>
 function amenitiesManager() {
     return {
@@ -719,6 +653,57 @@ function amenitiesManager() {
 </script>
 
 <script>
+let caviteToastTimeout = null;
+let caviteToastBarTimeout = null;
+
+function showCaviteLocationToast(message = 'You can only pin branch locations within Cavite.') {
+    const toast = document.getElementById('caviteLocationToast');
+    const messageEl = document.getElementById('caviteLocationToastMessage');
+    const progressBar = document.getElementById('caviteLocationToastBar');
+
+    if (!toast || !messageEl || !progressBar) return;
+
+    if (caviteToastTimeout) clearTimeout(caviteToastTimeout);
+    if (caviteToastBarTimeout) clearTimeout(caviteToastBarTimeout);
+
+    messageEl.textContent = message;
+
+    toast.classList.remove('hidden', 'toast-exit');
+    toast.classList.add('toast-enter');
+
+    progressBar.style.transition = 'none';
+    progressBar.style.width = '100%';
+
+    caviteToastBarTimeout = setTimeout(() => {
+        progressBar.style.transition = 'width 3s linear';
+        progressBar.style.width = '0%';
+    }, 20);
+
+    caviteToastTimeout = setTimeout(() => {
+        hideCaviteLocationToast();
+    }, 3000);
+}
+
+function hideCaviteLocationToast() {
+    const toast = document.getElementById('caviteLocationToast');
+    const progressBar = document.getElementById('caviteLocationToastBar');
+
+    if (!toast || toast.classList.contains('hidden')) return;
+
+    toast.classList.remove('toast-enter');
+    toast.classList.add('toast-exit');
+
+    if (progressBar) {
+        progressBar.style.transition = 'none';
+        progressBar.style.width = '0%';
+    }
+
+    setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('toast-exit');
+    }, 200);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const addressInput = document.getElementById('address');
     const latInput = document.getElementById('latitude');
@@ -727,15 +712,74 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!mapContainer || !addressInput || !latInput || !lngInput) return;
 
-    const caviteBounds = [
+    const caviteBounds = L.latLngBounds(
         [13.983, 120.850],
         [14.600, 121.200]
-    ];
+    );
 
-    const defaultLat = parseFloat(latInput.value) || 14.4323;
-    const defaultLng = parseFloat(lngInput.value) || 120.9269;
+    const caviteCenter = [14.2823, 120.8687];
+
+    let defaultLat = parseFloat(latInput.value);
+    let defaultLng = parseFloat(lngInput.value);
+
+    if (isNaN(defaultLat) || isNaN(defaultLng) || !caviteBounds.contains([defaultLat, defaultLng])) {
+        defaultLat = caviteCenter[0];
+        defaultLng = caviteCenter[1];
+    }
 
     let mapInitialized = false;
+
+    function clampToCavite(latlng) {
+        const south = caviteBounds.getSouth();
+        const north = caviteBounds.getNorth();
+        const west = caviteBounds.getWest();
+        const east = caviteBounds.getEast();
+
+        const clampedLat = Math.min(Math.max(latlng.lat, south), north);
+        const clampedLng = Math.min(Math.max(latlng.lng, west), east);
+
+        return L.latLng(clampedLat, clampedLng);
+    }
+
+    function updateInputs(lat, lng) {
+        latInput.value = Number(lat).toFixed(7);
+        lngInput.value = Number(lng).toFixed(7);
+    }
+
+    function reverseGeocode(lat, lng, marker) {
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data) return;
+
+            const fullAddress = data.display_name || '';
+            const addr = data.address || {};
+
+            const state = (addr.state || '').toLowerCase();
+            const province = (addr.province || '').toLowerCase();
+            const county = (addr.county || '').toLowerCase();
+
+            const isCavite =
+                state.includes('cavite') ||
+                province.includes('cavite') ||
+                county.includes('cavite') ||
+                fullAddress.toLowerCase().includes('cavite');
+
+            if (!isCavite) {
+                showCaviteLocationToast('You can only pin branch locations within Cavite.');
+                marker.setLatLng([defaultLat, defaultLng]);
+                updateInputs(defaultLat, defaultLng);
+                return;
+            }
+
+            addressInput.value = fullAddress;
+        })
+        .catch(err => console.log(err));
+    }
 
     function initMap() {
         if (mapInitialized) return;
@@ -743,48 +787,59 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const map = L.map('map', {
             maxBounds: caviteBounds,
-            maxBoundsViscosity: 0.8,
+            maxBoundsViscosity: 1.0,
             zoomControl: true
-        }).setView([defaultLat, defaultLng], 12);
+        }).setView([defaultLat, defaultLng], 11);
+
+        map.fitBounds(caviteBounds);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        const marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+        const marker = L.marker([defaultLat, defaultLng], {
+            draggable: true
+        }).addTo(map);
 
-        function updateInputs(lat, lng) {
-            latInput.value = lat.toFixed(7);
-            lngInput.value = lng.toFixed(7);
-        }
+        updateInputs(defaultLat, defaultLng);
 
         map.on('click', e => {
-            marker.setLatLng(e.latlng);
-            updateInputs(e.latlng.lat, e.latlng.lng);
-            reverseGeocode(e.latlng.lat, e.latlng.lng);
+            let selectedLatLng = e.latlng;
+
+            if (!caviteBounds.contains(selectedLatLng)) {
+                showCaviteLocationToast('You can only pin branch locations within Cavite.');
+                selectedLatLng = clampToCavite(selectedLatLng);
+            }
+
+            marker.setLatLng(selectedLatLng);
+            updateInputs(selectedLatLng.lat, selectedLatLng.lng);
+
+            defaultLat = selectedLatLng.lat;
+            defaultLng = selectedLatLng.lng;
+
+            reverseGeocode(selectedLatLng.lat, selectedLatLng.lng, marker);
         });
 
         marker.on('dragend', () => {
-            const pos = marker.getLatLng();
-            updateInputs(pos.lat, pos.lng);
-            reverseGeocode(pos.lat, pos.lng);
-        });
+            let pos = marker.getLatLng();
 
-        function reverseGeocode(lat, lng) {
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
-                headers: { 'User-Agent': 'SpaManagementSystem/1.0 (student-project)' }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data?.display_name) addressInput.value = data.display_name;
-            })
-            .catch(err => console.log(err));
-        }
+            if (!caviteBounds.contains(pos)) {
+                showCaviteLocationToast('You can only pin branch locations within Cavite.');
+                pos = clampToCavite(pos);
+                marker.setLatLng(pos);
+            }
+
+            updateInputs(pos.lat, pos.lng);
+
+            defaultLat = pos.lat;
+            defaultLng = pos.lng;
+
+            reverseGeocode(pos.lat, pos.lng, marker);
+        });
 
         setTimeout(() => map.invalidateSize(), 300);
     }
 
-    // ✅ Poll until map container is visible — works with Alpine x-show
     const checkVisible = setInterval(() => {
         if (mapContainer.offsetParent !== null && mapContainer.offsetHeight > 0) {
             clearInterval(checkVisible);
@@ -882,16 +937,20 @@ function toggleTimeInputs(checkbox, openingId, closingId, cardId) {
         closedLabel.textContent = 'Closed all day';
         card.appendChild(closedLabel);
     }
+
     closedLabel.style.display = isClosed ? 'block' : 'none';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const checkboxes = document.querySelectorAll('input[type="checkbox"][name*="[is_closed]"]');
+
     checkboxes.forEach(cb => {
         const index = cb.name.match(/\[(\d+)\]/)[1];
-        const cardId = 'card_' + (cb.closest('div[id^="card_"]')?.id.replace('card_', '') || index);
-        const openingId = 'opening_' + (cb.closest('div[id^="card_"]')?.id.replace('card_', '') || index);
-        const closingId = 'closing_' + (cb.closest('div[id^="card_"]')?.id.replace('card_', '') || index);
+        const suffix = cb.closest('div[id^="card_"]')?.id.replace('card_', '') || index;
+
+        const cardId = 'card_' + suffix;
+        const openingId = 'opening_' + suffix;
+        const closingId = 'closing_' + suffix;
 
         toggleTimeInputs(cb, openingId, closingId, cardId);
         cb.addEventListener('change', () => toggleTimeInputs(cb, openingId, closingId, cardId));
@@ -899,3 +958,51 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 @endsection
+
+<style>
+    #map {
+        z-index: 1 !important;
+        position: relative;
+    }
+
+    .leaflet-container {
+        z-index: 1 !important;
+    }
+
+    .leaflet-pane,
+    .leaflet-top,
+    .leaflet-bottom,
+    .leaflet-control {
+        z-index: 1 !important;
+    }
+
+    .toast-enter {
+        animation: toastIn 0.2s ease-out forwards;
+    }
+
+    .toast-exit {
+        animation: toastOut 0.2s ease-in forwards;
+    }
+
+    @keyframes toastIn {
+        from {
+            opacity: 0;
+            transform: translateY(-8px) translateX(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) translateX(0);
+        }
+    }
+
+    @keyframes toastOut {
+        from {
+            opacity: 1;
+            transform: translateY(0) translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(-8px) translateX(8px);
+        }
+    }
+</style>
