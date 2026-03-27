@@ -18,7 +18,9 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
-<body class="bg-[#F6EFE6] text-gray-800 selection:bg-[#D2A85B]/30 selection:text-[#3C2F23]">
+{{-- data-fallback-image lets welcome.js read the asset URL without needing inline Blade --}}
+<body class="bg-[#F6EFE6] text-gray-800 selection:bg-[#D2A85B]/30 selection:text-[#3C2F23]"
+      data-fallback-image="{{ asset('storage/branch_profiles/emptyspa.jpg') }}">
 
 <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 nav-glass" id="topNav">
     <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
@@ -889,6 +891,7 @@
                                 </div>
                             @endif
 
+                            <!-- Terms & Agreements -->
                             <div class="p-4 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6] space-y-3">
                                 <p class="text-xs font-semibold text-[#3C2F23] uppercase tracking-wide flex items-center gap-2">
                                     <i class="fa-solid fa-file-lines text-[#8B7355]"></i>
@@ -1112,12 +1115,7 @@
     </div>
 </footer>
 
-{{-- Pass Blade-only values to the external JS file --}}
-<script>
-    window.LEVICTAS_FALLBACK_IMAGE = "{{ asset('storage/branch_profiles/emptyspa.jpg') }}";
-</script>
-
-{{-- Session flash toasts --}}
+{{-- These stay inline because they use Blade/Laravel session syntax --}}
 @if(session('booking_error'))
 <script>
     document.addEventListener('DOMContentLoaded', function () {

@@ -22,3 +22,7 @@
             outline: none;
             box-shadow: 0 0 0 4px rgba(139,115,85,.20);
         }
+        #spaModalAmenities > div > div {
+            outline: none !important;
+            box-shadow: none !important;
+        }

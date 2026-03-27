@@ -239,23 +239,23 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     | API: Operating Hours
     |--------------------------------------------------------------------------
     */
-    Route::middleware('branch.permission:book appointments,view services')->group(function () {
-        Route::get('/api/operating-hours/{branch}/{day}', function ($branchId, $day) {
-            $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
-                ->where('day_of_week', $day)
-                ->first();
+    Route::get('/api/operating-hours/{branchId}/{day}', function ($branchId, $day) {
+        $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
+            ->where('day_of_week', $day)
+            ->first();
 
-            if (!$hours) {
-                return response()->json(['is_closed' => true]);
-            }
-
+        if (!$hours) {
             return response()->json([
-                'is_closed'    => $hours->is_closed,
-                'opening_time' => $hours->opening_time,
-                'closing_time' => $hours->closing_time,
+                'is_closed' => true,
             ]);
-        })->name('api.operating-hours');
-    });
+        }
+
+        return response()->json([
+            'is_closed'    => (bool) $hours->is_closed,
+            'opening_time' => $hours->opening_time,
+            'closing_time' => $hours->closing_time,
+        ]);
+    })->name('api.operating-hours');
 
     /*
     |--------------------------------------------------------------------------
