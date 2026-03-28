@@ -406,7 +406,7 @@
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                             <span class="flex items-center gap-2">
                                 <i class="fa-solid fa-users w-4 text-[#8B7355]"></i>
-                                People
+                                Manpower
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
                                :class="peopleOpen ? 'transform rotate-180' : ''"></i>
@@ -565,13 +565,13 @@
                         </button>
 
                         <div x-show="inventoryOpen" x-collapse class="ml-4 space-y-1">
-                            @if($canInventoryProducts)
+                            @if($canProductInventory)
                                 <x-nav-link :href="route('inventory.products')" :active="request()->routeIs('inventory.products')">
                                     Product Inventory
                                 </x-nav-link>
                             @endif
 
-                            @if($canInventoryLogs)
+                            @if($canProductLogs)
                                 <x-nav-link :href="route('inventory.logs')" :active="request()->routeIs('inventory.logs')">
                                     Product Logs
                                 </x-nav-link>
