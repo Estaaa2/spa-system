@@ -135,14 +135,14 @@
                                         type="button"
                                         onclick="openSpaModal({{ $spa->id }})"
                                         class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                        Edit
+                                        Review
                                     </button>
 
                                     <button
                                         type="button"
                                         onclick="openDeleteModal({{ $spa->id }}, '{{ addslashes($spa->name) }}')"
                                         class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                        Delete
+                                        Archive
                                     </button>
                                 </div>
                             </td>
@@ -168,7 +168,7 @@
 <div id="deleteModal" class="fixed inset-0 z-50 flex items-center justify-center hidden p-4 bg-black bg-opacity-50">
     <div class="w-full max-w-md bg-white shadow-xl rounded-xl dark:bg-gray-800">
         <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Delete Spa</h3>
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Archive Spa</h3>
             <button type="button" onclick="closeDeleteModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                 <i class="text-xl fa-solid fa-xmark"></i>
             </button>
@@ -176,7 +176,7 @@
 
         <div class="p-6">
             <p class="text-sm text-gray-600 dark:text-gray-300">
-                Are you sure you want to delete
+                Are you sure you want to archive
                 <span id="deleteSpaName" class="font-semibold text-red-600"></span>?
                 This action cannot be undone.
             </p>
@@ -195,7 +195,7 @@
                     <button
                         type="submit"
                         class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
-                        Yes, Delete
+                        Yes, Archive
                     </button>
                 </form>
             </div>
@@ -310,10 +310,10 @@
                         </p>
                     </div>
 
-                    <div class="flex flex-col-reverse gap-2 mt-4 sm:flex-row sm:justify-end">
+                    <div id="reviewActions" class="flex flex-col-reverse gap-2 mt-4 sm:flex-row sm:justify-end">
 
                         <button type="button"
-                                onclick="submitSpaReview('rejected')"
+                                onclick="prepareReject()"
                                 class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
                             Reject
                         </button>
@@ -324,6 +324,12 @@
                             Accept
                         </button>
                     </div>
+                    <button type="button"
+                            id="confirmRejectBtn"
+                            onclick="submitSpaReview('rejected')"
+                            class="hidden px-4 py-2 text-sm font-medium text-white bg-red-700 rounded-lg hover:bg-red-800 mt-2">
+                        Confirm Rejection
+                    </button>
                 </div>
             </form>
         </div>
@@ -332,6 +338,19 @@
 
 <!-- MODAL SCRIPT -->
 <script>
+
+let rejectPending = false;
+
+function prepareReject() {
+    rejectPending = true;
+
+    showRejectionField();
+
+    document.getElementById('reviewActions').classList.add('hidden');
+
+    document.getElementById('confirmRejectBtn').classList.remove('hidden');
+}
+
 function getDocumentLabel(type) {
     switch (type) {
         case 'government_id':
@@ -354,6 +373,8 @@ function formatStatus(status) {
 }
 
 function resetReviewDecision() {
+    rejectPending = false;
+
     const statusInput = document.getElementById('modalVerificationStatus');
     const remarks = document.getElementById('modalVerificationRemarks');
     const rejectionWrapper = document.getElementById('rejectionReasonWrapper');
@@ -362,6 +383,9 @@ function resetReviewDecision() {
     remarks.value = '';
     remarks.removeAttribute('required');
     rejectionWrapper.classList.add('hidden');
+
+    document.getElementById('reviewActions').classList.remove('hidden');
+    document.getElementById('confirmRejectBtn').classList.add('hidden');
 }
 
 function showRejectionField() {
@@ -389,14 +413,11 @@ function submitSpaReview(status) {
     statusInput.value = status;
 
     if (status === 'rejected') {
-        showRejectionField();
-
         if (!remarks.value.trim()) {
             remarks.reportValidity();
             return;
         }
     } else {
-        hideRejectionField();
         remarks.value = '';
     }
 

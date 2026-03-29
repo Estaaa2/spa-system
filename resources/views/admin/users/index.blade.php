@@ -67,14 +67,14 @@
                                             '{{ $currentRole }}'
                                         )"
                                         class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                        Edit
+                                        Review
                                     </button>
 
                                     <button
                                         type="button"
                                         onclick="openDeleteModal({{ $user->id }}, '{{ addslashes($user->name) }}')"
                                         class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                        Delete
+                                        Archive
                                     </button>
                                 </div>
                             </td>
@@ -101,7 +101,7 @@
 <div id="deleteModal" class="fixed inset-0 z-50 flex items-center justify-center hidden p-4 bg-black bg-opacity-50">
     <div class="w-full max-w-md bg-white shadow-xl rounded-xl dark:bg-gray-800">
         <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Delete User</h3>
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Archive User</h3>
             <button type="button" onclick="closeDeleteModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                 <i class="text-xl fa-solid fa-xmark"></i>
             </button>
@@ -109,7 +109,7 @@
 
         <div class="p-6">
             <p class="text-sm text-gray-600 dark:text-gray-300">
-                Are you sure you want to delete
+                Are you sure you want to archive
                 <span id="deleteUserName" class="font-semibold text-red-600"></span>?
                 This action cannot be undone.
             </p>
@@ -128,7 +128,7 @@
                     <button
                         type="submit"
                         class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
-                        Yes, Delete
+                        Yes, Archive
                     </button>
                 </form>
             </div>
