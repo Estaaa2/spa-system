@@ -91,7 +91,7 @@ class BookingController extends Controller
         return response()->json([
             'therapists' => $available->map(fn ($t) => [
                 'id' => $t->id,
-                'name' => $t->name,
+                'name' => $t->first_name . ' ' . $t->last_name,
             ])->values(),
             'recommended_id' => $recommended?->id,
         ]);
@@ -306,7 +306,7 @@ class BookingController extends Controller
                     $q->where('branch_id', $currentBranchId);
                 }
             })
-            ->orderBy('name')
+            ->orderBy('first_name')
             ->get();
 
         return view('appointments', compact(
@@ -331,7 +331,7 @@ class BookingController extends Controller
                     ->where('branch_id', $booking->branch_id)
                     ->where('employment_status', 'active');
             })
-            ->orderBy('name')
+            ->orderBy('first_name')
             ->get();
 
         $treatments = Treatment::where('spa_id', $user->spa_id)
@@ -554,7 +554,7 @@ class BookingController extends Controller
             'status' => 'reserved',
             'service_type' => $validated['service_type'],
             'treatment' => $validated['treatment'],
-            'customer_name' => $user->name,
+            'customer_name' => $user->first_name . ' ' . $user->last_name,
             'customer_email' => $user->email,
             'customer_phone' => $validated['customer_phone'] ?? null,
             'customer_address' => $validated['customer_address'] ?? null,
@@ -650,7 +650,7 @@ class BookingController extends Controller
                     ->where('branch_id', $branchId)
                     ->where('employment_status', 'active');
             })
-            ->orderBy('name')
+            ->orderBy('first_name')
             ->get();
     }
 
@@ -741,7 +741,7 @@ class BookingController extends Controller
                 return strcmp($aLastEnd, $bLastEnd);
             }
 
-            return strcmp(mb_strtolower($a->name), mb_strtolower($b->name));
+            return strcmp(mb_strtolower($a->first_name), mb_strtolower($b->first_name));
         })->first();
     }
 

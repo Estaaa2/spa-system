@@ -13,7 +13,9 @@ class AdminSeeder extends Seeder
         $admin = User::updateOrCreate(
             ['email' => 'levictas.dev@gmail.com'],
             [
-                'name' => 'System Admin',
+                'first_name' => 'System',
+                'middle_name' => 'Admin',
+                'last_name' => 'User',
                 'password' => Hash::make('admin123'),
                 'is_owner' => false,
             ]

@@ -148,7 +148,7 @@
                                                 type="button"
                                                 onclick="openDeleteTreatmentModal({{ $treatment->id }}, '{{ addslashes($treatment->name) }}')"
                                                 class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                                Delete
+                                                Remove
                                             </button>
                                         @endif
                                     </div>
@@ -303,7 +303,7 @@
                                                 type="button"
                                                 onclick="openDeletePackageModal({{ $package->id }}, '{{ addslashes($package->name) }}')"
                                                 class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                                Delete
+                                                Remove
                                             </button>
                                         @endif
                                     </div>
@@ -492,18 +492,18 @@
 <div id="deleteTreatmentModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Delete Treatment</h2>
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Remove Treatment</h2>
             <button type="button" onclick="closeDeleteTreatmentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <p class="text-gray-500 dark:text-gray-400">Are you sure you want to delete <span id="deleteTreatmentName" class="font-semibold text-gray-800 dark:text-white"></span>? This action cannot be undone.</p>
+        <p class="text-gray-500 dark:text-gray-400">Are you sure you want to remove <span id="deleteTreatmentName" class="font-semibold text-gray-800 dark:text-white"></span>? This action cannot be undone.</p>
         <div class="flex justify-end gap-2 mt-6">
             <button type="button" onclick="closeDeleteTreatmentModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
             <form id="deleteTreatmentForm" method="POST">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700">Yes, Delete</button>
+                <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700">Yes, Remove</button>
             </form>
         </div>
     </div>
@@ -646,18 +646,18 @@
 <div id="deletePackageModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Delete Package</h2>
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Remove Package</h2>
             <button type="button" onclick="closeDeletePackageModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <p class="text-gray-500 dark:text-gray-400">Are you sure you want to delete <span id="deletePackageName" class="font-semibold text-gray-800 dark:text-white"></span>? This action cannot be undone.</p>
+        <p class="text-gray-500 dark:text-gray-400">Are you sure you want to remove <span id="deletePackageName" class="font-semibold text-gray-800 dark:text-white"></span>? This action cannot be undone.</p>
         <div class="flex justify-end gap-2 mt-6">
             <button type="button" onclick="closeDeletePackageModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
             <form id="deletePackageForm" method="POST">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700">Yes, Delete</button>
+                <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700">Yes, Remove</button>
             </form>
         </div>
     </div>

@@ -54,30 +54,55 @@
                 <form method="POST" action="{{ route('register.business.store') }}" class="space-y-6">
                     @csrf
 
-                    <!-- Name -->
+                    <!-- First Name -->
                     <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <x-input-label for="name" :value="__('Name')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
-                        </div>
+                        <x-input-label for="first_name" :value="__('First Name')" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block" />
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
                             </div>
-                            <x-text-input
-                                id="name"
+                            <x-text-input id="first_name" name="first_name" type="text"
                                 class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
-                                type="text"
-                                name="name"
-                                :value="old('name')"
-                                required
-                                autofocus
-                                autocomplete="name"
-                                placeholder="Enter your full name"
-                            />
+                                :value="old('first_name')" required autofocus autocomplete="given-name"
+                                placeholder="Enter your first name" />
                         </div>
-                        <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                        <x-input-error :messages="$errors->get('first_name')" class="mt-2" />
+                    </div>
+
+                    <!-- Middle Name -->
+                    <div>
+                        <x-input-label for="middle_name" :value="__('Middle Name')" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block" />
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                            <x-text-input id="middle_name" name="middle_name" type="text"
+                                class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
+                                :value="old('middle_name')" autocomplete="additional-name"
+                                placeholder="Middle name (optional)" />
+                        </div>
+                        <x-input-error :messages="$errors->get('middle_name')" class="mt-2" />
+                    </div>
+
+                    <!-- Surname -->
+                    <div>
+                        <x-input-label for="last_name" :value="__('Surname')" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block" />
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                            <x-text-input id="last_name" name="last_name" type="text"
+                                class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
+                                :value="old('last_name')" required autocomplete="family-name"
+                                placeholder="Enter your surname" />
+                        </div>
+                        <x-input-error :messages="$errors->get('last_name')" class="mt-2" />
                     </div>
 
                     <!-- Email -->

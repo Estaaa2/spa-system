@@ -141,7 +141,7 @@
                                             name: @js($product->name)
                                         })"
                                         class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700 whitespace-nowrap">
-                                        Delete
+                                        Remove
                                     </button>
                                 </div>
 
@@ -181,13 +181,13 @@
 
             <div class="px-6 py-4 border-b dark:border-gray-700">
                 <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-                    Delete Product
+                    Remove Product
                 </h3>
             </div>
 
             <div class="p-6 space-y-4">
                 <p class="text-sm text-gray-600 dark:text-gray-300">
-                    Are you sure you want to delete
+                    Are you sure you want to remove
                     <span class="font-semibold text-red-600" x-text="deleteProduct.name"></span>?
                 </p>
 
@@ -204,7 +204,7 @@
                         @method('DELETE')
 
                         <button class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
-                            Yes, Delete
+                            Yes, Remove
                         </button>
                     </form>
                 </div>

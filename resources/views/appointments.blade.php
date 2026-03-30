@@ -269,7 +269,7 @@
                                         @if($canDelete)
                                             <button onclick="openDeleteModal({{ $booking->id }})"
                                                     class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                                Delete
+                                                Remove
                                             </button>
                                         @endif
                                     </div>
@@ -365,7 +365,7 @@
                                         @if($canDelete)
                                             <button onclick="openDeleteModal({{ $booking->id }})"
                                                     class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">
-                                                Delete
+                                                Remove
                                             </button>
                                         @endif
                                     </div>
@@ -647,9 +647,9 @@
 @if($canDelete)
 <div id="deleteModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Delete Appointment</h2>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Remove Appointment</h2>
         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            This will permanently remove the selected appointment record.
+            This will remove the selected appointment record.
         </p>
 
         <div class="flex justify-end gap-2 mt-6">
@@ -663,7 +663,7 @@
                 @method('DELETE')
                 <button type="submit"
                         class="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700">
-                    Yes, Delete
+                    Yes, Remove
                 </button>
             </form>
         </div>

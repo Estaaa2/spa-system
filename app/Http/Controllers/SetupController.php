@@ -182,7 +182,8 @@ class SetupController extends Controller
         }
 
         $validated = $request->validate([
-            'name'  => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name'  => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users'],
             'role'  => ['required', 'in:manager,receptionist,therapist'],
         ]);
@@ -191,7 +192,8 @@ class SetupController extends Controller
             $tempPassword = Str::random(12);
 
             $newUser = User::create([
-                'name'                     => $validated['name'],
+                'first_name'               => $validated['first_name'],
+                'last_name'                => $validated['last_name'],
                 'email'                    => $validated['email'],
                 'password'                 => Hash::make($tempPassword),
                 'spa_id'                   => $user->spa_id,

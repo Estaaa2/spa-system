@@ -32,14 +32,23 @@
 
                             <div>
                                 <label class="block mb-1 text-xs font-semibold text-gray-600">Full Name *</label>
-                                <input
-                                    type="text"
-                                    name="name"
+                                <input 
+                                    type="text" 
+                                    name="first_name" 
                                     required
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none"
-                                    placeholder="Staff name"
-                                />
-                                @error('name')
+                                    placeholder="First name" />
+                                <input
+                                    type="text" 
+                                    name="last_name" 
+                                    required
+                                    class="w-full mt-2 px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none"
+                                    placeholder="Last name" />
+
+                                @error('first_name')
+                                    <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                                @enderror
+                                @error('last_name')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -108,10 +117,10 @@
                                         <div class="flex items-start justify-between">
                                             <div class="flex items-center gap-3">
                                                 <div class="flex items-center justify-center w-9 h-9 rounded-full bg-[#8B7355] text-white text-sm font-semibold shrink-0">
-                                                    {{ strtoupper(substr($user->name, 0, 1)) }}
+                                                    {{ strtoupper(substr($user->first_name, 0, 1)) }}
                                                 </div>
                                                 <div>
-                                                    <h4 class="text-sm font-semibold text-[#3C2F23]">{{ $user->name }}</h4>
+                                                    <h4 class="text-sm font-semibold text-[#3C2F23]">{{ $user->first_name }} {{ $user->last_name }}</h4>
                                                     <p class="text-xs text-gray-500">{{ $user->email }}</p>
                                                     <div class="flex gap-2 mt-1.5">
                                                         @forelse($user->getRoleNames() as $role)

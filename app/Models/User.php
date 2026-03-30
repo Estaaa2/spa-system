@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,7 +22,9 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'middle_name',
+        'last_name',
         'email',
         'password',
         'spa_id',
@@ -56,6 +57,25 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_owner' => 'boolean',
             'password_reset_required' => 'boolean',
         ];
+    }
+
+    /**
+     * Virtual "name" accessor so all existing code using $user->name
+     * continues to work without any changes.
+     */
+    public function getNameAttribute(): string
+    {
+        return collect([$this->first_name, $this->middle_name, $this->last_name])
+            ->filter()
+            ->implode(' ');
+    }
+
+    /**
+     * Full name — same as name but explicit for readability when needed.
+     */
+    public function getFullNameAttribute(): string
+    {
+        return $this->name;
     }
 
     public function spa(): BelongsTo

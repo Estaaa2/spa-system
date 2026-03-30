@@ -61,7 +61,7 @@ class CustomerAppointmentController extends Controller
             'start_time'   => $b->start_time,
             'end_time'     => $b->end_time,
             'status'       => $b->status,
-            'therapist'    => $b->therapist?->name ?? 'Not Assigned',
+            'therapist'    => $b->therapist ? trim($b->therapist->first_name . ' ' . $b->therapist->last_name) : 'Not Assigned',
             'price'        => null,
             'service_type' => $b->service_type_label,
         ];

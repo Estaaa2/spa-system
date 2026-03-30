@@ -42,7 +42,9 @@ class StaffController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'  => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'roles' => 'required|in:therapist,receptionist,manager,hr,finance',
         ]);
@@ -65,7 +67,7 @@ class StaffController extends Controller
                 ->where('branch_id', $branchId)
                 ->count();
 
-            if ($staffCountForBranch >= 1) {
+            if ($staffCountForBranch >= 10) {
                 return back()->with('error', 'This branch can only have up to 10 staff accounts on the Basic plan. Upgrade your subscription to add more staff members.');
             }
         }
@@ -74,7 +76,9 @@ class StaffController extends Controller
             $tempPassword = Str::random(12);
 
             $user = User::create([
-                'name'                    => $validated['name'],
+                'first_name'              => $validated['first_name'],
+                'middle_name'             => $validated['middle_name'] ?? null,
+                'last_name'               => $validated['last_name'],
                 'email'                   => $validated['email'],
                 'password'                => Hash::make($tempPassword),
                 'spa_id'                  => $currentUser->spa_id,
@@ -108,7 +112,7 @@ class StaffController extends Controller
     public function show(Staff $staff)
     {
         return response()->json([
-            'name' => $staff->user?->name ?? '',
+            'name' => $staff->user ? trim($staff->user->first_name . ' ' . $staff->user->last_name) : '',
             'roles' => $staff->user?->getRoleNames()->first() ?? '',
             'branch_id' => $staff->branch_id,
             'employment_status' => $staff->employment_status ?? 'active',

@@ -69,7 +69,7 @@ class DashboardController extends Controller
                 ->where('branch_id', $currentBranchId)
                 ->where('employment_status', 'active');
             })
-            ->select(['id', 'name', 'email'])
+            ->select(['id', 'first_name', 'last_name', 'email'])
             ->withCount([
                 'assignedBookings as assigned_bookings_count' => function ($q) use ($currentBranchId, $spaId) {
                     $q->where('spa_id', $spaId)
