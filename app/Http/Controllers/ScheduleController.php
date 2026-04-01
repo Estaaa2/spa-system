@@ -13,8 +13,8 @@ class ScheduleController extends Controller
     {
         $currentBranchId = session('current_branch_id') ?? auth()->user()->branch_id;
 
-        // Week start (Monday)
-        $weekParam = $request->query('week');
+        // ── Week bounds ────────────────────────────────────────────────
+        $weekParam   = $request->query('week');
         $startOfWeek = $weekParam
             ? Carbon::parse($weekParam)->startOfWeek(Carbon::MONDAY)
             : now()->startOfWeek(Carbon::MONDAY);
@@ -22,109 +22,111 @@ class ScheduleController extends Controller
         $endOfWeek = $startOfWeek->copy()->addDays(6);
 
         $dayDates = [];
-        foreach (range(0,6) as $i) {
+        foreach (range(0, 6) as $i) {
             $dayDates[$i] = $startOfWeek->copy()->addDays($i);
         }
 
-        $timeSlotKeys = [];
-        $start = Carbon::createFromTime(9,0);
-        $end = Carbon::createFromTime(16,0);
-
-        while($start <= $end) {
-            $timeSlotKeys[] = $start->format('H:i');
-            $start->addMinutes(30);  // 30-min resolution
-        }
-
-        // Get bookings for the week (per branch)
-        $bookings = Booking::query()
-            ->where('branch_id', $currentBranchId)
-            ->whereBetween('appointment_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
-            ->orderBy('appointment_date')
-            ->orderBy('start_time')
-            ->get();
-
-        $slotResolution = 30; // minutes per row
-        $dayStart = Carbon::createFromTime(7,0); // timetable start time
-
-        foreach ($bookings as $b) {
-            $start = Carbon::parse($b->start_time);
-            $end = Carbon::parse($b->end_time);
-
-            $rowStart = $dayStart->diffInMinutes($start) / $slotResolution + 1;
-            $rowEnd = $dayStart->diffInMinutes($end) / $slotResolution + 1;
-
-            $b->gridRow = "$rowStart / $rowEnd";
-        }
-
-        $grid = [];
-
-        foreach ($bookings as $b) {
-            $dateKey = Carbon::parse($b->appointment_date)->toDateString();
-            $startTime = Carbon::parse($b->start_time);
-            $endTime = Carbon::parse($b->end_time);
-
-            $occupiedSlots = [];
-            $slot = $startTime->copy();
-
-            while($slot < $endTime) {
-                $occupiedSlots[] = $slot->format('H:i');
-                $slot->addMinutes(30);
-            }
-
-            foreach ($occupiedSlots as $timeKey) {
-                $grid[$dateKey][$timeKey][] = $b;
-            }
-
-            // Optional: store start_time separately for front-end check
-            $b->start_slot = $startTime->format('H:i');
-        }
-
+        // ── Operating hours for each day of the week ───────────────────
         $operatingHours = [];
-        foreach ($dayDates as $date) {
-            $dayOfWeek = $date->format('l'); // "Monday", "Tuesday", ...
-            $hours = OperatingHours::where('branch_id', $currentBranchId)
-                        ->where('day_of_week', $dayOfWeek)
-                        ->first();
+        $earliestOpen   = null; // Carbon time (for slot generation)
+        $latestClose    = null; // Carbon time (for slot generation)
 
-            // Defaults
+        foreach ($dayDates as $date) {
+            $dayOfWeek = $date->format('l');
+            $hours     = OperatingHours::where('branch_id', $currentBranchId)
+                            ->where('day_of_week', $dayOfWeek)
+                            ->first();
+
             $opening = null;
             $closing = null;
-            $closed = true;
+            $closed  = true;
 
-            if ($hours) {
-                // If explicit flag set, honor it
-                if ($hours->is_closed) {
+            if ($hours && !$hours->is_closed) {
+                $opening = $hours->opening_time ? substr($hours->opening_time, 0, 5) : null;
+                $closing = $hours->closing_time ? substr($hours->closing_time, 0, 5) : null;
+
+                // Treat "00:00" as closed
+                if (!$opening || !$closing || $opening === '00:00' || $closing === '00:00') {
                     $opening = null;
                     $closing = null;
-                    $closed = true;
+                    $closed  = true;
                 } else {
-                    // Ensure we only treat a valid opening/closing as open
-                    $opening = $hours->opening_time ? substr($hours->opening_time, 0, 5) : null;
-                    $closing = $hours->closing_time ? substr($hours->closing_time, 0, 5) : null;
+                    $closed = false;
 
-                    // Treat "00:00" / "00:00:00" as closed (some seeds use that)
-                    if ($opening === '00:00' || $closing === '00:00' || !$opening || !$closing) {
-                        $opening = null;
-                        $closing = null;
-                        $closed = true;
-                    } else {
-                        $closed = false;
+                    // Track the earliest open / latest close across all open days
+                    $openCarbon  = Carbon::createFromFormat('H:i', $opening);
+                    $closeCarbon = Carbon::createFromFormat('H:i', $closing);
+
+                    if ($earliestOpen === null || $openCarbon->lt($earliestOpen)) {
+                        $earliestOpen = $openCarbon->copy();
+                    }
+                    if ($latestClose === null || $closeCarbon->gt($latestClose)) {
+                        $latestClose = $closeCarbon->copy();
                     }
                 }
-            } else {
-                // No operating_hours row -> treat as closed by default
-                $opening = null;
-                $closing = null;
-                $closed = true;
             }
 
             $operatingHours[$date->toDateString()] = [
                 'opening_time' => $opening,
                 'closing_time' => $closing,
-                'closed' => $closed,
+                'closed'       => $closed,
             ];
         }
 
+        // ── Fallback if ALL days are closed (no hours configured yet) ──
+        if ($earliestOpen === null) {
+            $earliestOpen = Carbon::createFromTime(9, 0);
+            $latestClose  = Carbon::createFromTime(18, 0);
+        }
+
+        // ── Build 30-min time slots from earliest open → latest close ──
+        $timeSlotKeys = [];
+        $slotCursor   = $earliestOpen->copy();
+
+        while ($slotCursor->lte($latestClose)) {
+            $timeSlotKeys[] = $slotCursor->format('H:i');
+            $slotCursor->addMinutes(30);
+        }
+
+        // ── Fetch bookings for the week ────────────────────────────────
+        $bookings = Booking::query()
+            ->with('latestRescheduleRequest')
+            ->where('branch_id', $currentBranchId)
+            ->whereBetween('appointment_date', [
+                $startOfWeek->toDateString(),
+                $endOfWeek->toDateString(),
+            ])
+            ->orderBy('appointment_date')
+            ->orderBy('start_time')
+            ->get();
+
+        // ── Build grid: dateKey → timeKey → [bookings] ─────────────────
+        $grid = [];
+
+        foreach ($bookings as $b) {
+            $dateKey   = Carbon::parse($b->appointment_date)->toDateString();
+            $startTime = Carbon::parse($b->start_time);
+            $endTime   = Carbon::parse($b->end_time);
+
+            // Safety: if end_time <= start_time (bad data), skip
+            if ($endTime->lte($startTime)) {
+                continue;
+            }
+
+            $slot = $startTime->copy();
+            while ($slot->lt($endTime)) {
+                $timeKey = $slot->format('H:i');
+                // Only add to grid if this slot is actually in our visible range
+                if (in_array($timeKey, $timeSlotKeys, true)) {
+                    $grid[$dateKey][$timeKey][] = $b;
+                }
+                $slot->addMinutes(30);
+            }
+
+            $b->start_slot = $startTime->format('H:i');
+        }
+
+        // ── Labels for the Blade ───────────────────────────────────────
         $prevWeek = $startOfWeek->copy()->subWeek()->toDateString();
         $nextWeek = $startOfWeek->copy()->addWeek()->toDateString();
 
@@ -135,53 +137,60 @@ class ScheduleController extends Controller
             'nextWeek',
             'grid',
             'bookings',
-            'slotResolution',
             'timeSlotKeys',
-            'operatingHours'
+            'operatingHours',
+            'dayDates',
         ));
     }
 
-    // Optional realtime endpoint (returns JSON for the current week)
+    // ── JSON endpoint (optional realtime) ─────────────────────────────
     public function data(Request $request)
     {
         $currentBranchId = session('current_branch_id') ?? auth()->user()->branch_id;
 
-        $weekParam = $request->query('week');
+        $weekParam   = $request->query('week');
         $startOfWeek = $weekParam
             ? Carbon::parse($weekParam)->startOfWeek(Carbon::MONDAY)
             : now()->startOfWeek(Carbon::MONDAY);
 
         $endOfWeek = $startOfWeek->copy()->addDays(6);
 
-        $timeSlotKeys = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
-
         $bookings = Booking::query()
             ->where('branch_id', $currentBranchId)
-            ->whereBetween('appointment_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->whereBetween('appointment_date', [
+                $startOfWeek->toDateString(),
+                $endOfWeek->toDateString(),
+            ])
             ->orderBy('appointment_date')
             ->orderBy('start_time')
-            ->get(['id','appointment_date','start_time','status','service_type','treatment','customer_name','customer_phone','therapist_id']);
+            ->get(['id', 'appointment_date', 'start_time', 'end_time', 'status',
+                   'service_type', 'treatment', 'customer_name', 'customer_phone', 'therapist_id']);
 
         $grid = [];
         foreach ($bookings as $b) {
-            $dateKey = Carbon::parse($b->appointment_date)->toDateString();
-            $timeKey = Carbon::parse($b->start_time)->format('H:i');
+            $dateKey   = Carbon::parse($b->appointment_date)->toDateString();
+            $startTime = Carbon::parse($b->start_time);
+            $endTime   = Carbon::parse($b->end_time);
 
-            if (!in_array($timeKey, $timeSlotKeys, true)) continue;
+            if ($endTime->lte($startTime)) continue;
 
-            $grid[$dateKey][$timeKey][] = [
-                'id' => $b->id,
-                'status' => $b->status,
-                'service_type' => $b->service_type,
-                'treatment' => $b->treatment,
-                'customer_name' => $b->customer_name,
-                'customer_phone' => $b->customer_phone,
-            ];
+            $slot = $startTime->copy();
+            while ($slot->lt($endTime)) {
+                $grid[$dateKey][$slot->format('H:i')][] = [
+                    'id'            => $b->id,
+                    'status'        => $b->status,
+                    'service_type'  => $b->service_type,
+                    'treatment'     => $b->treatment,
+                    'customer_name' => $b->customer_name,
+                    'customer_phone'=> $b->customer_phone,
+                ];
+                $slot->addMinutes(30);
+            }
         }
 
         return response()->json([
             'startOfWeek' => $startOfWeek->toDateString(),
-            'grid' => $grid,
+            'grid'        => $grid,
         ]);
     }
 }

@@ -26,3 +26,18 @@
             outline: none !important;
             box-shadow: none !important;
         }
+        #profileDropdownBtn .rounded-full {
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            line-height: 1;
+            color: #ffffff !important;
+        }
+        #profileDropdownBtn > div:first-child {
+            color: #ffffff !important;
+            font-family: ui-sans-serif, system-ui, sans-serif !important;
+            line-height: 1 !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+        #profileModal .rounded-full {
+            -webkit-text-fill-color: #ffffff !important;
+            font-family: ui-sans-serif, system-ui, sans-serif !important;
+        }

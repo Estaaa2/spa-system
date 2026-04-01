@@ -110,4 +110,14 @@ class Booking extends Model
 
         return Carbon::parse($startTime)->addMinutes($duration)->format('H:i:s');
     }
+
+    public function rescheduleRequests()
+    {
+        return $this->hasMany(RescheduleRequest::class);
+    }
+
+    public function latestRescheduleRequest()
+    {
+        return $this->hasOne(RescheduleRequest::class)->latestOfMany();
+    }
 }

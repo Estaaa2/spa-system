@@ -477,12 +477,6 @@
                                     Branches
                                 </x-nav-link>
                             @endif
-
-                            @role('owner')
-                            <x-nav-link :href="route('owner.roles-permissions.index')" :active="request()->routeIs('owner.roles-permissions.*')">
-                                Roles &amp; Permissions
-                            </x-nav-link>
-                            @endrole
                         </div>
                     </div>
                 @endif
@@ -612,6 +606,12 @@
                         @role('owner')
                         <x-nav-link :href="route('owner.subscription.index')" :active="request()->routeIs('owner.subscription.*')">
                             Subscription &amp; Billing
+                        </x-nav-link>
+                        @endrole
+
+                        @role('owner')
+                        <x-nav-link :href="route('owner.roles-permissions.index')" :active="request()->routeIs('owner.roles-permissions.*')">
+                            Roles &amp; Permissions
                         </x-nav-link>
                         @endrole
                     </div>

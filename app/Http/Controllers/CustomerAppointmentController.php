@@ -11,7 +11,7 @@ class CustomerAppointmentController extends Controller
     {
         $user = Auth::user();
 
-        $bookings = Booking::with(['spa', 'branch', 'therapist'])
+        $bookings = Booking::with(['spa', 'branch', 'therapist', 'latestRescheduleRequest'])
             ->where('customer_user_id', $user->id)
             ->orderBy('appointment_date', 'desc')
             ->get()
@@ -53,6 +53,7 @@ class CustomerAppointmentController extends Controller
 
         return [
             'id'           => $b->id,
+            'branch_id'    => $b->branch_id,
             'spa_name'     => $b->spa?->name ?? 'N/A',
             'branch_name'  => $b->branch?->name ?? 'N/A',
             'treatment'    => $treatmentName,
@@ -64,6 +65,8 @@ class CustomerAppointmentController extends Controller
             'therapist'    => $b->therapist ? trim($b->therapist->first_name . ' ' . $b->therapist->last_name) : 'Not Assigned',
             'price'        => null,
             'service_type' => $b->service_type_label,
+            'reschedule_status' => $b->latestRescheduleRequest?->status ?? null,
+            'reschedule_pending' => $b->latestRescheduleRequest?->isPending() ?? false,
         ];
     }
 }

@@ -26,10 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function ($middleware) {
         $middleware->web(append: [
             \App\Http\Middleware\EnsureCurrentBranch::class,
-            \App\Http\Middleware\RefreshPermissionsCache::class, 
+            \App\Http\Middleware\RefreshPermissionsCache::class,
         ]);
         $middleware->validateCsrfTokens(except: [
-        'paymongo/webhook', // Add the path here (no leading slash)
+        'webhooks/paymongo', // Add the path here (no leading slash)
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

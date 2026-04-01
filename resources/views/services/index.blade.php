@@ -56,7 +56,7 @@
                             Export CSV
                         </a>
 
-                        <form id="treatmentsImportForm" action="{{ route('treatments.import') }}" method="POST" enctype="multipart/form-data" class="inline">
+                        <form id="treatmentsImportForm" action="{{ route('treatments.import') }}" method="POST" enctype="multipart/form-data" class="inline w-full">
                             @csrf
                             <input
                                 type="file"
@@ -65,13 +65,12 @@
                                 accept=".csv"
                                 required
                                 class="hidden"
-                                onchange="document.getElementById('treatmentsImportForm').submit()"
-                            >
+                                onchange="document.getElementById('treatmentsImportForm').submit()">
                             <button
                                 type="button"
                                 onclick="document.getElementById('treatmentsCsvFile').click()"
-                                class="px-4 py-2 text-sm border rounded-lg whitespace-nowrap bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
-                                <i class="mr-2 fas fa-upload"></i>
+                                class="w-full px-4 py-2 text-sm border rounded-lg whitespace-nowrap bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] flex items-center justify-center gap-2 dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                                <i class="fas fa-upload"></i>
                                 Import CSV
                             </button>
                         </form>
@@ -198,7 +197,7 @@
                             Export CSV
                         </a>
 
-                        <form id="packagesImportForm" action="{{ route('packages.import') }}" method="POST" enctype="multipart/form-data" class="inline">
+                        <form id="packagesImportForm" action="{{ route('packages.import') }}" method="POST" enctype="multipart/form-data" class="inline w-full">
                             @csrf
                             <input
                                 type="file"
@@ -207,13 +206,12 @@
                                 accept=".csv"
                                 required
                                 class="hidden"
-                                onchange="document.getElementById('packagesImportForm').submit()"
-                            >
+                                onchange="document.getElementById('packagesImportForm').submit()">
                             <button
                                 type="button"
                                 onclick="document.getElementById('packagesCsvFile').click()"
-                                class="px-4 py-2 text-sm border rounded-lg whitespace-nowrap bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
-                                <i class="mr-2 fas fa-upload"></i>
+                                class="w-full px-4 py-2 text-sm border rounded-lg whitespace-nowrap bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] flex items-center justify-center gap-2 dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                                <i class="fas fa-upload"></i>
                                 Import CSV
                             </button>
                         </form>

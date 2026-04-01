@@ -114,13 +114,13 @@ class PaymongoWebhookController extends Controller
                             ->format('H:i:s');
 
                         $therapists = User::role('therapist')
-                            ->whereHas('staff', function ($q) use ($reservation) {
-                                $q->where('spa_id', $reservation->spa_id)
-                                    ->where('branch_id', $reservation->branch_id)
-                                    ->where('employment_status', 'active');
-                            })
-                            ->orderBy('name')
-                            ->get();
+                        ->whereHas('staff', function ($q) use ($reservation) {
+                            $q->where('spa_id', $reservation->spa_id)
+                                ->where('branch_id', $reservation->branch_id)
+                                ->where('employment_status', 'active');
+                        })
+                        ->orderBy('first_name')  // ← use your actual column name
+                        ->get();
 
                         $busyIds = Booking::query()
                             ->where('spa_id', $reservation->spa_id)

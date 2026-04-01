@@ -15,6 +15,14 @@ const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
 const profileDropdownMenu = document.getElementById('profileDropdownMenu');
 const profileChevron      = document.getElementById('profileChevron');
 
+// =====================================================
+// FIX: Use local date instead of UTC
+// =====================================================
+function getTodayLocal() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 function closeProfileDropdown() {
     profileDropdownMenu?.classList.add('hidden');
     profileChevron?.classList.remove('rotate-180');
@@ -213,10 +221,7 @@ function clearBookingSelections() {
 
     const timeError = document.getElementById('bookingTimeError');
     const submitBtn = document.getElementById('bookingSubmitBtn');
-    if (timeError) {
-        timeError.textContent = '';
-        timeError.classList.add('hidden');
-    }
+    if (timeError) { timeError.textContent = ''; timeError.classList.add('hidden'); }
     if (submitBtn) submitBtn.disabled = false;
 }
 
@@ -248,6 +253,14 @@ function populateTreatmentsForSelectedBranch() {
     });
 
     resetServiceType();
+}
+
+function openTermsModal() {
+    document.getElementById('termsModal').classList.remove('hidden');
+}
+
+function closeTermsModal() {
+    document.getElementById('termsModal').classList.add('hidden');
 }
 
 function resetServiceType() {
@@ -295,7 +308,7 @@ async function updateAvailableTimes() {
     const dateValue = bookingDateInput?.value;
     if (!branchId || !dateValue || !bookingTimeInput) return;
 
-    const day = new Date(dateValue).toLocaleDateString('en-US', { weekday: 'long' });
+    const day = new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
 
     try {
         const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
@@ -306,41 +319,26 @@ async function updateAvailableTimes() {
             bookingTimeInput.disabled = true;
             bookingTimeInput.removeAttribute('min');
             bookingTimeInput.removeAttribute('max');
-
-            const errorEl = document.getElementById('bookingTimeError');
+            const errorEl  = document.getElementById('bookingTimeError');
             const submitBtn = document.getElementById('bookingSubmitBtn');
-
-            if (errorEl) {
-                errorEl.textContent = 'This branch is closed on the selected day.';
-                errorEl.classList.remove('hidden');
-            }
-
+            if (errorEl)  { errorEl.textContent = 'This branch is closed on the selected day.'; errorEl.classList.remove('hidden'); }
             if (submitBtn) submitBtn.disabled = true;
-
             showSpaToast('This branch is closed on the selected day.', 'error');
             return;
-        } else {
-            bookingTimeInput.disabled = false;
-
-            const errorEl = document.getElementById('bookingTimeError');
-            const submitBtn = document.getElementById('bookingSubmitBtn');
-
-            if (errorEl) {
-                errorEl.textContent = '';
-                errorEl.classList.add('hidden');
-            }
-            if (submitBtn) submitBtn.disabled = false;
-
-            const openingTime = (data.opening_time || '').slice(0, 5);
-            const closingTime = (data.closing_time || '').slice(0, 5);
-
-            bookingTimeInput.min = openingTime;
-            bookingTimeInput.max = closingTime;
-
-            if (bookingTimeInput.value) {
-                validateBookingTime();
-            }
         }
+
+        bookingTimeInput.disabled = false;
+        const errorEl  = document.getElementById('bookingTimeError');
+        const submitBtn = document.getElementById('bookingSubmitBtn');
+        if (errorEl)  { errorEl.textContent = ''; errorEl.classList.add('hidden'); }
+        if (submitBtn) submitBtn.disabled = false;
+
+        const openingTime = (data.opening_time || '').slice(0, 5);
+        const closingTime = (data.closing_time || '').slice(0, 5);
+        bookingTimeInput.min = openingTime;
+        bookingTimeInput.max = closingTime;
+        if (bookingTimeInput.value) validateBookingTime();
+
     } catch (error) {
         console.error('Failed to load operating hours:', error);
         showSpaToast('Unable to check branch operating hours right now.', 'error');
@@ -353,7 +351,7 @@ function formatTime12Hour(time) {
     if (!time) return '';
     const [hour, minute] = time.split(':').map(Number);
     const ampm = hour >= 12 ? 'PM' : 'AM';
-    const h12 = hour % 12 || 12;
+    const h12  = hour % 12 || 12;
     return `${h12}:${String(minute).padStart(2, '0')} ${ampm}`;
 }
 
@@ -364,33 +362,24 @@ function validateBookingTime() {
     const submitBtn = document.getElementById('bookingSubmitBtn');
 
     if (!dateValue || !timeValue) {
-        if (errorEl) {
-            errorEl.textContent = '';
-            errorEl.classList.add('hidden');
-        }
+        if (errorEl) { errorEl.textContent = ''; errorEl.classList.add('hidden'); }
         if (submitBtn) submitBtn.disabled = false;
         return true;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today        = getTodayLocal();
     const selectedTime = timeValue.slice(0, 5);
-    const openingTime = (bookingTimeInput.min || '').slice(0, 5);
-    const closingTime = (bookingTimeInput.max || '').slice(0, 5);
+    const openingTime  = (bookingTimeInput.min || '').slice(0, 5);
+    const closingTime  = (bookingTimeInput.max || '').slice(0, 5);
 
     if (openingTime && selectedTime < openingTime) {
-        if (errorEl) {
-            errorEl.textContent = `Selected time must be within branch hours only (${formatTime12Hour(openingTime)} to ${formatTime12Hour(closingTime)}).`;
-            errorEl.classList.remove('hidden');
-        }
+        if (errorEl) { errorEl.textContent = `Selected time must be within branch hours only (${formatTime12Hour(openingTime)} to ${formatTime12Hour(closingTime)}).`; errorEl.classList.remove('hidden'); }
         if (submitBtn) submitBtn.disabled = true;
         return false;
     }
 
     if (closingTime && selectedTime > closingTime) {
-        if (errorEl) {
-            errorEl.textContent = `Selected time must be within branch hours only (${formatTime12Hour(openingTime)} to ${formatTime12Hour(closingTime)}).`;
-            errorEl.classList.remove('hidden');
-        }
+        if (errorEl) { errorEl.textContent = `Selected time must be within branch hours only (${formatTime12Hour(openingTime)} to ${formatTime12Hour(closingTime)}).`; errorEl.classList.remove('hidden'); }
         if (submitBtn) submitBtn.disabled = true;
         return false;
     }
@@ -398,23 +387,16 @@ function validateBookingTime() {
     if (dateValue === today) {
         const now = new Date();
         const [hh, mm] = selectedTime.split(':').map(Number);
-        const selected = new Date();
+        const selected  = new Date();
         selected.setHours(hh, mm, 0, 0);
-
         if (selected <= now) {
-            if (errorEl) {
-                errorEl.textContent = 'Please select a future time.';
-                errorEl.classList.remove('hidden');
-            }
+            if (errorEl) { errorEl.textContent = 'Please select a future time.'; errorEl.classList.remove('hidden'); }
             if (submitBtn) submitBtn.disabled = true;
             return false;
         }
     }
 
-    if (errorEl) {
-        errorEl.textContent = '';
-        errorEl.classList.add('hidden');
-    }
+    if (errorEl) { errorEl.textContent = ''; errorEl.classList.add('hidden'); }
     if (submitBtn) submitBtn.disabled = false;
     return true;
 }
@@ -433,7 +415,7 @@ function openBookingModal() {
             : `${selectedSpa.name} • ${selectedSpa.branch_name ?? ''}`;
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayLocal();
     if (bookingDateInput) bookingDateInput.min = today;
 
     populateTreatmentsForSelectedBranch();
@@ -459,12 +441,7 @@ bookingTimeInput?.addEventListener('input', validateBookingTime);
 
 bookingForm?.addEventListener('submit', function (e) {
     const isValid = validateBookingTime();
-
-    if (!isValid) {
-        e.preventDefault();
-        return;
-    }
-
+    if (!isValid) { e.preventDefault(); return; }
     if (bookingTimeInput?.disabled) {
         e.preventDefault();
         showSpaToast('Please select a valid booking date and time.', 'error');
@@ -476,6 +453,7 @@ bookingForm?.addEventListener('submit', function (e) {
 // =====================================================
 let allAppointments = [];
 let currentTab      = 'upcoming';
+let _appointmentMap = {};
 
 function openAppointmentsModal() {
     document.getElementById('appointmentsModal').classList.remove('hidden');
@@ -499,7 +477,7 @@ function loadAppointments() {
 }
 
 function updateTabCounts() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayLocal();
     document.getElementById('tab-count-upcoming').textContent =
         allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
     document.getElementById('tab-count-past').textContent =
@@ -524,7 +502,7 @@ function switchTab(tab) {
 }
 
 function renderTab(tab) {
-    const today  = new Date().toISOString().split('T')[0];
+    const today  = getTodayLocal();
     let filtered = [];
     if (tab === 'upcoming') {
         filtered = allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
@@ -533,6 +511,9 @@ function renderTab(tab) {
     } else {
         filtered = allAppointments.filter(b => b.status === 'cancelled');
     }
+
+    Object.keys(_appointmentMap).forEach(k => delete _appointmentMap[k]);
+    filtered.forEach((b, i) => { _appointmentMap[i] = b; });
 
     const container = document.getElementById('appointmentsContent');
     if (!filtered.length) {
@@ -543,8 +524,10 @@ function renderTab(tab) {
             </div>`;
         return;
     }
-    container.innerHTML = filtered.map(b => `
-        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5">
+
+    container.innerHTML = filtered.map((b, i) => `
+        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5 cursor-pointer hover:shadow-md transition"
+            onclick="openBookingDetailsModal(_appointmentMap[${i}])">
             <div class="flex items-start justify-between">
                 <div>
                     <p class="font-semibold text-[#3C2F23]">${b.spa_name}</p>
@@ -560,6 +543,10 @@ function renderTab(tab) {
                 <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}</div>
                 <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
             </div>
+            ${b.reschedule_status === 'pending' ? `
+            <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
+                <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
+            </div>` : ''}
         </div>
     `).join('');
 }
@@ -580,6 +567,7 @@ function statusBadge(status) {
 // =====================================================
 let scheduleBookings = [];
 let calendarDate     = new Date();
+let _dayBookingMap   = {};
 
 function openScheduleModal() {
     document.getElementById('scheduleModal').classList.remove('hidden');
@@ -596,7 +584,6 @@ function loadSchedule() {
     fetch('/my-schedule')
         .then(r => r.json())
         .then(data => {
-            console.log('Schedule data:', data);
             scheduleBookings = data;
             renderCalendar();
         });
@@ -611,7 +598,7 @@ function changeMonth(dir) {
 function renderCalendar() {
     const year  = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayLocal();
     document.getElementById('calendarTitle').textContent =
         calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     const firstDay    = new Date(year, month, 1).getDay();
@@ -641,12 +628,17 @@ function renderCalendar() {
 function selectDay(dateStr) {
     const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
     if (!dayBookings.length) return;
+
+    Object.keys(_dayBookingMap).forEach(k => delete _dayBookingMap[k]);
+    dayBookings.forEach((b, i) => { _dayBookingMap[i] = b; });
+
     const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
         weekday: 'long', month: 'long', day: 'numeric'
     });
     document.getElementById('selectedDayTitle').textContent = title;
-    document.getElementById('selectedDayContent').innerHTML = dayBookings.map(b => `
-        <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+    document.getElementById('selectedDayContent').innerHTML = dayBookings.map((b, i) => `
+        <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5 cursor-pointer hover:shadow-md transition"
+            onclick="openBookingDetailsModal(_dayBookingMap[${i}])">
             <div class="flex items-center justify-between">
                 <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
                 <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
@@ -656,6 +648,10 @@ function selectDay(dateStr) {
                 <i class="fa-solid fa-clock text-[#8B7355]"></i>
                 ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
             </p>
+            ${b.reschedule_status === 'pending' ? `
+            <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
+                <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
+            </div>` : ''}
         </div>
     `).join('');
     document.getElementById('selectedDayBookings').classList.remove('hidden');
@@ -670,12 +666,332 @@ function formatTime(timeStr) {
     return `${h12}:${minute} ${ampm}`;
 }
 
+// =====================================================
+// BOOKING DETAILS MODAL
+// =====================================================
+let selectedBooking = null;
+
+function openBookingDetailsModal(booking) {
+    selectedBooking = booking;
+
+    document.getElementById('detailSpaName').textContent =
+        `${booking.spa_name} • ${booking.branch_name}`;
+    document.getElementById('detailTreatment').textContent = booking.treatment;
+    document.getElementById('detailDate').textContent      = booking.date;
+    document.getElementById('detailTime').textContent      =
+        `${formatTime(booking.start_time)} – ${formatTime(booking.end_time)}`;
+    document.getElementById('detailTherapist').textContent = booking.therapist;
+
+    const statusEl = document.getElementById('detailStatus');
+    statusEl.textContent = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
+    statusEl.className   = `text-sm font-semibold ${statusColor(booking.status)}`;
+
+    const rescheduleStatusEl   = document.getElementById('detailRescheduleStatus');
+    const rescheduleStatusText = document.getElementById('detailRescheduleStatusText');
+    const rescheduleBtn        = document.getElementById('openRescheduleBtn');
+
+    if (booking.reschedule_status === 'pending') {
+        rescheduleStatusEl.classList.remove('hidden');
+        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-yellow-50 ring-yellow-200';
+        rescheduleStatusText.textContent = '⏳ Reschedule request is pending approval.';
+        rescheduleStatusText.className   = 'text-sm font-semibold text-yellow-700';
+        rescheduleBtn.disabled           = true;
+        rescheduleBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    } else if (booking.reschedule_status === 'approved') {
+        rescheduleStatusEl.classList.remove('hidden');
+        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-green-50 ring-green-200';
+        rescheduleStatusText.textContent = '✅ Your reschedule was approved.';
+        rescheduleStatusText.className   = 'text-sm font-semibold text-green-700';
+        rescheduleBtn.disabled           = false;
+        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else if (booking.reschedule_status === 'rejected') {
+        rescheduleStatusEl.classList.remove('hidden');
+        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-red-50 ring-red-200';
+        rescheduleStatusText.textContent = '❌ Your last reschedule request was rejected.';
+        rescheduleStatusText.className   = 'text-sm font-semibold text-red-600';
+        rescheduleBtn.disabled           = false;
+        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        rescheduleStatusEl.classList.add('hidden');
+        rescheduleBtn.disabled = false;
+        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+
+    if (!['reserved', 'pending'].includes(booking.status)) {
+        rescheduleBtn.classList.add('hidden');
+    } else {
+        rescheduleBtn.classList.remove('hidden');
+    }
+
+    document.getElementById('bookingDetailsModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeBookingDetailsModal() {
+    document.getElementById('bookingDetailsModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function statusColor(status) {
+    const map = {
+        reserved:  'text-blue-600',
+        pending:   'text-yellow-600',
+        ongoing:   'text-green-600',
+        completed: 'text-gray-500',
+        cancelled: 'text-red-500',
+    };
+    return map[status] ?? 'text-gray-600';
+}
+
+// =====================================================
+// RESCHEDULE MODAL
+// =====================================================
+function openRescheduleModal() {
+    if (!selectedBooking) return;
+
+    document.getElementById('rescheduleBookingId').value             = selectedBooking.id;
+    document.getElementById('rescheduleCurrentSchedule').textContent =
+        `${selectedBooking.date} at ${formatTime(selectedBooking.start_time)}`;
+
+    const today     = getTodayLocal();
+    const timeInput = document.getElementById('rescheduleTime');
+
+    document.getElementById('rescheduleDate').min   = today;
+    document.getElementById('rescheduleDate').value = '';
+    timeInput.value    = '';
+    timeInput.disabled = false;
+    timeInput.removeAttribute('min');
+    timeInput.removeAttribute('max');
+    document.getElementById('rescheduleReason').value            = '';
+    document.getElementById('rescheduleReasonCount').textContent = '0 / 1000 characters';
+
+    document.getElementById('rescheduleError').classList.add('hidden');
+    document.getElementById('rescheduleTimeError').classList.add('hidden');
+
+    document.getElementById('rescheduleModal').classList.remove('hidden');
+}
+
+function closeRescheduleModal() {
+    document.getElementById('rescheduleModal').classList.add('hidden');
+}
+
+// ── Fetch operating hours for chosen reschedule date ──────────────
+// Mirrors updateAvailableTimes() used in the booking modal
+async function updateRescheduleAvailableTimes() {
+    const branchId      = selectedBooking?.branch_id;
+    const dateValue     = document.getElementById('rescheduleDate').value;
+    const timeInput     = document.getElementById('rescheduleTime');
+    const timeError     = document.getElementById('rescheduleTimeError');
+    const timeErrorText = document.getElementById('rescheduleTimeErrorText');
+    const submitBtn     = document.getElementById('rescheduleSubmitBtn');
+
+    if (!branchId || !dateValue) return;
+
+    const day = new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+
+    try {
+        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
+        const data     = await response.json();
+
+        if (data.is_closed) {
+            timeInput.value = '';
+            timeInput.disabled = true;
+            timeInput.removeAttribute('min');
+            timeInput.removeAttribute('max');
+            timeErrorText.textContent = 'The spa is closed on the selected day.';
+            timeError.classList.remove('hidden');
+            submitBtn.disabled = true;
+            return;
+        }
+
+        timeInput.disabled = false;
+        timeError.classList.add('hidden');
+        submitBtn.disabled = false;
+
+        const opening = (data.opening_time || '').slice(0, 5);
+        const closing = (data.closing_time || '').slice(0, 5);
+        timeInput.min = opening;
+        timeInput.max = closing;
+
+        if (timeInput.value) validateRescheduleTime();
+
+    } catch (err) {
+        console.error('Failed to load operating hours for reschedule:', err);
+        showSpaToast('Unable to check spa hours. Please try again.', 'error');
+    }
+}
+
+// ── Validate picked reschedule time against operating hours ───────
+function validateRescheduleTime() {
+    const timeInput     = document.getElementById('rescheduleTime');
+    const dateValue     = document.getElementById('rescheduleDate').value;
+    const timeValue     = timeInput.value;
+    const timeError     = document.getElementById('rescheduleTimeError');
+    const timeErrorText = document.getElementById('rescheduleTimeErrorText');
+    const submitBtn     = document.getElementById('rescheduleSubmitBtn');
+
+    if (!dateValue || !timeValue) {
+        timeError.classList.add('hidden');
+        submitBtn.disabled = false;
+        return true;
+    }
+
+    const selectedTime = timeValue.slice(0, 5);
+    const openingTime  = (timeInput.min || '').slice(0, 5);
+    const closingTime  = (timeInput.max || '').slice(0, 5);
+
+    if (openingTime && selectedTime < openingTime) {
+        timeErrorText.textContent =
+            `Selected time must be within branch hours only (${formatTime12Hour(openingTime)} to ${formatTime12Hour(closingTime)}).`;
+        timeError.classList.remove('hidden');
+        submitBtn.disabled = true;
+        return false;
+    }
+
+    if (closingTime && selectedTime >= closingTime) {
+        timeErrorText.textContent =
+            `Selected time must be within branch hours only (${formatTime12Hour(openingTime)} to ${formatTime12Hour(closingTime)}).`;
+        timeError.classList.remove('hidden');
+        submitBtn.disabled = true;
+        return false;
+    }
+
+    const today = getTodayLocal();
+    if (dateValue === today) {
+        const now = new Date();
+        const [hh, mm] = selectedTime.split(':').map(Number);
+        const selected  = new Date();
+        selected.setHours(hh, mm, 0, 0);
+        if (selected <= now) {
+            timeErrorText.textContent = 'Please select a future time.';
+            timeError.classList.remove('hidden');
+            submitBtn.disabled = true;
+            return false;
+        }
+    }
+
+    timeError.classList.add('hidden');
+    submitBtn.disabled = false;
+    return true;
+}
+
+document.getElementById('rescheduleReason')?.addEventListener('input', function () {
+    document.getElementById('rescheduleReasonCount').textContent =
+        `${this.value.length} / 1000 characters`;
+});
+
+// Wire up operating hours validation on reschedule date/time inputs
+document.getElementById('rescheduleDate')?.addEventListener('change', updateRescheduleAvailableTimes);
+document.getElementById('rescheduleTime')?.addEventListener('change', validateRescheduleTime);
+document.getElementById('rescheduleTime')?.addEventListener('input',  validateRescheduleTime);
+
+async function submitRescheduleRequest() {
+    // ── Run operating hours validation before anything else ──
+    if (!validateRescheduleTime()) return;
+
+    const bookingId = document.getElementById('rescheduleBookingId').value;
+    const date      = document.getElementById('rescheduleDate').value;
+    const time      = document.getElementById('rescheduleTime').value;
+    const reason    = document.getElementById('rescheduleReason').value.trim();
+    const errorEl   = document.getElementById('rescheduleError');
+    const errorText = document.getElementById('rescheduleErrorText');
+    const submitBtn = document.getElementById('rescheduleSubmitBtn');
+
+    if (!date || !time || !reason) {
+        errorText.textContent = 'Please fill in all fields.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    if (reason.length < 10) {
+        errorText.textContent = 'Reason must be at least 10 characters.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    errorEl.classList.add('hidden');
+    submitBtn.disabled  = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        const response = await fetch('/reschedule-requests', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken ?? '',
+            },
+            body: JSON.stringify({
+                booking_id:     bookingId,
+                requested_date: date,
+                requested_time: time,
+                reason:         reason,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            errorText.textContent = data.message ?? 'Something went wrong. Please try again.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        closeRescheduleModal();
+        closeBookingDetailsModal();
+        showSpaToast('Reschedule request submitted! Waiting for approval.', 'success');
+
+        loadAppointments();
+        loadSchedule();
+
+    } catch (err) {
+        errorText.textContent = 'Network error. Please try again.';
+        errorEl.classList.remove('hidden');
+    } finally {
+        submitBtn.disabled  = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Submit Request';
+    }
+}
+
+// =====================================================
+// KEYBOARD: Escape closes all modals
+// =====================================================
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        if (!spaModal?.classList.contains('hidden'))     closeSpaModal();
-        if (!bookingModal?.classList.contains('hidden')) closeBookingModal();
+        if (!document.getElementById('rescheduleModal')?.classList.contains('hidden'))     closeRescheduleModal();
+        if (!document.getElementById('bookingDetailsModal')?.classList.contains('hidden')) closeBookingDetailsModal();
+        if (!document.getElementById('termsModal')?.classList.contains('hidden'))          closeTermsModal();
+        if (!spaModal?.classList.contains('hidden'))                                        closeSpaModal();
+        if (!bookingModal?.classList.contains('hidden'))                                    closeBookingModal();
     }
 });
+
+// =====================================================
+// EXPOSE GLOBALS
+// =====================================================
+window.openAppointmentsModal    = openAppointmentsModal;
+window.closeAppointmentsModal   = closeAppointmentsModal;
+window.openScheduleModal        = openScheduleModal;
+window.closeScheduleModal       = closeScheduleModal;
+window.switchTab                = switchTab;
+window.selectDay                = selectDay;
+window.changeMonth              = changeMonth;
+window.openProfileModal         = openProfileModal;
+window.closeProfileModal        = closeProfileModal;
+window.closeProfileDropdown     = closeProfileDropdown;
+window.toggleEmail              = toggleEmail;
+window.showSpaToast             = showSpaToast;
+window.openTermsModal           = openTermsModal;
+window.closeTermsModal          = closeTermsModal;
+window.openBookingDetailsModal  = openBookingDetailsModal;
+window.closeBookingDetailsModal = closeBookingDetailsModal;
+window.openRescheduleModal      = openRescheduleModal;
+window.closeRescheduleModal     = closeRescheduleModal;
+window.submitRescheduleRequest  = submitRescheduleRequest;
+// Vite modules are scoped — expose maps so inline onclick attributes work
+window._dayBookingMap           = _dayBookingMap;
+window._appointmentMap          = _appointmentMap;
 
 // =====================================================
 // TOAST

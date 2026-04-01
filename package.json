@@ -19,7 +19,8 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
-        "@fortawesome/fontawesome-free": "^7.1.0",
+        "@fortawesome/fontawesome-free": "^7.2.0",
+        "leaflet": "^1.9.4",
         "toastify-js": "^1.12.0"
     }
 }

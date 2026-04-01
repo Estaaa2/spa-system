@@ -33,6 +33,7 @@ use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\Owner\WorkforceFinanceSuiteController;
+use App\Http\Controllers\RescheduleRequestController;
 use App\Http\Middleware\LandingPageRedirect;
 use App\Mail\WelcomeMail;
 use Illuminate\Support\Facades\Mail;
@@ -102,6 +103,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/bookings/online', [BookingController::class, 'storeOnline'])
         ->middleware('role:customer')
         ->name('bookings.online.store');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/reschedule-requests', [RescheduleRequestController::class, 'store'])
+        ->name('reschedule.store');
+
+    Route::get('/reschedule-requests/{booking}/status', [RescheduleRequestController::class, 'status'])
+        ->name('reschedule.status');
 });
 
 /*
@@ -544,6 +553,23 @@ Route::middleware(['auth', 'verified', 'role:owner'])->group(function () {
 
     Route::put('/owner/workforce-finance-suite', [WorkforceFinanceSuiteController::class, 'update'])
         ->name('owner.workforce-finance-suite.update');
+});
+
+// =====================================================
+// Owner/Manager: Reschedule Approvals
+// =====================================================
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/reschedule-requests', [RescheduleRequestController::class, 'index'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('reschedule.index');
+
+    Route::post('/reschedule-requests/{rescheduleRequest}/approve', [RescheduleRequestController::class, 'approve'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('reschedule.approve');
+
+    Route::post('/reschedule-requests/{rescheduleRequest}/reject', [RescheduleRequestController::class, 'reject'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('reschedule.reject');
 });
 
 /*

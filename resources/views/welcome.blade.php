@@ -3,19 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Levictas | Spa & Wellness</title>
 
     @vite(['resources/css/app.css','resources/css/landing.css', 'resources/js/app.js', 'resources/js/welcome.js'])
 
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-    <!-- Google Font -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
 {{-- data-fallback-image lets welcome.js read the asset URL without needing inline Blade --}}
@@ -81,7 +75,7 @@
                         <div class="relative" id="profileDropdownWrapper">
                             <button type="button" id="profileDropdownBtn"
                                 class="flex items-center gap-2 px-3 py-2 transition rounded-full hover:bg-white/60 ring-1 ring-black/5">
-                                <div class="flex items-center justify-center w-8 h-8 bg-[#8B7355] text-white rounded-full text-xs font-semibold">
+                                <div class="flex items-center justify-center w-8 h-8 bg-[#8B7355] text-white rounded-full text-xs font-semibold leading-none shrink-0">
                                     {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
                                 </div>
                                 <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200" id="profileChevron"></i>
@@ -362,6 +356,182 @@
                 </div>
             </div>
             <div class="h-10"></div>
+        </div>
+    </div>
+
+    <!-- ================= BOOKING DETAILS MODAL ================= -->
+    <div id="bookingDetailsModal" class="fixed inset-0 z-[125] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeBookingDetailsModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <h3 class="text-lg font-semibold text-[#3C2F23]">Booking Details</h3>
+                    <button type="button" onclick="closeBookingDetailsModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <!-- Spa Info -->
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                            <i class="fa-solid fa-spa text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Spa & Branch</p>
+                            <p id="detailSpaName" class="text-sm font-semibold text-[#3C2F23]"></p>
+                        </div>
+                    </div>
+                    <!-- Treatment -->
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                            <i class="fa-solid fa-list-check text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Treatment</p>
+                            <p id="detailTreatment" class="text-sm font-semibold text-[#3C2F23]"></p>
+                        </div>
+                    </div>
+                    <!-- Date & Time -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                                <i class="fa-solid fa-calendar text-[#8B7355] text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</p>
+                                <p id="detailDate" class="text-sm font-semibold text-[#3C2F23]"></p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                                <i class="fa-solid fa-clock text-[#8B7355] text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Time</p>
+                                <p id="detailTime" class="text-sm font-semibold text-[#3C2F23]"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Therapist -->
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                            <i class="fa-solid fa-user-nurse text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Therapist</p>
+                            <p id="detailTherapist" class="text-sm font-semibold text-[#3C2F23]"></p>
+                        </div>
+                    </div>
+                    <!-- Status -->
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                            <i class="fa-solid fa-circle-info text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</p>
+                            <p id="detailStatus" class="text-sm font-semibold"></p>
+                        </div>
+                    </div>
+                    <!-- Reschedule Status (shown if request exists) -->
+                    <div id="detailRescheduleStatus" class="hidden p-3 rounded-xl ring-1">
+                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Reschedule Request</p>
+                        <p id="detailRescheduleStatusText" class="text-sm font-semibold"></p>
+                    </div>
+                </div>
+                <div class="px-6 pb-6 space-y-2">
+                    <!-- Reschedule Button -->
+                    <button type="button" id="openRescheduleBtn"
+                        onclick="openRescheduleModal()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                        <i class="mr-2 fa-solid fa-calendar-pen"></i>
+                        Request Reschedule
+                    </button>
+                    <button type="button" onclick="closeBookingDetailsModal()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= RESCHEDULE REQUEST MODAL ================= -->
+    <div id="rescheduleModal" class="fixed inset-0 z-[130] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeRescheduleModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <div>
+                        <h3 class="text-lg font-semibold text-[#3C2F23]">Request Reschedule</h3>
+                        <p class="mt-0.5 text-xs text-gray-500">Please provide a valid reason for rescheduling.</p>
+                    </div>
+                    <button type="button" onclick="closeRescheduleModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="rescheduleBookingId">
+
+                    <!-- Current Schedule -->
+                    <div class="p-3 rounded-xl bg-[#F6EFE6]/60 ring-1 ring-black/5">
+                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Current Schedule</p>
+                        <p id="rescheduleCurrentSchedule" class="text-sm text-[#3C2F23] font-medium"></p>
+                    </div>
+
+                    <!-- New Date -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">
+                            New Preferred Date <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" id="rescheduleDate"
+                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                            required>
+                    </div>
+
+                    <!-- New Time -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">
+                            New Preferred Time <span class="text-red-500">*</span>
+                        </label>
+                        <input type="time" id="rescheduleTime"
+                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                            required>
+                        {{-- ADD THIS LINE --}}
+                        <p id="rescheduleTimeError" class="hidden mt-1 text-[11px] text-red-500">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span id="rescheduleTimeErrorText"></span>
+                        </p>
+                    </div>
+
+                    <!-- Reason -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">
+                            Reason for Rescheduling <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="rescheduleReason" rows="4"
+                            placeholder="Please explain why you need to reschedule (minimum 10 characters)..."
+                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"
+                            required></textarea>
+                        <p id="rescheduleReasonCount" class="mt-1 text-[11px] text-gray-400">0 / 1000 characters</p>
+                    </div>
+
+                    <!-- Error message -->
+                    <div id="rescheduleError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200">
+                        <i class="mr-1 fa-solid fa-circle-exclamation"></i>
+                        <span id="rescheduleErrorText"></span>
+                    </div>
+                </div>
+                <div class="px-6 pb-6">
+                    <button type="button" id="rescheduleSubmitBtn"
+                        onclick="submitRescheduleRequest()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="mr-2 fa-solid fa-paper-plane"></i>
+                        Submit Request
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -893,36 +1063,22 @@
 
                             <!-- Terms & Agreements -->
                             <div class="p-4 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6] space-y-3">
-                                <p class="text-xs font-semibold text-[#3C2F23] uppercase tracking-wide flex items-center gap-2">
-                                    <i class="fa-solid fa-file-lines text-[#8B7355]"></i>
-                                    Terms & Agreements
-                                </p>
-                                <ul class="space-y-2 text-xs leading-relaxed text-gray-600">
-                                    <li class="flex items-start gap-2">
-                                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0"></i>
-                                        <span><strong class="text-[#3C2F23]">Downpayment:</strong> A 20% non-refundable downpayment is required to confirm your reservation. The remaining 80% is payable at the spa on the day of your appointment.</span>
-                                    </li>
-                                    <li class="flex items-start gap-2">
-                                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0"></i>
-                                        <span><strong class="text-[#3C2F23]">Cancellation:</strong> Cancellations must be made at least 24 hours before your appointment. The 20% downpayment is non-refundable regardless of cancellation timing.</span>
-                                    </li>
-                                    <li class="flex items-start gap-2">
-                                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0"></i>
-                                        <span><strong class="text-[#3C2F23]">No-Show Policy:</strong> Failure to arrive without prior notice will forfeit your downpayment and may result in restricted future bookings on this platform.</span>
-                                    </li>
-                                </ul>
                                 <label class="flex items-center gap-3 pt-1 cursor-pointer group">
                                     <input type="checkbox" id="bookingTermsCheckbox" name="terms_agreed" value="1"
                                         class="w-4 h-4 rounded accent-[#8B7355] cursor-pointer flex-shrink-0" required>
                                     <span class="text-xs font-medium text-gray-700 group-hover:text-[#6F5430] transition">
-                                        I have read and agree to the above terms and conditions.
+                                        I have read and agree to the
+                                        <button type="button" onclick="openTermsModal()"
+                                            class="text-[#8B7355] underline underline-offset-2 hover:text-[#6F5430] transition font-semibold">
+                                            terms and conditions
+                                        </button>.
                                     </span>
                                 </label>
                             </div>
 
                             <button type="submit" id="bookingSubmitBtn"
                                     class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0">
-                                Proceed to 20% Downpayment
+                                Reserve An Appointment
                             </button>
                         </form>
                     @else
@@ -935,6 +1091,52 @@
                         </div>
                     @endauth
                 </div>
+<!-- ================= TERMS MODAL ================= -->
+<div id="termsModal" class="fixed inset-0 z-[120] hidden">
+    <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeTermsModal()"></div>
+    <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+        <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                <h3 class="text-lg font-semibold text-[#3C2F23]">Terms & Conditions</h3>
+                <button type="button" onclick="closeTermsModal()"
+                    class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                    <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="overflow-y-auto max-h-[60vh] p-6">
+                <ul class="space-y-4 text-xs leading-relaxed text-gray-600">
+                    <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
+                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                        <div>
+                            <p class="font-semibold text-[#3C2F23] mb-1">Downpayment</p>
+                            <p>A 20% non-refundable downpayment is required to confirm your reservation. The remaining 80% is payable at the spa on the day of your appointment.</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
+                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                        <div>
+                            <p class="font-semibold text-[#3C2F23] mb-1">Cancellation</p>
+                            <p>Cancellations must be made at least 24 hours before your appointment. The 20% downpayment is non-refundable regardless of cancellation timing.</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
+                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                        <div>
+                            <p class="font-semibold text-[#3C2F23] mb-1">No-Show Policy</p>
+                            <p>Failure to arrive without prior notice will forfeit your downpayment and may result in restricted future bookings on this platform.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+                        <div class="px-6 pt-2 pb-6">
+                            <button type="button" onclick="closeTermsModal()"
+                                class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                I Understand
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             </div>
             <div class="h-10"></div>
         </div>
