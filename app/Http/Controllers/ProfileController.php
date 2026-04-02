@@ -78,4 +78,30 @@ class ProfileController extends Controller
             ->with('success', 'Password changed successfully! You can now access the dashboard.');
     }
 
+    public function updateCustomer(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'address' => 'nullable|string|max:255',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+        ]);
+
+
+        $user->update([
+            'first_name' => $request->first_name,
+            'middle_name' => $request->middle_name,
+            'last_name' => $request->last_name,
+            'address' => $request->address,
+            'latitude' => $request->latitude ?: null,
+            'longitude' => $request->longitude ?: null,
+        ]);
+        
+        return back()->with('success', 'Profile updated successfully!');
+    }
+
 }

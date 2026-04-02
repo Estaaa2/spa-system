@@ -113,6 +113,11 @@ Route::middleware(['auth'])->group(function () {
         ->name('reschedule.status');
 });
 
+Route::middleware(['auth'])->group(function () {
+    Route::patch('/customer/profile', [ProfileController::class, 'updateCustomer'])
+        ->name('customer.profile.update');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Staff Dashboard
@@ -583,5 +588,7 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
 });
+
+Route::get('/api/spas/nearby', [LandingController::class, 'nearbySpasList'])->middleware('auth');
 
 require __DIR__.'/auth.php';

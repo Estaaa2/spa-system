@@ -57,16 +57,16 @@
                 <span class="text-sm text-gray-500 dark:text-gray-400">Leadership roles</span>
             </div>
         </div>
-        <div class="p-5 border shadow-sm rounded-2xl {{ $isProfessional ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
+        <div class="p-5 border shadow-sm rounded-2xl {{ $hasSuite ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
             <p class="text-xs font-semibold tracking-wide uppercase {{ $isProfessional ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-300' }}">
-                {{ $isProfessional ? 'Professional Roles' : 'Plan Status' }}
+                {{ $hasSuite ? 'Professional Roles' : 'Suite Status' }}
             </p>
             <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold {{ $isProfessional ? 'text-indigo-900 dark:text-indigo-200' : 'text-amber-900 dark:text-amber-200' }}">
-                    {{ $isProfessional ? $professionalRolesCount : 'Basic' }}
+                    {{ $hasSuite ? $professionalRolesCount : 'Disabled' }}
                 </h3>
                 <span class="text-sm {{ $isProfessional ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-300' }}">
-                    {{ $isProfessional ? 'HR & Finance roles' : 'Upgrade for more roles' }}
+                    {{ $hasSuite ? 'HR & Finance roles' : 'Suite Disabled' }}
                 </span>
             </div>
         </div>
@@ -228,7 +228,7 @@
                                     <option value="receptionist" {{ old('roles') == 'receptionist' ? 'selected' : '' }}>Receptionist</option>
                                     <option value="manager" {{ old('roles') == 'manager' ? 'selected' : '' }}>Manager</option>
                                 </optgroup>
-                                @if($isProfessional)
+                                @if($hasSuite)
                                 <optgroup label="Professional Roles ✦">
                                     <option value="hr" {{ old('roles') == 'hr' ? 'selected' : '' }}>HR</option>
                                     <option value="finance" {{ old('roles') == 'finance' ? 'selected' : '' }}>Finance</option>
@@ -238,13 +238,10 @@
                             @error('roles')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
-                            @if(!$isProfessional)
+                            @if(!$hasSuite)
                                 <p class="mt-1 text-xs text-gray-400">
                                     <i class="fa-solid fa-lock text-[#8B7355]"></i>
-                                    HR & Finance roles require the
-                                    <a href="{{ route('owner.subscription.index') }}" class="font-medium underline text-[#8B7355]">
-                                        Professional plan
-                                    </a>
+                                    HR & Finance roles require the Workforce & Finance Suite to be enabled on this branch.
                                 </p>
                             @endif
                         </div>

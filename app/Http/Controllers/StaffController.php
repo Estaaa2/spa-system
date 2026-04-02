@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Staff;
+use App\Models\Branch;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Mail\StaffCredentialsMail;
@@ -21,6 +22,9 @@ class StaffController extends Controller
     {
         $user = Auth::user();
         $branchId = $user->currentBranchId();
+        $branch = Branch::find($branchId);
+        $hasSuite = $branch?->has_workforce_finance_suite ?? false;
+        $isProfessional = $user->spa?->isProfessional() ?? false;
 
         if (!$branchId) {
             return redirect()->route('branches.index')
@@ -33,7 +37,7 @@ class StaffController extends Controller
             ->latest()
             ->get();
 
-        return view('staff.index', compact('staff'));
+        return view('staff.index', compact('staff', 'isProfessional', 'hasSuite'));
     }
 
     /**
@@ -52,13 +56,14 @@ class StaffController extends Controller
         $currentUser = Auth::user();
         $branchId    = $currentUser->currentBranchId();
         $spa         = $currentUser->spa;
+        $branch   = Branch::find($branchId);
 
         if (!$branchId) {
             return back()->with('error', 'No valid branch selected. Please switch to a valid branch and try again.');
         }
 
-        if (in_array($validated['roles'], ['hr', 'finance']) && !$spa->isProfessional()) {
-            return back()->with('error', 'HR and Finance accounts are only available on the Professional plan.');
+        if (in_array($validated['roles'], ['hr', 'finance']) && !($branch?->has_workforce_finance_suite ?? false)) {
+        return back()->with('error', 'HR and Finance accounts require the Workforce & Finance Suite to be enabled on this branch (Professional plan required).');
         }
 
         // Basic plan: maximum of 10 staff accounts per branch
@@ -68,7 +73,7 @@ class StaffController extends Controller
                 ->count();
 
             if ($staffCountForBranch >= 10) {
-                return back()->with('error', 'This branch can only have up to 10 staff accounts on the Basic plan. Upgrade your subscription to add more staff members.');
+                return back()->with('error', 'This branch can only have up to 10 staff accounts on the Basic plan. Upgrade your subscription to add more.');
             }
         }
 
@@ -128,10 +133,13 @@ class StaffController extends Controller
             'roles' => 'required|in:therapist,receptionist,manager,hr,finance',
         ]);
 
+        $branchId = $staff->branch_id;
+        $branch   = Branch::find($branchId);
+
         $spa = Auth::user()->spa;
 
-        if (in_array($validated['roles'], ['hr', 'finance']) && !$spa->isProfessional()) {
-            return back()->with('error', 'HR and Finance roles require the Professional plan.');
+        if (in_array($validated['roles'], ['hr', 'finance']) && !($branch?->has_workforce_finance_suite ?? false)) {
+            return back()->with('error', 'HR and Finance roles require the Workforce & Finance Suite to be enabled on this branch.');
         }
 
         try {

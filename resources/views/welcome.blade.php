@@ -119,89 +119,118 @@
         </div>
     </div>
 
+    <!-- Profile Modal -->
     @auth
     <div id="profileModal" class="fixed inset-0 z-[130] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeProfileModal()"></div>
-        <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="relative px-6 py-8 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center">
-                    <div class="flex items-center justify-center w-16 h-16 mx-auto text-2xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
+        <div class="relative mx-auto w-[92%] max-w-lg mt-6 sm:mt-12 pb-6">
+            <div class="flex flex-col overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10 max-h-[88vh]">
+
+                {{-- HEADER: never scrolls --}}
+                <div class="relative px-6 py-6 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center flex-shrink-0">
+                    <div class="flex items-center justify-center w-14 h-14 mx-auto text-xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
                         {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
                     </div>
-                    <h3 class="mt-3 text-lg font-semibold font-['Playfair_Display']">
+                    <h3 class="mt-2 text-base font-semibold font-['Playfair_Display']">
                         {{ auth()->user()?->name ?? 'Guest' }}
                     </h3>
-                    <p class="mt-1 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
+                    <p class="mt-0.5 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
                     <button onclick="closeProfileModal()"
-                        class="absolute flex items-center justify-center w-8 h-8 transition top-4 right-4 rounded-xl bg-white/10 hover:bg-white/20">
+                        class="absolute flex items-center justify-center w-8 h-8 transition top-3 right-3 rounded-xl bg-white/10 hover:bg-white/20">
                         <i class="text-sm fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="p-6 space-y-4">
-                    <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-                        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
-                            <i class="fa-solid fa-user text-[#8B7355] text-sm"></i>
+
+                <form method="POST" action="{{ route('customer.profile.update') }}" class="flex flex-col flex-1 min-h-0">
+                    @csrf
+                    @method('PATCH')
+
+                    {{-- SCROLLABLE BODY --}}
+                    <div class="flex-1 overflow-y-auto p-5 space-y-4">
+
+                        {{-- Name row: 3 columns to save vertical space --}}
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-500 uppercase">First</label>
+                                <input type="text" name="first_name"
+                                    value="{{ auth()->user()->first_name }}"
+                                    class="w-full rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-500 uppercase">Middle</label>
+                                <input type="text" name="middle_name"
+                                    value="{{ auth()->user()->middle_name }}"
+                                    class="w-full rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-semibold text-gray-500 uppercase">Last</label>
+                                <input type="text" name="last_name"
+                                    value="{{ auth()->user()->last_name }}"
+                                    class="w-full rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
+                            </div>
                         </div>
-                        <div class="min-w-0">
-                            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Full Name</p>
-                            <p class="text-sm font-semibold text-[#3C2F23] truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-                        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
-                            <i class="fa-solid fa-envelope text-[#8B7355] text-sm"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Email Address</p>
+
+                        {{-- Email --}}
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Email Address</label>
                             @php
                                 $email = auth()->user()?->email ?? '';
                                 $parts = explode('@', $email);
-                                $name = $parts[0];
-                                $domain = $parts[1] ?? '';
+                                $name = $parts[0]; $domain = $parts[1] ?? '';
                                 $maskedName = strlen($name) > 3
                                     ? substr($name, 0, 2) . str_repeat('*', strlen($name) - 2)
                                     : str_repeat('*', strlen($name));
                                 $maskedEmail = $maskedName . '@' . $domain;
                             @endphp
-                            <div class="flex items-center gap-2">
-                                <p id="emailDisplay" class="text-sm font-semibold text-[#3C2F23] truncate">{{ $maskedEmail }}</p>
+                            <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 ring-1 ring-black/5">
+                                <p id="emailDisplay" class="flex-1 text-sm text-[#3C2F23] truncate">{{ $maskedEmail }}</p>
                                 <button type="button" id="emailToggleBtn" onclick="toggleEmail(this)"
-                                    data-masked="{{ $maskedEmail }}"
-                                    data-real="{{ $email }}"
+                                    data-masked="{{ $maskedEmail }}" data-real="{{ $email }}"
                                     class="text-[#8B7355] hover:text-[#6F5430] transition flex-shrink-0">
                                     <i id="emailToggleIcon" class="text-xs fa-solid fa-eye"></i>
                                 </button>
                             </div>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-4 p-4 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
-                        <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10">
-                            <i class="fa-solid fa-shield-halved text-[#8B7355] text-sm"></i>
+
+                        {{-- Address --}}
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Location / Address</label>
+                            <input type="text" name="address"
+                                value="{{ auth()->user()->address }}"
+                                placeholder="e.g. Bacoor, Cavite"
+                                class="w-full rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm"
+                                id="address">
+                            <p class="text-[11px] text-gray-400">Tap the map to pin your exact location for better spa recommendations.</p>
+                            <div id="map" class="w-full h-44 rounded-xl border border-[#E8DDD0] overflow-hidden"></div>
+                            <input type="hidden" name="latitude" id="latitude" value="{{ auth()->user()->latitude }}">
+                            <input type="hidden" name="longitude" id="longitude" value="{{ auth()->user()->longitude }}">
                         </div>
-                        <div class="flex-1">
-                            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Account Status</p>
-                            <div class="flex items-center gap-2 mt-0.5">
-                                @if(auth()->user()?->hasVerifiedEmail())
-                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
-                                        <i class="fa-solid fa-circle-check"></i> Verified
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-500">
-                                        <i class="fa-solid fa-circle-exclamation"></i> Unverified
-                                    </span>
-                                @endif
-                            </div>
+
+                        {{-- Account status --}}
+                        <div class="flex items-center gap-2">
+                            @if(auth()->user()->hasVerifiedEmail())
+                                <span class="text-xs font-semibold text-green-600">✔ Verified Account</span>
+                            @else
+                                <span class="text-xs font-semibold text-amber-500">⚠ Unverified Account</span>
+                            @endif
                         </div>
+
+                    </div>{{-- end scrollable body --}}
+
+                    {{-- FOOTER: always visible --}}
+                    <div class="flex gap-2 px-5 py-4 border-t border-black/5 bg-white flex-shrink-0">
+                        <button type="submit"
+                            class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
+                            Save Changes
+                        </button>
+                        <button type="button" onclick="closeProfileModal()"
+                            class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                            Cancel
+                        </button>
                     </div>
-                </div>
-                <div class="px-6 pb-6">
-                    <button onclick="closeProfileModal()"
-                        class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                        Close
-                    </button>
-                </div>
+
+                </form>
             </div>
-            <div class="h-10"></div>
         </div>
     </div>
     @endauth
@@ -534,6 +563,27 @@
             </div>
         </div>
     </div>
+
+    <!-- ================= SPAS NEAR YOU ================= -->
+    @auth
+    @role('customer')
+    <section id="nearbySection" class="hidden py-5">
+        <div class="px-6 mx-auto mt-5 max-w-7xl">
+            <div class="text-center">
+                <div class="flex items-center justify-center gap-6">
+                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Spas Near You</h2>
+                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                </div>
+                <p class="mt-3 text-sm text-gray-600">Based on your saved location.</p>
+            </div>
+            <div id="nearbyGrid" class="grid grid-cols-1 gap-6 mt-5 sm:grid-cols-2 lg:grid-cols-4">
+                {{-- filled by JS --}}
+            </div>
+        </div>
+    </section>
+    @endrole
+    @endauth
 
     <!-- ================= FEATURED SPAS ================= -->
     <section class="py-5">
