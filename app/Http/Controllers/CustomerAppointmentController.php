@@ -11,7 +11,7 @@ class CustomerAppointmentController extends Controller
     {
         $user = Auth::user();
 
-        $bookings = Booking::with(['spa', 'branch', 'therapist', 'latestRescheduleRequest'])
+        $bookings = Booking::with(['spa', 'branch', 'therapist', 'latestRescheduleRequest', 'rating'])
             ->where('customer_user_id', $user->id)
             ->orderBy('appointment_date', 'desc')
             ->get()
@@ -24,7 +24,7 @@ class CustomerAppointmentController extends Controller
     {
         $user = Auth::user();
 
-        $bookings = Booking::with(['spa', 'branch', 'therapist'])
+        $bookings = Booking::with(['spa', 'branch', 'therapist', 'rating'])
             ->where('customer_user_id', $user->id)
             ->whereIn('status', ['reserved', 'pending', 'ongoing'])
             ->where('appointment_date', '>=', now()->toDateString())
@@ -51,6 +51,10 @@ class CustomerAppointmentController extends Controller
             $treatmentName = $package ? $package->name . ' (Package)' : 'Unknown Package';
         }
 
+        // Get rating information
+        $hasRating = $b->rating()->exists();
+        $ratingValue = $hasRating ? $b->rating->rating : null;
+
         return [
             'id'           => $b->id,
             'branch_id'    => $b->branch_id,
@@ -67,6 +71,9 @@ class CustomerAppointmentController extends Controller
             'service_type' => $b->service_type_label,
             'reschedule_status' => $b->latestRescheduleRequest?->status ?? null,
             'reschedule_pending' => $b->latestRescheduleRequest?->isPending() ?? false,
+            // ← ADD THESE LINES
+            'has_rating'   => $hasRating,
+            'rating_value' => $ratingValue,
         ];
     }
 }

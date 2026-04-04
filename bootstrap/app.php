@@ -12,7 +12,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-    $middleware->alias([
+        // Add ForceJsonResponse to API group
+        $middleware->api(prepend: [
+            \App\Http\Middleware\ForceJsonResponse::class, // Add this
+            \Illuminate\Http\Middleware\HandleCors::class,
+            \App\Http\Middleware\Cors::class,
+        ]);
+
+        $middleware->web(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+            \App\Http\Middleware\Cors::class,
+        ]);
+
+        $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
@@ -22,16 +34,34 @@ return Application::configure(basePath: dirname(__DIR__))
             'force.password.change' => \App\Http\Middleware\ForcePasswordChange::class,
             'branch.permission' => \App\Http\Middleware\EnsureBranchPermission::class,
         ]);
-    })
-    ->withMiddleware(function ($middleware) {
+
         $middleware->web(append: [
             \App\Http\Middleware\EnsureCurrentBranch::class,
             \App\Http\Middleware\RefreshPermissionsCache::class,
         ]);
+
         $middleware->validateCsrfTokens(except: [
-        'webhooks/paymongo', // Add the path here (no leading slash)
+            'webhooks/paymongo',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
-    })->create();
+        // Force JSON response for API exceptions
+        $exceptions->renderable(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+        });
+
+        $exceptions->renderable(function (\Illuminate\Validation\ValidationException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
+            }
+        });
+
+        $exceptions->renderable(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => 'API endpoint not found'], 404);
+            }
+        });
+    })
+    ->create();

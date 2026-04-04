@@ -28,43 +28,51 @@ class ScheduleController extends Controller
 
         // ── Operating hours for each day of the week ───────────────────
         $operatingHours = [];
-        $earliestOpen   = null; // Carbon time (for slot generation)
-        $latestClose    = null; // Carbon time (for slot generation)
+        $earliestOpen   = null;
+        $latestClose    = null;
 
         foreach ($dayDates as $date) {
             $dayOfWeek = $date->format('l');
             $hours     = OperatingHours::where('branch_id', $currentBranchId)
-                            ->where('day_of_week', $dayOfWeek)
-                            ->first();
+                ->where('day_of_week', $dayOfWeek)
+                ->first();
 
             $opening = null;
             $closing = null;
-            $closed  = true;
+            $closed  = true; // default to closed if no record found
 
-            if ($hours && !$hours->is_closed) {
-                $opening = $hours->opening_time ? substr($hours->opening_time, 0, 5) : null;
-                $closing = $hours->closing_time ? substr($hours->closing_time, 0, 5) : null;
-
-                // Treat "00:00" as closed
-                if (!$opening || !$closing || $opening === '00:00' || $closing === '00:00') {
-                    $opening = null;
-                    $closing = null;
-                    $closed  = true;
+            if ($hours) {
+                // Explicitly closed
+                if ($hours->is_closed) {
+                    $closed = true;
                 } else {
-                    $closed = false;
+                    $opening = $hours->opening_time ? substr($hours->opening_time, 0, 5) : null;
+                    $closing = $hours->closing_time ? substr($hours->closing_time, 0, 5) : null;
 
-                    // Track the earliest open / latest close across all open days
-                    $openCarbon  = Carbon::createFromFormat('H:i', $opening);
-                    $closeCarbon = Carbon::createFromFormat('H:i', $closing);
+                    // Treat missing or midnight times as closed
+                    $isValidTime = fn($t) => $t && $t !== '00:00';
 
-                    if ($earliestOpen === null || $openCarbon->lt($earliestOpen)) {
-                        $earliestOpen = $openCarbon->copy();
-                    }
-                    if ($latestClose === null || $closeCarbon->gt($latestClose)) {
-                        $latestClose = $closeCarbon->copy();
+                    if ($isValidTime($opening) && $isValidTime($closing)) {
+                        $closed = false;
+
+                        $openCarbon  = Carbon::createFromFormat('H:i', $opening);
+                        $closeCarbon = Carbon::createFromFormat('H:i', $closing);
+
+                        if ($earliestOpen === null || $openCarbon->lt($earliestOpen)) {
+                            $earliestOpen = $openCarbon->copy();
+                        }
+                        if ($latestClose === null || $closeCarbon->gt($latestClose)) {
+                            $latestClose = $closeCarbon->copy();
+                        }
+                    } else {
+                        // Has a record but times are invalid — treat as closed
+                        $opening = null;
+                        $closing = null;
+                        $closed  = true;
                     }
                 }
             }
+            // If $hours is null (no record for this day) → stays closed = true
 
             $operatingHours[$date->toDateString()] = [
                 'opening_time' => $opening,
@@ -163,8 +171,18 @@ class ScheduleController extends Controller
             ])
             ->orderBy('appointment_date')
             ->orderBy('start_time')
-            ->get(['id', 'appointment_date', 'start_time', 'end_time', 'status',
-                   'service_type', 'treatment', 'customer_name', 'customer_phone', 'therapist_id']);
+            ->get([
+                'id',
+                'appointment_date',
+                'start_time',
+                'end_time',
+                'status',
+                'service_type',
+                'treatment',
+                'customer_name',
+                'customer_phone',
+                'therapist_id'
+            ]);
 
         $grid = [];
         foreach ($bookings as $b) {
@@ -182,7 +200,7 @@ class ScheduleController extends Controller
                     'service_type'  => $b->service_type,
                     'treatment'     => $b->treatment,
                     'customer_name' => $b->customer_name,
-                    'customer_phone'=> $b->customer_phone,
+                    'customer_phone' => $b->customer_phone,
                 ];
                 $slot->addMinutes(30);
             }

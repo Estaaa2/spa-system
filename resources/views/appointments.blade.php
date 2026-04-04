@@ -698,6 +698,8 @@
         statusSelect.onchange = function () {
             const isCancelled = this.value === 'cancelled';
             amountWrapper.style.display = isCancelled ? 'none' : 'block';
+            // Clear any existing error messages
+            clearEditErrors();
         };
 
         statusSelect.value = 'ongoing';
@@ -711,8 +713,151 @@
         document.getElementById('processModal').classList.add('hidden');
     }
 
+    function clearEditErrors() {
+        // Remove any existing error messages
+        const existingErrors = document.querySelectorAll('.edit-field-error');
+        existingErrors.forEach(error => error.remove());
+
+        // Remove error styling from inputs
+        const errorInputs = document.querySelectorAll('.has-error');
+        errorInputs.forEach(input => {
+            input.classList.remove('has-error', 'border-red-500', 'dark:border-red-500');
+        });
+    }
+
+    function showFieldError(fieldId, message) {
+        // Clear existing error for this field
+        const existingError = document.getElementById(`error-${fieldId}`);
+        if (existingError) {
+            existingError.remove();
+        }
+
+        // Add error styling to the input
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.classList.add('has-error', 'border-red-500', 'dark:border-red-500');
+
+            // Create error message element
+            const errorDiv = document.createElement('div');
+            errorDiv.id = `error-${fieldId}`;
+            errorDiv.className = 'edit-field-error text-red-600 text-xs mt-1 dark:text-red-400';
+            errorDiv.textContent = message;
+
+            // Insert after the field
+            field.parentNode.insertBefore(errorDiv, field.nextSibling);
+        }
+    }
+
+    function validateAppointmentDate() {
+        const statusSelect = document.getElementById('edit_status');
+        const appointmentDate = document.getElementById('edit_appointment_date').value;
+        const today = new Date().toISOString().split('T')[0];
+
+        // Clear previous errors
+        clearEditErrors();
+
+        if (!appointmentDate) {
+            showFieldError('edit_appointment_date', 'Please select an appointment date.');
+            return false;
+        }
+
+        if (statusSelect.value === 'completed' && appointmentDate > today) {
+            showFieldError('edit_status', 'Cannot mark an appointment as "Completed" if the appointment date is in the future.');
+            statusSelect.value = 'reserved';
+            return false;
+        }
+
+        if (statusSelect.value === 'ongoing' && appointmentDate > today) {
+            showFieldError('edit_status', 'Cannot mark an appointment as "Ongoing" if the appointment date is in the future.');
+            statusSelect.value = 'reserved';
+            return false;
+        }
+
+        if (statusSelect.value === 'completed' && appointmentDate === today) {
+            // Create a custom confirmation dialog that's not an alert
+            return showConfirmationDialog(
+                'Confirm Completion',
+                'This appointment is scheduled for today. Are you sure it has been completed?',
+                () => {
+                    // On confirm - allow submission
+                    document.getElementById('editForm').submit();
+                },
+                () => {
+                    // On cancel - reset to ongoing
+                    statusSelect.value = 'ongoing';
+                }
+            );
+        }
+
+        return true;
+    }
+
+    function showConfirmationDialog(title, message, onConfirm, onCancel) {
+        // Create modal confirmation dialog
+        const modalHtml = `
+            <div id="confirmationModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black bg-opacity-50">
+                <div class="w-full max-w-md bg-white rounded-lg shadow-xl dark:bg-gray-800">
+                    <div class="px-6 py-4 border-b dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${title}</h3>
+                    </div>
+                    <div class="px-6 py-4">
+                        <p class="text-sm text-gray-600 dark:text-gray-300">${message}</p>
+                    </div>
+                    <div class="flex justify-end gap-3 px-6 py-4 rounded-b-lg bg-gray-50 dark:bg-gray-700/50">
+                        <button type="button" id="confirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:text-white dark:border-gray-500 dark:hover:bg-gray-500">
+                            Cancel
+                        </button>
+                        <button type="button" id="confirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+                            Yes, Complete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('confirmationModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = document.getElementById('confirmationModal');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+        const okBtn = document.getElementById('confirmOkBtn');
+
+        const closeModal = () => {
+            modal.remove();
+        };
+
+        cancelBtn.onclick = () => {
+            closeModal();
+            if (onCancel) onCancel();
+        };
+
+        okBtn.onclick = () => {
+            closeModal();
+            if (onConfirm) onConfirm();
+        };
+
+        // Close on click outside
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                closeModal();
+                if (onCancel) onCancel();
+            }
+        };
+
+        return false; // Prevent immediate form submission
+    }
+
     function openEditModal(btn) {
         const d = btn.dataset;
+
+        // Clear any existing errors before opening
+        clearEditErrors();
 
         document.getElementById('edit_customer_name').value = d.customerName || '';
         document.getElementById('edit_customer_email').value = d.customerEmail || '';
@@ -736,10 +881,59 @@
 
         document.getElementById('editForm').action = '/appointments/' + d.id;
         document.getElementById('editModal').classList.remove('hidden');
+
+        // Re-attach event listeners when modal opens
+        attachEditEventListeners();
+    }
+
+    function attachEditEventListeners() {
+        const statusSelect = document.getElementById('edit_status');
+        const dateInput = document.getElementById('edit_appointment_date');
+        const editForm = document.getElementById('editForm');
+
+        // Remove existing listeners to avoid duplicates
+        if (window._editStatusListener) {
+            statusSelect?.removeEventListener('change', window._editStatusListener);
+            dateInput?.removeEventListener('change', window._editDateListener);
+            editForm?.removeEventListener('submit', window._editSubmitListener);
+        }
+
+        // Create new listeners
+        window._editStatusListener = function() {
+            clearEditErrors();
+            validateAppointmentDate();
+        };
+
+        window._editDateListener = function() {
+            clearEditErrors();
+            validateAppointmentDate();
+        };
+
+        window._editSubmitListener = function(e) {
+            clearEditErrors();
+            if (!validateAppointmentDate()) {
+                e.preventDefault();
+                return false;
+            }
+        };
+
+        // Attach listeners
+        statusSelect?.addEventListener('change', window._editStatusListener);
+        dateInput?.addEventListener('change', window._editDateListener);
+        editForm?.addEventListener('submit', window._editSubmitListener);
+
+        // Add real-time validation on input
+        const inputs = editForm?.querySelectorAll('input, select');
+        inputs?.forEach(input => {
+            input.addEventListener('focus', () => {
+                clearEditErrors();
+            });
+        });
     }
 
     function closeEditModal() {
         document.getElementById('editModal').classList.add('hidden');
+        clearEditErrors();
     }
     @endif
 
@@ -753,5 +947,38 @@
         document.getElementById('deleteModal').classList.add('hidden');
     }
     @endif
+
+    // Initialize event listeners when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        @if($canEdit)
+        attachEditEventListeners();
+        @endif
+    });
 </script>
+
+<style>
+    /* Add these styles for better error display */
+    .has-error {
+        border-color: #ef4444 !important;
+    }
+
+    .dark .has-error {
+        border-color: #f87171 !important;
+    }
+
+    .edit-field-error {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
 @endsection

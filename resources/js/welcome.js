@@ -542,30 +542,76 @@ function renderTab(tab) {
         return;
     }
 
-    container.innerHTML = filtered.map((b, i) => `
-        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5 cursor-pointer hover:shadow-md transition"
-            onclick="openBookingDetailsModal(_appointmentMap[${i}])">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="font-semibold text-[#3C2F23]">${b.spa_name}</p>
-                    <p class="text-xs text-gray-500">${b.branch_name} • ${b.service_type}</p>
+    container.innerHTML = filtered.map((b, i) => {
+        const canRate   = b.status === 'completed' && !b.has_rating;
+        const hasRating = b.has_rating === true;
+
+        return `
+        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5 transition hover:shadow-md">
+            <div onclick="openBookingDetailsModal(_appointmentMap[${i}])" class="cursor-pointer">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="font-semibold text-[#3C2F23]">${escapeHtml(b.spa_name)}</p>
+                        <p class="text-xs text-gray-500">${escapeHtml(b.branch_location ?? b.branch_name)} • ${b.service_type}</p>
+                    </div>
+                    <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
+                        ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                    </span>
                 </div>
-                <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                    ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                </span>
+                <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355]"></i> ${escapeHtml(b.treatment)}</div>
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355]"></i> ${escapeHtml(b.therapist)}</div>
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}</div>
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
+                </div>
+                ${b.reschedule_status === 'pending' ? `
+                <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
+                </div>` : ''}
             </div>
-            <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
-                <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355]"></i> ${b.treatment}</div>
-                <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355]"></i> ${b.therapist}</div>
-                <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}</div>
-                <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
-            </div>
-            ${b.reschedule_status === 'pending' ? `
-            <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
-                <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
+            ${canRate ? `
+            <div class="mt-3 pt-3 border-t border-gray-200">
+                <button onclick="openRatingModal(_appointmentMap[${i}].id, _appointmentMap[${i}].therapist, _appointmentMap[${i}].spa_name, _appointmentMap[${i}].branch_name, _appointmentMap[${i}].branch_location)"
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition rounded-xl bg-[#8B7355] hover:bg-[#6F5430] w-full justify-center">
+                    <i class="fa-solid fa-star"></i>
+                    Rate Your Experience
+                </button>
             </div>` : ''}
-        </div>
-    `).join('');
+            ${hasRating ? `
+            <div class="mt-3 pt-3 border-t border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-green-600 text-sm"></i>
+                        <span class="text-sm font-semibold text-green-600">Thank you for rating!</span>
+                    </div>
+                    <div class="flex items-center gap-0.5">
+                        ${renderStars(b.rating_value)}
+                    </div>
+                </div>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// Helper function to escape HTML to prevent XSS
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Helper function to render stars
+function renderStars(rating) {
+    if (!rating) return '';
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+        stars += `<i class="fa-solid fa-star ${i <= rating ? 'text-yellow-400' : 'text-gray-300'} text-xs"></i>`;
+    }
+    return stars;
 }
 
 function statusBadge(status) {
@@ -657,13 +703,13 @@ function selectDay(dateStr) {
         <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5 cursor-pointer hover:shadow-md transition"
             onclick="openBookingDetailsModal(_dayBookingMap[${i}])">
             <div class="flex items-center justify-between">
-                <p class="text-sm font-semibold text-[#3C2F23]">${b.spa_name}</p>
+                <p class="text-sm font-semibold text-[#3C2F23]">${escapeHtml(b.spa_name)}</p>
                 <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
             </div>
-            <p class="mt-1 text-xs text-gray-500">${b.branch_name} • ${b.treatment}</p>
+            <p class="mt-1 text-xs text-gray-500">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
             <p class="mt-1 text-xs text-gray-500">
                 <i class="fa-solid fa-clock text-[#8B7355]"></i>
-                ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${b.therapist}
+                ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${escapeHtml(b.therapist)}
             </p>
             ${b.reschedule_status === 'pending' ? `
             <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
@@ -792,8 +838,6 @@ function closeRescheduleModal() {
     document.getElementById('rescheduleModal').classList.add('hidden');
 }
 
-// ── Fetch operating hours for chosen reschedule date ──────────────
-// Mirrors updateAvailableTimes() used in the booking modal
 async function updateRescheduleAvailableTimes() {
     const branchId      = selectedBooking?.branch_id;
     const dateValue     = document.getElementById('rescheduleDate').value;
@@ -838,7 +882,6 @@ async function updateRescheduleAvailableTimes() {
     }
 }
 
-// ── Validate picked reschedule time against operating hours ───────
 function validateRescheduleTime() {
     const timeInput     = document.getElementById('rescheduleTime');
     const dateValue     = document.getElementById('rescheduleDate').value;
@@ -897,13 +940,11 @@ document.getElementById('rescheduleReason')?.addEventListener('input', function 
         `${this.value.length} / 1000 characters`;
 });
 
-// Wire up operating hours validation on reschedule date/time inputs
 document.getElementById('rescheduleDate')?.addEventListener('change', updateRescheduleAvailableTimes);
 document.getElementById('rescheduleTime')?.addEventListener('change', validateRescheduleTime);
 document.getElementById('rescheduleTime')?.addEventListener('input',  validateRescheduleTime);
 
 async function submitRescheduleRequest() {
-    // ── Run operating hours validation before anything else ──
     if (!validateRescheduleTime()) return;
 
     const bookingId = document.getElementById('rescheduleBookingId').value;
@@ -1105,7 +1146,10 @@ window.closeBookingDetailsModal = closeBookingDetailsModal;
 window.openRescheduleModal      = openRescheduleModal;
 window.closeRescheduleModal     = closeRescheduleModal;
 window.submitRescheduleRequest  = submitRescheduleRequest;
-// Vite modules are scoped — expose maps so inline onclick attributes work
+window.openRatingModal          = openRatingModal;
+window.closeRatingModal         = closeRatingModal;
+window.submitRating             = submitRating;
+window.setRating                = setRating;
 window._dayBookingMap           = _dayBookingMap;
 window._appointmentMap          = _appointmentMap;
 
@@ -1142,3 +1186,151 @@ function showSpaToast(message, type = 'success') {
         }
     }).showToast();
 }
+
+// =====================================================
+// RATING MODAL
+// =====================================================
+function openRatingModal(bookingId, therapistName, spaName, branchName, branchLocation) {
+    console.log('openRatingModal called', { bookingId, therapistName, spaName, branchName, branchLocation });
+
+    // Store the booking ID
+    document.getElementById('ratingBookingId').value = bookingId;
+
+    // Display therapist name
+    document.getElementById('ratingTherapistName').innerText = therapistName;
+
+    // Display branch location instead of duplicate spa name
+    const locationText = branchLocation || branchName || 'Branch location unavailable';
+    document.getElementById('ratingBranchLocation').innerText = locationText;
+
+    // Reset rating stars
+    resetStars();
+
+    // Clear previous comment
+    document.getElementById('ratingComment').value = '';
+    document.getElementById('ratingFeedback').value = '';
+
+    // Reset character counts
+    if (document.getElementById('ratingCommentCount')) {
+        document.getElementById('ratingCommentCount').textContent = '0';
+    }
+    if (document.getElementById('ratingFeedbackCount')) {
+        document.getElementById('ratingFeedbackCount').textContent = '0';
+    }
+
+    // Enable submit button
+    const submitBtn = document.getElementById('ratingSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        submitBtn.innerHTML = '<i class="mr-2 fa-solid fa-paper-plane"></i> Submit Rating';
+    }
+
+    // Show modal
+    const modal = document.getElementById('ratingModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+        console.log('Rating modal opened');
+    } else {
+        console.error('Rating modal not found');
+    }
+}
+
+function closeRatingModal() {
+    const modal = document.getElementById('ratingModal');
+    if (modal) modal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    resetStars();
+}
+
+function resetStars() {
+    for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`star-${i}`);
+        if (!star) continue;
+        star.classList.remove('text-yellow-400');
+        star.classList.add('text-gray-300');
+    }
+    const selectedRating = document.getElementById('selectedRating');
+    if (selectedRating) selectedRating.value = 0;
+}
+
+function setRating(rating) {
+    const selectedRating = document.getElementById('selectedRating');
+    if (selectedRating) selectedRating.value = rating;
+
+    for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`star-${i}`);
+        if (!star) continue;
+        if (i <= rating) {
+            star.classList.remove('text-gray-300');
+            star.classList.add('text-yellow-400');
+        } else {
+            star.classList.remove('text-yellow-400');
+            star.classList.add('text-gray-300');
+        }
+    }
+}
+
+async function submitRating() {
+    const bookingId = document.getElementById('ratingBookingId').value;
+    const rating    = document.getElementById('selectedRating').value;
+    const comment   = document.getElementById('ratingComment').value;
+    const feedback  = document.getElementById('ratingFeedback').value;
+
+    if (!rating || rating == 0) {
+        showSpaToast('Please select a rating', 'error');
+        return;
+    }
+
+    const submitBtn = document.getElementById('ratingSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        // Use web route (not /api/ratings) for web requests
+        const response = await fetch('/ratings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                rating:     parseInt(rating),
+                comment:    comment,
+                feedback:   feedback
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showSpaToast('Thank you for your feedback!', 'success');
+            closeRatingModal();
+            loadAppointments();
+        } else {
+            showSpaToast(data.message || 'Failed to submit rating', 'error');
+            submitBtn.disabled  = false;
+            submitBtn.innerHTML = '<i class="mr-2 fa-solid fa-paper-plane"></i> Submit Rating';
+        }
+    } catch (error) {
+        console.error('Error submitting rating:', error);
+        showSpaToast('Network error. Please try again.', 'error');
+        submitBtn.disabled  = false;
+        submitBtn.innerHTML = '<i class="mr-2 fa-solid fa-paper-plane"></i> Submit Rating';
+    }
+}
+
+document.getElementById('ratingComment')?.addEventListener('input', function () {
+    const el = document.getElementById('ratingCommentCount');
+    if (el) el.textContent = this.value.length;
+});
+
+document.getElementById('ratingFeedback')?.addEventListener('input', function () {
+    const el = document.getElementById('ratingFeedbackCount');
+    if (el) el.textContent = this.value.length;
+});

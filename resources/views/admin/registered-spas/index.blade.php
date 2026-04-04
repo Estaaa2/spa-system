@@ -321,13 +321,13 @@
                         <button type="button"
                                 onclick="submitSpaReview('verified')"
                                 class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
-                            Accept
+                            Approve
                         </button>
                     </div>
                     <button type="button"
                             id="confirmRejectBtn"
                             onclick="submitSpaReview('rejected')"
-                            class="hidden px-4 py-2 text-sm font-medium text-white bg-red-700 rounded-lg hover:bg-red-800 mt-2">
+                            class="hidden px-4 py-2 mt-2 text-sm font-medium text-white bg-red-700 rounded-lg hover:bg-red-800">
                         Confirm Rejection
                     </button>
                 </div>
