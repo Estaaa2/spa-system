@@ -21,7 +21,7 @@ class Branch extends Model
     ];
 
     protected $casts = [
-        'is_main'          => 'boolean',
+        'is_main'                     => 'boolean',
         'has_workforce_finance_suite' => 'boolean',
     ];
 
@@ -65,5 +65,39 @@ class Branch extends Model
     public function getUsesWorkforceFinanceSuiteAttribute(): bool
     {
         return (bool) $this->has_workforce_finance_suite;
+    }
+
+    // ── Flutter API helpers ───────────────────────────────────────────────────
+
+    /**
+     * Returns closed day indices Flutter expects (0=Sun, 1=Mon … 6=Sat).
+     * Matches Flutter's: date.weekday % 7
+     */
+    public function getClosedDaysForApi(): array
+    {
+        return $this->operatingHours
+            ->where('is_closed', true)
+            ->map(fn($h) => OperatingHours::dayNameToInt($h->day_of_week))
+            ->filter(fn($d) => $d >= 0)
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * Returns opening time as "HH:MM" from the first non-closed day.
+     */
+    public function getOpenTimeForApi(): string
+    {
+        $row = $this->operatingHours->where('is_closed', false)->first();
+        return $row ? substr($row->opening_time, 0, 5) : '09:00';
+    }
+
+    /**
+     * Returns closing time as "HH:MM" from the first non-closed day.
+     */
+    public function getCloseTimeForApi(): string
+    {
+        $row = $this->operatingHours->where('is_closed', false)->first();
+        return $row ? substr($row->closing_time, 0, 5) : '21:00';
     }
 }

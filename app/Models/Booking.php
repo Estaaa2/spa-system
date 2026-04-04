@@ -65,6 +65,11 @@ class Booking extends Model
         return $this->belongsTo(Spa::class);
     }
 
+    public function treatments()
+    {
+        return $this->belongsTo(Treatment::class, 'treatment', 'id');
+    }
+
     public function getTherapistNameAttribute()
     {
         return $this->therapist ? $this->therapist->name : 'Not Assigned';

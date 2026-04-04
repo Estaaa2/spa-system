@@ -12,6 +12,22 @@
 
 </head>
 
+@php
+    function getImageUrl($path) {
+        if (empty($path)) {
+            return asset('storage/branch_profiles/emptyspa.jpg');
+        }
+
+        // If already has branch_profiles in path
+        if (str_contains($path, 'branch_profiles/')) {
+            return asset('storage/' . $path);
+        }
+
+        // Add branch_profiles to the path
+        return asset('storage/branch_profiles/' . $path);
+    }
+@endphp
+
 {{-- data-fallback-image lets welcome.js read the asset URL without needing inline Blade --}}
 <body class="bg-[#F6EFE6] text-gray-800 selection:bg-[#D2A85B]/30 selection:text-[#3C2F23]"
       data-fallback-image="{{ asset('storage/branch_profiles/emptyspa.jpg') }}">
@@ -569,13 +585,13 @@
                                 $fallbackImage = asset('storage/branch_profiles/emptyspa.jpg');
 
                                 $coverPhoto = !empty($profile?->cover_image)
-                                    ? asset('storage/' . $profile->cover_image)
-                                    : $fallbackImage;
+                                ? asset('storage/branch_profiles/' . $profile->cover_image)
+                                : $fallbackImage;
 
                                 $galleryPhotos = collect($profile->gallery_images ?? [])
-                                    ->filter()
-                                    ->map(fn($img) => asset('storage/' . $img))
-                                    ->values();
+                                ->filter()
+                                ->map(fn($img) => asset('storage/branch_profiles/' . $img))
+                                ->values();
 
                                 $photos = collect([$coverPhoto])
                                     ->merge($galleryPhotos)

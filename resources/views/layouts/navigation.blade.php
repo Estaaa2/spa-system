@@ -623,14 +623,14 @@
             <div class="flex-shrink-0 p-3 border-t dark:border-gray-700">
                 <div class="flex items-center justify-between">
                     <div class="flex-1">
-                        <p class="text-sm font-medium text-gray-800 dark:text-white">{{ Auth::user()->name }}</p>
-                        <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</p>
+                        @auth
+                            <p class="text-sm font-medium text-gray-800 dark:text-white">{{ Auth::user()->name }}</p>
+                            <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</p>
+                        @else
+                            <p class="text-sm font-medium text-gray-800 dark:text-white">Guest User</p>
+                            <p class="text-xs text-gray-500 truncate dark:text-gray-400">Not logged in</p>
+                        @endauth
                     </div>
-                    <button type="button" @click="showLogoutModal = true"
-                        class="flex items-center justify-center text-gray-600 transition-colors rounded-full w-9 h-9 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                        title="Log Out">
-                        <i class="text-lg fa-solid fa-right-from-bracket"></i>
-                    </button>
                 </div>
             </div>
 

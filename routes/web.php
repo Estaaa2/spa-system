@@ -18,7 +18,7 @@ use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
 use App\Http\Controllers\LandingController;
-use App\Http\Controllers\MailController;
+// use App\Http\Controllers\MailController;
 use App\Http\Controllers\OnlineBookingCheckoutController;
 use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
 use App\Http\Controllers\Owner\SpaProfileController;
@@ -35,7 +35,8 @@ use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\Owner\WorkforceFinanceSuiteController;
 use App\Http\Controllers\RescheduleRequestController;
 use App\Http\Middleware\LandingPageRedirect;
-use App\Mail\WelcomeMail;
+use App\Http\Controllers\Api\FlutterBookingController;
+// use App\Mail\WelcomeMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
@@ -45,17 +46,52 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/send-mail', [MailController::class, 'sendWelcomeMail']);
-Route::get('/test-mail', function () {
-    $data = [
-        'name'    => 'Test User',
-        'message' => 'This is a test email from Mailtrap!',
-    ];
+// Route::get('/send-mail', [MailController::class, 'sendWelcomeMail']);
+// Route::get('/test-mail', function () {
+//     $data = [
+//         'name'    => 'Test User',
+//         'message' => 'This is a test email from Mailtrap!',
+//     ];
 
-    Mail::to('anyone@example.com')->send(new WelcomeMail($data));
+//     Mail::to('anyone@example.com')->send(new WelcomeMail($data));
 
-    return 'Email sent! Check your Mailtrap inbox.';
-});
+//     return 'Email sent! Check your Mailtrap inbox.';
+// });
+
+
+
+// web.php - PUT THESE FIRST before anything else
+
+Route::options('/{any}', function () {
+    return response('', 200)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept')
+        ->header('Access-Control-Allow-Credentials', 'true');
+})->where('any', '.*');
+
+Route::get('/storage/{path}', function ($path) {
+    $fullPath = storage_path('app/public/' . $path);
+    if (!file_exists($fullPath)) abort(404);
+
+    $file = file_get_contents($fullPath);
+    $mimeType = mime_content_type($fullPath);
+
+    return response($file, 200)
+        ->header('Content-Type', $mimeType)
+        ->header('Content-Length', filesize($fullPath))
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept')
+        ->header('Cache-Control', 'public, max-age=3600');
+})->where('path', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
+
+// Add these for the redirect callbacks
+Route::get('/flutter/payment/success', [FlutterBookingController::class, 'paymentSuccess'])
+    ->name('flutter.payment.success');
+
+Route::get('/flutter/payment/cancel', [FlutterBookingController::class, 'paymentCancel'])
+    ->name('flutter.payment.cancel');
 
 /*
 |--------------------------------------------------------------------------
@@ -242,29 +278,6 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/services/packages/import', [ServiceImportExportController::class, 'importPackages'])
             ->name('packages.import');
     });
-
-    /*
-    |--------------------------------------------------------------------------
-    | API: Operating Hours
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/api/operating-hours/{branchId}/{day}', function ($branchId, $day) {
-        $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
-            ->where('day_of_week', $day)
-            ->first();
-
-        if (!$hours) {
-            return response()->json([
-                'is_closed' => true,
-            ]);
-        }
-
-        return response()->json([
-            'is_closed'    => (bool) $hours->is_closed,
-            'opening_time' => $hours->opening_time,
-            'closing_time' => $hours->closing_time,
-        ]);
-    })->name('api.operating-hours');
 
     /*
     |--------------------------------------------------------------------------
