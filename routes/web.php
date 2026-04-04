@@ -173,6 +173,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/ratings', [App\Http\Controllers\RatingController::class, 'store'])->name('ratings.store');
 });
 
+Route::middleware(['auth'])->group(function () {
+    Route::patch('/customer/profile', [ProfileController::class, 'updateCustomer'])
+        ->name('customer.profile.update');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Staff Dashboard
@@ -662,3 +667,6 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__ . '/auth.php';
+Route::get('/api/spas/nearby', [LandingController::class, 'nearbySpasList'])->middleware('auth');
+
+require __DIR__.'/auth.php';

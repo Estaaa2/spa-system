@@ -23,6 +23,10 @@ function getTodayLocal() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+// =====================================================
+// PROFILE DROPDOWN
+// =====================================================
+
 function closeProfileDropdown() {
     profileDropdownMenu?.classList.add('hidden');
     profileChevron?.classList.remove('rotate-180');
@@ -47,6 +51,19 @@ document.addEventListener('click', function (e) {
 function openProfileModal() {
     document.getElementById('profileModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+
+    setTimeout(() => {
+        window.profileMap.invalidateSize();
+
+        // If user already has a pinned location, show it
+        const savedLat = parseFloat(document.getElementById('latitude').value);
+        const savedLng = parseFloat(document.getElementById('longitude').value);
+        if (savedLat && savedLng) {
+            window.profileMap.setView([savedLat, savedLng], 15);
+            if (marker) window.profileMap.removeLayer(marker);
+            marker = L.marker([savedLat, savedLng]).addTo(window.profileMap);
+        }
+    }, 300);
 }
 
 function closeProfileModal() {
@@ -994,6 +1011,105 @@ async function submitRescheduleRequest() {
         submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Submit Request';
     }
 }
+
+// =====================================================
+// SPAS NEAR YOU
+// =====================================================
+async function loadNearbySpas() {
+    try {
+        const res  = await fetch('/api/spas/nearby');
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) return;
+
+        const section = document.getElementById('nearbySection');
+        const grid    = document.getElementById('nearbyGrid');
+        if (!section || !grid) return;
+
+        const fallback = document.body.dataset.fallbackImage ?? '';
+
+        grid.innerHTML = data.map(spa => {
+            const thumb = spa.photos?.[0] || fallback;
+            const addr  = spa.address ?? '';
+            const parts = addr.split(',').map(s => s.trim());
+            const addrSummary = parts.length >= 3
+                ? parts.slice(0, parts.length - 2).slice(-3).join(', ')
+                : (addr || 'Location unavailable');
+
+            const escapedData = JSON.stringify(spa).replace(/'/g, '&#39;');
+
+            return `
+                <button type="button"
+                    class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                    data-open-spa-modal
+                    data-spa='${escapedData}'>
+                    <div class="relative overflow-hidden">
+                        <img src="${thumb}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="${spa.name}">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+                        <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 text-[#6F5430] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5">
+                            <i class="fa-solid fa-location-dot text-[#8B7355] text-[10px]"></i>
+                            ${spa.distance_km} km away
+                        </div>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">${spa.name}</h3>
+                        <p class="mt-1 text-xs text-gray-500">${addrSummary}</p>
+                        <p class="mt-3 text-sm text-gray-600 line-clamp-2">${spa.desc || 'No description yet.'}</p>
+                    </div>
+                </button>`;
+        }).join('');
+
+        // Wire up the newly injected spa buttons
+        grid.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                try {
+                    openSpaModal(JSON.parse(btn.getAttribute('data-spa')));
+                } catch (e) { console.error(e); }
+            });
+        });
+
+        section.classList.remove('hidden');
+
+    } catch (err) {
+        // Silently fail — user just won't see the section
+        console.warn('Nearby spas unavailable:', err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadNearbySpas);
+
+// =====================================================
+// MAP (For Profile Modal)
+// =====================================================
+
+window.profileMap = L.map('map').setView([14.3715407, 120.9388733], 11);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+}).addTo(window.profileMap);
+
+let marker;
+
+window.profileMap.on('click', function (e) {
+    let lat = e.latlng.lat;
+    let lng = e.latlng.lng;
+
+    if (marker) {
+        window.profileMap.removeLayer(marker);
+    }
+
+    marker = L.marker([lat, lng]).addTo(window.profileMap);
+
+    document.getElementById('latitude').value = lat;
+    document.getElementById('longitude').value = lng;
+
+    // reverse geocoding (optional)
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('address').value = data.display_name;
+        });
+});
 
 // =====================================================
 // KEYBOARD: Escape closes all modals
