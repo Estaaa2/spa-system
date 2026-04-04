@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Finance;
+namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payroll;
@@ -37,7 +37,7 @@ class PayrollController extends Controller
             ->where('employment_status', 'active')
             ->get();
 
-        return view('finance.payroll.index', compact('payrolls', 'staffList'));
+        return view('hr.payroll.index', compact('payrolls', 'staffList'));
     }
 
     public function generate(Request $request)

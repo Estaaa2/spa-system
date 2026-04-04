@@ -19,7 +19,8 @@ class BranchDeploymentController extends Controller
     public function index(Request $request)
     {
         $user     = Auth::user();
-        $branchId = $user->currentBranchId();
+        $spaId = $user->spa_id;
+        $branchId = session('current_branch_id') ?? $user->branch_id;
 
         if (!$branchId) {
             return redirect()->route('branches.index')
@@ -35,12 +36,15 @@ class BranchDeploymentController extends Controller
                 ->with(['fromBranch', 'toBranch', 'requestedBy', 'reviewedBy'])
                 ->latest(),
         ])
-            ->where('spa_id', $user->spa_id)
-            // ❌ REMOVE THIS LINE: ->where('branch_id', $branchId)
+            ->where('spa_id', $spaId)
+            ->where('branch_id', $branchId)
             ->get();
 
-        // Summary counts across the whole spa (not just current branch)
-        $summaryCounts = StaffBranchDeployment::where('spa_id', $user->spa_id)
+        $branchId = session('current_branch_id') ?? $user->branch_id;
+        $summaryCounts = StaffBranchDeployment::where('spa_id', $spaId)
+            ->whereHas('staff', function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            })
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status');

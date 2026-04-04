@@ -9,13 +9,14 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CustomerAppointmentController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Finance\PayrollController;
+use App\Http\Controllers\Finance\BillingController;
 use App\Http\Controllers\Finance\RevenueController;
 use App\Http\Controllers\HR\ApplicationController;
 use App\Http\Controllers\HR\AttendanceController;
 use App\Http\Controllers\HR\BranchDeploymentController;
 use App\Http\Controllers\HR\HiringController;
 use App\Http\Controllers\HR\InterviewController;
+use App\Http\Controllers\HR\PayrollController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
@@ -34,9 +35,9 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceImportExportController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\TherapistPerformanceController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Middleware\LandingPageRedirect;
-use App\Http\Controllers\TherapistPerformanceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -406,13 +407,6 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     | HR Modules
     |--------------------------------------------------------------------------
     */
-    Route::middleware('branch.permission:view hr dashboard')->group(function () {
-        // Rename to hrOverview in controller if your current method name still has a dash.
-        Route::get('/hr-overview', [HiringController::class, 'hrOverview'])->name('hr-overview');
-    });
-
-    Route::get('/hr-dashboard', [HiringController::class, 'hrOverview'])->name('hr.dashboard');
-
     // Hiring
     Route::middleware('branch.permission:view hiring')->group(function () {
         Route::get('/hiring', [HiringController::class, 'index'])->name('hiring.index');
@@ -490,11 +484,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Finance Modules
-    |--------------------------------------------------------------------------
-    */
+    // Payroll
     Route::middleware('branch.permission:view payroll')->group(function () {
         Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');
     });
@@ -504,28 +494,27 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/payroll/{payroll}/finalize', [PayrollController::class, 'finalize'])->name('payroll.finalize');
     });
 
+    /*
+    |--------------------------------------------------------------------------
+    | Finance Modules
+    |--------------------------------------------------------------------------
+    */
     Route::middleware('branch.permission:view revenue')->group(function () {
         Route::get('/revenue', [RevenueController::class, 'index'])->name('revenue.index');
     });
 
     Route::middleware('branch.permission:view billing')->group(function () {
-        Route::get('/billing', fn() => view('finance.billing'))->name('billing.index');
+        Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
     });
-
+    
     Route::middleware('branch.permission:create billing')->group(function () {
-        // Wala pang billing create routes here.
+        Route::post('/billing/expenses', [BillingController::class, 'storeExpense'])
+            ->name('billing.expense.store');
     });
-
+    
     Route::middleware('branch.permission:edit billing')->group(function () {
-        // Wala pang billing edit routes here.
-    });
-
-    Route::middleware('branch.permission:delete billing')->group(function () {
-        // Wala pang billing delete routes here.
-    });
-
-    Route::middleware('branch.permission:view finance inventory')->group(function () {
-        Route::get('/finance-inventory', fn() => view('finance.inventory'))->name('finance-inventory.index');
+        Route::patch('/billing/expenses/{expense}/status', [BillingController::class, 'updateExpenseStatus'])
+            ->name('billing.expense.updateStatus');
     });
 });
 

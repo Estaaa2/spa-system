@@ -31,9 +31,9 @@
         @if(auth()->check() && auth()->user()->hasRole('admin'))
             @include('layouts.navigation-admin')
         @elseif(auth()->check() && auth()->user()->hasRole('hr'))
-            @include('layouts.navigation-hr')
+            @include('layouts.navigation')
         @elseif(auth()->check() && auth()->user()->hasRole('finance'))
-            @include('layouts.navigation-finance')
+            @include('layouts.navigation')
         @else
             @include('layouts.navigation')
         @endif

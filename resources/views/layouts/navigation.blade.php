@@ -447,6 +447,12 @@
                                     Attendance &amp; Leave
                                 </x-nav-link>
                             @endif
+
+                            @if ($canPayroll)
+                                <x-nav-link :href="route('payroll.index')" :active="request()->routeIs('payroll.*')">
+                                    Payroll
+                                </x-nav-link>
+                            @endif
                         </div>
                     </div>
                 @endif
@@ -500,12 +506,6 @@
                         </button>
 
                         <div x-show="financeOpen" x-collapse class="ml-4 space-y-1">
-                            @if ($canPayroll)
-                                <x-nav-link :href="route('payroll.index')" :active="request()->routeIs('payroll.*')">
-                                    Payroll
-                                </x-nav-link>
-                            @endif
-
                             @if ($canRevenue)
                                 <x-nav-link :href="route('revenue.index')" :active="request()->routeIs('revenue.*')">
                                     Revenue
