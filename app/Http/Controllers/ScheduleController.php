@@ -34,8 +34,8 @@ class ScheduleController extends Controller
         foreach ($dayDates as $date) {
             $dayOfWeek = $date->format('l');
             $hours     = OperatingHours::where('branch_id', $currentBranchId)
-                            ->where('day_of_week', $dayOfWeek)
-                            ->first();
+                ->where('day_of_week', $dayOfWeek)
+                ->first();
 
             $opening = null;
             $closing = null;
@@ -171,8 +171,18 @@ class ScheduleController extends Controller
             ])
             ->orderBy('appointment_date')
             ->orderBy('start_time')
-            ->get(['id', 'appointment_date', 'start_time', 'end_time', 'status',
-                   'service_type', 'treatment', 'customer_name', 'customer_phone', 'therapist_id']);
+            ->get([
+                'id',
+                'appointment_date',
+                'start_time',
+                'end_time',
+                'status',
+                'service_type',
+                'treatment',
+                'customer_name',
+                'customer_phone',
+                'therapist_id'
+            ]);
 
         $grid = [];
         foreach ($bookings as $b) {
@@ -190,7 +200,7 @@ class ScheduleController extends Controller
                     'service_type'  => $b->service_type,
                     'treatment'     => $b->treatment,
                     'customer_name' => $b->customer_name,
-                    'customer_phone'=> $b->customer_phone,
+                    'customer_phone' => $b->customer_phone,
                 ];
                 $slot->addMinutes(30);
             }

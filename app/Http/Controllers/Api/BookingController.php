@@ -7,8 +7,8 @@ use App\Models\Booking;
 use App\Models\Staff;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;  // ← MUST HAVE THIS
-use Carbon\Carbon;  // ← MUST HAVE THIS
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class BookingController extends Controller
 {
@@ -34,6 +34,18 @@ class BookingController extends Controller
 
         // Get spa name
         $spaName = $booking->spa?->name ?? $booking->branch?->name ?? 'Unknown Spa';
+        $hasRating = $booking->rating()->exists();
+        $ratingValue = $hasRating ? $booking->rating->rating : null;
+
+        // Get branch location (address/city)
+        $branchLocation = null;
+        if ($booking->branch) {
+            // Try to get location from branch - use whichever field exists
+            $branchLocation = $booking->branch->location ??
+                             $booking->branch->address ??
+                             $booking->branch->city ??
+                             $booking->branch->name;
+        }
 
         // Get the actual treatment name
         $treatmentName = $this->getTreatmentName($booking->treatment);
@@ -62,10 +74,13 @@ class BookingController extends Controller
             'treatment_code'   => $booking->treatment,
             'therapist'        => $therapistName,
             'appointment_date' => $appointmentDate,
+            'has_rating' => $hasRating,
+            'rating_value' => $ratingValue,
             'start_time'       => $booking->start_time ?? '',
             'end_time'         => $booking->end_time ?? '',
             'status'           => $booking->status ?? 'reserved',
             'branch_name'      => $booking->branch?->name ?? 'Unknown Branch',
+            'branch_location' => $booking->branch?->location ?? $booking->branch?->address ?? '', // ← ADDED: branch location
             'branch_id'        => $booking->branch_id,
             'spa_id'           => $booking->spa_id,
             'amount_paid'      => (float) ($booking->amount_paid ?? 0),

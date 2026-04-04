@@ -106,6 +106,10 @@ class RolePermissionSeeder extends Seeder
             'delete interviews',
             'view payroll',
             'edit payroll',
+            'view deployments',
+            'create deployments',
+            'approve deployments',
+            'delete deployments',
 
             // Finance
             'view finance dashboard',
@@ -224,6 +228,10 @@ class RolePermissionSeeder extends Seeder
             'delete interviews',
             'view payroll',
             'edit payroll',
+            'view deployments',
+            'create deployments',
+            'approve deployments',
+            'delete deployments',
 
             // Finance visibility / control
             'view finance dashboard',
@@ -272,6 +280,8 @@ class RolePermissionSeeder extends Seeder
 
             'edit own profile',
             'view spa profile',
+
+            'view deployments',
         ]);
 
         // Therapist
@@ -335,6 +345,10 @@ class RolePermissionSeeder extends Seeder
             'create interviews',
             'edit interviews',
             'delete interviews',
+
+            'view deployments',
+            'create deployments',
+            'delete deployments',
 
             'view payroll',
             'edit payroll',

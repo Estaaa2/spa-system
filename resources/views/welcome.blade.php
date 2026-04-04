@@ -514,7 +514,6 @@
                         <input type="time" id="rescheduleTime"
                             class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
                             required>
-                        {{-- ADD THIS LINE --}}
                         <p id="rescheduleTimeError" class="hidden mt-1 text-[11px] text-red-500">
                             <i class="fa-solid fa-circle-exclamation"></i>
                             <span id="rescheduleTimeErrorText"></span>
@@ -585,12 +584,12 @@
                                 $fallbackImage = asset('storage/branch_profiles/emptyspa.jpg');
 
                                 $coverPhoto = !empty($profile?->cover_image)
-                                ? asset('storage/branch_profiles/' . $profile->cover_image)
+                                ? asset('storage/' . $profile->cover_image)
                                 : $fallbackImage;
 
                                 $galleryPhotos = collect($profile->gallery_images ?? [])
                                 ->filter()
-                                ->map(fn($img) => asset('storage/branch_profiles/' . $img))
+                                ->map(fn($img) => asset('storage/' . $img))
                                 ->values();
 
                                 $photos = collect([$coverPhoto])
@@ -668,10 +667,11 @@
                                     <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
                                     @php
                                         $addr = $spaPayload['address'] ?? '';
-                                        $addrParts = array_map('trim', explode(',', $addr));
-                                        $addrSummary = count($addrParts) >= 3
-                                            ? implode(', ', array_slice(array_slice($addrParts, 0, count($addrParts) - 2), -3))
-                                            : ($addr ?: 'Location unavailable');
+                                        $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', $addr);
+                                        $parts = array_values(array_filter(array_map('trim', explode(',', $cleaned))));
+                                        $addrSummary = count($parts) >= 2
+                                            ? implode(', ', array_slice($parts, -2))
+                                            : (implode(', ', $parts) ?: 'Location unavailable');
                                     @endphp
                                     <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
                                     <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
@@ -818,10 +818,11 @@
                                             <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
                                             @php
                                                 $addr = $spaPayload['address'] ?? '';
-                                                $addrParts = array_map('trim', explode(',', $addr));
-                                                $addrSummary = count($addrParts) >= 3
-                                                    ? implode(', ', array_slice(array_slice($addrParts, 0, count($addrParts) - 2), -3))
-                                                    : ($addr ?: 'Location unavailable');
+                                                $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', $addr);
+                                                $parts = array_values(array_filter(array_map('trim', explode(',', $cleaned))));
+                                                $addrSummary = count($parts) >= 2
+                                                    ? implode(', ', array_slice($parts, -2))
+                                                    : (implode(', ', $parts) ?: 'Location unavailable');
                                             @endphp
                                             <p class="mt-1 text-xs text-gray-900">{{ $addrSummary }}</p>
                                             @if($lowestPrice)
@@ -1107,54 +1108,134 @@
                         </div>
                     @endauth
                 </div>
-<!-- ================= TERMS MODAL ================= -->
-<div id="termsModal" class="fixed inset-0 z-[120] hidden">
-    <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeTermsModal()"></div>
-    <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-        <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
-                <h3 class="text-lg font-semibold text-[#3C2F23]">Terms & Conditions</h3>
-                <button type="button" onclick="closeTermsModal()"
-                    class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                    <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div class="overflow-y-auto max-h-[60vh] p-6">
-                <ul class="space-y-4 text-xs leading-relaxed text-gray-600">
-                    <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
-                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
-                        <div>
-                            <p class="font-semibold text-[#3C2F23] mb-1">Downpayment</p>
-                            <p>A 20% non-refundable downpayment is required to confirm your reservation. The remaining 80% is payable at the spa on the day of your appointment.</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
-                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
-                        <div>
-                            <p class="font-semibold text-[#3C2F23] mb-1">Cancellation</p>
-                            <p>Cancellations must be made at least 24 hours before your appointment. The 20% downpayment is non-refundable regardless of cancellation timing.</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
-                        <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
-                        <div>
-                            <p class="font-semibold text-[#3C2F23] mb-1">No-Show Policy</p>
-                            <p>Failure to arrive without prior notice will forfeit your downpayment and may result in restricted future bookings on this platform.</p>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-                        <div class="px-6 pt-2 pb-6">
-                            <button type="button" onclick="closeTermsModal()"
-                                class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                                I Understand
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
             </div>
             <div class="h-10"></div>
+        </div>
+    </div>
+
+    <!-- ================= TERMS MODAL ================= -->
+    <div id="termsModal" class="fixed inset-0 z-[120] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeTermsModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <h3 class="text-lg font-semibold text-[#3C2F23]">Terms & Conditions</h3>
+                    <button type="button" onclick="closeTermsModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="overflow-y-auto max-h-[60vh] p-6">
+                    <ul class="space-y-4 text-xs leading-relaxed text-gray-600">
+                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
+                            <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                            <div>
+                                <p class="font-semibold text-[#3C2F23] mb-1">Downpayment</p>
+                                <p>A 20% non-refundable downpayment is required to confirm your reservation. The remaining 80% is payable at the spa on the day of your appointment.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
+                            <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                            <div>
+                                <p class="font-semibold text-[#3C2F23] mb-1">Cancellation</p>
+                                <p>Cancellations must be made at least 24 hours before your appointment. The 20% downpayment is non-refundable regardless of cancellation timing.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
+                            <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                            <div>
+                                <p class="font-semibold text-[#3C2F23] mb-1">No-Show Policy</p>
+                                <p>Failure to arrive without prior notice will forfeit your downpayment and may result in restricted future bookings on this platform.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="px-6 pt-2 pb-6">
+                    <button type="button" onclick="closeTermsModal()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                        I Understand
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= RATING MODAL ================= -->
+    <div id="ratingModal" class="fixed inset-0 z-[140] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeRatingModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <div>
+                        <h3 class="text-lg font-semibold text-[#3C2F23]">Rate Your Experience</h3>
+                        <p class="mt-0.5 text-xs text-gray-500">Help us improve our service quality</p>
+                    </div>
+                    <button type="button" onclick="closeRatingModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-5">
+                    <input type="hidden" id="ratingBookingId">
+                    <input type="hidden" id="selectedRating" value="0">
+
+                    <!-- Therapist Info - Fixed to show branch location instead of duplicate spa name -->
+                    <div class="p-4 rounded-xl bg-[#F6EFE6]/60 ring-1 ring-black/5">
+                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Therapist</p>
+                        <p id="ratingTherapistName" class="mt-1 text-base font-semibold text-[#3C2F23]"></p>
+                        <div class="flex items-center gap-1 mt-1">
+                            <i class="fa-solid fa-location-dot text-[#8B7355] text-[10px]"></i>
+                            <p id="ratingBranchLocation" class="text-xs text-gray-500"></p>
+                        </div>
+                    </div>
+
+                    <!-- Star Rating -->
+                    <div>
+                        <label class="block mb-2 text-xs font-semibold text-gray-600">
+                            Your Rating <span class="text-red-500">*</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <div class="flex gap-1">
+                                {!! implode('', array_map(fn($i) =>
+                                    '<button type="button" onclick="setRating('.$i.')"
+                                        class="transition focus:outline-none hover:scale-110">
+                                        <i id="star-'.$i.'" class="text-2xl text-gray-300 fa-solid fa-star"></i>
+                                    </button>', range(1, 5))) !!}
+                            </div>
+                            <span id="ratingLabel" class="ml-2 text-sm text-gray-500">Select rating</span>
+                        </div>
+                    </div>
+
+                    <!-- Short Comment -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">What went well?</label>
+                        <textarea id="ratingComment" rows="2" maxlength="500"
+                            placeholder="e.g., Great massage, very professional..."
+                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
+                        <p class="mt-1 text-right text-[10px] text-gray-400"><span id="ratingCommentCount">0</span>/500</p>
+                    </div>
+
+                    <!-- Detailed Feedback -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Suggestions for improvement (optional)</label>
+                        <textarea id="ratingFeedback" rows="2" maxlength="1000"
+                            placeholder="e.g., Could be more attentive, room was cold..."
+                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
+                        <p class="mt-1 text-right text-[10px] text-gray-400"><span id="ratingFeedbackCount">0</span>/1000</p>
+                    </div>
+                </div>
+                <div class="px-6 pb-6 space-y-2">
+                    <button type="button" id="ratingSubmitBtn" onclick="submitRating()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                        <i class="mr-2 fa-solid fa-paper-plane"></i>
+                        Submit Rating
+                    </button>
+                    <button type="button" onclick="closeRatingModal()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        Maybe Later
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

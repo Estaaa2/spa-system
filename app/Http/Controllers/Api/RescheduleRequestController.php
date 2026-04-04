@@ -23,8 +23,10 @@ class RescheduleRequestController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
+            // FIX: Only return pending or approved requests, EXCLUDE rejected ones
             $rescheduleRequest = RescheduleRequest::where('booking_id', $bookingId)
                 ->where('requested_by', Auth::id())
+                ->whereIn('status', ['pending', 'approved']) // ← KEY CHANGE: exclude rejected
                 ->latest()
                 ->first();
 
@@ -76,7 +78,6 @@ class RescheduleRequestController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
 
-            // FIX: added 'confirmed' to match Flutter's canReschedule check
             if (!in_array($booking->status, ['reserved', 'pending', 'confirmed'])) {
                 return response()->json([
                     'success' => false,

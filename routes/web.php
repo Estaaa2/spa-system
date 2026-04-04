@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\RegisteredSpaController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Api\FlutterBookingController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CustomerAppointmentController;
@@ -12,32 +13,30 @@ use App\Http\Controllers\Finance\PayrollController;
 use App\Http\Controllers\Finance\RevenueController;
 use App\Http\Controllers\HR\ApplicationController;
 use App\Http\Controllers\HR\AttendanceController;
+use App\Http\Controllers\HR\BranchDeploymentController;
 use App\Http\Controllers\HR\HiringController;
 use App\Http\Controllers\HR\InterviewController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
 use App\Http\Controllers\LandingController;
-// use App\Http\Controllers\MailController;
 use App\Http\Controllers\OnlineBookingCheckoutController;
 use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
 use App\Http\Controllers\Owner\SpaProfileController;
 use App\Http\Controllers\Owner\SubscriptionController;
+use App\Http\Controllers\Owner\WorkforceFinanceSuiteController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RescheduleRequestController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceImportExportController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TreatmentController;
-use App\Http\Controllers\Owner\WorkforceFinanceSuiteController;
-use App\Http\Controllers\RescheduleRequestController;
 use App\Http\Middleware\LandingPageRedirect;
-use App\Http\Controllers\Api\FlutterBookingController;
-// use App\Mail\WelcomeMail;
-use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\TherapistPerformanceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -67,9 +66,33 @@ Route::options('/{any}', function () {
         ->header('Access-Control-Allow-Origin', '*')
         ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept')
-        ->header('Access-Control-Allow-Credentials', 'true');
+        ->header('Access-Control-Allow-Credentials', 'true')
+        ->header('Access-Control-Max-Age', '86400');
 })->where('any', '.*');
 
+Route::get('/storage/branch_profiles/{filename}', function ($filename) {
+    $fullPath = storage_path('app/public/branch_profiles/' . $filename);
+    if (!file_exists($fullPath)) {
+        // Try without branch_profiles folder
+        $fullPath = storage_path('app/public/' . $filename);
+        if (!file_exists($fullPath)) {
+            abort(404);
+        }
+    }
+
+    $file = file_get_contents($fullPath);
+    $mimeType = mime_content_type($fullPath);
+
+    return response($file, 200)
+        ->header('Content-Type', $mimeType)
+        ->header('Content-Length', filesize($fullPath))
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Authorization')
+        ->header('Cache-Control', 'public, max-age=3600');
+})->where('filename', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
+
+// Also add a generic storage route for other files
 Route::get('/storage/{path}', function ($path) {
     $fullPath = storage_path('app/public/' . $path);
     if (!file_exists($fullPath)) abort(404);
@@ -147,6 +170,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/reschedule-requests/{booking}/status', [RescheduleRequestController::class, 'status'])
         ->name('reschedule.status');
+    Route::post('/ratings', [App\Http\Controllers\RatingController::class, 'store'])->name('ratings.store');
 });
 
 /*
@@ -159,6 +183,14 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('role:owner|manager|therapist|receptionist')
         ->name('dashboard');
+
+     Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('appointments.fix-duration');
+
+    Route::post('/appointments/fix-all-durations', [BookingController::class, 'fixAllDurations'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('appointments.fix-all-durations');
 });
 
 /*
@@ -301,6 +333,12 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::delete('/staff/{staff}', [StaffController::class, 'destroy'])->name('staff.destroy');
     });
 
+    // Therapist Performance
+    Route::middleware(['auth', 'verified', 'role:therapist'])->group(function () {
+        Route::get('/therapist/performance', [App\Http\Controllers\TherapistPerformanceController::class, 'index'])
+            ->name('therapist.performance');
+    });
+
     /*
     |--------------------------------------------------------------------------
     | Inventory
@@ -368,6 +406,8 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::get('/hr-overview', [HiringController::class, 'hrOverview'])->name('hr-overview');
     });
 
+    Route::get('/hr-dashboard', [HiringController::class, 'hrOverview'])->name('hr.dashboard');
+
     // Hiring
     Route::middleware('branch.permission:view hiring')->group(function () {
         Route::get('/hiring', [HiringController::class, 'index'])->name('hiring.index');
@@ -410,6 +450,30 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/interviews/{interview}/reject', [InterviewController::class, 'reject'])->name('interviews.reject');
         Route::post('/interviews/{interview}/create-staff', [InterviewController::class, 'createStaff'])
             ->name('interviews.create-staff');
+    });
+
+    // Deployment
+    Route::middleware('branch.permission:view deployments')->group(function () {
+        Route::get('/deployment', [BranchDeploymentController::class, 'index'])
+            ->name('deployment.index');
+    });
+
+    Route::middleware('branch.permission:create deployments')->group(function () {
+        Route::post('/branch-deployments', [BranchDeploymentController::class, 'store'])
+            ->name('branch-deployments.store');
+    });
+
+    Route::middleware('branch.permission:approve deployments')->group(function () {
+        Route::post('/branch-deployments/{deployment}/approve', [BranchDeploymentController::class, 'approve'])
+            ->name('branch-deployments.approve');
+
+        Route::post('/branch-deployments/{deployment}/reject', [BranchDeploymentController::class, 'reject'])
+            ->name('branch-deployments.reject');
+    });
+
+    Route::middleware('branch.permission:delete deployments')->group(function () {
+        Route::post('/branch-deployments/{deployment}/cancel', [BranchDeploymentController::class, 'cancel'])
+            ->name('branch-deployments.cancel');
     });
 
     // Attendance & Leave
@@ -597,4 +661,4 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

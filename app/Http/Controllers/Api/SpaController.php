@@ -93,10 +93,41 @@ class SpaController extends Controller
             })
             ->get();
 
-            return response()->json(
-                $featuredSpas->map(fn($spa) => $this->formatSpa($spa))->values()
-            );
+            $flattenedBranches = [];
+
+            foreach ($featuredSpas as $spa) {
+                foreach ($spa->branches as $branch) {
+                    $profile = $branch->profile;
+                    $imageUrl = $profile?->cover_image
+                        ? url('storage/' . $profile->cover_image)
+                        : '';
+
+                    $flattenedBranches[] = [
+                        'id'          => $spa->id,         // keep spa id for detail navigation
+                        'name'        => $spa->name,
+                        'location'    => $branch->location ?? '',
+                        'address'     => $profile?->address ?? $branch->location ?? '',
+                        'contact'     => $profile?->phone ?? '',
+                        'image'       => $imageUrl,
+                        'tag'         => 'Featured Spa',
+                        'rating'      => 0.0,
+                        'reviews'     => 0,
+                        'price_note'  => '',
+                        'latitude'    => (float) ($profile?->latitude ?? 0),
+                        'longitude'   => (float) ($profile?->longitude ?? 0),
+                        'amenities'   => $profile?->amenities ?? [],
+                        'branches'    => [$this->formatBranch($branch)],
+                        'treatments'  => $branch->treatments
+                            ->map(fn($t) => $this->formatTreatment($t))
+                            ->values(),
+                    ];
+                }
+            }
+
+            return response()->json($flattenedBranches);
+
         } catch (\Exception $e) {
+            \Log::error('Error in featured: ' . $e->getMessage());
             return response()->json([]);
         }
     }
@@ -215,8 +246,10 @@ class SpaController extends Controller
     // ── Format spa for Flutter ───────────────────────────────────────────
     private function formatSpa(Spa $spa): array
     {
-        $firstBranch = $spa->branches->first();
-        $profile = $firstBranch?->profile;
+        // Prefer main branch, fall back to first
+        $primaryBranch = $spa->branches->firstWhere('is_main', true)
+                        ?? $spa->branches->first();
+        $profile = $primaryBranch?->profile;
 
         $imageUrl = '';
         if ($profile && $profile->cover_image) {
@@ -226,8 +259,8 @@ class SpaController extends Controller
         return [
             'id'          => $spa->id,
             'name'        => $spa->name,
-            'location'    => $firstBranch?->location ?? '',
-            'address'     => $profile?->address ?? $firstBranch?->location ?? '',
+            'location'    => $primaryBranch?->location ?? '',
+            'address'     => $profile?->address ?? $primaryBranch?->location ?? '',
             'contact'     => $profile?->phone ?? '',
             'description' => $profile?->description ?? $spa->description ?? '',
             'image'       => $imageUrl,
@@ -238,7 +271,7 @@ class SpaController extends Controller
             'latitude'    => (float) ($profile?->latitude ?? 0),
             'longitude'   => (float) ($profile?->longitude ?? 0),
             'amenities'   => $profile?->amenities ?? [],
-            'branches'    => $spa->branches->map(fn($b) => $this->formatBranch($b))->values(),
+            'branches'    => $spa->branches->map(fn($b) => $this->formatBranch($b))->values(), // all branches
             'treatments'  => $spa->branches->flatMap(fn($b) => $b->treatments ?? [])
                 ->map(fn($t) => $this->formatTreatment($t))
                 ->values(),

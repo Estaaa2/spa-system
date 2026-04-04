@@ -1,9 +1,19 @@
 @php
     $user = Auth::user();
     $spa  = $user?->spa;
+
+    // Define permissions for Manpower section
+    $canHiring = $user?->can('view hiring') ?? false;
+    $canApplicants = $user?->can('view applications') ?? false;
+    $canInterviews = $user?->can('view interviews') ?? false;
+    $canStaffAccounts = $user?->can('view staff') ?? false;
+    $canDeployment = $user?->can('view deployments') ?? false;
+    $canAttendanceLeave = ($user?->can('view attendance') || $user?->can('edit attendance') ||
+                          $user?->can('view leave requests') || $user?->can('create leave requests') ||
+                          $user?->can('edit leave requests') || $user?->can('delete leave requests')) ?? false;
 @endphp
 
-<div x-data="{ open: false, settingsOpen: false, showLogoutModal: false }" class="flex h-screen bg-gray-100 dark:bg-gray-900">
+<div x-data="{ open: false, manpowerOpen: false, settingsOpen: false, showLogoutModal: false }" class="flex h-screen bg-gray-100 dark:bg-gray-900">
 
     {{-- MOBILE TOPBAR --}}
     <div class="fixed top-0 z-40 flex items-center justify-between w-full px-4 py-3 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
@@ -44,45 +54,58 @@
                 </x-nav-link>
                 @endcan
 
-                {{-- Hiring --}}
-                @can('view hiring')
-                <x-nav-link :href="route('hr.hiring')" :active="request()->routeIs('hr.hiring')">
-                    <i class="fa-solid fa-bullhorn w-4 mr-2 text-[#8B7355]"></i>
-                    Hiring
-                </x-nav-link>
-                @endcan
+                {{-- Manpower Section --}}
+                @if($canHiring || $canApplicants || $canInterviews || $canStaffAccounts || $canDeployment || $canAttendanceLeave)
+                <div class="mb-1">
+                    <button @click="manpowerOpen = !manpowerOpen"
+                        class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-users w-4 text-[#8B7355]"></i>
+                            Manpower
+                        </span>
+                        <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                            :class="manpowerOpen ? 'transform rotate-180' : ''"></i>
+                    </button>
 
-                {{-- Applications --}}
-                @can('view applications')
-                <x-nav-link :href="route('hr.applications')" :active="request()->routeIs('hr.applications')">
-                    <i class="fa-solid fa-file-lines w-4 mr-2 text-[#8B7355]"></i>
-                    Applications
-                </x-nav-link>
-                @endcan
+                    <div x-show="manpowerOpen" x-collapse class="ml-4 space-y-1">
+                        @can('view hiring')
+                        <x-nav-link :href="route('hiring.index')" :active="request()->routeIs('hiring.*')">
+                            Application Form
+                        </x-nav-link>
+                        @endcan
 
-                {{-- Interviews --}}
-                @can('view interviews')
-                <x-nav-link :href="route('hr.interviews')" :active="request()->routeIs('hr.interviews')">
-                    <i class="fa-solid fa-comments w-4 mr-2 text-[#8B7355]"></i>
-                    Interviews
-                </x-nav-link>
-                @endcan
+                        @can('view applications')
+                        <x-nav-link :href="route('applications.index')" :active="request()->routeIs('applications.*')">
+                            Applicants
+                        </x-nav-link>
+                        @endcan
 
-                {{-- Attendance --}}
-                @can('view attendance')
-                <x-nav-link :href="route('hr.attendance')" :active="request()->routeIs('hr.attendance')">
-                    <i class="fa-solid fa-clock w-4 mr-2 text-[#8B7355]"></i>
-                    Attendance
-                </x-nav-link>
-                @endcan
+                        @can('view interviews')
+                        <x-nav-link :href="route('interviews.index')" :active="request()->routeIs('interviews.*')">
+                            Interviews
+                        </x-nav-link>
+                        @endcan
 
-                {{-- Payroll --}}
-                @can('view payroll')
-                <x-nav-link :href="route('hr.payroll')" :active="request()->routeIs('hr.payroll')">
-                    <i class="fa-solid fa-money-bill-wave w-4 mr-2 text-[#8B7355]"></i>
-                    Payroll
-                </x-nav-link>
-                @endcan
+                        @can('view staff')
+                        <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
+                            Staff Accounts
+                        </x-nav-link>
+                        @endcan
+
+                        @can('view deployments')
+                        <x-nav-link :href="route('deployment.index')" :active="request()->routeIs('deployment.*')">
+                            Staff Deployment
+                        </x-nav-link>
+                        @endcan
+
+                        @if($canAttendanceLeave)
+                        <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.index*')">
+                            Attendance &amp; Leave
+                        </x-nav-link>
+                        @endif
+                    </div>
+                </div>
+                @endif
 
                 {{-- Settings --}}
                 <div class="mb-1">

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\SpaController;
 use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\Api\FlutterBookingController;
+use App\Http\Controllers\Api\RatingController;
 use App\Http\Controllers\Api\RescheduleRequestController;
 use Illuminate\Support\Facades\Route;
 
@@ -99,4 +100,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/therapist/schedule', [BookingController::class, 'therapistSchedule']);
         Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
     });
+});
+
+Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
+    Route::post('/ratings', [RatingController::class, 'store']);
+    Route::get('/ratings/booking/{bookingId}', [RatingController::class, 'show']);
 });
