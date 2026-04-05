@@ -175,6 +175,9 @@ class AuthController extends Controller
             'branch_id'   => $user->branch_id,
             'is_owner'    => $user->is_owner,
             'is_verified' => $user->hasVerifiedEmail(),
+            'address'     => $user->address,    // ← add
+            'latitude'    => $user->latitude,   // ← add
+            'longitude'   => $user->longitude,  // ← add
         ];
     }
     public function updateProfile(Request $request)
@@ -182,22 +185,26 @@ class AuthController extends Controller
         $user = $request->user();
 
         $request->validate([
-            'first_name' => 'required|string|max:255',
+            'first_name'  => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
-            'last_name'  => 'required|string|max:255',
-            'email'      => 'required|email|unique:users,email,' . $user->id,
+            'last_name'   => 'required|string|max:255',
+            'address'     => 'nullable|string|max:255',
+            'latitude'    => 'nullable|numeric',  // ← add
+            'longitude'   => 'nullable|numeric',  // ← add
         ]);
 
         $user->update([
             'first_name'  => $request->first_name,
             'middle_name' => $request->middle_name,
             'last_name'   => $request->last_name,
-            'email'       => $request->email,
+            'address'     => $request->address,
+            'latitude'    => $request->latitude,  // ← add
+            'longitude'   => $request->longitude, // ← add
         ]);
 
         return response()->json([
             'message' => 'Profile updated successfully.',
-            'user'    => $this->formatUser($user),
+            'user'    => $this->formatUser($user->fresh()),
         ]);
     }
 

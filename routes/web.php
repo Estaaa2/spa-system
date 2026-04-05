@@ -58,23 +58,27 @@ use Illuminate\Support\Facades\Route;
 //     return 'Email sent! Check your Mailtrap inbox.';
 // });
 
-
-
-// web.php - PUT THESE FIRST before anything else
-
+// CORS Middleware for all routes
 Route::options('/{any}', function () {
     return response('', 200)
         ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept')
         ->header('Access-Control-Allow-Credentials', 'true')
         ->header('Access-Control-Max-Age', '86400');
 })->where('any', '.*');
 
+// Helper function to add CORS headers to responses
+function corsResponse($response)
+{
+    return $response->header('Access-Control-Allow-Origin', '*')
+                   ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+                   ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept');
+}
+
 Route::get('/storage/branch_profiles/{filename}', function ($filename) {
     $fullPath = storage_path('app/public/branch_profiles/' . $filename);
     if (!file_exists($fullPath)) {
-        // Try without branch_profiles folder
         $fullPath = storage_path('app/public/' . $filename);
         if (!file_exists($fullPath)) {
             abort(404);
@@ -84,16 +88,12 @@ Route::get('/storage/branch_profiles/{filename}', function ($filename) {
     $file = file_get_contents($fullPath);
     $mimeType = mime_content_type($fullPath);
 
-    return response($file, 200)
+    return corsResponse(response($file, 200)
         ->header('Content-Type', $mimeType)
         ->header('Content-Length', filesize($fullPath))
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Authorization')
-        ->header('Cache-Control', 'public, max-age=3600');
+        ->header('Cache-Control', 'public, max-age=3600'));
 })->where('filename', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
 
-// Also add a generic storage route for other files
 Route::get('/storage/{path}', function ($path) {
     $fullPath = storage_path('app/public/' . $path);
     if (!file_exists($fullPath)) abort(404);
@@ -101,13 +101,10 @@ Route::get('/storage/{path}', function ($path) {
     $file = file_get_contents($fullPath);
     $mimeType = mime_content_type($fullPath);
 
-    return response($file, 200)
+    return corsResponse(response($file, 200)
         ->header('Content-Type', $mimeType)
         ->header('Content-Length', filesize($fullPath))
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept')
-        ->header('Cache-Control', 'public, max-age=3600');
+        ->header('Cache-Control', 'public, max-age=3600'));
 })->where('path', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
 
 // Add these for the redirect callbacks
@@ -179,6 +176,15 @@ Route::middleware(['auth'])->group(function () {
         ->name('customer.profile.update');
 });
 
+// Add CORS headers to these routes that Flutter calls
+Route::get('/reschedule-requests/booking/{bookingId}', [RescheduleRequestController::class, 'status'])
+    ->middleware('auth')
+    ->name('reschedule.status');
+
+Route::patch('/profile', [ProfileController::class, 'update'])
+    ->middleware('auth')
+    ->name('profile.update');
+
 /*
 |--------------------------------------------------------------------------
 | Staff Dashboard
@@ -190,7 +196,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         ->middleware('role:owner|manager|therapist|receptionist')
         ->name('dashboard');
 
-     Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
+    Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-duration');
 
@@ -198,6 +204,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-all-durations');
 });
+
 
 /*
 |--------------------------------------------------------------------------
@@ -654,8 +661,5 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
 });
-
-require __DIR__ . '/auth.php';
-Route::get('/api/spas/nearby', [LandingController::class, 'nearbySpasList'])->middleware('auth');
 
 require __DIR__.'/auth.php';

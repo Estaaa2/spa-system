@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\FlutterBookingController;
 use App\Http\Controllers\Api\RatingController;
 use App\Http\Controllers\Api\RescheduleRequestController;
 use App\Http\Controllers\Api\TherapistPerformanceController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Api\AttendanceController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,20 +18,21 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// CORS preflight
+// CORS preflight - UPDATE THIS TO INCLUDE PATCH
 Route::options('/{any}', function () {
     return response('', 200)
         ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')  // ← ADD PATCH
         ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept')
-        ->header('Access-Control-Allow-Credentials', 'true');
+        ->header('Access-Control-Allow-Credentials', 'true')
+        ->header('Access-Control-Max-Age', '86400');
 })->where('any', '.*');
 
 // ── Public endpoints (No authentication needed) ───────────────────────────────
 Route::post('/paymongo/webhook', [PaymongoWebhookController::class, 'handle']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
-Route::post('/verify-email', [AuthController::class, 'verifyEmail']);  // ← add
+Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 Route::post('/resend-otp',   [AuthController::class, 'resendOtp']);
 
 Route::get('/operating-hours/{branchId}/{day}', function ($branchId, $day) {
@@ -54,12 +56,12 @@ Route::get('/operating-hours/{branchId}/{day}', function ($branchId, $day) {
         ]);
     });
 
-// ── Public Spa endpoints (⚠️ ORDER IS CRITICAL - SPECIFIC ROUTES FIRST) ───────
+// ── Public Spa endpoints ───────────────────────────────────────────────────────
 Route::get('/spas/cavite', [SpaController::class, 'cavite']);
 Route::get('/featured-spas', [SpaController::class, 'featured']);
 Route::get('/spas/other', [SpaController::class, 'getOtherSpas']);
 Route::get('/spas', [SpaController::class, 'index']);
-Route::get('/spas/{id}', [SpaController::class, 'show']);
+Route::get('/spas/nearby', [SpaController::class, 'nearby']);  // ← Now public, no auth needed
 
 // Flutter booking endpoints
 Route::post('/flutter/create-booking', [FlutterBookingController::class, 'createBooking']);
@@ -79,8 +81,21 @@ Route::get('/image/{path}', function ($path) {
     $mimeType = mime_content_type($fullPath);
 
     return response($file, 200)
-        ->header('Content-Type', $mimeType);
+        ->header('Content-Type', $mimeType)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Authorization')
+        ->header('Cache-Control', 'public, max-age=3600');
 })->where('path', '.*');
+
+// Add this before the protected endpoints
+Route::options('/reschedule-requests/booking/{bookingId}', function () {
+    return response('', 200)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization, Origin, Accept')
+        ->header('Access-Control-Allow-Credentials', 'true');
+});
 
 // ── Protected endpoints (Authentication required) ─────────────────────────────
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -89,9 +104,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/me',      [AuthController::class, 'me']);
     Route::put('/me',             [AuthController::class, 'updateProfile']);
     Route::put('/me/password',    [AuthController::class, 'updatePassword']);
+    Route::patch('/profile', [ProfileController::class, 'updateCustomerApi']);
 
     Route::get('/therapist/attendance', [AttendanceController::class, 'myAttendance']);
-
 
     // Customer bookings (only customers can access)
     Route::middleware(['role:customer'])->group(function () {

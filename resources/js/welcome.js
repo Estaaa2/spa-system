@@ -1028,6 +1028,7 @@ async function loadNearbySpas() {
 
         const fallback = document.body.dataset.fallbackImage ?? '';
 
+        // Find this section in loadNearbySpas function
         grid.innerHTML = data.map(spa => {
             const thumb = spa.photos?.[0] || fallback;
             const addr  = spa.address ?? '';
@@ -1054,7 +1055,6 @@ async function loadNearbySpas() {
                     <div class="p-5">
                         <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">${spa.name}</h3>
                         <p class="mt-1 text-xs text-gray-500">${addrSummary}</p>
-                        <p class="mt-3 text-sm text-gray-600 line-clamp-2">${spa.desc || 'No description yet.'}</p>
                     </div>
                 </button>`;
         }).join('');
