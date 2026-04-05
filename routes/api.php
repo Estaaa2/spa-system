@@ -7,6 +7,8 @@ use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\Api\FlutterBookingController;
 use App\Http\Controllers\Api\RatingController;
 use App\Http\Controllers\Api\RescheduleRequestController;
+use App\Http\Controllers\Api\TherapistPerformanceController;
+use App\Http\Controllers\Api\AttendanceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +30,8 @@ Route::options('/{any}', function () {
 Route::post('/paymongo/webhook', [PaymongoWebhookController::class, 'handle']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
+Route::post('/verify-email', [AuthController::class, 'verifyEmail']);  // ← add
+Route::post('/resend-otp',   [AuthController::class, 'resendOtp']);
 
 Route::get('/operating-hours/{branchId}/{day}', function ($branchId, $day) {
         \Log::info('Operating hours called - Branch: ' . $branchId . ', Day: ' . $day);
@@ -83,6 +87,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me',      [AuthController::class, 'me']);
+    Route::put('/me',             [AuthController::class, 'updateProfile']);
+    Route::put('/me/password',    [AuthController::class, 'updatePassword']);
+
+    Route::get('/therapist/attendance', [AttendanceController::class, 'myAttendance']);
 
 
     // Customer bookings (only customers can access)
@@ -100,6 +108,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/therapist/schedule', [BookingController::class, 'therapistSchedule']);
         Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
     });
+});
+
+// Therapist endpoints
+Route::middleware(['auth:sanctum', 'role:therapist'])->group(function () {
+    Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index']);
 });
 
 Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
