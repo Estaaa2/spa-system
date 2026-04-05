@@ -100,8 +100,49 @@ class ProfileController extends Controller
             'latitude' => $request->latitude ?: null,
             'longitude' => $request->longitude ?: null,
         ]);
-        
+
         return back()->with('success', 'Profile updated successfully!');
+    }
+
+    public function updateCustomerApi(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'first_name'  => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name'   => 'required|string|max:255',
+            'address'     => 'nullable|string|max:1000',
+            'latitude'    => 'nullable|numeric',
+            'longitude'   => 'nullable|numeric',
+        ]);
+
+        $user->update([
+            'first_name'  => $request->first_name,
+            'middle_name' => $request->middle_name,
+            'last_name'   => $request->last_name,
+            'address'     => $request->address,
+            'latitude'    => $request->latitude ?: null,
+            'longitude'   => $request->longitude ?: null,
+        ]);
+
+        $fresh = $user->fresh();
+
+        return response()->json([
+            'user' => [
+                'id'          => $fresh->id,
+                'first_name'  => $fresh->first_name,
+                'middle_name' => $fresh->middle_name,
+                'last_name'   => $fresh->last_name,
+                'full_name'   => trim("{$fresh->first_name} {$fresh->last_name}"),
+                'email'       => $fresh->email,
+                'role'        => $fresh->role ?? 'customer',
+                'is_verified' => (bool) $fresh->email_verified_at,
+                'address'     => $fresh->address,
+                'latitude'    => $fresh->latitude,
+                'longitude'   => $fresh->longitude,
+            ],
+        ]);
     }
 
 }

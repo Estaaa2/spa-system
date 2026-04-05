@@ -79,7 +79,7 @@ class LandingController extends Controller
 
         $branchIds = $nearby->keys()->toArray();
 
-        $spas = \App\Models\Spa::where('verification_status', 'verified')
+        $spas = Spa::where('verification_status', 'verified')
             ->with([
                 'branches' => fn($q) => $q->whereIn('id', $branchIds)->with('profile'),
             ])
