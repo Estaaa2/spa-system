@@ -341,7 +341,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
     // Therapist Performance
     Route::middleware(['auth', 'verified', 'role:therapist'])->group(function () {
-        Route::get('/therapist/performance', [App\Http\Controllers\TherapistPerformanceController::class, 'index'])
+        Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index'])
             ->name('therapist.performance');
     });
 
@@ -506,12 +506,12 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     Route::middleware('branch.permission:view billing')->group(function () {
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
     });
-    
+
     Route::middleware('branch.permission:create billing')->group(function () {
         Route::post('/billing/expenses', [BillingController::class, 'storeExpense'])
             ->name('billing.expense.store');
     });
-    
+
     Route::middleware('branch.permission:edit billing')->group(function () {
         Route::patch('/billing/expenses/{expense}/status', [BillingController::class, 'updateExpenseStatus'])
             ->name('billing.expense.updateStatus');
