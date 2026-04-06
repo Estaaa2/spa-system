@@ -65,13 +65,13 @@ class ReportsController extends Controller
         $packages = Package::withoutGlobalScope('spa_branch')
             ->whereIn('id', $packageIds)->get(['id', 'name', 'price']);
 
-        $serviceRows = $treatments->map(fn($t) => [
+        $serviceRows = $treatments->toBase()->map(fn($t) => [
             'type'     => 'Treatment',
             'name'     => $t->name,
             'count'    => $treatmentCounts[$t->id] ?? 0,
             'unit_price'=> (float) $t->price,
         ])->merge(
-            $packages->map(fn($p) => [
+            $packages->toBase()->map(fn($p) => [
                 'type'     => 'Package',
                 'name'     => $p->name,
                 'count'    => $packageCounts[$p->id] ?? 0,
