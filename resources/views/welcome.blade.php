@@ -144,7 +144,7 @@
 
                 {{-- HEADER: never scrolls --}}
                 <div class="relative px-6 py-6 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center flex-shrink-0">
-                    <div class="flex items-center justify-center w-14 h-14 mx-auto text-xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
+                    <div class="flex items-center justify-center mx-auto text-xl font-bold rounded-full w-14 h-14 bg-white/20 ring-2 ring-white/30">
                         {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
                     </div>
                     <h3 class="mt-2 text-base font-semibold font-['Playfair_Display']">
@@ -162,7 +162,7 @@
                     @method('PATCH')
 
                     {{-- SCROLLABLE BODY --}}
-                    <div class="flex-1 overflow-y-auto p-5 space-y-4">
+                    <div class="flex-1 p-5 space-y-4 overflow-y-auto">
 
                         {{-- Name row: 3 columns to save vertical space --}}
                         <div class="grid grid-cols-3 gap-3">
@@ -234,7 +234,7 @@
                     </div>{{-- end scrollable body --}}
 
                     {{-- FOOTER: always visible --}}
-                    <div class="flex gap-2 px-5 py-4 border-t border-black/5 bg-white flex-shrink-0">
+                    <div class="flex flex-shrink-0 gap-2 px-5 py-4 bg-white border-t border-black/5">
                         <button type="submit"
                             class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
                             Save Changes
@@ -1182,6 +1182,7 @@
         </div>
     </div>
     <!-- ================= BUSINESS REGISTER INFO MODAL ================= -->
+    @auth
     @role('customer')
     <div id="businessInfoModal" class="fixed inset-0 z-[150] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeBusinessInfo()"></div>
@@ -1192,7 +1193,7 @@
                         <i class="fa-solid fa-store text-2xl text-[#8B7355]"></i>
                     </div>
                     <h3 class="mt-4 text-lg font-semibold text-[#3C2F23]">Business Account Required</h3>
-                    <p class="mt-2 text-sm text-gray-500 leading-relaxed">
+                    <p class="mt-2 text-sm leading-relaxed text-gray-500">
                         You're currently logged in as a customer. Listing a spa requires a separate business account.
                         Please log out first, then register as a business partner.
                     </p>
@@ -1201,7 +1202,7 @@
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit"
-                            class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
+                            class="w-full py-3 text-sm font-semibold text-white transition shadow-md rounded-xl booking-btn hover:shadow-lg">
                             <i class="mr-2 fa-solid fa-right-from-bracket"></i>
                             Log Out & Register as Business
                         </button>
@@ -1215,6 +1216,7 @@
         </div>
     </div>
     @endrole
+    @endauth
 
     <!-- ================= TERMS MODAL ================= -->
     <div id="termsModal" class="fixed inset-0 z-[120] hidden">

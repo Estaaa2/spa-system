@@ -42,28 +42,13 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| SMTP Test Route (temporary)
+| CORS Helpers
 |--------------------------------------------------------------------------
 */
 
-// Route::get('/send-mail', [MailController::class, 'sendWelcomeMail']);
-// Route::get('/test-mail', function () {
-//     $data = [
-//         'name'    => 'Test User',
-//         'message' => 'This is a test email from Mailtrap!',
-//     ];
-
-//     Mail::to('anyone@example.com')->send(new WelcomeMail($data));
-
-//     return 'Email sent! Check your Mailtrap inbox.';
-// });
-
-// CORS Middleware for all routes
-// CORS Middleware for all routes
 Route::options('/{any}', function () {
     return response('', 200)
         ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept')
         ->header('Access-Control-Allow-Credentials', 'true')
@@ -72,10 +57,17 @@ Route::options('/{any}', function () {
 
 function corsResponse($response)
 {
-    return $response->header('Access-Control-Allow-Origin', '*')
-                   ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-                   ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept');
+    return $response
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept');
 }
+
+/*
+|--------------------------------------------------------------------------
+| Storage / Image Routes
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/storage/branch_profiles/{filename}', function ($filename) {
     $fullPath = storage_path('app/public/branch_profiles/' . $filename);
@@ -86,14 +78,12 @@ Route::get('/storage/branch_profiles/{filename}', function ($filename) {
         }
     }
 
-    $file = file_get_contents($fullPath);
+    $file     = file_get_contents($fullPath);
     $mimeType = mime_content_type($fullPath);
 
     return corsResponse(response($file, 200)
-    return corsResponse(response($file, 200)
         ->header('Content-Type', $mimeType)
         ->header('Content-Length', filesize($fullPath))
-        ->header('Cache-Control', 'public, max-age=3600'));
         ->header('Cache-Control', 'public, max-age=3600'));
 })->where('filename', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
 
@@ -101,10 +91,9 @@ Route::get('/storage/{path}', function ($path) {
     $fullPath = storage_path('app/public/' . $path);
     if (!file_exists($fullPath)) abort(404);
 
-    $file = file_get_contents($fullPath);
+    $file     = file_get_contents($fullPath);
     $mimeType = mime_content_type($fullPath);
 
-    return corsResponse(response($file, 200)
     return corsResponse(response($file, 200)
         ->header('Content-Type', $mimeType)
         ->header('Content-Length', filesize($fullPath))
@@ -114,7 +103,12 @@ Route::get('/storage/{path}', function ($path) {
         ->header('Cache-Control', 'public, max-age=3600'));
 })->where('path', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
 
-// Add these for the redirect callbacks
+/*
+|--------------------------------------------------------------------------
+| Flutter Payment Callbacks
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/flutter/payment/success', [FlutterBookingController::class, 'paymentSuccess'])
     ->name('flutter.payment.success');
 
@@ -123,7 +117,7 @@ Route::get('/flutter/payment/cancel', [FlutterBookingController::class, 'payment
 
 /*
 |--------------------------------------------------------------------------
-| Landing Page (public)
+| Landing Page
 |--------------------------------------------------------------------------
 */
 
@@ -133,7 +127,7 @@ Route::get('/', [LandingController::class, 'index'])
 
 /*
 |--------------------------------------------------------------------------
-| Landing Page Online Booking / PayMongo
+| Online Booking / PayMongo (Web)
 |--------------------------------------------------------------------------
 */
 
@@ -167,26 +161,23 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/bookings/online', [BookingController::class, 'storeOnline'])
         ->middleware('role:customer')
         ->name('bookings.online.store');
-});
 
-Route::middleware(['auth'])->group(function () {
     Route::post('/reschedule-requests', [RescheduleRequestController::class, 'store'])
         ->name('reschedule.store');
 
     Route::get('/reschedule-requests/{booking}/status', [RescheduleRequestController::class, 'status'])
         ->name('reschedule.status');
-    Route::post('/ratings', [App\Http\Controllers\RatingController::class, 'store'])->name('ratings.store');
-});
 
-Route::middleware(['auth'])->group(function () {
+    Route::post('/ratings', [App\Http\Controllers\RatingController::class, 'store'])
+        ->name('ratings.store');
+
     Route::patch('/customer/profile', [ProfileController::class, 'updateCustomer'])
         ->name('customer.profile.update');
 });
 
-// CORS headers to these routes that Flutter calls
 Route::get('/reschedule-requests/booking/{bookingId}', [RescheduleRequestController::class, 'status'])
     ->middleware('auth')
-    ->name('reschedule.status');
+    ->name('reschedule.status.by-booking');
 
 Route::patch('/profile', [ProfileController::class, 'update'])
     ->middleware('auth')
@@ -204,7 +195,6 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         ->name('dashboard');
 
     Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
-    Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-duration');
 
@@ -212,8 +202,6 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-all-durations');
 });
-
-
 
 /*
 |--------------------------------------------------------------------------
@@ -237,11 +225,7 @@ Route::middleware(['auth', 'role:admin'])
 
 Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Operations: Book Appointment
-    |--------------------------------------------------------------------------
-    */
+    // Appointments
     Route::middleware('branch.permission:book appointments')->group(function () {
         Route::get('/booking', [BookingController::class, 'create'])->name('booking');
         Route::post('/booking', [BookingController::class, 'store'])->name('bookings.store');
@@ -249,11 +233,6 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
             ->name('booking.available-therapists');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Appointments
-    |--------------------------------------------------------------------------
-    */
     Route::middleware('branch.permission:view appointments')->group(function () {
         Route::get('/appointments', [BookingController::class, 'adminIndex'])->name('appointments.index');
         Route::get('/booking/history', [BookingController::class, 'history'])->name('bookings.history');
@@ -269,29 +248,18 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Schedule
-    |--------------------------------------------------------------------------
-    */
+    // Schedule
     Route::middleware('branch.permission:view schedule')->group(function () {
         Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule.index');
         Route::get('/schedule/data', [ScheduleController::class, 'data'])->name('schedule.data');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Branch Routes
-    |--------------------------------------------------------------------------
-    */
+    // Branches
     Route::middleware('branch.permission:view branches')->group(function () {
         Route::post('/branch/switch', [BranchController::class, 'switch'])->name('branch.switch');
         Route::get('/branch/current', [BranchController::class, 'getCurrentBranch'])->name('branch.current');
-
-        Route::prefix('branches')->group(function () {
-            Route::get('/', [BranchController::class, 'index'])->name('branches.index');
-            Route::get('/{branch}', [BranchController::class, 'show'])->name('branches.show');
-        });
+        Route::get('/branches', [BranchController::class, 'index'])->name('branches.index');
+        Route::get('/branches/{branch}', [BranchController::class, 'show'])->name('branches.show');
     });
 
     Route::middleware('branch.permission:create branches')->group(function () {
@@ -307,11 +275,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::delete('/branches/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Services / Treatments / Packages
-    |--------------------------------------------------------------------------
-    */
+    // Services / Treatments / Packages
     Route::middleware('branch.permission:view services')->group(function () {
         Route::get('/services', [ServiceController::class, 'index'])->name('services.index');
     });
@@ -319,25 +283,13 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     Route::middleware('branch.permission:create treatments,edit treatments,delete treatments,create packages,edit packages,delete packages')->group(function () {
         Route::resource('treatments', TreatmentController::class)->except(['index', 'create', 'edit']);
         Route::resource('packages', PackageController::class)->except(['index', 'create', 'edit']);
-
-        Route::get('/services/treatments/export', [ServiceImportExportController::class, 'exportTreatments'])
-            ->name('treatments.export');
-
-        Route::post('/services/treatments/import', [ServiceImportExportController::class, 'importTreatments'])
-            ->name('treatments.import');
-
-        Route::get('/services/packages/export', [ServiceImportExportController::class, 'exportPackages'])
-            ->name('packages.export');
-
-        Route::post('/services/packages/import', [ServiceImportExportController::class, 'importPackages'])
-            ->name('packages.import');
+        Route::get('/services/treatments/export', [ServiceImportExportController::class, 'exportTreatments'])->name('treatments.export');
+        Route::post('/services/treatments/import', [ServiceImportExportController::class, 'importTreatments'])->name('treatments.import');
+        Route::get('/services/packages/export', [ServiceImportExportController::class, 'exportPackages'])->name('packages.export');
+        Route::post('/services/packages/import', [ServiceImportExportController::class, 'importPackages'])->name('packages.import');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Staff
-    |--------------------------------------------------------------------------
-    */
+    // Staff
     Route::middleware('branch.permission:view staff')->group(function () {
         Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
         Route::get('/staff/{staff}', [StaffController::class, 'show'])->name('staff.show');
@@ -356,75 +308,47 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     });
 
     // Therapist Performance
-    Route::middleware(['auth', 'verified', 'role:therapist'])->group(function () {
-        Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index'])
+    Route::middleware('role:therapist')->group(function () {
         Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index'])
             ->name('therapist.performance');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Inventory
-    |--------------------------------------------------------------------------
-    */
+    // Inventory
     Route::prefix('inventory')->name('inventory.')->group(function () {
-
         Route::middleware('branch.permission:view inventory')->group(function () {
-            Route::get('/products', [\App\Http\Controllers\InventoryController::class, 'products'])
-                ->name('products');
+            Route::get('/products', [\App\Http\Controllers\InventoryController::class, 'products'])->name('products');
         });
 
         Route::middleware('branch.permission:view inventory logs')->group(function () {
-            Route::get('/logs', [\App\Http\Controllers\InventoryController::class, 'logs'])
-                ->name('logs');
+            Route::get('/logs', [\App\Http\Controllers\InventoryController::class, 'logs'])->name('logs');
         });
 
         Route::middleware('branch.permission:create inventory items')->group(function () {
-            Route::post('/products', [\App\Http\Controllers\InventoryController::class, 'store'])
-                ->name('products.store');
-
-            Route::post('/products/import', [InventoryImportExportController::class, 'importProducts'])
-                ->name('products.import');
+            Route::post('/products', [\App\Http\Controllers\InventoryController::class, 'store'])->name('products.store');
+            Route::post('/products/import', [InventoryImportExportController::class, 'importProducts'])->name('products.import');
         });
 
         Route::middleware('branch.permission:edit inventory items')->group(function () {
-            Route::post('/products/{product}/deduct', [\App\Http\Controllers\InventoryController::class, 'deduct'])
-                ->name('products.deduct');
-
-            Route::put('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'update'])
-                ->name('products.update');
-
-            Route::get('/products/export', [InventoryImportExportController::class, 'exportProducts'])
-                ->name('products.export');
+            Route::post('/products/{product}/deduct', [\App\Http\Controllers\InventoryController::class, 'deduct'])->name('products.deduct');
+            Route::put('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'update'])->name('products.update');
+            Route::get('/products/export', [InventoryImportExportController::class, 'exportProducts'])->name('products.export');
         });
 
         Route::middleware('branch.permission:delete inventory items')->group(function () {
-            Route::delete('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'destroy'])
-                ->name('products.destroy');
+            Route::delete('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'destroy'])->name('products.destroy');
         });
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Insights
-    |--------------------------------------------------------------------------
-    */
+    // Insights
     Route::middleware('branch.permission:view decision support')->group(function () {
-        Route::get('/decision-support', [DecisionSupportController::class, 'index'])
-            ->name('decision-support.index');
+        Route::get('/decision-support', [DecisionSupportController::class, 'index'])->name('decision-support.index');
     });
 
     Route::middleware('branch.permission:view reports')->group(function () {
-        Route::get('/reports', [ReportsController::class, 'index'])
-            ->name('reports.index');
+        Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | HR Modules
-    |--------------------------------------------------------------------------
-    */
-    // Hiring
+    // HR — Hiring
     Route::middleware('branch.permission:view hiring')->group(function () {
         Route::get('/hiring', [HiringController::class, 'index'])->name('hiring.index');
     });
@@ -441,7 +365,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::delete('/hiring/{posting}', [HiringController::class, 'destroy'])->name('hiring.destroy');
     });
 
-    // Applications
+    // HR — Applications
     Route::middleware('branch.permission:view applications')->group(function () {
         Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
     });
@@ -456,7 +380,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::delete('/applications/{applicant}', [ApplicationController::class, 'destroy'])->name('applications.destroy');
     });
 
-    // Interviews
+    // HR — Interviews
     Route::middleware('branch.permission:view interviews')->group(function () {
         Route::get('/interviews', [InterviewController::class, 'index'])->name('interviews.index');
     });
@@ -464,35 +388,28 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     Route::middleware('branch.permission:create interviews,edit interviews')->group(function () {
         Route::post('/interviews/{interview}/approve', [InterviewController::class, 'approve'])->name('interviews.approve');
         Route::post('/interviews/{interview}/reject', [InterviewController::class, 'reject'])->name('interviews.reject');
-        Route::post('/interviews/{interview}/create-staff', [InterviewController::class, 'createStaff'])
-            ->name('interviews.create-staff');
+        Route::post('/interviews/{interview}/create-staff', [InterviewController::class, 'createStaff'])->name('interviews.create-staff');
     });
 
-    // Deployment
+    // HR — Deployment
     Route::middleware('branch.permission:view deployments')->group(function () {
-        Route::get('/deployment', [BranchDeploymentController::class, 'index'])
-            ->name('deployment.index');
+        Route::get('/deployment', [BranchDeploymentController::class, 'index'])->name('deployment.index');
     });
 
     Route::middleware('branch.permission:create deployments')->group(function () {
-        Route::post('/branch-deployments', [BranchDeploymentController::class, 'store'])
-            ->name('branch-deployments.store');
+        Route::post('/branch-deployments', [BranchDeploymentController::class, 'store'])->name('branch-deployments.store');
     });
 
     Route::middleware('branch.permission:approve deployments')->group(function () {
-        Route::post('/branch-deployments/{deployment}/approve', [BranchDeploymentController::class, 'approve'])
-            ->name('branch-deployments.approve');
-
-        Route::post('/branch-deployments/{deployment}/reject', [BranchDeploymentController::class, 'reject'])
-            ->name('branch-deployments.reject');
+        Route::post('/branch-deployments/{deployment}/approve', [BranchDeploymentController::class, 'approve'])->name('branch-deployments.approve');
+        Route::post('/branch-deployments/{deployment}/reject', [BranchDeploymentController::class, 'reject'])->name('branch-deployments.reject');
     });
 
     Route::middleware('branch.permission:delete deployments')->group(function () {
-        Route::post('/branch-deployments/{deployment}/cancel', [BranchDeploymentController::class, 'cancel'])
-            ->name('branch-deployments.cancel');
+        Route::post('/branch-deployments/{deployment}/cancel', [BranchDeploymentController::class, 'cancel'])->name('branch-deployments.cancel');
     });
 
-    // Attendance & Leave
+    // HR — Attendance & Leave
     Route::middleware('branch.permission:view attendance,view leave requests,create leave requests,edit leave requests,delete leave requests')->group(function () {
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     });
@@ -501,7 +418,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
     });
 
-    // Payroll
+    // HR — Payroll
     Route::middleware('branch.permission:view payroll')->group(function () {
         Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');
     });
@@ -511,11 +428,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/payroll/{payroll}/finalize', [PayrollController::class, 'finalize'])->name('payroll.finalize');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Finance Modules
-    |--------------------------------------------------------------------------
-    */
+    // Finance
     Route::middleware('branch.permission:view revenue')->group(function () {
         Route::get('/revenue', [RevenueController::class, 'index'])->name('revenue.index');
     });
@@ -525,19 +438,17 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     });
 
     Route::middleware('branch.permission:create billing')->group(function () {
-        Route::post('/billing/expenses', [BillingController::class, 'storeExpense'])
-            ->name('billing.expense.store');
+        Route::post('/billing/expenses', [BillingController::class, 'storeExpense'])->name('billing.expense.store');
     });
 
     Route::middleware('branch.permission:edit billing')->group(function () {
-        Route::patch('/billing/expenses/{expense}/status', [BillingController::class, 'updateExpenseStatus'])
-            ->name('billing.expense.updateStatus');
+        Route::patch('/billing/expenses/{expense}/status', [BillingController::class, 'updateExpenseStatus'])->name('billing.expense.updateStatus');
     });
 });
 
 /*
 |--------------------------------------------------------------------------
-| Administration (Admin only, global permissions)
+| Administration (Admin only)
 |--------------------------------------------------------------------------
 */
 
@@ -545,13 +456,10 @@ Route::middleware(['auth', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-
         Route::middleware('permission:view registered spas')->group(function () {
             Route::get('/registered-spas', [RegisteredSpaController::class, 'index'])->name('registered-spas.index');
         });
 
-        // No separate "delete registered spas" permission exists in your current seeder,
-        // so edit permission is currently the closest match for edit/update/destroy.
         Route::middleware('permission:edit registered spas')->group(function () {
             Route::get('/registered-spas/{spa}/edit', [RegisteredSpaController::class, 'edit'])->name('registered-spas.edit');
             Route::put('/registered-spas/{spa}', [RegisteredSpaController::class, 'update'])->name('registered-spas.update');
@@ -586,23 +494,19 @@ Route::middleware(['auth', 'role:admin'])
 
 /*
 |--------------------------------------------------------------------------
-| Setup Wizard (Owner Only)
+| Setup Wizard (Owner only)
 |--------------------------------------------------------------------------
 */
 
 Route::middleware(['auth', 'owner-only'])->group(function () {
     Route::get('/setup/index', [SetupController::class, 'index'])->name('setup.index');
     Route::post('/setup/spa', [SetupController::class, 'storeSpa'])->name('setup.store-spa');
-
     Route::get('/setup/branches', [SetupController::class, 'branches'])->name('setup.branches');
     Route::post('/setup/branches', [SetupController::class, 'storeBranch'])->name('setup.store-branch');
-
     Route::get('/setup/branches/{branch}/operating-hours', [SetupController::class, 'operatingHours'])->name('setup.operating-hours');
     Route::put('/setup/branches/{branch}/operating-hours', [SetupController::class, 'updateOperatingHours'])->name('setup.update-operating-hours');
-
     Route::get('/setup/branches/{branch}/staff', [SetupController::class, 'staff'])->name('setup.staff');
     Route::post('/setup/branches/{branch}/staff', [SetupController::class, 'storeStaff'])->name('setup.store-staff');
-
     Route::get('/setup/complete', [SetupController::class, 'complete'])->name('setup.complete');
 });
 
@@ -616,18 +520,15 @@ Route::middleware(['auth', 'role:owner'])
     ->prefix('owner')
     ->name('owner.')
     ->group(function () {
-        // Spa Profile
         Route::get('/spa-profile', [SpaProfileController::class, 'edit'])->name('spa-profile.edit');
         Route::patch('/spa-profile', [SpaProfileController::class, 'update'])->name('spa-profile.update');
         Route::post('/spa-profile/documents', [SpaProfileController::class, 'uploadDocument'])->name('spa-profile.documents.upload');
         Route::delete('/spa-profile/documents/{document}', [SpaProfileController::class, 'destroyDocument'])->name('spa-profile.documents.destroy');
 
-        // Roles & Permissions
         Route::get('/roles-permissions', [OwnerRolePermissionController::class, 'index'])->name('roles-permissions.index');
         Route::get('/roles-permissions/{role}/edit', [OwnerRolePermissionController::class, 'edit'])->name('roles-permissions.edit');
         Route::put('/roles-permissions/{role}', [OwnerRolePermissionController::class, 'update'])->name('roles-permissions.update');
 
-        // Subscription Management
         Route::get('/subscription', [SubscriptionController::class, 'index'])->name('subscription.index');
         Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
         Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
@@ -643,9 +544,12 @@ Route::middleware(['auth', 'verified', 'role:owner'])->group(function () {
         ->name('owner.workforce-finance-suite.update');
 });
 
-// =====================================================
-// Owner/Manager: Reschedule Approvals
-// =====================================================
+/*
+|--------------------------------------------------------------------------
+| Reschedule Approvals (Owner / Manager)
+|--------------------------------------------------------------------------
+*/
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reschedule-requests', [RescheduleRequestController::class, 'index'])
         ->middleware('branch.permission:edit appointments')

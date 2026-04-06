@@ -9,9 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Models\Role;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Cache;
-use Spatie\Permission\Models\Role;
+
 
 class AuthController extends Controller
 {
@@ -181,7 +179,6 @@ class AuthController extends Controller
             'last_name'   => $user->last_name,
             'full_name'   => $user->name,
             'email'       => $user->email,
-            'role'        => $role,
             'role'        => $role,
             'spa_id'      => $user->spa_id,
             'branch_id'   => $user->branch_id,
