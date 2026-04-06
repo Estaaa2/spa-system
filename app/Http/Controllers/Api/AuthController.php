@@ -35,11 +35,9 @@ class AuthController extends Controller
         );
         $user->assignRole($role);
 
-        // ✅ Generate 6-digit OTP and store in cache for 10 minutes
         $otp = rand(100000, 999999);
         Cache::put('email_otp_' . $user->email, $otp, now()->addMinutes(10));
 
-        // ✅ Send OTP via SMTP
         Mail::raw("Your verification code is: $otp\n\nThis code expires in 10 minutes.", function ($message) use ($user) {
             $message->to($user->email)
                     ->subject('Verify Your Email - Esta\'s Spa');
@@ -47,11 +45,10 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Registration successful. Please check your email for the verification code.',
-            'email'   => $user->email, // send back so Flutter knows where to verify
+            'email'   => $user->email,
         ], 201);
     }
 
-    // ✅ NEW: Verify OTP endpoint
     public function verifyEmail(Request $request)
     {
         $request->validate([
@@ -71,7 +68,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid or expired verification code.'], 422);
         }
 
-        // ✅ Mark as verified and clear OTP
         $user->markEmailAsVerified();
         Cache::forget('email_otp_' . $request->email);
 
@@ -84,7 +80,6 @@ class AuthController extends Controller
         ]);
     }
 
-    // ✅ NEW: Resend OTP endpoint
     public function resendOtp(Request $request)
     {
         $request->validate(['email' => 'required|email']);
@@ -119,9 +114,19 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid email or password.'], 401);
         }
 
+        // ✅ Block roles not allowed on mobile (only customer & therapist)
+        $allowedRoles = ['customer', 'therapist'];
+        $userRole = $user->getRoleNames()->first();
+
+        if (!$userRole || !in_array($userRole, $allowedRoles)) {
+            return response()->json([
+                'message'           => 'Access denied. This app is for customers and therapists only.',
+                'unauthorized_role' => true,
+            ], 403);
+        }
+
         // ✅ Block unverified customers
         if ($user->hasRole('customer') && !$user->hasVerifiedEmail()) {
-            // Resend OTP automatically
             $otp = rand(100000, 999999);
             Cache::put('email_otp_' . $user->email, $otp, now()->addMinutes(10));
             Mail::raw("Your verification code is: $otp\n\nThis code expires in 10 minutes.", function ($message) use ($user) {
@@ -129,9 +134,9 @@ class AuthController extends Controller
             });
 
             return response()->json([
-                'message'           => 'Please verify your email first. A new code has been sent.',
+                'message'               => 'Please verify your email first. A new code has been sent.',
                 'requires_verification' => true,
-                'email'             => $user->email,
+                'email'                 => $user->email,
             ], 403);
         }
 
@@ -175,11 +180,12 @@ class AuthController extends Controller
             'branch_id'   => $user->branch_id,
             'is_owner'    => $user->is_owner,
             'is_verified' => $user->hasVerifiedEmail(),
-            'address'     => $user->address,    // ← add
-            'latitude'    => $user->latitude,   // ← add
-            'longitude'   => $user->longitude,  // ← add
+            'address'     => $user->address,
+            'latitude'    => $user->latitude,
+            'longitude'   => $user->longitude,
         ];
     }
+
     public function updateProfile(Request $request)
     {
         $user = $request->user();
@@ -189,8 +195,8 @@ class AuthController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name'   => 'required|string|max:255',
             'address'     => 'nullable|string|max:255',
-            'latitude'    => 'nullable|numeric',  // ← add
-            'longitude'   => 'nullable|numeric',  // ← add
+            'latitude'    => 'nullable|numeric',
+            'longitude'   => 'nullable|numeric',
         ]);
 
         $user->update([
@@ -198,8 +204,8 @@ class AuthController extends Controller
             'middle_name' => $request->middle_name,
             'last_name'   => $request->last_name,
             'address'     => $request->address,
-            'latitude'    => $request->latitude,  // ← add
-            'longitude'   => $request->longitude, // ← add
+            'latitude'    => $request->latitude,
+            'longitude'   => $request->longitude,
         ]);
 
         return response()->json([
