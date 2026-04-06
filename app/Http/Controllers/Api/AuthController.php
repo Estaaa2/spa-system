@@ -111,6 +111,7 @@ class AuthController extends Controller
         $request->validate([
             'email'    => 'required|email',
             'password' => 'required',
+            'platform' => 'required|in:web,mobile', // ← add this
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -119,9 +120,23 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid email or password.'], 401);
         }
 
-        // ✅ Block unverified customers
+        // ✅ Restrict roles per platform
+        $allowedRoles = [
+            'web'    => ['owner', 'admin', 'manager', 'customer', 'receptionist', 'therapist'],
+            'mobile' => ['customer', 'therapist'],
+        ];
+
+        $userRole = $user->getRoleNames()->first();
+
+        if (!in_array($userRole, $allowedRoles[$request->platform])) {
+            return response()->json([
+                'message' => 'Access denied for this platform.',
+                'unauthorized_role' => true,
+            ], 403);
+        }
+
+        // ✅ Block unverified customers (mobile only, or both — your choice)
         if ($user->hasRole('customer') && !$user->hasVerifiedEmail()) {
-            // Resend OTP automatically
             $otp = rand(100000, 999999);
             Cache::put('email_otp_' . $user->email, $otp, now()->addMinutes(10));
             Mail::raw("Your verification code is: $otp\n\nThis code expires in 10 minutes.", function ($message) use ($user) {
@@ -129,15 +144,10 @@ class AuthController extends Controller
             });
 
             return response()->json([
-                'message'           => 'Please verify your email first. A new code has been sent.',
+                'message'               => 'Please verify your email first. A new code has been sent.',
                 'requires_verification' => true,
-                'email'             => $user->email,
+                'email'                 => $user->email,
             ], 403);
-        }
-
-        if ($user->getRoleNames()->isEmpty()) {
-            $role = Role::where('name', 'customer')->first();
-            if ($role) $user->assignRole($role);
         }
 
         $user->tokens()->delete();
@@ -225,4 +235,53 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Password updated successfully.']);
     }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = User::where('email', $request->email)->first();
+
+        // ✅ Don't reveal if email exists or not (security)
+        if (!$user) {
+            return response()->json(['message' => 'If that email exists, a reset code has been sent.']);
+        }
+
+        $otp = rand(100000, 999999);
+        Cache::put('password_reset_otp_' . $user->email, $otp, now()->addMinutes(10));
+
+        Mail::raw("Your password reset code is: $otp\n\nThis code expires in 10 minutes.", function ($message) use ($user) {
+            $message->to($user->email)->subject('Reset Your Password - Esta\'s Spa');
+        });
+
+        return response()->json(['message' => 'If that email exists, a reset code has been sent.']);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email'                     => 'required|email',
+            'otp'                       => 'required|digits:6',
+            'new_password'              => 'required|min:6|confirmed',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        $cachedOtp = Cache::get('password_reset_otp_' . $request->email);
+
+        if (!$cachedOtp || $cachedOtp != $request->otp) {
+            return response()->json(['message' => 'Invalid or expired reset code.'], 422);
+        }
+
+        $user->update(['password' => Hash::make($request->new_password)]);
+        $user->tokens()->delete(); // ✅ Invalidate all sessions
+        Cache::forget('password_reset_otp_' . $request->email);
+
+        return response()->json(['message' => 'Password reset successfully.']);
+    }
+
 }
