@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
+use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
@@ -70,7 +73,9 @@ class AuthController extends Controller
 
         $user->markEmailAsVerified();
         Cache::forget('email_otp_' . $request->email);
+        Cache::forget('email_otp_' . $request->email);
 
+        $user->tokens()->delete();
         $user->tokens()->delete();
         $token = $user->createToken('mobile_app')->plainTextToken;
 
@@ -143,6 +148,7 @@ class AuthController extends Controller
         if ($user->getRoleNames()->isEmpty()) {
             $role = Role::where('name', 'customer')->first();
             if ($role) $user->assignRole($role);
+            if ($role) $user->assignRole($role);
         }
 
         $user->tokens()->delete();
@@ -175,6 +181,7 @@ class AuthController extends Controller
             'last_name'   => $user->last_name,
             'full_name'   => $user->name,
             'email'       => $user->email,
+            'role'        => $role,
             'role'        => $role,
             'spa_id'      => $user->spa_id,
             'branch_id'   => $user->branch_id,

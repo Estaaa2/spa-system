@@ -49,5 +49,5 @@ class AttendanceController extends Controller
             'summary'    => $summary,
         ]);
     }
-    
+
 }

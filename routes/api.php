@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\RescheduleRequestController;
 use App\Http\Controllers\Api\TherapistPerformanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\TherapistPerformanceController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Api\AttendanceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,11 +22,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 // CORS preflight - UPDATE THIS TO INCLUDE PATCH
+// CORS preflight - UPDATE THIS TO INCLUDE PATCH
 Route::options('/{any}', function () {
     return response('', 200)
         ->header('Access-Control-Allow-Origin', '*')
         ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept')
+        ->header('Access-Control-Allow-Credentials', 'true')
+        ->header('Access-Control-Max-Age', '86400');
         ->header('Access-Control-Allow-Credentials', 'true')
         ->header('Access-Control-Max-Age', '86400');
 })->where('any', '.*');
@@ -32,6 +38,8 @@ Route::options('/{any}', function () {
 Route::post('/paymongo/webhook', [PaymongoWebhookController::class, 'handle']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
+Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+Route::post('/resend-otp',   [AuthController::class, 'resendOtp']);
 Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 Route::post('/resend-otp',   [AuthController::class, 'resendOtp']);
 
@@ -83,6 +91,11 @@ Route::get('/image/{path}', function ($path) {
     $mimeType = mime_content_type($fullPath);
 
     return response($file, 200)
+        ->header('Content-Type', $mimeType)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Authorization')
+        ->header('Cache-Control', 'public, max-age=3600');
         ->header('Content-Type', $mimeType)
         ->header('Access-Control-Allow-Origin', '*')
         ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')

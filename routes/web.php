@@ -59,9 +59,11 @@ use Illuminate\Support\Facades\Route;
 // });
 
 // CORS Middleware for all routes
+// CORS Middleware for all routes
 Route::options('/{any}', function () {
     return response('', 200)
         ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept')
         ->header('Access-Control-Allow-Credentials', 'true')
@@ -88,8 +90,10 @@ Route::get('/storage/branch_profiles/{filename}', function ($filename) {
     $mimeType = mime_content_type($fullPath);
 
     return corsResponse(response($file, 200)
+    return corsResponse(response($file, 200)
         ->header('Content-Type', $mimeType)
         ->header('Content-Length', filesize($fullPath))
+        ->header('Cache-Control', 'public, max-age=3600'));
         ->header('Cache-Control', 'public, max-age=3600'));
 })->where('filename', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
 
@@ -100,6 +104,7 @@ Route::get('/storage/{path}', function ($path) {
     $file = file_get_contents($fullPath);
     $mimeType = mime_content_type($fullPath);
 
+    return corsResponse(response($file, 200)
     return corsResponse(response($file, 200)
         ->header('Content-Type', $mimeType)
         ->header('Content-Length', filesize($fullPath))
@@ -199,6 +204,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         ->name('dashboard');
 
     Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
+    Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-duration');
 
@@ -206,6 +212,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-all-durations');
 });
+
 
 
 /*
@@ -350,6 +357,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
     // Therapist Performance
     Route::middleware(['auth', 'verified', 'role:therapist'])->group(function () {
+        Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index'])
         Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index'])
             ->name('therapist.performance');
     });
@@ -515,12 +523,12 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     Route::middleware('branch.permission:view billing')->group(function () {
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
     });
-    
+
     Route::middleware('branch.permission:create billing')->group(function () {
         Route::post('/billing/expenses', [BillingController::class, 'storeExpense'])
             ->name('billing.expense.store');
     });
-    
+
     Route::middleware('branch.permission:edit billing')->group(function () {
         Route::patch('/billing/expenses/{expense}/status', [BillingController::class, 'updateExpenseStatus'])
             ->name('billing.expense.updateStatus');
