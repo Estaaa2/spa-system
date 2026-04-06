@@ -24,7 +24,7 @@ class OnlineBookingCheckoutController extends Controller
             'branch_id'        => ['required', 'exists:branches,id'],
             'customer_name'    => ['required', 'string', 'max:255'],
             'customer_email'   => ['required', 'email', 'max:255'],
-            'customer_phone'   => ['required', 'string', 'max:30'],
+            'customer_phone'   => ['required', 'string', 'regex:/^09\d{9}$/'],
             'treatment'        => ['required', 'string'],
             'service_type'     => ['required', 'in:in_branch,in_home'],
             'customer_address' => ['nullable', 'string', 'max:1000'],
@@ -173,11 +173,6 @@ class OnlineBookingCheckoutController extends Controller
             ->post('https://api.paymongo.com/v1/checkout_sessions', [
                 'data' => [
                     'attributes' => [
-                        'billing' => [
-                            'name'  => $pending->customer_name,
-                            'email' => $pending->customer_email,
-                            'phone' => $pending->customer_phone,
-                        ],
                         'send_email_receipt' => true,
                         'show_description'   => true,
                         'show_line_items'    => true,

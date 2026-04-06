@@ -909,11 +909,27 @@
                             <p class="max-w-xs mt-2 text-sm text-center text-gray-500">
                                 Be the first to list your spa and reach customers looking for wellness experiences.
                             </p>
-                            <a href="{{ route('register.business') }}"
-                                class="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white rounded-xl booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                                <i class="text-xs fa-solid fa-plus"></i>
-                                List Your Spa
-                            </a>
+                            @auth
+                                @role('customer')
+                                    <button type="button" onclick="openBusinessInfo()"
+                                        class="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white rounded-xl booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                        <i class="text-xs fa-solid fa-plus"></i>
+                                        List Your Spa
+                                    </button>
+                                @else
+                                    <a href="{{ route('register.business') }}"
+                                        class="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white rounded-xl booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                        <i class="text-xs fa-solid fa-plus"></i>
+                                        List Your Spa
+                                    </a>
+                                @endrole
+                            @else
+                                <a href="{{ route('register.business') }}"
+                                    class="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white rounded-xl booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                    <i class="text-xs fa-solid fa-plus"></i>
+                                    List Your Spa
+                                </a>
+                            @endauth
                         @endif
                     </div>
                 @endif
@@ -1071,6 +1087,9 @@
                                 <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
                                 <input type="text" name="customer_phone" id="bookingCustomerPhone"
                                     placeholder="09xxxxxxxxx"
+                                    maxlength="11"
+                                    pattern="^09\d{9}$"
+                                    inputmode="numeric"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
                                     required>
                             </div>
@@ -1162,6 +1181,40 @@
             <div class="h-10"></div>
         </div>
     </div>
+    <!-- ================= BUSINESS REGISTER INFO MODAL ================= -->
+    @role('customer')
+    <div id="businessInfoModal" class="fixed inset-0 z-[150] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeBusinessInfo()"></div>
+        <div class="relative mx-auto w-[92%] max-w-md mt-24 sm:mt-32">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="p-6 text-center">
+                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
+                        <i class="fa-solid fa-store text-2xl text-[#8B7355]"></i>
+                    </div>
+                    <h3 class="mt-4 text-lg font-semibold text-[#3C2F23]">Business Account Required</h3>
+                    <p class="mt-2 text-sm text-gray-500 leading-relaxed">
+                        You're currently logged in as a customer. Listing a spa requires a separate business account.
+                        Please log out first, then register as a business partner.
+                    </p>
+                </div>
+                <div class="px-6 pb-6 space-y-2">
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit"
+                            class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
+                            <i class="mr-2 fa-solid fa-right-from-bracket"></i>
+                            Log Out & Register as Business
+                        </button>
+                    </form>
+                    <button type="button" onclick="closeBusinessInfo()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        Maybe Later
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endrole
 
     <!-- ================= TERMS MODAL ================= -->
     <div id="termsModal" class="fixed inset-0 z-[120] hidden">
@@ -1386,11 +1439,27 @@
                     <p class="mt-3 text-sm text-white/90 md:text-base">
                         Reach more customers and manage bookings easily.
                     </p>
-                    <a href="{{ route('register') }}"
-                       class="inline-flex items-center justify-center gap-2 mt-7 bg-white text-[#6F5430] px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition active:translate-y-0.5">
-                        <i class="fa-solid fa-arrow-right"></i>
-                        Get Started
-                    </a>
+                    @auth
+                        @role('customer')
+                            <button type="button" onclick="openBusinessInfo()"
+                                class="inline-flex items-center justify-center gap-2 mt-7 bg-white text-[#6F5430] px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition active:translate-y-0.5">
+                                <i class="fa-solid fa-arrow-right"></i>
+                                Get Started
+                            </button>
+                        @else
+                            <a href="{{ route('register.business') }}"
+                                class="inline-flex items-center justify-center gap-2 mt-7 bg-white text-[#6F5430] px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition active:translate-y-0.5">
+                                <i class="fa-solid fa-arrow-right"></i>
+                                Get Started
+                            </a>
+                        @endrole
+                    @else
+                        <a href="{{ route('register.business') }}"
+                            class="inline-flex items-center justify-center gap-2 mt-7 bg-white text-[#6F5430] px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition active:translate-y-0.5">
+                            <i class="fa-solid fa-arrow-right"></i>
+                            Get Started
+                        </a>
+                    @endauth
                 </div>
             </div>
         </div>

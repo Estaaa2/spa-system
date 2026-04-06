@@ -465,6 +465,10 @@ bookingForm?.addEventListener('submit', function (e) {
     }
 });
 
+document.getElementById('bookingCustomerPhone')?.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 11);
+});
+
 // =====================================================
 // MY APPOINTMENTS MODAL
 // =====================================================
@@ -592,6 +596,22 @@ function renderTab(tab) {
         </div>`;
     }).join('');
 }
+
+// =====================================================
+// BUSINESS INFO MODAL
+// =====================================================
+function openBusinessInfo() {
+    document.getElementById('businessInfoModal')?.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeBusinessInfo() {
+    document.getElementById('businessInfoModal')?.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+window.openBusinessInfo  = openBusinessInfo;
+window.closeBusinessInfo = closeBusinessInfo;
 
 // Helper function to escape HTML to prevent XSS
 function escapeHtml(str) {
@@ -1116,11 +1136,12 @@ window.profileMap.on('click', function (e) {
 // =====================================================
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        if (!document.getElementById('rescheduleModal')?.classList.contains('hidden'))     closeRescheduleModal();
-        if (!document.getElementById('bookingDetailsModal')?.classList.contains('hidden')) closeBookingDetailsModal();
-        if (!document.getElementById('termsModal')?.classList.contains('hidden'))          closeTermsModal();
+        if (!document.getElementById('rescheduleModal')?.classList.contains('hidden'))      closeRescheduleModal();
+        if (!document.getElementById('bookingDetailsModal')?.classList.contains('hidden'))  closeBookingDetailsModal();
+        if (!document.getElementById('termsModal')?.classList.contains('hidden'))           closeTermsModal();
         if (!spaModal?.classList.contains('hidden'))                                        closeSpaModal();
         if (!bookingModal?.classList.contains('hidden'))                                    closeBookingModal();
+        if (!document.getElementById('businessInfoModal')?.classList.contains('hidden'))    closeBusinessInfo();
     }
 });
 
