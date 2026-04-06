@@ -138,7 +138,7 @@ class FlutterBookingController extends Controller
             'customer_email'     => $validated['customer_email'],
             'customer_phone'     => $validated['customer_phone'],
             'customer_address'   => $validated['customer_address'] ?? null,
-            'bookable_id'        => $bookableId,
+            'bookable_id'        => $bookableId ?? null,
             'bookable_type'      => $bookableType,        // "treatment" or "package"
             'bookable_name'      => $treatmentName,
             'full_amount'        => $validated['total_amount'],
@@ -158,7 +158,7 @@ class FlutterBookingController extends Controller
         $secretKey = env('PAYMONGO_SECRET_KEY');
         $response  = Http::withBasicAuth($secretKey, '')
             ->acceptJson()
-            ->post('https://api.paymongo.com/v1/checkout_sessions', [
+            ->timeout(30)->post('https://api.paymongo.com/v1/checkout_sessions', [
                 'data' => [
                     'attributes' => [
                         'billing' => [

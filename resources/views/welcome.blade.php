@@ -651,35 +651,15 @@
 
                                 $thumb = $coverPhoto;
 
-                                $branchTreatments = \App\Models\Treatment::withoutGlobalScopes()
+                                $branchTreatments = \App\Models\Treatment::withoutGlobalScope('spa_branch')
                                     ->where('branch_id', $branch->id)
                                     ->where('spa_id', $spa->id)
-                                    ->get()
-                                    ->map(fn($t) => [
-                                        'id'           => $t->id,
-                                        'name'         => $t->name,
-                                        'price'        => $t->price,
-                                        'duration'     => $t->duration,
-                                        'service_type' => $t->service_type,
-                                        'type'         => 'treatment',
-                                    ])
-                                    ->values()
-                                    ->toArray();
+                                    ->get();
 
-                                $branchPackages = \App\Models\Package::withoutGlobalScopes()
+                                $branchPackages = \App\Models\Package::withoutGlobalScope('spa_branch')
                                     ->where('branch_id', $branch->id)
                                     ->where('spa_id', $spa->id)
-                                    ->get()
-                                    ->map(fn($p) => [
-                                        'id'           => $p->id,
-                                        'name'         => $p->name,
-                                        'price'        => $p->price ?? null,
-                                        'duration'     => $p->duration ?? null,
-                                        'service_type' => $p->service_type ?? 'in_branch_only',
-                                        'type'         => 'package',
-                                    ])
-                                    ->values()
-                                    ->toArray();
+                                    ->get();
 
                                 $spaPayload = [
                                     'id'              => $spa->id,
@@ -802,35 +782,15 @@
                                             ->values()
                                             ->toArray();
 
-                                        $branchTreatments = \App\Models\Treatment::withoutGlobalScopes()
+                                        $branchTreatments = \App\Models\Treatment::withoutGlobalScope('spa_branch')
                                             ->where('branch_id', $branch->id)
                                             ->where('spa_id', $spa->id)
-                                            ->get()
-                                            ->map(fn($t) => [
-                                                'id'           => $t->id,
-                                                'name'         => $t->name,
-                                                'price'        => $t->price,
-                                                'duration'     => $t->duration,
-                                                'service_type' => $t->service_type,
-                                                'type'         => 'treatment',
-                                            ])
-                                            ->values()
-                                            ->toArray();
+                                            ->get();
 
-                                        $branchPackages = \App\Models\Package::withoutGlobalScopes()
+                                        $branchPackages = \App\Models\Package::withoutGlobalScope('spa_branch')
                                             ->where('branch_id', $branch->id)
                                             ->where('spa_id', $spa->id)
-                                            ->get()
-                                            ->map(fn($p) => [
-                                                'id'           => $p->id,
-                                                'name'         => $p->name,
-                                                'price'        => $p->price ?? null,
-                                                'duration'     => $p->duration ?? null,
-                                                'service_type' => $p->service_type ?? 'in_branch_only',
-                                                'type'         => 'package',
-                                            ])
-                                            ->values()
-                                            ->toArray();
+                                            ->get();
 
                                         $spaPayload = [
                                             'id'              => $spa->id,

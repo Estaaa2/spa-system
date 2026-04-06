@@ -142,6 +142,7 @@
                                             data-total="{{ $booking->resolved_total_amount }}"
                                             data-paid="{{ $booking->resolved_amount_paid }}"
                                             data-due="{{ $booking->resolved_balance_amount }}"
+                                            data-status="{{ $booking->status }}"
                                             class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-xl bg-amber-600 hover:bg-amber-700">
                                             Process Now
                                         </button>
@@ -241,8 +242,26 @@
                                                     data-total="{{ $booking->resolved_total_amount }}"
                                                     data-paid="{{ $booking->resolved_amount_paid }}"
                                                     data-due="{{ $booking->resolved_balance_amount }}"
+                                                    data-status="{{ $booking->status }}"
                                                     class="px-3 py-1.5 text-sm text-white bg-amber-600 rounded-lg hover:bg-amber-700">
                                                     Process
+                                                </button>
+                                            @endif
+
+                                            @if($booking->status === 'ongoing')
+                                                <button
+                                                    type="button"
+                                                    onclick="openProcessModal(this)"
+                                                    data-id="{{ $booking->id }}"
+                                                    data-customer="{{ $booking->customer_name }}"
+                                                    data-treatment="{{ $booking->treatment_label }}"
+                                                    data-source="{{ $booking->booking_source }}"
+                                                    data-total="{{ $booking->resolved_total_amount }}"
+                                                    data-paid="{{ $booking->resolved_amount_paid }}"
+                                                    data-due="{{ $booking->resolved_balance_amount }}"
+                                                    data-status="{{ $booking->status }}"
+                                                    class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">
+                                                    Cancel
                                                 </button>
                                             @endif
 
@@ -536,6 +555,8 @@
             @method('PUT')
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {{-- Status is not editable here; use Process button for workflow transitions --}}
+                <input type="hidden" id="edit_status" name="status">
                 <div class="md:col-span-2">
                     <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
                     <input type="text" id="edit_customer_name" name="customer_name"
@@ -600,18 +621,6 @@
                                 {{ $therapist->name }}
                             </option>
                         @endforeach
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                    <select id="edit_status" name="status"
-                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                        <option value="reserved">Reserved</option>
-                        <option value="pending">Pending</option>
-                        <option value="ongoing">Ongoing</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
                     </select>
                 </div>
 
@@ -686,8 +695,20 @@
         const hint = document.getElementById('process_hint');
         const statusSelect = document.getElementById('process_status');
         const amountWrapper = document.getElementById('process_amount_wrapper');
+        const currentStatus = d.status || 'pending';
 
         amountInput.value = Number(d.due || 0) > 0 ? Number(d.due || 0).toFixed(2) : '';
+
+        // Restrict options based on current status
+        statusSelect.innerHTML = '';
+        if (currentStatus === 'pending') {
+            statusSelect.innerHTML = `
+                <option value="ongoing">Mark as Ongoing (customer has arrived)</option>
+                <option value="cancelled">Cancel (customer called / no-show)</option>`;
+        } else if (currentStatus === 'ongoing') {
+            statusSelect.innerHTML = `
+                <option value="cancelled">Cancel (customer did not proceed / no-show)</option>`;
+        }
 
         if ((d.source || '') === 'online') {
             hint.textContent = 'This online booking already paid a deposit. Record only the remaining balance collected at the branch.';
@@ -695,15 +716,14 @@
             hint.textContent = 'Record the amount collected directly by the receptionist for this appointment.';
         }
 
-        statusSelect.onchange = function () {
-            const isCancelled = this.value === 'cancelled';
+        // Show/hide payment field based on selected status
+        const togglePaymentField = () => {
+            const isCancelled = statusSelect.value === 'cancelled';
             amountWrapper.style.display = isCancelled ? 'none' : 'block';
-            // Clear any existing error messages
-            clearEditErrors();
         };
 
-        statusSelect.value = 'ongoing';
-        amountWrapper.style.display = 'block';
+        statusSelect.onchange = togglePaymentField;
+        togglePaymentField(); // run on open
 
         document.getElementById('processForm').action = '/appointments/' + d.id + '/status';
         document.getElementById('processModal').classList.remove('hidden');
@@ -866,7 +886,7 @@
         document.getElementById('edit_service_type').value = d.serviceType || '';
         document.getElementById('edit_treatment').value = d.treatment || '';
         document.getElementById('edit_start_time').value = d.startTime || '';
-        document.getElementById('edit_status').value = d.status || 'pending';
+        document.getElementById('edit_status').value = d.status || ''; // preserve current status, not user-editable
 
         const dateInput = document.getElementById('edit_appointment_date');
         dateInput.min = new Date().toISOString().split('T')[0];

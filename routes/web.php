@@ -664,6 +664,6 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
 });
 
-Route::get('/api/spas/nearby', [LandingController::class, 'nearbySpasList'])->middleware('auth');
+Route::get('/web-api/spas/nearby', [LandingController::class, 'nearbySpasList']);
 
 require __DIR__.'/auth.php';

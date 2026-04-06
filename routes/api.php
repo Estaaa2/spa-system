@@ -59,13 +59,12 @@ Route::get('/operating-hours/{branchId}/{day}', function ($branchId, $day) {
     });
 
 // ── Public Spa endpoints ──
-Route::get('/spas/cavite', [SpaController::class, 'cavite']);
+Route::get('/spas/cavite',  [SpaController::class, 'cavite']);
+Route::get('/spas/nearby',  [SpaController::class, 'nearby']);
+Route::get('/spas/other',   [SpaController::class, 'getOtherSpas']);
 Route::get('/featured-spas', [SpaController::class, 'featured']);
-Route::get('/spas/other', [SpaController::class, 'getOtherSpas']);
-Route::get('/spas', [SpaController::class, 'index']);
-Route::get('/spas/{id}', [SpaController::class, 'show'])
-    ->whereNumber('id');
-Route::get('/spas/nearby', [SpaController::class, 'nearby']);
+Route::get('/spas',         [SpaController::class, 'index']);
+Route::get('/spas/{id}',    [SpaController::class, 'show'])->whereNumber('id');
 
 // Flutter booking endpoints
 Route::post('/flutter/create-booking', [FlutterBookingController::class, 'createBooking']);

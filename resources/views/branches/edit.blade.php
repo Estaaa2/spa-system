@@ -246,6 +246,8 @@
                                 type="text"
                                 name="phone"
                                 id="phone"
+                                maxlength="11" 
+                                pattern="^09\d{9}$"
                                 value="{{ old('phone', $branch->profile->phone ?? '') }}"
                                 class="block w-full mt-1 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
                                 placeholder="Enter branch contact number"

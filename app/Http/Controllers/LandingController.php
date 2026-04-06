@@ -37,8 +37,8 @@ class LandingController extends Controller
         $spas      = $allSpas->filter(fn($spa) => $spa->isProfessional());
         $basicSpas = $allSpas->filter(fn($spa) => !$spa->isProfessional());
 
-        $treatments = Treatment::all()->groupBy('branch_id');
-        $packages   = Package::all()->groupBy('branch_id');
+        $treatments = Treatment::withoutGlobalScope('spa_branch')->get()->groupBy('branch_id');
+        $packages   = Package::withoutGlobalScope('spa_branch')->get()->groupBy('branch_id');
 
         return view('welcome', compact('spas', 'basicSpas', 'treatments', 'packages', 'city'));
     }
@@ -112,20 +112,15 @@ class LandingController extends Controller
                     ->merge($galleryPhotos)
                     ->take(5)->pad(5, $fallback)->values()->toArray();
 
-                $treatments = Treatment::withoutGlobalScopes()
-                    ->where('branch_id', $branch->id)->where('spa_id', $spa->id)->get()
-                    ->map(fn($t) => [
-                        'id' => $t->id, 'name' => $t->name, 'price' => $t->price,
-                        'duration' => $t->duration, 'service_type' => $t->service_type, 'type' => 'treatment',
-                    ])->values()->toArray();
+                $treatments = Treatment::withoutGlobalScope('spa_branch')
+                    ->where('branch_id', $branch->id)
+                    ->where('spa_id', $spa->id)
+                    ->get();
 
-                $packages = Package::withoutGlobalScopes()
-                    ->where('branch_id', $branch->id)->where('spa_id', $spa->id)->get()
-                    ->map(fn($p) => [
-                        'id' => $p->id, 'name' => $p->name, 'price' => $p->price ?? null,
-                        'duration' => $p->duration ?? null,
-                        'service_type' => $p->service_type ?? 'in_branch_only', 'type' => 'package',
-                    ])->values()->toArray();
+                $packages = Package::withoutGlobalScope('spa_branch')
+                    ->where('branch_id', $branch->id)
+                    ->where('spa_id', $spa->id)
+                    ->get();
 
                 $result[] = [
                     'id'              => $spa->id,

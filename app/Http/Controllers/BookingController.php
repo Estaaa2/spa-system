@@ -131,18 +131,7 @@ class BookingController extends Controller
             'customer_email' => 'required|email|max:255',
             'appointment_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required',
-            'status' => 'required|string|in:reserved,pending,ongoing,completed,cancelled',
         ]);
-
-        // Server-side validation for future appointments
-        $today = now()->startOfDay();
-        $appointmentDate = Carbon::parse($validated['appointment_date'])->startOfDay();
-
-        if (in_array($validated['status'], ['ongoing', 'completed']) && $appointmentDate->gt($today)) {
-            return back()->withErrors([
-                'status' => 'Cannot create an appointment as "' . $validated['status'] . '" for a future date.'
-            ])->withInput();
-        }
 
         $startTime = $validated['start_time'];
         $durationMinutes = $this->resolveDurationMinutes($validated['treatment']);
@@ -213,10 +202,11 @@ class BookingController extends Controller
 
         Booking::create([
             ...$validated,
-            'spa_id' => $spaId,
-            'branch_id' => $branchId,
+            'spa_id'             => $spaId,
+            'branch_id'          => $branchId,
             'created_by_user_id' => $user->id,
-            'end_time' => $endTime,
+            'end_time'           => $endTime,
+            'status'             => 'reserved', // always starts reserved; automated from here
         ]);
 
         return redirect()
@@ -378,21 +368,20 @@ class BookingController extends Controller
             'therapist_id' => 'required|exists:users,id',
             'appointment_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required',
-            'status' => 'required|string|in:reserved,pending,ongoing,completed,cancelled',
         ]);
 
-        // Server-side validation for future appointments
+        // Block setting ongoing/completed for future appointments
         $today = now()->startOfDay();
         $appointmentDate = Carbon::parse($validated['appointment_date'])->startOfDay();
 
-        if (in_array($validated['status'], ['ongoing', 'completed']) && $appointmentDate->gt($today)) {
+        if (in_array($booking->status, ['ongoing', 'completed']) && $appointmentDate->gt($today)) {
             return back()->withErrors([
                 'status' => 'Cannot mark an appointment as "' . $validated['status'] . '" if the appointment date is in the future.'
             ])->withInput();
         }
 
         // Prevent completing appointments that haven't started yet (for today)
-        if ($validated['status'] === 'completed' &&
+        if ($booking->status === 'completed' &&
             $booking->status !== 'ongoing' &&
             $appointmentDate->eq($today)) {
             return back()->withErrors([
@@ -662,6 +651,16 @@ class BookingController extends Controller
         ]);
 
         return back()->with('success', 'Appointment status updated successfully.');
+    }
+
+    private function getAllowedEditStatuses(Booking $booking): array
+    {
+        return match ($booking->status) {
+            'pending'  => ['ongoing', 'cancelled'],
+            'ongoing'  => ['cancelled'],
+            'reserved' => ['reserved', 'cancelled'],
+            default    => [$booking->status], // completed/cancelled are locked
+        };
     }
 
     private function resolveDurationMinutes(string $selection): int

@@ -64,7 +64,7 @@
                         <!-- Customer Phone -->
                         <div>
                             <label for="customer_phone" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Phone Number</label>
-                            <input type="tel" id="customer_phone" name="customer_phone" placeholder="Enter phone number"
+                            <input type="tel" id="customer_phone" name="customer_phone" placeholder="Enter phone number" maxlength="11" pattern="^09\d{9}$"
                                 class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
                         </div>
                     </div>
@@ -104,17 +104,8 @@
                         </div>
                     </div>
 
-                    <!-- Status -->
-                    <div class="mt-4">
-                        <label for="status" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Status</label>
-                        <select id="status" name="status" class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
-                            <option value="reserved" selected>Reserved</option>
-                            <option value="pending">Pending</option>
-                            <option value="ongoing">Ongoing</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
-                    </div>
+                    {{-- Status is always 'reserved' on creation; automated from there --}}
+                    <input type="hidden" name="status" value="reserved">
 
                     <div class="mt-8">
                         <button type="submit" class="w-full px-6 py-3 font-semibold text-white transition-all duration-200 bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg hover:opacity-90 focus:ring-4 focus:ring-[#8B7355]/50">

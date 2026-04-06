@@ -1037,7 +1037,7 @@ async function submitRescheduleRequest() {
 // =====================================================
 async function loadNearbySpas() {
     try {
-        const res  = await fetch('/api/spas/nearby');
+        const res  = await fetch('/web-api/spas/nearby');
         const data = await res.json();
 
         if (!Array.isArray(data) || data.length === 0) return;
