@@ -32,15 +32,15 @@
 
                             <div>
                                 <label class="block mb-1 text-xs font-semibold text-gray-600">Full Name *</label>
-                                <input 
-                                    type="text" 
-                                    name="first_name" 
+                                <input
+                                    type="text"
+                                    name="first_name"
                                     required
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none"
                                     placeholder="First name" />
                                 <input
-                                    type="text" 
-                                    name="last_name" 
+                                    type="text"
+                                    name="last_name"
                                     required
                                     class="w-full mt-2 px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none"
                                     placeholder="Last name" />
@@ -74,7 +74,7 @@
                                     required
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none"
                                 >
-                                    <option value="">Select a role</option>
+                                    <option value="">Assign Staff Role</option>
                                     <option value="manager">Manager</option>
                                     <option value="receptionist">Receptionist</option>
                                     <option value="therapist">Therapist</option>

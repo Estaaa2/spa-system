@@ -1,10 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mx-auto max-w-7xl">
+<div class="p-6 mx-auto space-y-6 max-w-7xl">
 
-    <!-- Booking Header -->
-    <div class="p-6">
          <x-page-header
             title="Client Bookings"
             subtitle="Schedule and manage customer appointments."
@@ -18,7 +16,7 @@
                 <h2 class="mb-2 text-lg font-semibold text-gray-800 dark:text-white">Appointment Details</h2>
                 <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Fill in all required information to schedule an appointment</p>
 
-                <form action="{{ route('bookings.store') }}" method="POST">
+                <form action="{{ route('bookings.store') }}" method="POST" id="booking-form">
                     @csrf
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -27,8 +25,8 @@
                             <label for="service_type" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Service Type</label>
                             <select id="service_type" name="service_type"
                                 class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
-                                <option value="in_branch" selected>In Branch</option>
-                                <option value="in_home">In Home</option>
+                                <option value="in_branch" {{ old('service_type') == 'in_branch' ? 'selected' : '' }}>In Branch</option>
+                                <option value="in_home" {{ old('service_type') == 'in_home' ? 'selected' : '' }}>In Home</option>
                             </select>
                         </div>
 
@@ -37,14 +35,14 @@
                             <label for="treatment" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Select Treatment / Package</label>
                             <select id="treatment" name="treatment"
                                 class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
-                                <option selected disabled>Select Treatment or Package</option>
+                                <option value="" disabled selected>Select Treatment or Package</option>
                                 @foreach($treatments as $t)
-                                    <option value="treatment_{{ $t->id }}" data-duration="{{ $t->duration }}">
+                                    <option value="treatment_{{ $t->id }}" data-duration="{{ $t->duration }}" {{ old('treatment') == 'treatment_'.$t->id ? 'selected' : '' }}>
                                         Treatment: {{ $t->name }}
                                     </option>
                                 @endforeach
                                 @foreach($packages as $p)
-                                    <option value="package_{{ $p->id }}" data-duration="{{ $p->duration }}">
+                                    <option value="package_{{ $p->id }}" data-duration="{{ $p->duration }}" {{ old('treatment') == 'package_'.$p->id ? 'selected' : '' }}>
                                         Package: {{ $p->name }}
                                     </option>
                                 @endforeach
@@ -54,9 +52,11 @@
                         <!-- Therapist -->
                         <div>
                             <label for="therapist_id" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Therapist</label>
-                            <select id="therapist_id" name="therapist_id" class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
+                            <select id="therapist_id" name="therapist_id"
+                                class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
+                                <option value="">Select Therapist</option>
                                 @foreach($therapists as $therapist)
-                                    <option value="{{ $therapist->id }}">{{ $therapist->name }}</option>
+                                    <option value="{{ $therapist->id }}" {{ old('therapist_id') == $therapist->id ? 'selected' : '' }}>{{ $therapist->name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -65,6 +65,7 @@
                         <div>
                             <label for="customer_phone" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Phone Number</label>
                             <input type="tel" id="customer_phone" name="customer_phone" placeholder="Enter phone number" maxlength="11" pattern="^09\d{9}$"
+                                value="{{ old('customer_phone') }}"
                                 class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
                         </div>
                     </div>
@@ -73,13 +74,15 @@
                     <div class="mt-4">
                         <label for="customer_name" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Full Name</label>
                         <input type="text" id="customer_name" name="customer_name" placeholder="Enter full name"
+                            value="{{ old('customer_name') }}"
                             class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
                     </div>
 
                     <!-- Customer Address -->
-                    <div class="mt-4" id="customer_address_container" style="display: none;">
+                    <div class="mt-4" id="customer_address_container" style="{{ old('service_type') == 'in_home' ? 'display: block;' : 'display: none;' }}">
                         <label for="customer_address" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Address</label>
                         <input type="text" id="customer_address" name="customer_address" placeholder="Enter address"
+                            value="{{ old('customer_address') }}"
                             class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
                     </div>
 
@@ -87,6 +90,7 @@
                     <div class="mt-4">
                         <label for="customer_email" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Email</label>
                         <input type="email" id="customer_email" name="customer_email" placeholder="Enter email"
+                            value="{{ old('customer_email') }}"
                             class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
                     </div>
 
@@ -94,13 +98,17 @@
                     <div class="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2">
                         <div>
                             <label for="appointment_date" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Appointment Date</label>
-                            <input type="date" id="appointment_date" name="appointment_date" class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
+                            <input type="date" id="appointment_date" name="appointment_date"
+                                value="{{ old('appointment_date') }}"
+                                class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
                         </div>
                         <div>
                             <label for="start_time" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Start Time</label>
                             <input type="time" id="start_time" name="start_time"
+                                value="{{ old('start_time') }}"
                                 class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
                                 required>
+                            <p class="mt-1 text-xs text-gray-500" id="time-note"></p>
                         </div>
                     </div>
 
@@ -115,6 +123,7 @@
                 </form>
             </div>
         </div>
+
         <!-- Appointment Summary -->
         <div>
             <div class="h-full p-6 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
@@ -176,171 +185,347 @@
 </div>
 
 <script>
-    // Fetch and update available times based on selected date
     document.addEventListener('DOMContentLoaded', function() {
-        const branchId = "{{ Auth::user()->branch_id }}";
+        const branchId = "{{ Auth::user()->branch_id ?? '' }}";
         const startTimeInput = document.getElementById('start_time');
         const dateInput = document.getElementById('appointment_date');
+        const timeNote = document.getElementById('time-note');
 
-        async function updateAvailableTimes() {
-            if (!dateInput.value) return;
-            const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
-
-            const res = await fetch(`/api/operating-hours/${branchId}/${day}`);
-            const data = await res.json();
-
-            if (data.is_closed) {
-                startTimeInput.value = '';
-                startTimeInput.disabled = true;
-                alert('Spa is closed on this day');
-            } else {
-                startTimeInput.min = data.opening_time;
-                startTimeInput.max = data.closing_time;
+        // Only show warning if no branch ID, but don't block functionality
+        if (!branchId) {
+            console.warn('No branch ID found for user - operating hours feature disabled');
+            if (timeNote) {
+                timeNote.textContent = 'Note: Operating hours validation is currently unavailable.';
+                timeNote.classList.add('text-yellow-500');
+            }
+            if (startTimeInput) {
                 startTimeInput.disabled = false;
+                startTimeInput.removeAttribute('min');
+                startTimeInput.removeAttribute('max');
             }
-        }
-
-        dateInput.addEventListener('change', updateAvailableTimes);
-    });
-
-    // Show/hide address field based on service type
-    document.addEventListener('DOMContentLoaded', function() {
-        const serviceType = document.getElementById('service_type');
-        const addressContainer = document.getElementById('customer_address_container');
-
-        serviceType.addEventListener('change', function() {
-            if (this.value === 'in_home') {
-                addressContainer.style.display = 'block';
-                document.getElementById('customer_address').required = true;
-            } else {
-                addressContainer.style.display = 'none';
-                document.getElementById('customer_address').required = false;
-            }
-        });
-    });
-
-    // Initialize and start the clock
-    document.addEventListener('DOMContentLoaded', function() {
-
-        // CORRECTED SUMMARY UPDATE FUNCTION
-        function updateSummary() {
-            // Get form elements with YOUR ACTUAL IDs
-            const serviceType = document.getElementById('service_type');
-            const treatment = document.getElementById('treatment');
-            const therapist = document.querySelector('select[name="therapist_id"]');
-            const dateInput = document.getElementById('appointment_date');
-            const timeInput = document.getElementById('start_time');
-
-            // Update service type summary - ONLY IF SELECTED
-            if (serviceType && serviceType.value && serviceType.value !== "") {
-                document.getElementById('summary-service').textContent =
-                    serviceType.options[serviceType.selectedIndex].text;
-            } else {
-                document.getElementById('summary-service').textContent = "";
-            }
-
-            // Update treatment summary - ONLY IF SELECTED
-            if (treatment && treatment.value && treatment.value !== "") {
-                document.getElementById('summary-treatment').textContent =
-                    treatment.options[treatment.selectedIndex].text;
-            } else {
-                document.getElementById('summary-treatment').textContent = "";
-            }
-
-            // Update therapist summary - ONLY IF SELECTED
-            if (therapist && therapist.value && therapist.value !== "") {
-                document.getElementById('summary-therapist').textContent =
-                    therapist.options[therapist.selectedIndex].text;
-            } else {
-                document.getElementById('summary-therapist').textContent = "";
-            }
-
-            // Update date summary - ONLY IF SELECTED
-            if (dateInput && dateInput.value) {
-                const date = new Date(dateInput.value);
-                document.getElementById('summary-date').textContent =
-                    date.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                    });
-            } else {
-                document.getElementById('summary-date').textContent = "";
-            }
-
-            // Update time summary - ONLY IF SELECTED (not the default disabled option)
-            if (timeInput && timeInput.value) {
-                let startTime = timeInput.value; // format "HH:MM"
-                let duration = 0;
-
-                // Get selected treatment's duration
-                const treatmentSelect = document.getElementById('treatment');
-                if (treatmentSelect && treatmentSelect.selectedOptions[0]) {
-                    duration = parseInt(treatmentSelect.selectedOptions[0].dataset.duration) || 0;
-                }
-
-                // Calculate end time
-                const [hours, minutes] = startTime.split(':').map(Number);
-                const startDate = new Date();
-                startDate.setHours(hours, minutes);
-
-                const endDate = new Date(startDate.getTime() + duration * 60000); // duration in ms
-
-                const formatTime = date => {
-                    let h = date.getHours();
-                    const m = date.getMinutes().toString().padStart(2, '0');
-                    const ampm = h >= 12 ? 'PM' : 'AM';
-                    h = h % 12 || 12;
-                    return `${h}:${m} ${ampm}`;
-                }
-
-                document.getElementById('summary-time').textContent =
-                    `${formatTime(startDate)} - ${formatTime(endDate)}`;
-            } else {
-                document.getElementById('summary-time').textContent = "";
-            }
+            // Still allow booking without operating hours validation
+            return;
         }
 
         // Set minimum date to today
         const today = new Date().toISOString().split('T')[0];
-        const dateInput = document.getElementById('appointment_date');
         if (dateInput) {
             dateInput.min = today;
         }
 
-        // Add event listeners to YOUR ACTUAL ELEMENTS
+        // Function to set min/max attributes on time input based on operating hours
+        async function setTimeConstraints() {
+            if (!dateInput.value) {
+                if (startTimeInput) {
+                    startTimeInput.disabled = true;
+                    startTimeInput.placeholder = "Select date first";
+                }
+                if (timeNote) timeNote.textContent = 'Please select a date first';
+                return;
+            }
+
+            const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
+
+            try {
+                const response = await fetch(`/operating-hours/${branchId}/${day}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.is_closed) {
+                    if (startTimeInput) {
+                        startTimeInput.disabled = true;
+                        startTimeInput.value = '';
+                    }
+                    if (timeNote) {
+                        timeNote.textContent = 'The spa is closed on ' + day + 's. Please select another date.';
+                        timeNote.classList.add('text-red-500');
+                        timeNote.classList.remove('text-gray-500');
+                    }
+                    return;
+                }
+
+                // Set min and max attributes
+                if (startTimeInput) {
+                    startTimeInput.min = data.opening_time;
+                    startTimeInput.max = data.closing_time;
+                    startTimeInput.disabled = false;
+                }
+
+                // Get treatment duration for additional validation
+                const treatmentSelect = document.getElementById('treatment');
+                let duration = 60;
+                if (treatmentSelect && treatmentSelect.selectedOptions[0] && treatmentSelect.selectedOptions[0].dataset.duration) {
+                    duration = parseInt(treatmentSelect.selectedOptions[0].dataset.duration);
+                }
+
+                if (timeNote) {
+                    timeNote.textContent = `Operating hours: ${formatTimeDisplay(data.opening_time)} - ${formatTimeDisplay(data.closing_time)} | Treatment duration: ${duration} minutes`;
+                    timeNote.classList.remove('text-red-500');
+                    timeNote.classList.add('text-gray-500');
+                }
+
+                if (startTimeInput && startTimeInput.value) {
+                    validateSelectedTime(data.opening_time, data.closing_time);
+                }
+
+            } catch (error) {
+                console.error('Error fetching operating hours:', error);
+                // Don't disable the time input, just show warning
+                if (startTimeInput) {
+                    startTimeInput.disabled = false;
+                    startTimeInput.removeAttribute('min');
+                    startTimeInput.removeAttribute('max');
+                }
+                if (timeNote) {
+                    timeNote.textContent = 'Unable to load operating hours. You can still proceed with booking.';
+                    timeNote.classList.add('text-yellow-500');
+                }
+            }
+        }
+
+        function validateSelectedTime(openingTime, closingTime) {
+            if (!startTimeInput) return true;
+
+            const selectedTime = startTimeInput.value;
+            if (!selectedTime) return true;
+
+            if (selectedTime < openingTime) {
+                startTimeInput.setCustomValidity(`Start time must be at or after ${formatTimeDisplay(openingTime)}`);
+                startTimeInput.reportValidity();
+                return false;
+            }
+
+            if (selectedTime > closingTime) {
+                startTimeInput.setCustomValidity(`Start time must be at or before ${formatTimeDisplay(closingTime)}`);
+                startTimeInput.reportValidity();
+                return false;
+            }
+
+            const treatmentSelect = document.getElementById('treatment');
+            let duration = 60;
+            if (treatmentSelect && treatmentSelect.selectedOptions[0] && treatmentSelect.selectedOptions[0].dataset.duration) {
+                duration = parseInt(treatmentSelect.selectedOptions[0].dataset.duration);
+            }
+
+            const [selectedHour, selectedMinute] = selectedTime.split(':').map(Number);
+            const [closeHour, closeMinute] = closingTime.split(':').map(Number);
+
+            const selectedDate = new Date();
+            selectedDate.setHours(selectedHour, selectedMinute, 0);
+
+            const closeDate = new Date();
+            closeDate.setHours(closeHour, closeMinute, 0);
+
+            const endDate = new Date(selectedDate.getTime() + duration * 60000);
+
+            if (endDate > closeDate) {
+                startTimeInput.setCustomValidity(`This appointment would end after closing time (${formatTimeDisplay(closingTime)}). Please select an earlier time.`);
+                startTimeInput.reportValidity();
+                return false;
+            }
+
+            startTimeInput.setCustomValidity('');
+            return true;
+        }
+
+        function formatTimeDisplay(time) {
+            if (!time) return '';
+            const [hours, minutes] = time.split(':').map(Number);
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours % 12 || 12;
+            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+        }
+
+        if (startTimeInput) {
+            startTimeInput.addEventListener('change', async function() {
+                if (!dateInput || !dateInput.value) {
+                    startTimeInput.setCustomValidity('Please select a date first');
+                    startTimeInput.reportValidity();
+                    return;
+                }
+
+                const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
+                try {
+                    const response = await fetch(`/operating-hours/${branchId}/${day}`);
+                    if (!response.ok) throw new Error('Failed to fetch');
+                    const data = await response.json();
+
+                    if (!data.is_closed) {
+                        validateSelectedTime(data.opening_time, data.closing_time);
+                    }
+                } catch (error) {
+                    console.error('Error validating time:', error);
+                }
+                updateSummary();
+            });
+        }
+
+        const treatmentSelect = document.getElementById('treatment');
+        if (treatmentSelect) {
+            treatmentSelect.addEventListener('change', async function() {
+                if (dateInput && dateInput.value && startTimeInput && startTimeInput.value && !startTimeInput.disabled) {
+                    const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
+                    try {
+                        const response = await fetch(`/operating-hours/${branchId}/${day}`);
+                        if (!response.ok) throw new Error('Failed to fetch');
+                        const data = await response.json();
+
+                        if (!data.is_closed) {
+                            validateSelectedTime(data.opening_time, data.closing_time);
+                        }
+                    } catch (error) {
+                        console.error('Error validating time:', error);
+                    }
+                }
+                if (dateInput && dateInput.value && timeNote) {
+                    const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
+                    try {
+                        const response = await fetch(`/operating-hours/${branchId}/${day}`);
+                        if (!response.ok) throw new Error('Failed to fetch');
+                        const data = await response.json();
+
+                        if (!data.is_closed) {
+                            let duration = 60;
+                            if (treatmentSelect.selectedOptions[0] && treatmentSelect.selectedOptions[0].dataset.duration) {
+                                duration = parseInt(treatmentSelect.selectedOptions[0].dataset.duration);
+                            }
+                            timeNote.textContent = `Operating hours: ${formatTimeDisplay(data.opening_time)} - ${formatTimeDisplay(data.closing_time)} | Treatment duration: ${duration} minutes`;
+                        }
+                    } catch (error) {
+                        console.error('Error updating time note:', error);
+                    }
+                }
+                updateSummary();
+            });
+        }
+
+        if (dateInput) {
+            dateInput.addEventListener('change', function() {
+                setTimeConstraints();
+                updateSummary();
+            });
+        }
+
+        if (startTimeInput) {
+            startTimeInput.addEventListener('input', function() {
+                startTimeInput.setCustomValidity('');
+            });
+        }
+
+        if (dateInput && dateInput.value) {
+            setTimeConstraints();
+        }
+
         const serviceType = document.getElementById('service_type');
-        const treatment = document.getElementById('treatment');
-        const therapist = document.querySelector('select[name="therapist_id"]');
-        const dateInputElem = document.getElementById('appointment_date');
-        const timeSelect = document.getElementById('start_time');
+        const addressContainer = document.getElementById('customer_address_container');
 
-        if (serviceType) serviceType.addEventListener('change', updateSummary);
-        if (treatment) treatment.addEventListener('change', updateSummary);
-        if (therapist) therapist.addEventListener('change', updateSummary);
-        if (dateInputElem) dateInputElem.addEventListener('change', updateSummary);
-        if (timeSelect) timeSelect.addEventListener('change', updateSummary);
+        if (serviceType && addressContainer) {
+            serviceType.addEventListener('change', function() {
+                if (this.value === 'in_home') {
+                    addressContainer.style.display = 'block';
+                    const customerAddress = document.getElementById('customer_address');
+                    if (customerAddress) customerAddress.required = true;
+                } else {
+                    addressContainer.style.display = 'none';
+                    const customerAddress = document.getElementById('customer_address');
+                    if (customerAddress) customerAddress.required = false;
+                }
+                updateSummary();
+            });
+        }
 
-        // Initial update - CLEAR ALL DEFAULTS
-        updateSummary();
-    });
+        function updateSummary() {
+            const serviceTypeElem = document.getElementById('service_type');
+            const treatmentElem = document.getElementById('treatment');
+            const therapistElem = document.querySelector('select[name="therapist_id"]');
+            const dateInputElem = document.getElementById('appointment_date');
+            const timeInputElem = document.getElementById('start_time');
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const treatmentInput = document.getElementById('treatment');
-        const dateInput = document.getElementById('appointment_date');
-        const timeInput = document.getElementById('start_time');
-        const therapistSelect = document.getElementById('therapist_id');
+            const summaryService = document.getElementById('summary-service');
+            if (summaryService) {
+                summaryService.textContent = (serviceTypeElem && serviceTypeElem.value && serviceTypeElem.value !== "")
+                    ? serviceTypeElem.options[serviceTypeElem.selectedIndex].text
+                    : "";
+            }
+
+            const summaryTreatment = document.getElementById('summary-treatment');
+            if (summaryTreatment) {
+                summaryTreatment.textContent = (treatmentElem && treatmentElem.value && treatmentElem.value !== "")
+                    ? treatmentElem.options[treatmentElem.selectedIndex].text
+                    : "";
+            }
+
+            const summaryTherapist = document.getElementById('summary-therapist');
+            if (summaryTherapist) {
+                summaryTherapist.textContent = (therapistElem && therapistElem.value && therapistElem.value !== "")
+                    ? therapistElem.options[therapistElem.selectedIndex].text
+                    : "";
+            }
+
+            const summaryDate = document.getElementById('summary-date');
+            if (summaryDate) {
+                if (dateInputElem && dateInputElem.value) {
+                    const date = new Date(dateInputElem.value);
+                    summaryDate.textContent = date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+                } else {
+                    summaryDate.textContent = "";
+                }
+            }
+
+            const summaryTime = document.getElementById('summary-time');
+            if (summaryTime) {
+                if (timeInputElem && timeInputElem.value) {
+                    let startTime = timeInputElem.value;
+                    let duration = 0;
+
+                    if (treatmentElem && treatmentElem.selectedOptions[0] && treatmentElem.selectedOptions[0].dataset.duration) {
+                        duration = parseInt(treatmentElem.selectedOptions[0].dataset.duration) || 0;
+                    }
+
+                    const [hours, minutes] = startTime.split(':').map(Number);
+                    const startDate = new Date();
+                    startDate.setHours(hours, minutes);
+
+                    const endDate = new Date(startDate.getTime() + duration * 60000);
+
+                    const formatTime = date => {
+                        let h = date.getHours();
+                        const m = date.getMinutes().toString().padStart(2, '0');
+                        const ampm = h >= 12 ? 'PM' : 'AM';
+                        h = h % 12 || 12;
+                        return `${h}:${m} ${ampm}`;
+                    }
+
+                    summaryTime.textContent = `${formatTime(startDate)} - ${formatTime(endDate)}`;
+                } else {
+                    summaryTime.textContent = "";
+                }
+            }
+        }
 
         async function refreshAvailableTherapists() {
-            if (!treatmentInput?.value || !dateInput?.value || !timeInput?.value || !therapistSelect) {
+            const treatmentInput = document.getElementById('treatment');
+            const dateInputElem = document.getElementById('appointment_date');
+            const timeInputElem = document.getElementById('start_time');
+            const therapistSelectElem = document.getElementById('therapist_id');
+
+            if (!treatmentInput?.value || !dateInputElem?.value || !timeInputElem?.value || !therapistSelectElem) {
                 return;
             }
 
             try {
                 const params = new URLSearchParams({
                     treatment: treatmentInput.value,
-                    appointment_date: dateInput.value,
-                    start_time: timeInput.value,
+                    appointment_date: dateInputElem.value,
+                    start_time: timeInputElem.value,
                 });
 
                 const response = await fetch(`{{ route('booking.available-therapists') }}?${params.toString()}`, {
@@ -352,40 +537,49 @@
 
                 const data = await response.json();
 
-                therapistSelect.innerHTML = '';
+                therapistSelectElem.innerHTML = '<option value="">Select Therapist</option>';
 
                 if (!data.therapists || data.therapists.length === 0) {
                     const option = document.createElement('option');
                     option.value = '';
                     option.textContent = 'No therapist available';
-                    therapistSelect.appendChild(option);
-                    therapistSelect.disabled = true;
+                    therapistSelectElem.appendChild(option);
+                    therapistSelectElem.disabled = true;
                     return;
                 }
 
-                therapistSelect.disabled = false;
+                therapistSelectElem.disabled = false;
 
                 data.therapists.forEach(therapist => {
                     const option = document.createElement('option');
                     option.value = therapist.id;
                     option.textContent = therapist.name;
 
-                    if (Number(data.recommended_id) === Number(therapist.id)) {
+                    const oldTherapistId = "{{ old('therapist_id') }}";
+                    if (oldTherapistId && Number(oldTherapistId) === Number(therapist.id)) {
+                        option.selected = true;
+                    } else if (Number(data.recommended_id) === Number(therapist.id) && !oldTherapistId) {
                         option.selected = true;
                     }
 
-                    therapistSelect.appendChild(option);
+                    therapistSelectElem.appendChild(option);
                 });
 
-                therapistSelect.dispatchEvent(new Event('change'));
+                therapistSelectElem.dispatchEvent(new Event('change'));
             } catch (error) {
                 console.error('Failed to load available therapists:', error);
             }
         }
 
-        treatmentInput?.addEventListener('change', refreshAvailableTherapists);
-        dateInput?.addEventListener('change', refreshAvailableTherapists);
-        timeInput?.addEventListener('change', refreshAvailableTherapists);
+        if (treatmentSelect) treatmentSelect.addEventListener('change', refreshAvailableTherapists);
+        if (dateInput) dateInput.addEventListener('change', refreshAvailableTherapists);
+        if (startTimeInput) startTimeInput.addEventListener('change', refreshAvailableTherapists);
+
+        updateSummary();
+
+        if (treatmentSelect?.value && dateInput?.value && startTimeInput?.value) {
+            refreshAvailableTherapists();
+        }
     });
 </script>
 @endsection

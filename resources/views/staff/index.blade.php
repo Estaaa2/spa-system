@@ -168,7 +168,7 @@
                             </div>
                             <div>
                                 <label class="block mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                    Middle Name <span class="text-gray-400 font-normal">(optional)</span>
+                                    Middle Name <span class="font-normal text-gray-400">(optional)</span>
                                 </label>
                                 <input
                                     type="text"
@@ -215,14 +215,14 @@
                         </div>
                         <div>
                             <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                                Role <span class="text-red-500">*</span>
+                                Staff Assignment <span class="text-red-500">*</span>
                             </label>
                             <select
                                 name="roles"
                                 required
                                 class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
                             >
-                                <option value="">Select Role</option>
+                                <option value="">Assign Staff Role</option>
                                 <optgroup label="Spa Staff">
                                     <option value="therapist" {{ old('roles') == 'therapist' ? 'selected' : '' }}>Therapist</option>
                                     <option value="receptionist" {{ old('roles') == 'receptionist' ? 'selected' : '' }}>Receptionist</option>

@@ -717,69 +717,6 @@
 
 </div>
 
-<script>
-    function switchBranch(branchId) {
-        const button = event.target.closest('button');
-        const originalContent = button.innerHTML;
-        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        button.disabled = true;
-
-        fetch('/branch/switch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    branch_id: branchId
-                })
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    showSpaToast('Branch switched successfully', 'success');
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    showSpaToast(data.message || 'Failed to switch branch', 'error');
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showSpaToast('An error occurred. Please try again.', 'error');
-                button.innerHTML = originalContent;
-                button.disabled = false;
-            });
-    }
-
-    function sidebar() {
-        return {
-            open: false,
-            showLogoutModal: false,
-            operationsOpen: false,
-            peopleOpen: false,
-            managementOpen: false,
-            financeOpen: false,
-            insightsOpen: false,
-            branchesDropdown: false,
-            mobileBranchesOpen: false,
-            inventoryOpen: false,
-            settingsOpen: false,
-            selectedBranch: @json($currentBranch?->name ?? ($firstBranch?->name ?? 'Select Branch')),
-            selectedBranchId: @json($currentBranch?->id ?? ($firstBranch?->id ?? null)),
-        };
-    }
-
-    document.addEventListener('alpine:init', () => {
-        window.switchBranch = switchBranch;
-    });
-</script>
 
 <style>
     [x-cloak] {

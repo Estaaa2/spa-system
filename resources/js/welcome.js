@@ -53,12 +53,14 @@ function openProfileModal() {
     document.body.classList.add('overflow-hidden');
 
     setTimeout(() => {
-        window.profileMap.invalidateSize();
+        if (window.profileMap) {
+            window.profileMap.invalidateSize();
+        }
 
         // If user already has a pinned location, show it
         const savedLat = parseFloat(document.getElementById('latitude').value);
         const savedLng = parseFloat(document.getElementById('longitude').value);
-        if (savedLat && savedLng) {
+        if (savedLat && savedLng && window.profileMap) {
             window.profileMap.setView([savedLat, savedLng], 15);
             if (marker) window.profileMap.removeLayer(marker);
             marker = L.marker([savedLat, savedLng]).addTo(window.profileMap);
@@ -328,7 +330,12 @@ async function updateAvailableTimes() {
     const day = new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
 
     try {
-        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
+        const response = await fetch(`/operating-hours/${branchId}/${day}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const data = await response.json();
 
         if (data.is_closed) {
@@ -871,7 +878,12 @@ async function updateRescheduleAvailableTimes() {
     const day = new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
 
     try {
-        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
+        const response = await fetch(`/operating-hours/${branchId}/${day}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const data     = await response.json();
 
         if (data.is_closed) {
@@ -1048,7 +1060,6 @@ async function loadNearbySpas() {
 
         const fallback = document.body.dataset.fallbackImage ?? '';
 
-        // Find this section in loadNearbySpas function
         grid.innerHTML = data.map(spa => {
             const thumb = spa.photos?.[0] || fallback;
             const addr  = spa.address ?? '';
@@ -1079,7 +1090,6 @@ async function loadNearbySpas() {
                 </button>`;
         }).join('');
 
-        // Wire up the newly injected spa buttons
         grid.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
             btn.addEventListener('click', () => {
                 try {
@@ -1091,7 +1101,6 @@ async function loadNearbySpas() {
         section.classList.remove('hidden');
 
     } catch (err) {
-        // Silently fail — user just won't see the section
         console.warn('Nearby spas unavailable:', err);
     }
 }
@@ -1099,36 +1108,51 @@ async function loadNearbySpas() {
 document.addEventListener('DOMContentLoaded', loadNearbySpas);
 
 // =====================================================
-// MAP (For Profile Modal)
+// MAP (For Profile Modal) - FIXED with container check
 // =====================================================
 
-window.profileMap = L.map('map').setView([14.3715407, 120.9388733], 11);
+// Wait for DOM to be fully loaded before initializing map
+document.addEventListener('DOMContentLoaded', function() {
+    const mapContainer = document.getElementById('map');
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19
-}).addTo(window.profileMap);
+    if (mapContainer) {
+        // Initialize map only if container exists
+        window.profileMap = L.map('map').setView([14.3715407, 120.9388733], 11);
 
-let marker;
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(window.profileMap);
 
-window.profileMap.on('click', function (e) {
-    let lat = e.latlng.lat;
-    let lng = e.latlng.lng;
+        let marker;
 
-    if (marker) {
-        window.profileMap.removeLayer(marker);
-    }
+        window.profileMap.on('click', function (e) {
+            let lat = e.latlng.lat;
+            let lng = e.latlng.lng;
 
-    marker = L.marker([lat, lng]).addTo(window.profileMap);
+            if (marker) {
+                window.profileMap.removeLayer(marker);
+            }
 
-    document.getElementById('latitude').value = lat;
-    document.getElementById('longitude').value = lng;
+            marker = L.marker([lat, lng]).addTo(window.profileMap);
 
-    // reverse geocoding (optional)
-    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('address').value = data.display_name;
+            const latInput = document.getElementById('latitude');
+            const lngInput = document.getElementById('longitude');
+            if (latInput) latInput.value = lat;
+            if (lngInput) lngInput.value = lng;
+
+            // reverse geocoding (optional)
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+                .then(res => res.json())
+                .then(data => {
+                    const addressField = document.getElementById('address');
+                    if (addressField) addressField.value = data.display_name;
+                })
+                .catch(err => console.warn('Reverse geocoding failed:', err));
         });
+    } else {
+        console.log('Map container not found on this page - skipping map initialization');
+    }
 });
 
 // =====================================================
@@ -1214,32 +1238,28 @@ function showSpaToast(message, type = 'success') {
 function openRatingModal(bookingId, therapistName, spaName, branchName, branchLocation) {
     console.log('openRatingModal called', { bookingId, therapistName, spaName, branchName, branchLocation });
 
-    // Store the booking ID
-    document.getElementById('ratingBookingId').value = bookingId;
+    const ratingBookingId = document.getElementById('ratingBookingId');
+    const ratingTherapistName = document.getElementById('ratingTherapistName');
+    const ratingBranchLocation = document.getElementById('ratingBranchLocation');
 
-    // Display therapist name
-    document.getElementById('ratingTherapistName').innerText = therapistName;
+    if (ratingBookingId) ratingBookingId.value = bookingId;
+    if (ratingTherapistName) ratingTherapistName.innerText = therapistName;
 
-    // Display branch location instead of duplicate spa name
     const locationText = branchLocation || branchName || 'Branch location unavailable';
-    document.getElementById('ratingBranchLocation').innerText = locationText;
+    if (ratingBranchLocation) ratingBranchLocation.innerText = locationText;
 
-    // Reset rating stars
     resetStars();
 
-    // Clear previous comment
-    document.getElementById('ratingComment').value = '';
-    document.getElementById('ratingFeedback').value = '';
+    const ratingComment = document.getElementById('ratingComment');
+    const ratingFeedback = document.getElementById('ratingFeedback');
+    if (ratingComment) ratingComment.value = '';
+    if (ratingFeedback) ratingFeedback.value = '';
 
-    // Reset character counts
-    if (document.getElementById('ratingCommentCount')) {
-        document.getElementById('ratingCommentCount').textContent = '0';
-    }
-    if (document.getElementById('ratingFeedbackCount')) {
-        document.getElementById('ratingFeedbackCount').textContent = '0';
-    }
+    const commentCount = document.getElementById('ratingCommentCount');
+    const feedbackCount = document.getElementById('ratingFeedbackCount');
+    if (commentCount) commentCount.textContent = '0';
+    if (feedbackCount) feedbackCount.textContent = '0';
 
-    // Enable submit button
     const submitBtn = document.getElementById('ratingSubmitBtn');
     if (submitBtn) {
         submitBtn.disabled = false;
@@ -1247,7 +1267,6 @@ function openRatingModal(bookingId, therapistName, spaName, branchName, branchLo
         submitBtn.innerHTML = '<i class="mr-2 fa-solid fa-paper-plane"></i> Submit Rating';
     }
 
-    // Show modal
     const modal = document.getElementById('ratingModal');
     if (modal) {
         modal.classList.remove('hidden');
@@ -1294,10 +1313,10 @@ function setRating(rating) {
 }
 
 async function submitRating() {
-    const bookingId = document.getElementById('ratingBookingId').value;
-    const rating    = document.getElementById('selectedRating').value;
-    const comment   = document.getElementById('ratingComment').value;
-    const feedback  = document.getElementById('ratingFeedback').value;
+    const bookingId = document.getElementById('ratingBookingId')?.value;
+    const rating    = document.getElementById('selectedRating')?.value;
+    const comment   = document.getElementById('ratingComment')?.value || '';
+    const feedback  = document.getElementById('ratingFeedback')?.value || '';
 
     if (!rating || rating == 0) {
         showSpaToast('Please select a rating', 'error');
@@ -1305,18 +1324,19 @@ async function submitRating() {
     }
 
     const submitBtn = document.getElementById('ratingSubmitBtn');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+    }
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-        // Use web route (not /api/ratings) for web requests
         const response = await fetch('/ratings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
+                'X-CSRF-TOKEN': csrfToken || '',
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
@@ -1335,23 +1355,35 @@ async function submitRating() {
             loadAppointments();
         } else {
             showSpaToast(data.message || 'Failed to submit rating', 'error');
-            submitBtn.disabled  = false;
-            submitBtn.innerHTML = '<i class="mr-2 fa-solid fa-paper-plane"></i> Submit Rating';
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="mr-2 fa-solid fa-paper-plane"></i> Submit Rating';
+            }
         }
     } catch (error) {
         console.error('Error submitting rating:', error);
         showSpaToast('Network error. Please try again.', 'error');
-        submitBtn.disabled  = false;
-        submitBtn.innerHTML = '<i class="mr-2 fa-solid fa-paper-plane"></i> Submit Rating';
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="mr-2 fa-solid fa-paper-plane"></i> Submit Rating';
+        }
     }
 }
 
-document.getElementById('ratingComment')?.addEventListener('input', function () {
-    const el = document.getElementById('ratingCommentCount');
-    if (el) el.textContent = this.value.length;
-});
+// Add event listeners for rating inputs
+const ratingComment = document.getElementById('ratingComment');
+const ratingFeedback = document.getElementById('ratingFeedback');
 
-document.getElementById('ratingFeedback')?.addEventListener('input', function () {
-    const el = document.getElementById('ratingFeedbackCount');
-    if (el) el.textContent = this.value.length;
-});
+if (ratingComment) {
+    ratingComment.addEventListener('input', function () {
+        const el = document.getElementById('ratingCommentCount');
+        if (el) el.textContent = this.value.length;
+    });
+}
+
+if (ratingFeedback) {
+    ratingFeedback.addEventListener('input', function () {
+        const el = document.getElementById('ratingFeedbackCount');
+        if (el) el.textContent = this.value.length;
+    });
+}
