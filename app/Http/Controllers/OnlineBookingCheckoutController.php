@@ -9,6 +9,7 @@ use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -168,37 +169,52 @@ class OnlineBookingCheckoutController extends Controller
 
         $secretKey = env('PAYMONGO_SECRET_KEY');
 
-        $response = Http::withBasicAuth($secretKey, '')
-            ->acceptJson()
-            ->post('https://api.paymongo.com/v1/checkout_sessions', [
-                'data' => [
-                    'attributes' => [
-                        'send_email_receipt' => true,
-                        'show_description'   => true,
-                        'show_line_items'    => true,
-                        'description'        => '20% reservation fee for spa appointment',
-                        'line_items'         => [
-                            [
-                                'currency'    => 'PHP',
-                                'amount'      => (int) round($downpaymentAmount * 100),
-                                'name'        => $pending->bookable_name . ' Reservation Fee',
-                                'quantity'    => 1,
-                                'description' => '20% downpayment for appointment reservation',
+        //PAYMONGO API CALL
+        try {
+            $response = Http::withBasicAuth($secretKey, '')
+                ->timeout(15) // fail fast instead of hanging for 30s
+                ->acceptJson()
+                ->post('https://api.paymongo.com/v1/checkout_sessions', [
+                    'data' => [
+                        'attributes' => [
+                            'send_email_receipt' => true,
+                            'show_description'   => true,
+                            'show_line_items'    => true,
+                            'description'        => '20% reservation fee for spa appointment',
+                            'line_items'         => [
+                                [
+                                    'currency'    => 'PHP',
+                                    'amount'      => (int) round($downpaymentAmount * 100),
+                                    'name'        => $pending->bookable_name . ' Reservation Fee',
+                                    'quantity'    => 1,
+                                    'description' => '20% downpayment for appointment reservation',
+                                ],
+                            ],
+                            'payment_method_types' => ['gcash', 'paymaya'],
+                            'success_url' => route('bookings.online.payment.success') . '?reservation=' . $pending->id,
+                            'cancel_url'  => route('bookings.online.payment.cancel') . '?reservation=' . $pending->id,
+                            'metadata'    => [
+                                'reservation_id' => (string) $pending->id,
+                                'spa_id'         => (string) $pending->spa_id,
+                                'branch_id'      => (string) $pending->branch_id,
+                                'bookable_type'  => $pending->bookable_type,
+                                'bookable_id'    => (string) $pending->bookable_id,
                             ],
                         ],
-                        'payment_method_types' => ['gcash', 'paymaya'],
-                        'success_url' => route('bookings.online.payment.success') . '?reservation=' . $pending->id,
-                        'cancel_url'  => route('bookings.online.payment.cancel') . '?reservation=' . $pending->id,
-                        'metadata'    => [
-                            'reservation_id' => (string) $pending->id,
-                            'spa_id'         => (string) $pending->spa_id,
-                            'branch_id'      => (string) $pending->branch_id,
-                            'bookable_type'  => $pending->bookable_type,
-                            'bookable_id'    => (string) $pending->bookable_id,
-                        ],
                     ],
-                ],
+                ]);
+
+        } catch (ConnectionException $e) {
+            // DNS timeout or network failure reaching PayMongo
+            $pending->update([
+                'payment_status'     => 'failed',
+                'reservation_status' => 'failed',
             ]);
+
+            return back()
+                ->with('booking_error', 'Unable to connect to the payment gateway. Please check your connection and try again.')
+                ->withInput();
+        }
 
         if (!$response->successful()) {
             $pending->update([

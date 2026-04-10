@@ -254,7 +254,7 @@
     <div id="mobile-menu" class="hidden bg-[#F6EFE6]/95 border-t border-black/10 shadow-lg md:hidden">
         <div class="px-3 pt-3 pb-5 space-y-2">
             <a href="{{ url('/') }}"
-               class="block px-4 py-3 rounded-xl text-base font-medium transition
+               class="block px-4 py-3 rounded-xl text-sm font-medium transition
                {{ request()->is('/') ? 'bg-white/70 text-[#6F5430] ring-1 ring-black/5' : 'text-gray-700 hover:bg-white/60' }}">
                 Home
             </a>
@@ -264,10 +264,12 @@
                 <a href="{{ route('register.business') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Join as a Partner</a>
             @else
                 @role('customer')
-                    <a href="#" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Profile</a>
+                    <a href="#" onclick="openAppointmentsModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">My Appointments</a>
+                    <a href="#" onclick="openScheduleModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">My Schedule</a>
+                    <a href="#" onclick="openProfileModal();" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">Profile</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit" class="block w-full px-4 py-3 text-base font-medium text-left rounded-xl hover:bg-white/60">
+                        <button type="submit" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
                             Logout
                         </button>
                     </form>

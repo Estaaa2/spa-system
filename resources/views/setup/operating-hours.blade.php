@@ -116,7 +116,7 @@
                         </div>
                     @endforeach
 
-                    {{-- 📝 HELPFUL NOTE - Placed in the empty space below the grid --}}
+                    <!-- HELPFUL NOTE - Placed in the empty space below the grid -->
                     <div class="col-span-1 mt-2 md:col-span-2">
                         <div class="flex items-center justify-center gap-3 p-3 border bg-amber-50/50 rounded-xl border-amber-200/50">
                             <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
