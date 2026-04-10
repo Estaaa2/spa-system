@@ -1,585 +1,614 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-6 mx-auto space-y-6 max-w-7xl">
+<div class="mx-auto max-w-7xl">
 
-         <x-page-header
+    <div class="p-6">
+        <x-page-header
             title="Client Bookings"
             subtitle="Schedule and manage customer appointments."
         />
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {{-- ============================================================
+             CONTEXT BANNER — Walk-in / Phone booking clarification
+             ============================================================ --}}
+        <div class="flex items-start gap-3 p-4 mb-6 border rounded-lg bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-700">
+            <div class="flex-shrink-0 mt-0.5">
+                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">This form is for in-branch use only</p>
+                <p class="mt-0.5 text-sm text-amber-700 dark:text-amber-400">
+                    Use this to book appointments for <strong>walk-in customers</strong> who arrived at the branch, or for customers who
+                    <strong>called ahead</strong> using the branch contact number. Online customer bookings are handled separately through the customer portal.
+                </p>
+            </div>
+        </div>
 
-        <!-- Booking Form -->
-        <div class="lg:col-span-2">
-            <div class="h-full p-6 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
-                <h2 class="mb-2 text-lg font-semibold text-gray-800 dark:text-white">Appointment Details</h2>
-                <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">Fill in all required information to schedule an appointment</p>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <!-- Booking Form -->
+            <div class="lg:col-span-2">
+                <div class="h-full p-6 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
 
-                <form action="{{ route('bookings.store') }}" method="POST" id="booking-form">
-                    @csrf
+                    <div class="flex items-center justify-between mb-1">
+                        <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Appointment Details</h2>
 
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <!-- Service Type -->
-                        <div>
-                            <label for="service_type" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Service Type</label>
-                            <select id="service_type" name="service_type"
-                                class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
-                                <option value="in_branch" {{ old('service_type') == 'in_branch' ? 'selected' : '' }}>In Branch</option>
-                                <option value="in_home" {{ old('service_type') == 'in_home' ? 'selected' : '' }}>In Home</option>
-                            </select>
-                        </div>
-
-                        <!-- Treatment / Package -->
-                        <div>
-                            <label for="treatment" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Select Treatment / Package</label>
-                            <select id="treatment" name="treatment"
-                                class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
-                                <option value="" disabled selected>Select Treatment or Package</option>
-                                @foreach($treatments as $t)
-                                    <option value="treatment_{{ $t->id }}" data-duration="{{ $t->duration }}" {{ old('treatment') == 'treatment_'.$t->id ? 'selected' : '' }}>
-                                        Treatment: {{ $t->name }}
-                                    </option>
-                                @endforeach
-                                @foreach($packages as $p)
-                                    <option value="package_{{ $p->id }}" data-duration="{{ $p->duration }}" {{ old('treatment') == 'package_'.$p->id ? 'selected' : '' }}>
-                                        Package: {{ $p->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <!-- Therapist -->
-                        <div>
-                            <label for="therapist_id" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Therapist</label>
-                            <select id="therapist_id" name="therapist_id"
-                                class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
-                                <option value="">Select Therapist</option>
-                                @foreach($therapists as $therapist)
-                                    <option value="{{ $therapist->id }}" {{ old('therapist_id') == $therapist->id ? 'selected' : '' }}>{{ $therapist->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <!-- Customer Phone -->
-                        <div>
-                            <label for="customer_phone" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Phone Number</label>
-                            <input type="tel" id="customer_phone" name="customer_phone" placeholder="Enter phone number" maxlength="11" pattern="^09\d{9}$"
-                                value="{{ old('customer_phone') }}"
-                                class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
-                        </div>
-                    </div>
-
-                    <!-- Customer Name -->
-                    <div class="mt-4">
-                        <label for="customer_name" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Full Name</label>
-                        <input type="text" id="customer_name" name="customer_name" placeholder="Enter full name"
-                            value="{{ old('customer_name') }}"
-                            class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
-                    </div>
-
-                    <!-- Customer Address -->
-                    <div class="mt-4" id="customer_address_container" style="{{ old('service_type') == 'in_home' ? 'display: block;' : 'display: none;' }}">
-                        <label for="customer_address" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Address</label>
-                        <input type="text" id="customer_address" name="customer_address" placeholder="Enter address"
-                            value="{{ old('customer_address') }}"
-                            class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent">
-                    </div>
-
-                    <!-- Customer Email -->
-                    <div class="mt-4">
-                        <label for="customer_email" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Email</label>
-                        <input type="email" id="customer_email" name="customer_email" placeholder="Enter email"
-                            value="{{ old('customer_email') }}"
-                            class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
-                    </div>
-
-                    <!-- Appointment Date & Time -->
-                    <div class="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2">
-                        <div>
-                            <label for="appointment_date" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Appointment Date</label>
-                            <input type="date" id="appointment_date" name="appointment_date"
-                                value="{{ old('appointment_date') }}"
-                                class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent" required>
-                        </div>
-                        <div>
-                            <label for="start_time" class="block mb-2 text-sm font-medium text-gray-800 dark:text-white">Start Time</label>
-                            <input type="time" id="start_time" name="start_time"
-                                value="{{ old('start_time') }}"
-                                class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent"
-                                required>
-                            <p class="mt-1 text-xs text-gray-500" id="time-note"></p>
-                        </div>
-                    </div>
-
-                    {{-- Status is always 'reserved' on creation; automated from there --}}
-                    <input type="hidden" name="status" value="reserved">
-
-                    <div class="mt-8">
-                        <button type="submit" class="w-full px-6 py-3 font-semibold text-white transition-all duration-200 bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg hover:opacity-90 focus:ring-4 focus:ring-[#8B7355]/50">
-                            RESERVE BOOKING
+                        {{-- Walk-in Quick Fill Button --}}
+                        <button type="button" id="walkinFillBtn"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-lg
+                                   bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:opacity-90 transition focus:ring-2 focus:ring-[#8B7355]/50">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Walk-in Now
                         </button>
                     </div>
-                </form>
+                    <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+                        Fill in all required information. For walk-in customers, click <strong>Walk-in Now</strong> to auto-fill today's date and current time.
+                    </p>
+
+                    <form action="{{ route('bookings.store') }}" method="POST" id="bookingForm">
+                        @csrf
+
+                        {{-- Closed-day error banner (shown by JS when branch is closed on selected date) --}}
+                        <div id="closedDayError"
+                             class="hidden items-start gap-2 p-3 mb-4 text-sm text-red-700 border rounded-lg bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400">
+                            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>
+                            </svg>
+                            <span id="closedDayErrorText">The branch is closed on the selected day.</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                            {{-- Service Type --}}
+                            <div>
+                                <label for="service_type" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
+                                    Service Type <span class="text-red-500">*</span>
+                                </label>
+                                <select id="service_type" name="service_type"
+                                    class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                           {{ $errors->has('service_type') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}">
+                                    <option value="in_branch" {{ old('service_type', 'in_branch') === 'in_branch' ? 'selected' : '' }}>In Branch</option>
+                                    <option value="in_home"   {{ old('service_type') === 'in_home' ? 'selected' : '' }}>In Home</option>
+                                </select>
+                                @error('service_type')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            {{-- Treatment / Package --}}
+                            <div>
+                                <label for="treatment" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
+                                    Treatment / Package <span class="text-red-500">*</span>
+                                </label>
+                                <select id="treatment" name="treatment"
+                                    class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                           {{ $errors->has('treatment') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}">
+                                    <option value="" disabled {{ old('treatment') ? '' : 'selected' }}>Select Treatment or Package</option>
+                                    @foreach($treatments as $t)
+                                        <option value="treatment_{{ $t->id }}"
+                                                data-duration="{{ $t->duration }}"
+                                                {{ old('treatment') === 'treatment_'.$t->id ? 'selected' : '' }}>
+                                            Treatment: {{ $t->name }}
+                                        </option>
+                                    @endforeach
+                                    @foreach($packages as $p)
+                                        <option value="package_{{ $p->id }}"
+                                                data-duration="{{ $p->duration ?? $p->total_duration }}"
+                                                {{ old('treatment') === 'package_'.$p->id ? 'selected' : '' }}>
+                                            Package: {{ $p->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('treatment')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            {{-- Therapist --}}
+                            <div>
+                                <label for="therapist_id" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
+                                    Therapist <span class="text-red-500">*</span>
+                                </label>
+                                <select id="therapist_id" name="therapist_id"
+                                    class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                           {{ $errors->has('therapist_id') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}">
+                                    @foreach($therapists as $therapist)
+                                        <option value="{{ $therapist->id }}"
+                                                {{ old('therapist_id') == $therapist->id ? 'selected' : '' }}>
+                                            {{ $therapist->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('therapist_id')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                                <p id="therapistHint" class="hidden mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                    No therapist available for the selected time slot.
+                                </p>
+                            </div>
+
+                            {{-- Customer Phone --}}
+                            <div>
+                                <label for="customer_phone" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
+                                    Phone Number <span class="text-red-500">*</span>
+                                </label>
+                                <input type="tel" id="customer_phone" name="customer_phone"
+                                    value="{{ old('customer_phone') }}"
+                                    placeholder="09xxxxxxxxx" maxlength="11" pattern="^09\d{9}$"
+                                    class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                           {{ $errors->has('customer_phone') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}"
+                                    required>
+                                @error('customer_phone')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        {{-- Customer Name --}}
+                        <div class="mt-4">
+                            <label for="customer_name" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
+                                Full Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="customer_name" name="customer_name"
+                                value="{{ old('customer_name') }}"
+                                placeholder="Enter customer's full name"
+                                class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                       {{ $errors->has('customer_name') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}"
+                                required>
+                            @error('customer_name')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Customer Address (in_home only) --}}
+                        <div class="mt-4" id="customer_address_container"
+                             style="{{ old('service_type') === 'in_home' ? '' : 'display: none;' }}">
+                            <label for="customer_address" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
+                                Address <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="customer_address" name="customer_address"
+                                value="{{ old('customer_address') }}"
+                                placeholder="Enter customer's full address"
+                                class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                       {{ $errors->has('customer_address') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}"
+                                {{ old('service_type') === 'in_home' ? 'required' : '' }}>
+                            @error('customer_address')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Customer Email --}}
+                        <div class="mt-4">
+                            <label for="customer_email" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
+                                Email <span class="text-red-500">*</span>
+                            </label>
+                            <input type="email" id="customer_email" name="customer_email"
+                                value="{{ old('customer_email') }}"
+                                placeholder="Enter customer's email address"
+                                class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                       {{ $errors->has('customer_email') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}"
+                                required>
+                            @error('customer_email')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Date & Time --}}
+                        <div class="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2">
+
+                            {{-- Appointment Date --}}
+                            <div>
+                                <label for="appointment_date" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
+                                    Appointment Date <span class="text-red-500">*</span>
+                                </label>
+                                <input type="date" id="appointment_date" name="appointment_date"
+                                    value="{{ old('appointment_date') }}"
+                                    min="{{ date('Y-m-d') }}"
+                                    class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                           {{ $errors->has('appointment_date') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}"
+                                    required>
+                                @error('appointment_date')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            {{-- Start Time --}}
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label for="start_time" class="text-sm font-medium text-gray-800 dark:text-white">
+                                        Start Time <span class="text-red-500">*</span>
+                                    </label>
+                                    <span id="operatingHoursHint" class="text-xs text-gray-400 dark:text-gray-500"></span>
+                                </div>
+                                <input type="time" id="start_time" name="start_time"
+                                    value="{{ old('start_time') }}"
+                                    class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
+                                           {{ $errors->has('start_time') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}"
+                                    required>
+                                {{-- Server-side error --}}
+                                @error('start_time')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                                {{-- Client-side time range error (shown by JS) --}}
+                                <p id="timeRangeError" class="hidden mt-1 text-xs text-red-600 dark:text-red-400"></p>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="status" value="reserved">
+
+                        <div class="mt-8">
+                            <button type="submit" id="submitBtn"
+                                class="w-full px-6 py-3 font-semibold text-white transition-all duration-200 bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg hover:opacity-90 focus:ring-4 focus:ring-[#8B7355]/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                RESERVE BOOKING
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </div>
 
-        <!-- Appointment Summary -->
-        <div>
-            <div class="h-full p-6 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
-                <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Appointment Summary</h2>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Review your booking details</p>
-                </div>
-
-                <div class="space-y-4">
-                    <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Service Type</p>
-                        <p id="summary-service" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
+            <!-- Appointment Summary -->
+            <div>
+                <div class="h-full p-6 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-800 dark:border-gray-700">
+                    <div class="mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Appointment Summary</h2>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Review your booking details</p>
                     </div>
 
-                    <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Treatment</p>
-                        <p id="summary-treatment" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
-                    </div>
-
-                    <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Therapist</p>
-                        <p id="summary-therapist" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-4">
                         <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Date</p>
-                            <p id="summary-date" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Service Type</p>
+                            <p id="summary-service" class="text-base font-semibold text-gray-800 dark:text-white">—</p>
                         </div>
-
                         <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Time</p>
-                            <p id="summary-time" class="text-lg font-semibold text-gray-800 dark:text-white"></p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Treatment</p>
+                            <p id="summary-treatment" class="text-base font-semibold text-gray-800 dark:text-white">—</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Therapist</p>
+                            <p id="summary-therapist" class="text-base font-semibold text-gray-800 dark:text-white">—</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Date</p>
+                                <p id="summary-date" class="text-base font-semibold text-gray-800 dark:text-white">—</p>
+                            </div>
+                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Time</p>
+                                <p id="summary-time" class="text-base font-semibold text-gray-800 dark:text-white">—</p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Quick Stats -->
-                <div class="pt-6 mt-8 border-t border-gray-200 dark:border-gray-700">
-                    <h3 class="mb-4 text-sm font-semibold text-gray-500 dark:text-gray-400">Booking Status</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-600 dark:text-gray-300">Available Slots</span>
-                            <span class="text-sm font-semibold text-gray-800 dark:text-white">12</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-600 dark:text-gray-300">Today's Bookings</span>
-                            <span class="text-sm font-semibold text-gray-800 dark:text-white">8</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-600 dark:text-gray-300">Waiting Time</span>
-                            <span class="text-sm font-semibold text-gray-800 dark:text-white">15 min</span>
+                    {{-- Booking source badge --}}
+                    <div class="pt-5 mt-6 border-t border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-200 dark:ring-amber-700">
+                            <svg class="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <p class="text-xs font-medium text-amber-700 dark:text-amber-400">
+                                Staff-created booking (walk-in / phone)
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+
+        </div>{{-- end grid --}}
+    </div>{{-- end p-6 --}}
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const branchId = "{{ Auth::user()->branch_id ?? '' }}";
-        const startTimeInput = document.getElementById('start_time');
-        const dateInput = document.getElementById('appointment_date');
-        const timeNote = document.getElementById('time-note');
+document.addEventListener('DOMContentLoaded', function () {
 
-        // Only show warning if no branch ID, but don't block functionality
-        if (!branchId) {
-            console.warn('No branch ID found for user - operating hours feature disabled');
-            if (timeNote) {
-                timeNote.textContent = 'Note: Operating hours validation is currently unavailable.';
-                timeNote.classList.add('text-yellow-500');
-            }
-            if (startTimeInput) {
-                startTimeInput.disabled = false;
-                startTimeInput.removeAttribute('min');
-                startTimeInput.removeAttribute('max');
-            }
-            // Still allow booking without operating hours validation
-            return;
+    // =====================================================
+    // CONSTANTS
+    // =====================================================
+    const branchId        = "{{ Auth::user()->currentBranchId() ?? Auth::user()->branch_id }}";
+    const dateInput       = document.getElementById('appointment_date');
+    const timeInput       = document.getElementById('start_time');
+    const serviceType     = document.getElementById('service_type');
+    const treatmentSelect = document.getElementById('treatment');
+    const therapistSelect = document.getElementById('therapist_id');
+    const submitBtn       = document.getElementById('submitBtn');
+    const timeRangeError  = document.getElementById('timeRangeError');
+    const closedDayError  = document.getElementById('closedDayError');
+    const closedDayText   = document.getElementById('closedDayErrorText');
+    const hoursHint       = document.getElementById('operatingHoursHint');
+    const therapistHint   = document.getElementById('therapistHint');
+    const addressContainer = document.getElementById('customer_address_container');
+    const addressInput    = document.getElementById('customer_address');
+
+    let openingTime = null; // "HH:MM" — populated after date selection
+    let closingTime = null;
+
+    // =====================================================
+    // HELPERS
+    // =====================================================
+    function todayString() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    }
+
+    function nowTimeString() {
+        const now = new Date();
+        return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    }
+
+    function formatTime12(hhmm) {
+        if (!hhmm) return '';
+        const [h, m] = hhmm.split(':').map(Number);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
+    }
+
+    function setFieldError(input, hasError) {
+        if (!input) return;
+        if (hasError) {
+            input.classList.add('border-red-400', 'bg-red-50', 'dark:bg-red-900/20');
+            input.classList.remove('border-gray-300', 'dark:border-gray-600');
+        } else {
+            input.classList.remove('border-red-400', 'bg-red-50', 'dark:bg-red-900/20');
+            input.classList.add('border-gray-300', 'dark:border-gray-600');
         }
+    }
 
-        // Set minimum date to today
-        const today = new Date().toISOString().split('T')[0];
-        if (dateInput) {
-            dateInput.min = today;
-        }
+    // =====================================================
+    // WALK-IN QUICK FILL
+    // =====================================================
+    document.getElementById('walkinFillBtn')?.addEventListener('click', function () {
+        dateInput.value = todayString();
+        // Trigger operating hours fetch first, then set current time
+        updateOperatingHours().then(() => {
+            timeInput.value = nowTimeString();
+            validateTimeRange();
+            updateSummary();
+            refreshAvailableTherapists();
+        });
+    });
 
-        // Function to set min/max attributes on time input based on operating hours
-        async function setTimeConstraints() {
-            if (!dateInput.value) {
-                if (startTimeInput) {
-                    startTimeInput.disabled = true;
-                    startTimeInput.placeholder = "Select date first";
-                }
-                if (timeNote) timeNote.textContent = 'Please select a date first';
+    // =====================================================
+    // OPERATING HOURS FETCH
+    // =====================================================
+    async function updateOperatingHours() {
+        if (!dateInput.value || !branchId) return;
+
+        const day = new Date(dateInput.value + 'T00:00:00')
+            .toLocaleDateString('en-US', { weekday: 'long' });
+
+        try {
+            const res  = await fetch(`/operating-hours/${branchId}/${day}`);
+            const data = await res.json();
+
+            if (data.is_closed) {
+                openingTime = null;
+                closingTime = null;
+                timeInput.value    = '';
+                timeInput.disabled = true;
+                timeInput.removeAttribute('min');
+                timeInput.removeAttribute('max');
+                closedDayError.classList.remove('hidden');
+                closedDayError.classList.add('flex');
+                closedDayText.textContent = `The branch is closed on ${day}s. Please select a different date.`;
+                setFieldError(dateInput, true);
+                setFieldError(timeInput, true);
+                hoursHint.textContent = '';
+                submitBtn.disabled = true;
                 return;
             }
 
-            const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
+            // Branch is open
+            openingTime = data.opening_time?.slice(0,5) ?? null;
+            closingTime = data.closing_time?.slice(0,5) ?? null;
 
-            try {
-                const response = await fetch(`/operating-hours/${branchId}/${day}`);
+            timeInput.disabled = false;
+            if (openingTime) timeInput.min = openingTime;
+            if (closingTime) timeInput.max = closingTime;
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+            closedDayError.classList.add('hidden');
+            closedDayError.classList.remove('flex');
+            setFieldError(dateInput, false);
+            hoursHint.textContent = openingTime && closingTime
+                ? `${formatTime12(openingTime)} – ${formatTime12(closingTime)}`
+                : '';
 
-                const data = await response.json();
+            submitBtn.disabled = false;
 
-                if (data.is_closed) {
-                    if (startTimeInput) {
-                        startTimeInput.disabled = true;
-                        startTimeInput.value = '';
-                    }
-                    if (timeNote) {
-                        timeNote.textContent = 'The spa is closed on ' + day + 's. Please select another date.';
-                        timeNote.classList.add('text-red-500');
-                        timeNote.classList.remove('text-gray-500');
-                    }
-                    return;
-                }
+            if (timeInput.value) validateTimeRange();
 
-                // Set min and max attributes
-                if (startTimeInput) {
-                    startTimeInput.min = data.opening_time;
-                    startTimeInput.max = data.closing_time;
-                    startTimeInput.disabled = false;
-                }
-
-                // Get treatment duration for additional validation
-                const treatmentSelect = document.getElementById('treatment');
-                let duration = 60;
-                if (treatmentSelect && treatmentSelect.selectedOptions[0] && treatmentSelect.selectedOptions[0].dataset.duration) {
-                    duration = parseInt(treatmentSelect.selectedOptions[0].dataset.duration);
-                }
-
-                if (timeNote) {
-                    timeNote.textContent = `Operating hours: ${formatTimeDisplay(data.opening_time)} - ${formatTimeDisplay(data.closing_time)} | Treatment duration: ${duration} minutes`;
-                    timeNote.classList.remove('text-red-500');
-                    timeNote.classList.add('text-gray-500');
-                }
-
-                if (startTimeInput && startTimeInput.value) {
-                    validateSelectedTime(data.opening_time, data.closing_time);
-                }
-
-            } catch (error) {
-                console.error('Error fetching operating hours:', error);
-                // Don't disable the time input, just show warning
-                if (startTimeInput) {
-                    startTimeInput.disabled = false;
-                    startTimeInput.removeAttribute('min');
-                    startTimeInput.removeAttribute('max');
-                }
-                if (timeNote) {
-                    timeNote.textContent = 'Unable to load operating hours. You can still proceed with booking.';
-                    timeNote.classList.add('text-yellow-500');
-                }
-            }
+        } catch (err) {
+            console.error('Failed to fetch operating hours:', err);
         }
+    }
 
-        function validateSelectedTime(openingTime, closingTime) {
-            if (!startTimeInput) return true;
-
-            const selectedTime = startTimeInput.value;
-            if (!selectedTime) return true;
-
-            if (selectedTime < openingTime) {
-                startTimeInput.setCustomValidity(`Start time must be at or after ${formatTimeDisplay(openingTime)}`);
-                startTimeInput.reportValidity();
-                return false;
-            }
-
-            if (selectedTime > closingTime) {
-                startTimeInput.setCustomValidity(`Start time must be at or before ${formatTimeDisplay(closingTime)}`);
-                startTimeInput.reportValidity();
-                return false;
-            }
-
-            const treatmentSelect = document.getElementById('treatment');
-            let duration = 60;
-            if (treatmentSelect && treatmentSelect.selectedOptions[0] && treatmentSelect.selectedOptions[0].dataset.duration) {
-                duration = parseInt(treatmentSelect.selectedOptions[0].dataset.duration);
-            }
-
-            const [selectedHour, selectedMinute] = selectedTime.split(':').map(Number);
-            const [closeHour, closeMinute] = closingTime.split(':').map(Number);
-
-            const selectedDate = new Date();
-            selectedDate.setHours(selectedHour, selectedMinute, 0);
-
-            const closeDate = new Date();
-            closeDate.setHours(closeHour, closeMinute, 0);
-
-            const endDate = new Date(selectedDate.getTime() + duration * 60000);
-
-            if (endDate > closeDate) {
-                startTimeInput.setCustomValidity(`This appointment would end after closing time (${formatTimeDisplay(closingTime)}). Please select an earlier time.`);
-                startTimeInput.reportValidity();
-                return false;
-            }
-
-            startTimeInput.setCustomValidity('');
+    // =====================================================
+    // TIME RANGE VALIDATION (client-side)
+    // =====================================================
+    function validateTimeRange() {
+        const time = timeInput.value;
+        if (!time || !openingTime || !closingTime) {
+            timeRangeError.classList.add('hidden');
+            setFieldError(timeInput, false);
             return true;
         }
 
-        function formatTimeDisplay(time) {
-            if (!time) return '';
-            const [hours, minutes] = time.split(':').map(Number);
-            const period = hours >= 12 ? 'PM' : 'AM';
-            const displayHours = hours % 12 || 12;
-            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+        if (time < openingTime || time >= closingTime) {
+            const msg = `Time must be within operating hours: ${formatTime12(openingTime)} – ${formatTime12(closingTime)}.`;
+            timeRangeError.textContent = msg;
+            timeRangeError.classList.remove('hidden');
+            setFieldError(timeInput, true);
+            submitBtn.disabled = true;
+            return false;
         }
 
-        if (startTimeInput) {
-            startTimeInput.addEventListener('change', async function() {
-                if (!dateInput || !dateInput.value) {
-                    startTimeInput.setCustomValidity('Please select a date first');
-                    startTimeInput.reportValidity();
-                    return;
-                }
-
-                const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
-                try {
-                    const response = await fetch(`/operating-hours/${branchId}/${day}`);
-                    if (!response.ok) throw new Error('Failed to fetch');
-                    const data = await response.json();
-
-                    if (!data.is_closed) {
-                        validateSelectedTime(data.opening_time, data.closing_time);
-                    }
-                } catch (error) {
-                    console.error('Error validating time:', error);
-                }
-                updateSummary();
-            });
-        }
-
-        const treatmentSelect = document.getElementById('treatment');
-        if (treatmentSelect) {
-            treatmentSelect.addEventListener('change', async function() {
-                if (dateInput && dateInput.value && startTimeInput && startTimeInput.value && !startTimeInput.disabled) {
-                    const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
-                    try {
-                        const response = await fetch(`/operating-hours/${branchId}/${day}`);
-                        if (!response.ok) throw new Error('Failed to fetch');
-                        const data = await response.json();
-
-                        if (!data.is_closed) {
-                            validateSelectedTime(data.opening_time, data.closing_time);
-                        }
-                    } catch (error) {
-                        console.error('Error validating time:', error);
-                    }
-                }
-                if (dateInput && dateInput.value && timeNote) {
-                    const day = new Date(dateInput.value).toLocaleDateString('en-US', { weekday: 'long' });
-                    try {
-                        const response = await fetch(`/operating-hours/${branchId}/${day}`);
-                        if (!response.ok) throw new Error('Failed to fetch');
-                        const data = await response.json();
-
-                        if (!data.is_closed) {
-                            let duration = 60;
-                            if (treatmentSelect.selectedOptions[0] && treatmentSelect.selectedOptions[0].dataset.duration) {
-                                duration = parseInt(treatmentSelect.selectedOptions[0].dataset.duration);
-                            }
-                            timeNote.textContent = `Operating hours: ${formatTimeDisplay(data.opening_time)} - ${formatTimeDisplay(data.closing_time)} | Treatment duration: ${duration} minutes`;
-                        }
-                    } catch (error) {
-                        console.error('Error updating time note:', error);
-                    }
-                }
-                updateSummary();
-            });
-        }
-
-        if (dateInput) {
-            dateInput.addEventListener('change', function() {
-                setTimeConstraints();
-                updateSummary();
-            });
-        }
-
-        if (startTimeInput) {
-            startTimeInput.addEventListener('input', function() {
-                startTimeInput.setCustomValidity('');
-            });
-        }
-
-        if (dateInput && dateInput.value) {
-            setTimeConstraints();
-        }
-
-        const serviceType = document.getElementById('service_type');
-        const addressContainer = document.getElementById('customer_address_container');
-
-        if (serviceType && addressContainer) {
-            serviceType.addEventListener('change', function() {
-                if (this.value === 'in_home') {
-                    addressContainer.style.display = 'block';
-                    const customerAddress = document.getElementById('customer_address');
-                    if (customerAddress) customerAddress.required = true;
-                } else {
-                    addressContainer.style.display = 'none';
-                    const customerAddress = document.getElementById('customer_address');
-                    if (customerAddress) customerAddress.required = false;
-                }
-                updateSummary();
-            });
-        }
-
-        function updateSummary() {
-            const serviceTypeElem = document.getElementById('service_type');
-            const treatmentElem = document.getElementById('treatment');
-            const therapistElem = document.querySelector('select[name="therapist_id"]');
-            const dateInputElem = document.getElementById('appointment_date');
-            const timeInputElem = document.getElementById('start_time');
-
-            const summaryService = document.getElementById('summary-service');
-            if (summaryService) {
-                summaryService.textContent = (serviceTypeElem && serviceTypeElem.value && serviceTypeElem.value !== "")
-                    ? serviceTypeElem.options[serviceTypeElem.selectedIndex].text
-                    : "";
-            }
-
-            const summaryTreatment = document.getElementById('summary-treatment');
-            if (summaryTreatment) {
-                summaryTreatment.textContent = (treatmentElem && treatmentElem.value && treatmentElem.value !== "")
-                    ? treatmentElem.options[treatmentElem.selectedIndex].text
-                    : "";
-            }
-
-            const summaryTherapist = document.getElementById('summary-therapist');
-            if (summaryTherapist) {
-                summaryTherapist.textContent = (therapistElem && therapistElem.value && therapistElem.value !== "")
-                    ? therapistElem.options[therapistElem.selectedIndex].text
-                    : "";
-            }
-
-            const summaryDate = document.getElementById('summary-date');
-            if (summaryDate) {
-                if (dateInputElem && dateInputElem.value) {
-                    const date = new Date(dateInputElem.value);
-                    summaryDate.textContent = date.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                    });
-                } else {
-                    summaryDate.textContent = "";
-                }
-            }
-
-            const summaryTime = document.getElementById('summary-time');
-            if (summaryTime) {
-                if (timeInputElem && timeInputElem.value) {
-                    let startTime = timeInputElem.value;
-                    let duration = 0;
-
-                    if (treatmentElem && treatmentElem.selectedOptions[0] && treatmentElem.selectedOptions[0].dataset.duration) {
-                        duration = parseInt(treatmentElem.selectedOptions[0].dataset.duration) || 0;
-                    }
-
-                    const [hours, minutes] = startTime.split(':').map(Number);
-                    const startDate = new Date();
-                    startDate.setHours(hours, minutes);
-
-                    const endDate = new Date(startDate.getTime() + duration * 60000);
-
-                    const formatTime = date => {
-                        let h = date.getHours();
-                        const m = date.getMinutes().toString().padStart(2, '0');
-                        const ampm = h >= 12 ? 'PM' : 'AM';
-                        h = h % 12 || 12;
-                        return `${h}:${m} ${ampm}`;
-                    }
-
-                    summaryTime.textContent = `${formatTime(startDate)} - ${formatTime(endDate)}`;
-                } else {
-                    summaryTime.textContent = "";
-                }
+        // If booking for today, time must be in the future
+        if (dateInput.value === todayString()) {
+            const now  = new Date();
+            const [hh, mm] = time.split(':').map(Number);
+            const sel  = new Date(); sel.setHours(hh, mm, 0, 0);
+            if (sel <= now) {
+                timeRangeError.textContent = 'Please select a future time — this time has already passed today.';
+                timeRangeError.classList.remove('hidden');
+                setFieldError(timeInput, true);
+                submitBtn.disabled = true;
+                return false;
             }
         }
 
-        async function refreshAvailableTherapists() {
-            const treatmentInput = document.getElementById('treatment');
-            const dateInputElem = document.getElementById('appointment_date');
-            const timeInputElem = document.getElementById('start_time');
-            const therapistSelectElem = document.getElementById('therapist_id');
+        timeRangeError.classList.add('hidden');
+        setFieldError(timeInput, false);
+        submitBtn.disabled = false;
+        return true;
+    }
 
-            if (!treatmentInput?.value || !dateInputElem?.value || !timeInputElem?.value || !therapistSelectElem) {
+    // =====================================================
+    // ADDRESS FIELD TOGGLE
+    // =====================================================
+    function toggleAddress() {
+        const isHome = serviceType.value === 'in_home';
+        addressContainer.style.display = isHome ? '' : 'none';
+        if (addressInput) addressInput.required = isHome;
+    }
+
+    serviceType.addEventListener('change', toggleAddress);
+    toggleAddress(); // run on load in case old() set it to in_home
+
+    // =====================================================
+    // AVAILABLE THERAPISTS (dynamic refresh)
+    // =====================================================
+    async function refreshAvailableTherapists() {
+        if (!treatmentSelect.value || !dateInput.value || !timeInput.value) return;
+
+        try {
+            const params = new URLSearchParams({
+                treatment:        treatmentSelect.value,
+                appointment_date: dateInput.value,
+                start_time:       timeInput.value,
+            });
+
+            const res  = await fetch(`{{ route('booking.available-therapists') }}?${params}`, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json();
+
+            therapistSelect.innerHTML = '';
+            therapistHint.classList.add('hidden');
+
+            if (!data.therapists?.length) {
+                const opt   = document.createElement('option');
+                opt.value   = '';
+                opt.textContent = 'No therapist available for this slot';
+                therapistSelect.appendChild(opt);
+                therapistSelect.disabled = true;
+                therapistHint.classList.remove('hidden');
                 return;
             }
 
-            try {
-                const params = new URLSearchParams({
-                    treatment: treatmentInput.value,
-                    appointment_date: dateInputElem.value,
-                    start_time: timeInputElem.value,
-                });
+            therapistSelect.disabled = false;
+            data.therapists.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                if (Number(data.recommended_id) === Number(t.id)) opt.selected = true;
+                therapistSelect.appendChild(opt);
+            });
+            therapistSelect.dispatchEvent(new Event('change'));
 
-                const response = await fetch(`{{ route('booking.available-therapists') }}?${params.toString()}`, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    }
-                });
+        } catch (err) {
+            console.error('Therapist refresh failed:', err);
+        }
+    }
 
-                const data = await response.json();
+    // =====================================================
+    // SUMMARY PANEL UPDATE
+    // =====================================================
+    function updateSummary() {
+        const svcEl  = document.getElementById('summary-service');
+        const trtEl  = document.getElementById('summary-treatment');
+        const thrEl  = document.getElementById('summary-therapist');
+        const datEl  = document.getElementById('summary-date');
+        const timEl  = document.getElementById('summary-time');
 
-                therapistSelectElem.innerHTML = '<option value="">Select Therapist</option>';
+        svcEl.textContent  = serviceType.value
+            ? serviceType.options[serviceType.selectedIndex].text : '—';
 
-                if (!data.therapists || data.therapists.length === 0) {
-                    const option = document.createElement('option');
-                    option.value = '';
-                    option.textContent = 'No therapist available';
-                    therapistSelectElem.appendChild(option);
-                    therapistSelectElem.disabled = true;
-                    return;
-                }
+        trtEl.textContent  = treatmentSelect.value
+            ? treatmentSelect.options[treatmentSelect.selectedIndex].text : '—';
 
-                therapistSelectElem.disabled = false;
+        thrEl.textContent  = therapistSelect.value
+            ? therapistSelect.options[therapistSelect.selectedIndex]?.text ?? '—' : '—';
 
-                data.therapists.forEach(therapist => {
-                    const option = document.createElement('option');
-                    option.value = therapist.id;
-                    option.textContent = therapist.name;
-
-                    const oldTherapistId = "{{ old('therapist_id') }}";
-                    if (oldTherapistId && Number(oldTherapistId) === Number(therapist.id)) {
-                        option.selected = true;
-                    } else if (Number(data.recommended_id) === Number(therapist.id) && !oldTherapistId) {
-                        option.selected = true;
-                    }
-
-                    therapistSelectElem.appendChild(option);
-                });
-
-                therapistSelectElem.dispatchEvent(new Event('change'));
-            } catch (error) {
-                console.error('Failed to load available therapists:', error);
-            }
+        if (dateInput.value) {
+            datEl.textContent = new Date(dateInput.value + 'T00:00:00')
+                .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } else {
+            datEl.textContent = '—';
         }
 
-        if (treatmentSelect) treatmentSelect.addEventListener('change', refreshAvailableTherapists);
-        if (dateInput) dateInput.addEventListener('change', refreshAvailableTherapists);
-        if (startTimeInput) startTimeInput.addEventListener('change', refreshAvailableTherapists);
+        if (timeInput.value) {
+            const duration = parseInt(treatmentSelect.selectedOptions[0]?.dataset.duration) || 0;
+            const [hh, mm] = timeInput.value.split(':').map(Number);
+            const start    = new Date(); start.setHours(hh, mm, 0, 0);
+            const end      = new Date(start.getTime() + duration * 60000);
+            const fmt = d => {
+                let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
+                return `${h%12||12}:${m} ${h>=12?'PM':'AM'}`;
+            };
+            timEl.textContent = `${fmt(start)} – ${fmt(end)}`;
+        } else {
+            timEl.textContent = '—';
+        }
+    }
 
-        updateSummary();
-
-        if (treatmentSelect?.value && dateInput?.value && startTimeInput?.value) {
+    // =====================================================
+    // EVENT WIRING
+    // =====================================================
+    dateInput.addEventListener('change', () => {
+        updateOperatingHours().then(() => {
             refreshAvailableTherapists();
+            updateSummary();
+        });
+    });
+
+    timeInput.addEventListener('change', () => { validateTimeRange(); refreshAvailableTherapists(); updateSummary(); });
+    timeInput.addEventListener('input',  () => { validateTimeRange(); updateSummary(); });
+    treatmentSelect.addEventListener('change', () => { refreshAvailableTherapists(); updateSummary(); });
+    serviceType.addEventListener('change', updateSummary);
+    therapistSelect.addEventListener('change', updateSummary);
+
+    // Phone: digits only
+    document.getElementById('customer_phone')?.addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '').slice(0, 11);
+    });
+
+    // =====================================================
+    // INIT — if old() values were restored after a
+    // validation error, rebuild the operating hours state
+    // =====================================================
+    if (dateInput.value) {
+        updateOperatingHours().then(() => {
+            if (timeInput.value) validateTimeRange();
+            updateSummary();
+        });
+    } else {
+        updateSummary();
+    }
+
+    // =====================================================
+    // FORM SUBMIT GUARD
+    // =====================================================
+    document.getElementById('bookingForm').addEventListener('submit', function (e) {
+        if (!validateTimeRange()) {
+            e.preventDefault();
         }
     });
+});
 </script>
 @endsection

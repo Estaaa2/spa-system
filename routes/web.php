@@ -162,6 +162,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/bookings/online', [BookingController::class, 'storeOnline'])
         ->middleware('role:customer')
         ->name('bookings.online.store');
+
+    Route::get('/appointments/live-data', [BookingController::class, 'liveData'])
+        ->name('appointments.live-data');
 });
 
 Route::middleware(['auth'])->group(function () {

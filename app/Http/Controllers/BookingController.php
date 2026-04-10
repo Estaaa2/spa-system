@@ -210,7 +210,7 @@ class BookingController extends Controller
         ]);
 
         return redirect()
-            ->route('booking')
+            ->route('appointments.index')
             ->with('success', 'Booking reserved successfully!');
     }
 
@@ -870,4 +870,131 @@ class BookingController extends Controller
         return 0;
     }
 
+    public function liveData()
+    {
+        $user            = Auth::user();
+        $currentBranchId = $user->currentBranchId() ?? $user->branch_id;
+ 
+        $this->syncAutomaticStatuses($user->spa_id, $currentBranchId);
+ 
+        $baseQuery = Booking::with(['therapist', 'branch']);
+ 
+        if ($user->hasRole('owner')) {
+            $branchId = $user->currentBranchId();
+            $baseQuery->where('spa_id', $user->spa_id);
+            if ($branchId) {
+                $baseQuery->where('branch_id', $branchId);
+            }
+        } elseif ($user->hasRole('manager') || $user->hasRole('receptionist')) {
+            $branchId = $user->currentBranchId() ?? $user->branch_id;
+            $baseQuery->where('spa_id', $user->spa_id)
+                      ->where('branch_id', $branchId);
+        } elseif ($user->hasRole('therapist')) {
+            $baseQuery->where('spa_id', $user->spa_id)
+                      ->where('branch_id', $user->branch_id)
+                      ->where('therapist_id', $user->id);
+        }
+ 
+        $today = now()->toDateString();
+ 
+        $todayBase = (clone $baseQuery)
+            ->whereDate('appointment_date', $today)
+            ->whereIn('status', ['reserved', 'pending', 'ongoing']);
+ 
+        $upcomingBase = (clone $baseQuery)
+            ->whereDate('appointment_date', '>', $today)
+            ->whereIn('status', ['reserved', 'pending']);
+ 
+        $pendingAppointments  = (clone $todayBase)
+            ->where('status', 'pending')
+            ->orderBy('start_time')
+            ->get()
+            ->map(fn ($b) => $this->formatForLive($b));
+ 
+        $todayAppointments    = (clone $todayBase)
+            ->orderBy('start_time')
+            ->get()
+            ->map(fn ($b) => $this->formatForLive($b));
+ 
+        $upcomingAppointments = (clone $upcomingBase)
+            ->orderBy('appointment_date')
+            ->orderBy('start_time')
+            ->limit(25)
+            ->get()
+            ->map(fn ($b) => $this->formatForLive($b));
+ 
+        return response()->json([
+            'summary' => [
+                'today_total'     => (clone $todayBase)->count(),
+                'pending_today'   => (clone $todayBase)->where('status', 'pending')->count(),
+                'upcoming_total'  => (clone $upcomingBase)->count(),
+                'collected_today' => (clone $todayBase)->sum('amount_paid'),
+            ],
+            'pending_appointments'  => $pendingAppointments,
+            'today_appointments'    => $todayAppointments,
+            'upcoming_appointments' => $upcomingAppointments,
+            'server_time'           => now()->toIso8601String(),
+        ]);
+    }
+
+    private function formatForLive(Booking $b): array
+    {
+        $b = $this->decorateBooking($b);
+ 
+        // Resolve a human-readable treatment name in case the model
+        // does not expose a treatment_label accessor.
+        $treatmentLabel = $b->treatment_label
+            ?? (function () use ($b) {
+                if (str_starts_with((string) $b->treatment, 'treatment_')) {
+                    $id = (int) str_replace('treatment_', '', $b->treatment);
+                    $t  = Treatment::withoutGlobalScopes()->find($id);
+                    return $t ? $t->name : 'Unknown Treatment';
+                }
+                if (str_starts_with((string) $b->treatment, 'package_')) {
+                    $id = (int) str_replace('package_', '', $b->treatment);
+                    $p  = Package::withoutGlobalScopes()->find($id);
+                    return $p ? $p->name . ' (Package)' : 'Unknown Package';
+                }
+                return $b->treatment ?? '—';
+            })();
+ 
+        $serviceLabel = $b->service_type_label
+            ?? match ($b->service_type) {
+                'in_branch' => 'In Branch',
+                'in_home'   => 'In Home',
+                default     => ucfirst($b->service_type ?? ''),
+            };
+ 
+        return [
+            'id'                      => $b->id,
+            'customer_name'           => $b->customer_name           ?? 'Walk-in Customer',
+            'customer_email'          => $b->customer_email          ?? '',
+            'customer_phone'          => $b->customer_phone          ?? '',
+            'customer_address'        => $b->customer_address        ?? '',
+            'treatment'               => $b->treatment               ?? '',   // raw: "treatment_5"
+            'treatment_label'         => $treatmentLabel,
+            'service_type'            => $b->service_type            ?? '',
+            'service_type_label'      => $serviceLabel,
+            'booking_source'          => $b->booking_source          ?? '',
+            'start_time'              => $b->start_time,                      // raw HH:MM:SS
+            'end_time'                => $b->end_time,
+            'start_time_fmt'          => $b->start_time
+                                            ? \Carbon\Carbon::parse($b->start_time)->format('h:i A')
+                                            : '—',
+            'end_time_fmt'            => $b->end_time
+                                            ? \Carbon\Carbon::parse($b->end_time)->format('h:i A')
+                                            : '—',
+            'appointment_date'        => $b->appointment_date?->format('M d, Y'),
+            'appointment_date_raw'    => $b->appointment_date?->format('Y-m-d'),
+            'therapist_name'          => $b->therapist
+                                            ? trim($b->therapist->first_name . ' ' . $b->therapist->last_name)
+                                            : 'Not Assigned',
+            'therapist_id'            => $b->therapist_id,
+            'branch_id'               => $b->branch_id,
+            'status'                  => $b->status,
+            'resolved_total_amount'   => $b->resolved_total_amount   ?? 0,
+            'resolved_amount_paid'    => $b->resolved_amount_paid    ?? 0,
+            'resolved_balance_amount' => $b->resolved_balance_amount ?? 0,
+        ];
+    }
 }
