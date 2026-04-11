@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-6 space-y-6">
+<div class="p-6 mx-auto space-y-6 max-w-7xl">
     <x-page-header
         title="Edit Role — {{ $roleMeta['title'] }}"
         subtitle="Update what this role can access for the current branch."

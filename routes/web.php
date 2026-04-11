@@ -296,7 +296,9 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
     Route::middleware('branch.permission:edit branches')->group(function () {
         Route::get('/branches/{branch}/edit', [BranchController::class, 'edit'])->name('branches.edit');
-        Route::put('/branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
+        Route::put('/branches/{branch}/general', [BranchController::class, 'updateGeneral'])->name('branches.update.general');
+        Route::put('/branches/{branch}/hours',   [BranchController::class, 'updateHours'])->name('branches.update.hours');
+        Route::put('/branches/{branch}/profile', [BranchController::class, 'updateProfile'])->name('branches.update.profile');
     });
 
     Route::middleware('branch.permission:delete branches')->group(function () {

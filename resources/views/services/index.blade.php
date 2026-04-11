@@ -25,7 +25,7 @@
     $hasPackages = $packages->count() > 0;
 @endphp
 
-<div class="p-6">
+<div class="p-6 mx-auto space-y-6 max-w-7xl">
     <!-- Services Header -->
     <x-page-header
         title="Services"

@@ -1,8 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-6">
 
+<div class="p-6 mx-auto space-y-6 max-w-7xl">
     <x-page-header
         title="Spa Profile"
         subtitle="Manage your spa information and upload business verification documents."
