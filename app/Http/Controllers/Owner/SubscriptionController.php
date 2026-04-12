@@ -113,11 +113,6 @@ class SubscriptionController extends Controller
                         // Upgrade tier
                         $spa->update(['business_tier' => 'professional']);
 
-                        // Auto-list all branches
-                        foreach ($spa->branches as $branch) {
-                            $branch->profile?->update(['is_listed' => 1]);
-                        }
-
                         // ✅ Send confirmation email to owner
                         $ownerEmail = $spa->owner->email ?? null;
                         if ($ownerEmail) {
@@ -153,11 +148,6 @@ class SubscriptionController extends Controller
             $subscription->update(['expires_at' => now()]);
 
             $spa->update(['business_tier' => 'basic']);
-
-            $spa->load('branches.profile');
-            foreach ($spa->branches as $branch) {
-                $branch->profile?->update(['is_listed' => 0]);
-            }
         }
 
         return redirect()->route('owner.subscription.index')

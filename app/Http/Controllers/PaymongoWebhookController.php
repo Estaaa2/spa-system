@@ -62,10 +62,6 @@ class PaymongoWebhookController extends Controller
                 if ($spa) {
                     $spa->update(['business_tier' => 'professional']);
 
-                    foreach ($spa->branches as $branch) {
-                        $branch->profile?->update(['is_listed' => 1]);
-                    }
-
                     $ownerEmail = $spa->owner->email ?? null;
                     if ($ownerEmail) {
                         try {
