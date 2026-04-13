@@ -14,20 +14,33 @@ class RolePermissionSeeder extends Seeder
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         $permissions = [
-            // Dashboard
+            // ── Dashboard ─────────────────────────────────────────────────────
+            // view owner dashboard: kept in DB for backwards compat with any existing
+            // @can checks, but is NOT assigned to any role. Superseded by
+            // view business dashboard.
             'view owner dashboard',
             'view admin dashboard',
+            'view business dashboard',     // all business roles
 
-            // Appointments
+            // Dashboard widgets (controls what each role sees on the dashboard)
+            'view dashboard kpis',             // today/ongoing/pending/reserved stat cards
+            'view dashboard revenue',          // collected revenue, online vs walk-in, top service
+            'view dashboard timeline',         // full branch appointment timeline
+            'view dashboard therapist status', // therapist workload panel
+            'view dashboard alerts',           // late check-ins, cancellations, overloaded warnings
+            'view dashboard booking button',   // New Booking shortcut in dashboard header
+            'view dashboard my today',         // therapist's own personal schedule widget
+
+            // ── Appointments ──────────────────────────────────────────────────
             'book appointments',
             'view appointments',
             'edit appointments',
             'delete appointments',
 
-            // Schedule
+            // ── Schedule ──────────────────────────────────────────────────────
             'view schedule',
 
-            // Attendance & Leave
+            // ── Attendance & Leave ────────────────────────────────────────────
             'view attendance',
             'edit attendance',
             'view leave requests',
@@ -35,19 +48,19 @@ class RolePermissionSeeder extends Seeder
             'edit leave requests',
             'delete leave requests',
 
-            // Branches
+            // ── Branches ──────────────────────────────────────────────────────
             'view branches',
             'create branches',
             'edit branches',
             'delete branches',
 
-            // Staff
+            // ── Staff ─────────────────────────────────────────────────────────
             'view staff',
             'create staff',
             'edit staff',
             'delete staff',
 
-            // Services
+            // ── Services ──────────────────────────────────────────────────────
             'view services',
             'create treatments',
             'edit treatments',
@@ -56,12 +69,12 @@ class RolePermissionSeeder extends Seeder
             'edit packages',
             'delete packages',
 
-            // Reports / Decision Support
+            // ── Insights & Reports ────────────────────────────────────────────
             'view reports',
             'export reports',
             'view decision support',
 
-            // Inventory
+            // ── Inventory ─────────────────────────────────────────────────────
             'view inventory',
             'view inventory logs',
             'create inventory items',
@@ -73,12 +86,12 @@ class RolePermissionSeeder extends Seeder
             'delete product inventory',
             'view product logs',
 
-            // Staff-side Settings
+            // ── Staff-side Settings ───────────────────────────────────────────
             'edit own profile',
             'view spa profile',
             'edit spa profile',
 
-            // Admin-side System Management
+            // ── Admin-side System Management ──────────────────────────────────
             'view registered users',
             'edit registered users',
             'delete registered users',
@@ -91,8 +104,7 @@ class RolePermissionSeeder extends Seeder
             'edit admin profile',
             'manage system settings',
 
-            // HR
-            'view hr dashboard',
+            // ── HR (Workforce Suite) ──────────────────────────────────────────
             'view hiring',
             'create hiring',
             'edit hiring',
@@ -111,8 +123,7 @@ class RolePermissionSeeder extends Seeder
             'approve deployments',
             'delete deployments',
 
-            // Finance
-            'view finance dashboard',
+            // ── Finance (Finance Suite) ───────────────────────────────────────
             'view revenue',
             'view billing',
             'create billing',
@@ -122,18 +133,14 @@ class RolePermissionSeeder extends Seeder
             'edit finance inventory',
         ];
 
-        /**
-         * Optional:
-         * Uncomment this only after you have already updated your Blade/controllers/routes
-         * to the NEW permission names. Otherwise old pages using old permission names will break.
-         */
-        // Permission::whereNotIn('name', $permissions)->delete();
+        // Optional: uncomment to clean up stale permissions after all code has been updated
+        Permission::whereNotIn('name', $permissions)->delete();
 
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['name' => $perm]);
         }
 
-        // Roles
+        // ── Roles ─────────────────────────────────────────────────────────────
         $admin        = Role::firstOrCreate(['name' => 'admin']);
         $owner        = Role::firstOrCreate(['name' => 'owner']);
         $manager      = Role::firstOrCreate(['name' => 'manager']);
@@ -143,29 +150,34 @@ class RolePermissionSeeder extends Seeder
         $hr           = Role::firstOrCreate(['name' => 'hr']);
         $finance      = Role::firstOrCreate(['name' => 'finance']);
 
-        // Admin
+        // ── Admin ─────────────────────────────────────────────────────────────
         $admin->syncPermissions([
             'view admin dashboard',
-
             'view registered users',
             'edit registered users',
             'delete registered users',
-
             'view registered spas',
             'edit registered spas',
             'verify registered spas',
             'change spa subscriptions',
-
             'view system roles',
             'edit system roles',
-
             'edit admin profile',
             'manage system settings',
         ]);
 
-        // Owner
+        // ── Owner ─────────────────────────────────────────────────────────────
+        // Full visibility across all dashboard widgets, operations, HR, and finance.
+        // Note: view owner dashboard is intentionally excluded — view business dashboard
+        // is the correct permission going forward.
         $owner->syncPermissions([
-            'view owner dashboard',
+            'view business dashboard',
+            'view dashboard kpis',
+            'view dashboard revenue',
+            'view dashboard timeline',
+            'view dashboard therapist status',
+            'view dashboard alerts',
+            'view dashboard booking button',
 
             'book appointments',
             'view appointments',
@@ -208,13 +220,16 @@ class RolePermissionSeeder extends Seeder
             'create inventory items',
             'edit inventory items',
             'delete inventory items',
+            'view product inventory',
+            'create product inventory',
+            'edit product inventory',
+            'delete product inventory',
+            'view product logs',
 
             'edit own profile',
             'view spa profile',
             'edit spa profile',
 
-            // HR visibility / control
-            'view hr dashboard',
             'view hiring',
             'create hiring',
             'edit hiring',
@@ -233,8 +248,6 @@ class RolePermissionSeeder extends Seeder
             'approve deployments',
             'delete deployments',
 
-            // Finance visibility / control
-            'view finance dashboard',
             'view revenue',
             'view billing',
             'create billing',
@@ -244,8 +257,18 @@ class RolePermissionSeeder extends Seeder
             'edit finance inventory',
         ]);
 
-        // Manager
+        // ── Manager ───────────────────────────────────────────────────────────
+        // Operational + financial visibility. No branch/spa settings,
+        // no delete permissions on staff or services.
         $manager->syncPermissions([
+            'view business dashboard',
+            'view dashboard kpis',
+            'view dashboard revenue',
+            'view dashboard timeline',
+            'view dashboard therapist status',
+            'view dashboard alerts',
+            'view dashboard booking button',
+
             'book appointments',
             'view appointments',
             'edit appointments',
@@ -277,6 +300,9 @@ class RolePermissionSeeder extends Seeder
             'view inventory logs',
             'create inventory items',
             'edit inventory items',
+            'view product inventory',
+            'edit product inventory',
+            'view product logs',
 
             'edit own profile',
             'view spa profile',
@@ -284,8 +310,13 @@ class RolePermissionSeeder extends Seeder
             'view deployments',
         ]);
 
-        // Therapist
+        // ── Therapist ─────────────────────────────────────────────────────────
+        // Personal-only dashboard view: their own schedule widget only.
+        // No branch-wide data, no revenue, no booking creation.
         $therapist->syncPermissions([
+            'view business dashboard',
+            'view dashboard my today',
+
             'view appointments',
             'view schedule',
 
@@ -296,8 +327,16 @@ class RolePermissionSeeder extends Seeder
             'edit own profile',
         ]);
 
-        // Receptionist
+        // ── Receptionist ──────────────────────────────────────────────────────
+        // Operational focus: can book and see the timeline and alerts.
+        // No revenue data, no financial or HR information.
         $receptionist->syncPermissions([
+            'view business dashboard',
+            'view dashboard kpis',
+            'view dashboard timeline',
+            'view dashboard alerts',
+            'view dashboard booking button',
+
             'book appointments',
             'view appointments',
             'edit appointments',
@@ -313,9 +352,11 @@ class RolePermissionSeeder extends Seeder
             'edit own profile',
         ]);
 
-        // HR
+        // ── HR ────────────────────────────────────────────────────────────────
+        // People-focused. KPI cards for context only; no timeline, revenue, or alerts.
         $hr->syncPermissions([
-            'view hr dashboard',
+            'view business dashboard',
+            'view dashboard kpis',
 
             'view staff',
             'create staff',
@@ -356,17 +397,19 @@ class RolePermissionSeeder extends Seeder
             'edit own profile',
         ]);
 
-        // Finance
+        // ── Finance ───────────────────────────────────────────────────────────
+        // Financial focus: KPIs + revenue data. No operational widgets,
+        // no HR, no appointment management.
         $finance->syncPermissions([
-            'view finance dashboard',
+            'view business dashboard',
+            'view dashboard kpis',
+            'view dashboard revenue',
 
             'view revenue',
-
             'view billing',
             'create billing',
             'edit billing',
             'delete billing',
-
             'view finance inventory',
             'edit finance inventory',
 
@@ -376,7 +419,7 @@ class RolePermissionSeeder extends Seeder
             'edit own profile',
         ]);
 
-        // Customer
+        // ── Customer ──────────────────────────────────────────────────────────
         $customer->syncPermissions([]);
     }
 }

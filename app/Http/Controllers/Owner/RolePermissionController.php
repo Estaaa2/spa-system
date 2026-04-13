@@ -25,6 +25,8 @@ class RolePermissionController extends Controller
         'finance',
     ];
 
+    // ── Branch / suite helpers ────────────────────────────────────────────────
+
     private function getCurrentBranch(): Branch
     {
         $user = auth()->user();
@@ -35,15 +37,9 @@ class RolePermissionController extends Controller
             ->firstOrFail();
     }
 
-    /**
-     * Flexible suite checker so this controller still works
-     * even if your Spa model uses a slightly different method/column name.
-     */
     private function branchSuiteEnabled(): bool
     {
-        $branch = $this->getCurrentBranch();
-
-        return (bool) ($branch->has_workforce_finance_suite ?? false);
+        return (bool) ($this->getCurrentBranch()->has_workforce_finance_suite ?? false);
     }
 
     private function workforceEnabled(): bool
@@ -77,86 +73,49 @@ class RolePermissionController extends Controller
 
         if (!$this->workforceEnabled()) {
             $locked[] = [
-                'name' => 'hr',
-                'title' => 'HR',
-                'reason' => 'Locked until the Workforce suite is enabled for this spa.',
+                'name'   => 'hr',
+                'title'  => 'HR',
+                'reason' => 'Locked until the Workforce & Finance Suite is enabled for this branch.',
             ];
         }
 
         if (!$this->financeEnabled()) {
             $locked[] = [
-                'name' => 'finance',
-                'title' => 'Finance',
-                'reason' => 'Locked until the Finance suite is enabled for this spa.',
+                'name'   => 'finance',
+                'title'  => 'Finance',
+                'reason' => 'Locked until the Workforce & Finance Suite is enabled for this branch.',
             ];
         }
 
         return $locked;
     }
 
-    private function roleMeta(string $roleName): array
-    {
-        return match (Str::lower($roleName)) {
-            'owner' => [
-                'title' => 'Owner',
-                'description' => 'Business-level control for this branch.',
-                'icon' => 'fa-solid fa-crown',
-            ],
-            'manager' => [
-                'title' => 'Manager',
-                'description' => 'Supervises operations, staff flow, and branch activity.',
-                'icon' => 'fa-solid fa-user-tie',
-            ],
-            'receptionist' => [
-                'title' => 'Receptionist',
-                'description' => 'Handles bookings, front-desk flow, and customer records.',
-                'icon' => 'fa-solid fa-calendar-check',
-            ],
-            'therapist' => [
-                'title' => 'Therapist',
-                'description' => 'Handles schedules, appointments, and service delivery.',
-                'icon' => 'fa-solid fa-spa',
-            ],
-            'hr' => [
-                'title' => 'HR',
-                'description' => 'Handles hiring, attendance, interviews, and workforce records.',
-                'icon' => 'fa-solid fa-users-gear',
-            ],
-            'finance' => [
-                'title' => 'Finance',
-                'description' => 'Handles payroll, billing, revenue, and financial monitoring.',
-                'icon' => 'fa-solid fa-wallet',
-            ],
-            default => [
-                'title' => Str::headline($roleName),
-                'description' => 'Role settings for this branch.',
-                'icon' => 'fa-solid fa-user-shield',
-            ],
-        };
-    }
+    // ── Permission visibility ─────────────────────────────────────────────────
 
     private function shouldHidePermission(string $permissionName): bool
     {
         $name = Str::lower(trim($permissionName));
 
         $exactHidden = [
-            // admin/platform only
+            // Admin / platform — never configurable on the business side
             'view admin dashboard',
             'manage admin dashboard',
-            'view registered users',
-            'manage registered users',
-            'view registered spas',
-            'manage registered spas',
-            'manage spas',
-            'manage users',
-            'manage roles',
-            'manage settings',
+            'view customer dashboard',
+            'edit admin profile',
+            'manage system settings',
+            'change spa subscriptions',
 
-            // owner-only business pages that should not be delegated here
+            // Removed / legacy — superseded by view business dashboard
+            'view business dashboard',
             'view owner dashboard',
             'manage owner dashboard',
+            'view hr dashboard',
+            'view finance dashboard',
+
+            // Owner-only pages that should not be delegatable
             'view spa profile',
             'manage spa profile',
+            'edit spa profile',
             'view roles and permissions',
             'manage roles and permissions',
             'view role permissions',
@@ -171,128 +130,18 @@ class RolePermissionController extends Controller
             return true;
         }
 
-        if (Str::contains($name, ['admin ', ' platform', 'registered spa', 'registered user'])) {
+        if (Str::contains($name, [
+            'admin ',
+            ' platform',
+            'registered spa',
+            'registered user',
+            'system role',
+            'system setting',
+        ])) {
             return true;
         }
 
         return false;
-    }
-
-    private function permissionGroups(): array
-    {
-        return [
-            'dashboard' => [
-                'title' => 'Dashboard',
-                'description' => 'Access the branch summary and overview page.',
-                'icon' => 'fa-solid fa-chart-line',
-                'suite' => null,
-            ],
-            'appointments' => [
-                'title' => 'Appointments',
-                'description' => 'Book, view, and manage appointments and bookings.',
-                'icon' => 'fa-solid fa-calendar-check',
-                'suite' => null,
-            ],
-            'schedule' => [
-                'title' => 'Schedule',
-                'description' => 'Access branch schedules and therapist timetable views.',
-                'icon' => 'fa-solid fa-calendar-days',
-                'suite' => null,
-            ],
-            'attendance_leave' => [
-                'title' => 'Attendance & Leave',
-                'description' => 'Manage attendance, availability, leave requests, and workforce presence.',
-                'icon' => 'fa-solid fa-user-clock',
-                'suite' => 'workforce',
-            ],
-            'hiring' => [
-                'title' => 'Hiring',
-                'description' => 'Manage hiring flow, applications, applicants, and interviews.',
-                'icon' => 'fa-solid fa-user-plus',
-                'suite' => 'workforce',
-            ],
-            'services' => [
-                'title' => 'Services & Packages',
-                'description' => 'Manage treatments, services, and packages.',
-                'icon' => 'fa-solid fa-hand-holding-heart',
-                'suite' => null,
-            ],
-            'staff' => [
-                'title' => 'Staff Accounts',
-                'description' => 'Manage staff records, role assignment, and branch staff setup.',
-                'icon' => 'fa-solid fa-users',
-                'suite' => null,
-            ],
-            'branches' => [
-                'title' => 'Branches & Public Listing',
-                'description' => 'Manage branches and public listing/profile related settings.',
-                'icon' => 'fa-solid fa-code-branch',
-                'suite' => null,
-            ],
-            'insights' => [
-                'title' => 'Insights & Reports',
-                'description' => 'Access analytics, decision support, and reports.',
-                'icon' => 'fa-solid fa-chart-pie',
-                'suite' => null,
-            ],
-            'inventory' => [
-                'title' => 'Inventory',
-                'description' => 'Manage products, stocks, logs, and inventory movement.',
-                'icon' => 'fa-solid fa-boxes-stacked',
-                'suite' => null,
-            ],
-            'finance' => [
-                'title' => 'Finance',
-                'description' => 'Manage payroll, billing, revenue, expenses, and finance records.',
-                'icon' => 'fa-solid fa-wallet',
-                'suite' => 'finance',
-            ],
-            'account' => [
-                'title' => 'Profile & Account',
-                'description' => 'Allow staff to manage their own profile and account details.',
-                'icon' => 'fa-solid fa-id-badge',
-                'suite' => null,
-            ],
-            'other' => [
-                'title' => 'Other',
-                'description' => 'Permissions that do not match a main feature group.',
-                'icon' => 'fa-solid fa-ellipsis',
-                'suite' => null,
-            ],
-        ];
-    }
-
-    private function resolvePermissionGroup(string $permissionName): string
-    {
-        $name = Str::lower($permissionName);
-
-        return match (true) {
-            Str::contains($name, ['dashboard']) => 'dashboard',
-
-            Str::contains($name, ['appointment', 'booking']) => 'appointments',
-
-            Str::contains($name, ['schedule']) => 'schedule',
-
-            Str::contains($name, ['attendance', 'availability', 'leave']) => 'attendance_leave',
-
-            Str::contains($name, ['hiring', 'applicant', 'application', 'interview']) => 'hiring',
-
-            Str::contains($name, ['service', 'package', 'treatment']) => 'services',
-
-            Str::contains($name, ['staff']) => 'staff',
-
-            Str::contains($name, ['branch', 'listing', 'public profile', 'branch profile']) => 'branches',
-
-            Str::contains($name, ['decision support', 'insight', 'analytics', 'report']) => 'insights',
-
-            Str::contains($name, ['inventory', 'stock', 'product log', 'product inventory', 'product']) => 'inventory',
-
-            Str::contains($name, ['payroll', 'billing', 'revenue', 'expense', 'finance']) => 'finance',
-
-            Str::contains($name, ['profile', 'account', 'password']) => 'account',
-
-            default => 'other',
-        };
     }
 
     private function permissionAllowedBySuite(string $permissionName): bool
@@ -320,35 +169,188 @@ class RolePermissionController extends Controller
         return Permission::query()
             ->orderBy('name')
             ->get()
-            ->reject(fn (Permission $permission) => $this->shouldHidePermission($permission->name))
-            ->filter(fn (Permission $permission) => $this->permissionAllowedBySuite($permission->name))
+            ->reject(fn(Permission $p) => $this->shouldHidePermission($p->name))
+            ->filter(fn(Permission $p) => $this->permissionAllowedBySuite($p->name))
             ->values();
+    }
+
+    // ── Permission labels & descriptions ──────────────────────────────────────
+
+    private function permissionLabel(string $permissionName): string
+    {
+        $explicit = [
+            'view business dashboard'           => 'View Business Dashboard',
+            'view dashboard kpis'               => 'Dashboard: KPI Stat Cards',
+            'view dashboard revenue'            => 'Dashboard: Revenue & Source Data',
+            'view dashboard timeline'           => 'Dashboard: Appointment Timeline',
+            'view dashboard therapist status'   => 'Dashboard: Therapist Status Panel',
+            'view dashboard alerts'             => 'Dashboard: Operational Alerts',
+            'view dashboard booking button'     => 'Dashboard: New Booking Shortcut',
+            'view dashboard my today'           => 'Dashboard: My Personal Schedule',
+        ];
+
+        return $explicit[Str::lower($permissionName)] ?? Str::headline($permissionName);
     }
 
     private function permissionDescription(string $permissionName): string
     {
-        $name = Str::lower(trim($permissionName));
-        $parts = explode(' ', $name, 2);
+        $explicit = [
+            'view business dashboard'           => 'Grants access to the business dashboard page for this branch.',
+            'view dashboard kpis'               => 'Shows the today, ongoing, pending, reserved, upcoming, and collected count cards.',
+            'view dashboard revenue'            => 'Shows the collected revenue card, online vs walk-in source split, and top service breakdown.',
+            'view dashboard timeline'           => 'Shows the full branch appointment timeline sorted by start time.',
+            'view dashboard therapist status'   => 'Shows each therapist\'s workload bar with ongoing, done, and queued counts.',
+            'view dashboard alerts'             => 'Shows late check-in, cancellation, and overloaded therapist warning cards.',
+            'view dashboard booking button'     => 'Shows the New Booking shortcut button in the dashboard header.',
+            'view dashboard my today'           => 'Shows the therapist\'s own personal schedule widget with only their assigned appointments.',
+        ];
 
+        $lower = Str::lower(trim($permissionName));
+
+        if (isset($explicit[$lower])) {
+            return $explicit[$lower];
+        }
+
+        $parts  = explode(' ', $lower, 2);
         $action = $parts[0] ?? 'access';
-        $target = $parts[1] ?? $name;
-        $targetLabel = Str::headline($target);
+        $target = Str::headline($parts[1] ?? $lower);
 
         return match ($action) {
-            'view'   => "Allows this role to open and view {$targetLabel} for the current branch.",
-            'create' => "Allows this role to add new {$targetLabel} records for the current branch.",
-            'edit'   => "Allows this role to update existing {$targetLabel} records for the current branch.",
-            'delete' => "Allows this role to remove {$targetLabel} records for the current branch.",
-            'manage' => "Allows this role to fully manage {$targetLabel} for the current branch.",
-            default  => "Controls access to {$targetLabel} for the current branch.",
+            'view'   => "Allows this role to open and view {$target} for the current branch.",
+            'create' => "Allows this role to add new {$target} records for the current branch.",
+            'edit'   => "Allows this role to update existing {$target} records for the current branch.",
+            'delete' => "Allows this role to remove {$target} records for the current branch.",
+            'export' => "Allows this role to export {$target} for the current branch.",
+            'approve'=> "Allows this role to approve {$target} for the current branch.",
+            'manage' => "Allows this role to fully manage {$target} for the current branch.",
+            default  => "Controls access to {$target} for the current branch.",
         };
     }
 
+    // ── Permission grouping ───────────────────────────────────────────────────
+
+    private function permissionGroups(): array
+    {
+        return [
+            'dashboard' => [
+                'title'       => 'Dashboard',
+                'description' => 'Controls access to the business dashboard and its individual widgets — KPI cards, revenue data, appointment timeline, therapist status panel, alerts, booking shortcut, and the therapist personal schedule view.',
+                'icon'        => 'fa-solid fa-gauge-high',
+                'suite'       => null,
+            ],
+            'appointments' => [
+                'title'       => 'Appointments',
+                'description' => 'Book, view, and manage appointments and bookings.',
+                'icon'        => 'fa-solid fa-calendar-check',
+                'suite'       => null,
+            ],
+            'schedule' => [
+                'title'       => 'Schedule',
+                'description' => 'Branch schedules, calendars, and therapist timetable views.',
+                'icon'        => 'fa-solid fa-calendar-days',
+                'suite'       => null,
+            ],
+            'attendance_leave' => [
+                'title'       => 'Attendance & Leave',
+                'description' => 'Manage attendance, leave requests, availability, and workforce presence.',
+                'icon'        => 'fa-solid fa-user-clock',
+                'suite'       => 'workforce',
+            ],
+            'hiring' => [
+                'title'       => 'Hiring & Recruitment',
+                'description' => 'Hiring postings, applicants, applications, interviews, and deployments.',
+                'icon'        => 'fa-solid fa-user-plus',
+                'suite'       => 'workforce',
+            ],
+            'services' => [
+                'title'       => 'Services & Packages',
+                'description' => 'Treatments, services, and bundled packages.',
+                'icon'        => 'fa-solid fa-hand-holding-heart',
+                'suite'       => null,
+            ],
+            'staff' => [
+                'title'       => 'Staff Accounts',
+                'description' => 'Staff records, role assignment, and branch staff setup.',
+                'icon'        => 'fa-solid fa-users',
+                'suite'       => null,
+            ],
+            'branches' => [
+                'title'       => 'Branches & Listing',
+                'description' => 'Branch management and public listing / profile settings.',
+                'icon'        => 'fa-solid fa-code-branch',
+                'suite'       => null,
+            ],
+            'insights' => [
+                'title'       => 'Insights & Reports',
+                'description' => 'Reports, analytics, and decision support access.',
+                'icon'        => 'fa-solid fa-chart-pie',
+                'suite'       => null,
+            ],
+            'inventory' => [
+                'title'       => 'Inventory',
+                'description' => 'Products, stocks, logs, and inventory records.',
+                'icon'        => 'fa-solid fa-boxes-stacked',
+                'suite'       => null,
+            ],
+            'finance' => [
+                'title'       => 'Finance',
+                'description' => 'Payroll, billing, revenue, expenses, and financial records.',
+                'icon'        => 'fa-solid fa-wallet',
+                'suite'       => 'finance',
+            ],
+            'account' => [
+                'title'       => 'Profile & Account',
+                'description' => 'Staff profile and account-related access.',
+                'icon'        => 'fa-solid fa-id-badge',
+                'suite'       => null,
+            ],
+        ];
+    }
+
+    private function resolvePermissionGroup(string $permissionName): string
+    {
+        $name = Str::lower($permissionName);
+
+        return match (true) {
+            // Dashboard must come first — widget permissions contain words like
+            // 'revenue' or 'timeline' that would otherwise match other groups.
+            Str::contains($name, ['dashboard'])                                          => 'dashboard',
+
+            Str::contains($name, ['appointment', 'booking'])                             => 'appointments',
+            Str::contains($name, ['schedule'])                                           => 'schedule',
+            Str::contains($name, ['attendance', 'availability', 'leave'])                => 'attendance_leave',
+            Str::contains($name, ['hiring', 'applicant', 'application', 'interview', 'deployment']) => 'hiring',
+            Str::contains($name, ['service', 'package', 'treatment'])                   => 'services',
+            Str::contains($name, ['staff'])                                              => 'staff',
+            Str::contains($name, ['branch', 'listing', 'public profile'])                => 'branches',
+            Str::contains($name, ['decision support', 'insight', 'analytics', 'report', 'export reports']) => 'insights',
+            Str::contains($name, ['inventory', 'stock', 'product'])                     => 'inventory',
+            Str::contains($name, ['payroll', 'billing', 'revenue', 'expense', 'finance']) => 'finance',
+            Str::contains($name, ['profile', 'account', 'password'])                    => 'account',
+            default                                                                      => 'other',
+        };
+    }
+
+    // ── Role metadata ─────────────────────────────────────────────────────────
+
+    private function roleMeta(string $roleName): array
+    {
+        return match (Str::lower($roleName)) {
+            'owner'        => ['title' => 'Owner',        'description' => 'Business-level control for this branch.',                               'icon' => 'fa-solid fa-crown'],
+            'manager'      => ['title' => 'Manager',      'description' => 'Supervises operations, staff flow, and branch activity.',                'icon' => 'fa-solid fa-user-tie'],
+            'receptionist' => ['title' => 'Receptionist', 'description' => 'Handles bookings, front-desk flow, and customer records.',               'icon' => 'fa-solid fa-calendar-check'],
+            'therapist'    => ['title' => 'Therapist',    'description' => 'Handles personal schedule, appointments, and service delivery.',         'icon' => 'fa-solid fa-spa'],
+            'hr'           => ['title' => 'HR',           'description' => 'Handles hiring, attendance, interviews, and workforce records.',          'icon' => 'fa-solid fa-users-gear'],
+            'finance'      => ['title' => 'Finance',      'description' => 'Handles payroll, billing, revenue, and financial monitoring.',            'icon' => 'fa-solid fa-wallet'],
+            default        => ['title' => Str::headline($roleName), 'description' => 'Role settings for this branch.', 'icon' => 'fa-solid fa-user-shield'],
+        };
+    }
+
+    // ── Section builder ───────────────────────────────────────────────────────
+
     private function ensureRoleIsEditable(Role $role): ?\Illuminate\Http\RedirectResponse
     {
-        $roleName = Str::lower($role->name);
-
-        if (!in_array($roleName, $this->getManageableRoles(), true)) {
+        if (!in_array(Str::lower($role->name), $this->getManageableRoles(), true)) {
             return redirect()
                 ->route('owner.roles-permissions.index')
                 ->with('error', "The {$role->name} role is currently locked for this branch.");
@@ -357,19 +359,18 @@ class RolePermissionController extends Controller
         return null;
     }
 
-    private function buildEffectivePermissionNames(Role $role, Collection $allowedPermissionNames, Collection $branchOverrides): Collection
+    private function buildEffectivePermissionNames(Role $role, Collection $allowedNames, Collection $branchOverrides): Collection
     {
         $globalPermissions = $role->permissions
             ->pluck('name')
-            ->filter(fn ($name) => $allowedPermissionNames->contains($name))
+            ->filter(fn($n) => $allowedNames->contains($n))
             ->values();
 
-        return $allowedPermissionNames
+        return $allowedNames
             ->filter(function ($permissionName) use ($globalPermissions, $branchOverrides) {
                 if ($branchOverrides->has($permissionName)) {
                     return (bool) $branchOverrides->get($permissionName);
                 }
-
                 return $globalPermissions->contains($permissionName);
             })
             ->values();
@@ -377,9 +378,9 @@ class RolePermissionController extends Controller
 
     private function buildPermissionSections(Role $role, Branch $branch, int $spaId): array
     {
-        $permissions         = $this->editablePermissions();
-        $allowedNames        = $permissions->pluck('name')->values();
-        $branchOverrides     = BranchRolePermission::query()
+        $permissions     = $this->editablePermissions();
+        $allowedNames    = $permissions->pluck('name')->values();
+        $branchOverrides = BranchRolePermission::query()
             ->where('branch_id', $branch->id)
             ->where('spa_id', $spaId)
             ->where('role_name', $role->name)
@@ -391,22 +392,22 @@ class RolePermissionController extends Controller
         $sections = collect($groupMeta)
             ->map(function ($meta, $groupKey) use ($permissions, $effectivePermissionNames, $branchOverrides) {
                 $groupPermissions = $permissions
-                    ->filter(fn (Permission $permission) => $this->resolvePermissionGroup($permission->name) === $groupKey)
+                    ->filter(fn(Permission $p) => $this->resolvePermissionGroup($p->name) === $groupKey)
                     ->values();
 
                 if ($groupPermissions->isEmpty()) {
                     return null;
                 }
 
-                $items = $groupPermissions->map(function (Permission $permission) use ($effectivePermissionNames, $branchOverrides) {
-                    $isChecked    = $effectivePermissionNames->contains($permission->name);
-                    $isOverridden = $branchOverrides->has($permission->name);
-                    $overrideVal  = $branchOverrides->get($permission->name);
+                $items = $groupPermissions->map(function (Permission $p) use ($effectivePermissionNames, $branchOverrides) {
+                    $isChecked    = $effectivePermissionNames->contains($p->name);
+                    $isOverridden = $branchOverrides->has($p->name);
+                    $overrideVal  = $branchOverrides->get($p->name);
 
                     return [
-                        'name'        => $permission->name,
-                        'label'       => Str::headline($permission->name),
-                        'description' => $this->permissionDescription($permission->name),
+                        'name'        => $p->name,
+                        'label'       => $this->permissionLabel($p->name),
+                        'description' => $this->permissionDescription($p->name),
                         'checked'     => $isChecked,
                         'source'      => !$isOverridden
                             ? 'Default'
@@ -432,31 +433,32 @@ class RolePermissionController extends Controller
             ->all();
 
         return [
-            'sections'            => $sections,
-            'branch_overrides'    => $branchOverrides,
-            'effective_names'     => $effectivePermissionNames,
-            'allowed_names'       => $allowedNames,
-            'summary'             => [
+            'sections'         => $sections,
+            'branch_overrides' => $branchOverrides,
+            'effective_names'  => $effectivePermissionNames,
+            'allowed_names'    => $allowedNames,
+            'summary'          => [
                 'selected'   => $effectivePermissionNames->count(),
                 'available'  => $allowedNames->count(),
                 'overridden' => $branchOverrides
-                    ->filter(fn ($value, $key) => $allowedNames->contains($key))
+                    ->filter(fn($v, $k) => $allowedNames->contains($k))
                     ->count(),
             ],
         ];
     }
 
+    // ── Public actions ────────────────────────────────────────────────────────
+
     public function index()
     {
         $user   = auth()->user();
-        $spa    = $user->spa;
         $branch = $this->getCurrentBranch();
 
         $roles = Role::query()
             ->whereIn('name', $this->getManageableRoles())
             ->with('permissions')
             ->get()
-            ->sortBy(fn (Role $role) => array_search(Str::lower($role->name), $this->roleOrder, true))
+            ->sortBy(fn(Role $r) => array_search(Str::lower($r->name), $this->roleOrder, true))
             ->values()
             ->map(function (Role $role) use ($user, $branch) {
                 $allowedNames = $this->editablePermissions()->pluck('name')->values();
@@ -467,25 +469,18 @@ class RolePermissionController extends Controller
                     ->where('role_name', $role->name)
                     ->pluck('granted', 'permission_name');
 
-                $effectivePermissionNames = $this->buildEffectivePermissionNames(
-                    $role,
-                    $allowedNames,
-                    $branchOverrides
-                );
-
+                $effectivePermissionNames = $this->buildEffectivePermissionNames($role, $allowedNames, $branchOverrides);
                 $meta = $this->roleMeta($role->name);
 
-                $role->branch_users_count = User::query()
+                $role->branch_users_count         = User::query()
                     ->where('spa_id', $user->spa_id)
                     ->where('branch_id', $branch->id)
                     ->role($role->name)
                     ->count();
-
                 $role->effective_permission_count = $effectivePermissionNames->count();
                 $role->override_count             = $branchOverrides
-                    ->filter(fn ($value, $key) => $allowedNames->contains($key))
+                    ->filter(fn($v, $k) => $allowedNames->contains($k))
                     ->count();
-
                 $role->ui_title       = $meta['title'];
                 $role->ui_description = $meta['description'];
                 $role->ui_icon        = $meta['icon'];
@@ -494,12 +489,12 @@ class RolePermissionController extends Controller
             });
 
         return view('owner.roles-permissions.index', [
-            'spa'             => $spa,
-            'branch'          => $branch,
-            'roles'           => $roles,
-            'lockedRoles'     => $this->lockedRoles(),
-            'workforceEnabled'=> $this->workforceEnabled(),
-            'financeEnabled'  => $this->financeEnabled(),
+            'spa'              => $user->spa,
+            'branch'           => $branch,
+            'roles'            => $roles,
+            'lockedRoles'      => $this->lockedRoles(),
+            'workforceEnabled' => $this->workforceEnabled(),
+            'financeEnabled'   => $this->financeEnabled(),
         ]);
     }
 
@@ -513,17 +508,16 @@ class RolePermissionController extends Controller
         $branch = $this->getCurrentBranch();
 
         $role->load('permissions');
-
         $built = $this->buildPermissionSections($role, $branch, $user->spa_id);
 
         $lockedSections = collect([
             !$this->workforceEnabled() ? [
-                'title' => 'Workforce',
-                'message' => 'Attendance, leave, hiring, applicants, and interviews are locked until the Workforce suite is enabled.',
+                'title'   => 'Workforce',
+                'message' => 'Attendance, leave, hiring, applicants, interviews, and deployments are locked until the Workforce & Finance Suite is enabled for this branch.',
             ] : null,
             !$this->financeEnabled() ? [
-                'title' => 'Finance',
-                'message' => 'Payroll, billing, revenue, and finance permissions are locked until the Finance suite is enabled.',
+                'title'   => 'Finance',
+                'message' => 'Payroll, billing, revenue, and finance permissions are locked until the Workforce & Finance Suite is enabled for this branch.',
             ] : null,
         ])->filter()->values();
 
@@ -557,6 +551,7 @@ class RolePermissionController extends Controller
         $selectedPermissions = collect($validated['permissions'] ?? [])->values();
         $globalPermissions   = $role->permissions->pluck('name')->values();
 
+        // Wipe existing branch overrides for this role, then re-record only deltas
         BranchRolePermission::query()
             ->where('branch_id', $branch->id)
             ->where('spa_id', $user->spa_id)
@@ -565,7 +560,7 @@ class RolePermissionController extends Controller
             ->delete();
 
         foreach ($allowedPermissionNames as $permissionName) {
-            $globalHas  = $globalPermissions->contains($permissionName);
+            $globalHas   = $globalPermissions->contains($permissionName);
             $branchWants = $selectedPermissions->contains($permissionName);
 
             if ($globalHas !== $branchWants) {

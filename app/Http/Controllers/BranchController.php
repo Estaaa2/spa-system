@@ -171,17 +171,6 @@ class BranchController extends Controller
             ->with('tab_success', 'general');
     }
 
-    // -----------------------------------------------------------------------
-    // UPDATE — OPERATING HOURS
-    //
-    // Key behaviours:
-    //   - Disabled HTML inputs (closed days) are NOT submitted by the browser.
-    //     Therefore opening_time / closing_time are nullable for closed days.
-    //   - DB stores times as HH:MM:SS; Blade slices to HH:MM in value attrs.
-    //   - For closed days we keep whatever times are already saved in the DB.
-    //   - Server-side range check mirrors the JS validateTimeRange().
-    // -----------------------------------------------------------------------
-
     public function updateHours(Request $request, Branch $branch)
     {
         $user = Auth::user();
@@ -193,8 +182,6 @@ class BranchController extends Controller
             'hours'                => 'required|array',
             'hours.*.day_of_week'  => 'required|string',
             'hours.*.is_closed'    => 'nullable|boolean',
-            // Nullable because disabled inputs don't submit. Format check only
-            // when a value is actually present.
             'hours.*.opening_time' => ['nullable', 'date_format:H:i'],
             'hours.*.closing_time' => ['nullable', 'date_format:H:i'],
         ]);

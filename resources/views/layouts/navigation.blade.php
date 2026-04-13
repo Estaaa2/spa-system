@@ -23,7 +23,7 @@
     $canWorkforceFinanceSuiteSettings = $user?->hasRole('owner') && ($spa?->business_tier ?? null) === 'professional';
 
     // Dashboard
-    $canDashboard = $user?->hasAnyRole(['owner', 'manager', 'therapist', 'receptionist']);
+    $canDashboard = $user?->can('view business dashboard');
 
     // Operations
     $canBooking = $can('book appointments');

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\Treatment;
+use App\Models\Package;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -12,101 +15,225 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->hasRole('therapist')) {
-            return redirect()->route('appointments.index');
-        }
-
         $currentBranchId = $user->currentBranchId();
 
         if (!$currentBranchId) {
-            // Only redirect to setup if setup is NOT complete
             if (!$user->spa || !$user->spa->is_setup_complete) {
                 return redirect()->route('setup.index');
             }
-
-            // Setup is complete but no branch in session → redirect to branch switcher
             return redirect()->route('branches.index')
                 ->with('warning', 'Please select a branch to continue.');
         }
 
         $spaId = $user->spa_id;
+        $today = now()->toDateString();
 
-        $baseBookings = Booking::query()
-            ->where('spa_id', $spaId)
-            ->where('branch_id', $currentBranchId);
+        $base      = fn() => Booking::query()->where('spa_id', $spaId)->where('branch_id', $currentBranchId);
+        $todayBase = fn() => $base()->whereDate('appointment_date', $today);
 
-        $total = (clone $baseBookings)->count();
+        // ── Decide which data blocks to load based on permissions ─────────
+        // This avoids running expensive queries for data the user can't see.
+        $needsKpis = $user->can('view dashboard kpis')
+                  || $user->can('view dashboard revenue')
+                  || $user->can('view dashboard alerts');
 
-        $completed = (clone $baseBookings)
-            ->where('status', 'completed')
-            ->count();
+        // ── KPI / shared counts ───────────────────────────────────────────
+        $todayCount = $ongoingToday = $pendingToday = $reservedToday = null;
+        $completedToday = $cancelledToday = $upcomingWeek = null;
 
-        $todayCount = (clone $baseBookings)
-            ->whereDate('appointment_date', today())
-            ->count();
+        if ($needsKpis) {
+            $todayCount     = $todayBase()->count();
+            $ongoingToday   = $todayBase()->where('status', 'ongoing')->count();
+            $pendingToday   = $todayBase()->where('status', 'pending')->count();
+            $reservedToday  = $todayBase()->where('status', 'reserved')->count();
+            $completedToday = $todayBase()->where('status', 'completed')->count();
+            $cancelledToday = $todayBase()->where('status', 'cancelled')->count();
+            $upcomingWeek   = $base()
+                ->whereDate('appointment_date', '>', $today)
+                ->whereDate('appointment_date', '<=', now()->addDays(7)->toDateString())
+                ->whereIn('status', ['reserved', 'pending'])
+                ->count();
+        }
 
-        $pending = (clone $baseBookings)
-            ->whereIn('status', ['pending', 'reserved'])
-            ->count();
+        // ── Revenue data ──────────────────────────────────────────────────
+        $collectedToday = $onlineToday = $walkInToday = $topServiceLabel = null;
 
-        $todayAppointments = (clone $baseBookings)
-            ->whereDate('appointment_date', today())
-            ->orderBy('start_time')
-            ->with('therapist')
-            ->get();
+        if ($user->can('view dashboard revenue')) {
+            $collectedToday = $todayBase()
+                ->whereIn('status', ['ongoing', 'completed'])
+                ->sum('amount_paid');
 
-        $topServiceToday = (clone $baseBookings)
-            ->whereDate('appointment_date', today())
-            ->selectRaw('service_type, COUNT(*) as count')
-            ->groupBy('service_type')
-            ->orderByDesc('count')
-            ->first();
+            $onlineToday = $todayBase()->where('booking_source', 'online')->count();
+            $walkInToday = $todayBase()
+                ->where(fn($q) => $q->where('booking_source', '!=', 'online')
+                                    ->orWhereNull('booking_source'))
+                ->count();
 
-        $therapists = User::query()
-            ->role('therapist')
-            ->whereHas('staff', function ($q) use ($currentBranchId, $spaId) {
-                $q->where('spa_id', $spaId)
-                ->where('branch_id', $currentBranchId)
-                ->where('employment_status', 'active');
-            })
-            ->select(['id', 'first_name', 'last_name', 'email'])
-            ->withCount([
-                'assignedBookings as assigned_bookings_count' => function ($q) use ($currentBranchId, $spaId) {
-                    $q->where('spa_id', $spaId)
+            $topRaw = $todayBase()
+                ->select('treatment', DB::raw('COUNT(*) as count'))
+                ->groupBy('treatment')
+                ->orderByDesc('count')
+                ->first();
+
+            $topServiceLabel = $topRaw ? $this->resolveTreatmentLabel($topRaw->treatment) : null;
+        }
+
+        // ── Alert metrics ─────────────────────────────────────────────────
+        $lateAppointments = $noShows = $overbookedTherapists = null;
+
+        if ($user->can('view dashboard alerts')) {
+            $lateAppointments = $todayBase()
+                ->where('status', 'pending')
+                ->whereTime('start_time', '<', now()->format('H:i:s'))
+                ->count();
+
+            // Reuse already-computed value if available, otherwise query
+            $noShows = $cancelledToday ?? $todayBase()->where('status', 'cancelled')->count();
+
+            $therapistIds = User::role('therapist')
+                ->whereHas('staff', fn($q) => $q
+                    ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
-                    ->whereDate('appointment_date', today())
-                    ->whereIn('status', ['reserved', 'pending']);
-                }
-            ])
-            ->get();
+                    ->where('employment_status', 'active')
+                )->pluck('id');
 
-        $lateAppointments = (clone $baseBookings)
-            ->whereDate('appointment_date', today())
-            ->where('status', 'pending')
-            ->whereTime('start_time', '<', now()->format('H:i:s'))
-            ->whereTime('end_time', '>', now()->format('H:i:s'))
-            ->count();
+            $overbookedTherapists = (int) $todayBase()
+                ->whereIn('therapist_id', $therapistIds)
+                ->whereNotIn('status', ['cancelled'])
+                ->select('therapist_id', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('therapist_id')
+                ->havingRaw('cnt > 8')
+                ->get()
+                ->count();
+        }
 
-        $noShows = (clone $baseBookings)
-            ->whereDate('appointment_date', today())
-            ->where('status', 'cancelled')
-            ->count();
+        // ── Full branch appointment timeline ──────────────────────────────
+        $todayAppointments = collect();
+        $nextAppointment   = null;
 
-        $overbookedSlots = $therapists->filter(function ($therapist) {
-            return ($therapist->assigned_bookings_count ?? 0) > 8;
-        })->count();
+        if ($user->can('view dashboard timeline')) {
+            $todayAppointments = $todayBase()
+                ->with('therapist')
+                ->orderBy('start_time')
+                ->get()
+                ->map(fn($b) => $this->decorateBooking($b));
+
+            $nextAppointment = $base()
+                ->whereDate('appointment_date', '>', $today)
+                ->whereIn('status', ['reserved', 'pending'])
+                ->orderBy('appointment_date')
+                ->orderBy('start_time')
+                ->with('therapist')
+                ->first();
+
+            if ($nextAppointment) {
+                $nextAppointment = $this->decorateBooking($nextAppointment);
+            }
+        }
+
+        // ── Therapist workload panel ──────────────────────────────────────
+        $therapists = collect();
+
+        if ($user->can('view dashboard therapist status')) {
+            $therapists = User::role('therapist')
+                ->whereHas('staff', fn($q) => $q
+                    ->where('spa_id', $spaId)
+                    ->where('branch_id', $currentBranchId)
+                    ->where('employment_status', 'active')
+                )
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->withCount([
+                    'assignedBookings as total_today' => fn($q) => $q
+                        ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
+                        ->whereDate('appointment_date', $today)
+                        ->whereNotIn('status', ['cancelled']),
+                    'assignedBookings as ongoing_count' => fn($q) => $q
+                        ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
+                        ->whereDate('appointment_date', $today)
+                        ->where('status', 'ongoing'),
+                    'assignedBookings as completed_count' => fn($q) => $q
+                        ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
+                        ->whereDate('appointment_date', $today)
+                        ->where('status', 'completed'),
+                    'assignedBookings as remaining_count' => fn($q) => $q
+                        ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
+                        ->whereDate('appointment_date', $today)
+                        ->whereIn('status', ['reserved', 'pending']),
+                ])
+                ->get();
+        }
+
+        // ── Therapist personal view ("My Today") ──────────────────────────
+        // Only for users with view dashboard my today (therapist role by default)
+        $myTodayAppointments = collect();
+        $myStats             = null;
+        $myNextAppointment   = null;
+
+        if ($user->can('view dashboard my today')) {
+            $myBase = fn() => Booking::query()
+                ->where('spa_id', $spaId)
+                ->where('therapist_id', $user->id);
+
+            $myTodayAppointments = $myBase()
+                ->whereDate('appointment_date', $today)
+                ->orderBy('start_time')
+                ->get()
+                ->map(fn($b) => $this->decorateBooking($b));
+
+            $myStats = [
+                'total'     => $myBase()->whereDate('appointment_date', $today)->count(),
+                'ongoing'   => $myBase()->whereDate('appointment_date', $today)->where('status', 'ongoing')->count(),
+                'completed' => $myBase()->whereDate('appointment_date', $today)->where('status', 'completed')->count(),
+                'remaining' => $myBase()->whereDate('appointment_date', $today)->whereIn('status', ['reserved', 'pending'])->count(),
+            ];
+
+            $myNextAppointment = $myBase()
+                ->whereDate('appointment_date', '>', $today)
+                ->whereIn('status', ['reserved', 'pending'])
+                ->orderBy('appointment_date')
+                ->orderBy('start_time')
+                ->first();
+
+            if ($myNextAppointment) {
+                $myNextAppointment = $this->decorateBooking($myNextAppointment);
+            }
+        }
 
         return view('dashboard', compact(
-            'total',
-            'completed',
-            'todayCount',
-            'pending',
-            'todayAppointments',
-            'topServiceToday',
+            // KPI data
+            'todayCount', 'ongoingToday', 'pendingToday', 'reservedToday',
+            'completedToday', 'cancelledToday', 'upcomingWeek',
+            // Revenue data
+            'collectedToday', 'onlineToday', 'walkInToday', 'topServiceLabel',
+            // Alert data
+            'lateAppointments', 'noShows', 'overbookedTherapists',
+            // Timeline data
+            'todayAppointments', 'nextAppointment',
+            // Therapist panel data
             'therapists',
-            'lateAppointments',
-            'noShows',
-            'overbookedSlots'
+            // Personal schedule data (therapist role)
+            'myTodayAppointments', 'myStats', 'myNextAppointment',
         ));
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function decorateBooking(Booking $b): Booking
+    {
+        $b->treatment_display = $this->resolveTreatmentLabel($b->treatment ?? '');
+        return $b;
+    }
+
+    private function resolveTreatmentLabel(string $selection): string
+    {
+        if (str_starts_with($selection, 'treatment_')) {
+            $t = Treatment::withoutGlobalScopes()->find((int) str_replace('treatment_', '', $selection));
+            return $t?->name ?? 'Unknown Treatment';
+        }
+        if (str_starts_with($selection, 'package_')) {
+            $p = Package::withoutGlobalScopes()->find((int) str_replace('package_', '', $selection));
+            return $p ? $p->name . ' (Package)' : 'Unknown Package';
+        }
+        return $selection ?: '—';
     }
 }
