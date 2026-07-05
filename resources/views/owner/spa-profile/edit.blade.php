@@ -22,7 +22,7 @@
                 'card' => 'border-yellow-200 bg-yellow-50/70 dark:bg-yellow-900/10 dark:border-yellow-800',
                 'icon' => 'fa-hourglass-half text-yellow-600 dark:text-yellow-400',
                 'title' => 'Verification is pending review',
-                'description' => 'Your uploaded documents are currently being reviewed by the platform administrator.',
+                'description' => 'Your uploaded documents are currently being reviewed by the platform administrator. <br><i>Waiting time may vary depending on the volume of submissions, but it typically takes 1-3 business days.</i>',
             ],
             'rejected' => [
                 'badge' => 'bg-red-100 text-red-800 border border-red-200',
@@ -73,7 +73,7 @@
                         </h3>
 
                         <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                            {{ $statusClasses['description'] }}
+                            {!! $statusClasses['description'] !!}
                         </p>
 
                         @if ($spa->verification_status === 'verified' && $spa->verified_at)

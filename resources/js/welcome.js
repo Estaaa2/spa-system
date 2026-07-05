@@ -330,7 +330,7 @@ async function updateAvailableTimes() {
     const day = new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
 
     try {
-        const response = await fetch(`/operating-hours/${branchId}/${day}`);
+        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -878,7 +878,7 @@ async function updateRescheduleAvailableTimes() {
     const day = new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
 
     try {
-        const response = await fetch(`/operating-hours/${branchId}/${day}`);
+        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);

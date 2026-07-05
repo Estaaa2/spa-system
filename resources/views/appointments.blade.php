@@ -854,7 +854,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // LIVE POLLING
 // ════════════════════════════════════════════════════════════════
 (function () {
-    const POLL_INTERVAL_MS = 20000; // 20 seconds
+    const POLL_INTERVAL_MS = 30000; // 30 seconds
     const LIVE_URL         = '{{ route('appointments.live-data') }}';
 
     const dot   = document.getElementById('liveIndicatorDot');
