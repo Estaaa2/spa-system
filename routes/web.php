@@ -211,6 +211,10 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         ->middleware('role:owner|manager|therapist|receptionist')
         ->name('dashboard');
 
+    Route::get('/dashboard/live-data', [DashboardController::class, 'liveData'])
+        ->middleware('role:owner|manager|therapist|receptionist')
+        ->name('dashboard.live-data');
+    
     Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-duration');
