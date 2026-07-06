@@ -22,7 +22,8 @@ class ApplicationController extends Controller
     {
         [$spa, $branchId] = $this->getSpaAndBranch();
 
-        $applicants = Applicant::where('spa_id', $spa->id)
+        $applicants = Applicant::with('interview')
+            ->where('spa_id', $spa->id)
             ->latest()
             ->get();
 

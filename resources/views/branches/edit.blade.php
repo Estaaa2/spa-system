@@ -20,7 +20,7 @@
     {{-- ── Page Header ─────────────────────────────────────────────────── --}}
     <div class="flex items-center gap-4 mb-6">
         <a href="{{ route('branches.index') }}"
-           class="flex items-center justify-center w-9 h-9 text-gray-500 transition border border-gray-200 rounded-xl hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700">
+           class="flex items-center justify-center text-gray-500 transition border border-gray-200 w-9 h-9 rounded-xl hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700">
             <i class="text-sm fa-solid fa-arrow-left"></i>
         </a>
         <div>
@@ -32,11 +32,11 @@
     </div>
 
     {{-- ── Tab Navigation ───────────────────────────────────────────────── --}}
-    <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+    <div class="flex mb-6 border-b border-gray-200 dark:border-gray-700">
         <button @click="tab = 'general'"
             :class="tab === 'general' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
-            class="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors -mb-px">
-            <i class="fa-solid fa-pen text-xs"></i>
+            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
+            <i class="text-xs fa-solid fa-pen"></i>
             General
             @if($errors->hasBag('general') && $errors->getBag('general')->any())
                 <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">!</span>
@@ -45,8 +45,8 @@
 
         <button @click="tab = 'hours'"
             :class="tab === 'hours' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
-            class="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors -mb-px">
-            <i class="fa-solid fa-clock text-xs"></i>
+            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
+            <i class="text-xs fa-solid fa-clock"></i>
             Operating Hours
             @if($errors->hasBag('hours') && $errors->getBag('hours')->any())
                 <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">!</span>
@@ -55,8 +55,8 @@
 
         <button @click="tab = 'profile'"
             :class="tab === 'profile' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
-            class="flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors -mb-px">
-            <i class="fa-solid fa-image text-xs"></i>
+            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
+            <i class="text-xs fa-solid fa-image"></i>
             Public Profile
             @if(optional($branch->profile)->is_listed)
                 <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Live</span>
@@ -79,7 +79,7 @@
             @csrf
             @method('PUT')
 
-            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 space-y-5">
+            <div class="p-6 space-y-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
                 <div>
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Branch Information</h2>
@@ -100,7 +100,7 @@
                 {{-- Success flash --}}
                 @if(session('tab_success') === 'general')
                     <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="fa-solid fa-circle-check flex-shrink-0"></i>
+                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
                         Branch information updated successfully.
                     </div>
                 @endif
@@ -113,7 +113,7 @@
                     <input type="text" name="name" id="name"
                            value="{{ old('name', $branch->name) }}"
                            required
-                           class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm
+                           class="block w-full mt-2  rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm
                            @error('name', 'general') border-red-400 @enderror">
                 </div>
 
@@ -144,9 +144,6 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <a href="{{ route('branches.index') }}" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 transition">
-                    ← Back to Branches
-                </a>
                 <button type="submit"
                     class="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
                     Save General Info
@@ -168,7 +165,7 @@
             @csrf
             @method('PUT')
 
-            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 space-y-5">
+            <div class="p-6 space-y-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
                 <div>
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Operating Hours</h2>
@@ -191,7 +188,7 @@
 
                 @if(session('tab_success') === 'hours')
                     <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="fa-solid fa-circle-check flex-shrink-0"></i>
+                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
                         Operating hours updated successfully.
                     </div>
                 @endif
@@ -246,8 +243,8 @@
 
                         {{-- Inline time-range error (mirrors operating-hours.blade.php) --}}
                         <p id="time_error_{{ $suffix }}"
-                           class="hidden flex items-center gap-1 mt-2 text-xs text-red-600">
-                            <i class="fa-solid fa-circle-exclamation flex-shrink-0"></i>
+                           class="flex items-center gap-1 mt-2 text-xs text-red-600">
+                            <i class="flex-shrink-0 fa-solid fa-circle-exclamation"></i>
                             Closing time must be after opening time.
                         </p>
 
@@ -263,8 +260,8 @@
                 </div>
 
                 {{-- "All closed" warning — mirrors operating-hours.blade.php --}}
-                <div id="allClosedWarning" class="hidden flex items-center gap-3 p-3 border border-amber-200 bg-amber-50 rounded-xl dark:bg-amber-900/10 dark:border-amber-800">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-600 flex-shrink-0"></i>
+                <div id="allClosedWarning" class="flex items-center gap-3 p-3 border border-amber-200 bg-amber-50 rounded-xl dark:bg-amber-900/10 dark:border-amber-800">
+                    <i class="flex-shrink-0 fa-solid fa-triangle-exclamation text-amber-600"></i>
                     <p class="text-sm text-amber-800 dark:text-amber-300">
                         <span class="font-semibold">Note:</span> At least one day must be open for online bookings to work.
                     </p>
@@ -273,9 +270,6 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <a href="{{ route('branches.index') }}" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 transition">
-                    ← Back to Branches
-                </a>
                 <button type="submit" id="hoursSubmitBtn"
                     class="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
                     Save Operating Hours
@@ -298,17 +292,17 @@
 
             <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <div class="flex flex-col items-center py-8 text-center">
-                    <div class="flex items-center justify-center w-14 h-14 mb-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20">
-                        <i class="fa-solid fa-lock text-xl text-amber-500"></i>
+                    <div class="flex items-center justify-center mb-4 w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20">
+                        <i class="text-xl fa-solid fa-lock text-amber-500"></i>
                     </div>
                     <h3 class="font-semibold text-gray-900 dark:text-white">Spa Verification Required</h3>
-                    <p class="mt-2 max-w-sm text-sm text-gray-500 dark:text-gray-400">
+                    <p class="max-w-sm mt-2 text-sm text-gray-500 dark:text-gray-400">
                         Your spa must be verified before this branch can be listed publicly or have a profile page.
                     </p>
                     @if(Route::has('owner.spa-profile.edit'))
                         <a href="{{ route('owner.spa-profile.edit') }}"
                            class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90">
-                            <i class="fa-solid fa-arrow-right text-xs"></i>
+                            <i class="text-xs fa-solid fa-arrow-right"></i>
                             Go to Spa Profile
                         </a>
                     @endif
@@ -326,7 +320,7 @@
                 {{-- Profile tab errors only --}}
                 @if($errors->hasBag('profile') && $errors->getBag('profile')->any())
                     <div class="p-4 mb-5 text-sm text-red-600 bg-red-50 rounded-2xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
-                        <p class="font-semibold mb-1">Please fix the following:</p>
+                        <p class="mb-1 font-semibold">Please fix the following:</p>
                         <ul class="list-disc list-inside space-y-0.5">
                             @foreach($errors->getBag('profile')->all() as $error)
                                 <li>{{ $error }}</li>
@@ -335,15 +329,15 @@
                     </div>
                 @endif
 
-                @if(session('tab_success') === 'profile')
+                {{-- @if(session('tab_success') === 'profile')
                     <div class="flex items-center gap-2 p-3 mb-5 text-sm text-green-700 bg-green-50 rounded-2xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="fa-solid fa-circle-check flex-shrink-0"></i>
+                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
                         Public profile updated successfully.
                     </div>
-                @endif
+                @endif --}}
 
                 {{-- ── Listing Toggle ─────────────────────────────────────── --}}
-                <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 mb-4"
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
                      x-data="{ listed: {{ optional($branch->profile)->is_listed ? 'true' : 'false' }} }">
 
                     <div class="flex items-center justify-between">
@@ -365,14 +359,56 @@
                         </label>
                     </div>
 
-                    <div x-show="listed" x-transition class="flex items-center gap-2 mt-3 px-3 py-2 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
-                        <i class="fa-solid fa-circle-check text-green-500 text-xs"></i>
+                    <div x-show="listed" x-transition class="flex items-center gap-2 px-3 py-2 mt-3 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
+                        <i class="text-xs text-green-500 fa-solid fa-circle-check"></i>
                         <p class="text-xs font-medium text-green-700 dark:text-green-300">This branch is visible on the public landing page.</p>
                     </div>
                 </div>
 
+                {{-- ── Hiring Toggle ──────────────────────────────────────── --}}
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+                    x-data="{ hiring: {{ optional($branch->profile)->is_hiring ? 'true' : 'false' }} }">
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold text-gray-900 dark:text-white">Job Posting</h2>
+                            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                When enabled, a "We're Hiring" badge shows on this branch's public card.
+                            </p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="hidden" name="is_hiring" value="0">
+                            <input type="checkbox" name="is_hiring" value="1"
+                                x-model="hiring"
+                                {{ optional($branch->profile)->is_hiring ? 'checked' : '' }}
+                                class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
+                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
+                                        peer-checked:after:translate-x-5"></div>
+                        </label>
+                    </div>
+
+                    <div x-show="hiring" x-transition class="mt-3 space-y-3">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
+                            <i class="text-xs text-green-500 fa-solid fa-briefcase"></i>
+                            <p class="text-xs font-medium text-green-700 dark:text-green-300">This branch will show a "We're Hiring" badge publicly.</p>
+                        </div>
+
+                        <div>
+                            <label for="hiring_note" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Hiring Note <span class="font-normal text-gray-400">(optional)</span>
+                            </label>
+                            <input type="text" name="hiring_note" id="hiring_note" maxlength="150"
+                                value="{{ old('hiring_note', optional($branch->profile)->hiring_note) }}"
+                                placeholder="e.g. Now hiring: Massage Therapists, Receptionists"
+                                class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-400">Shown when applicants hover or open the branch details.</p>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- ── Branch Details ─────────────────────────────────────── --}}
-                <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 mb-4 space-y-4">
+                <div class="p-6 mb-4 space-y-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
                     <div>
                         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Branch Details</h2>
@@ -406,16 +442,16 @@
                 </div>
 
                 {{-- ── Map Pin ─────────────────────────────────────────────── --}}
-                <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 mb-4">
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                     <div class="mb-3">
                         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Branch Location Pin</h2>
                         <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Click the map or drag the marker to set the exact location. Cavite area only.</p>
                     </div>
                     <input type="hidden" name="latitude"  id="latitude"  value="{{ old('latitude',  optional($branch->profile)->latitude) }}">
                     <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', optional($branch->profile)->longitude) }}">
-                    <div id="profileMap" class="w-full h-64 rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden"></div>
-                    <div id="caviteToast" class="hidden mt-3 flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
-                        <i class="fa-solid fa-location-crosshairs flex-shrink-0"></i>
+                    <div id="profileMap" class="w-full h-64 overflow-hidden border border-gray-200 rounded-xl dark:border-gray-600"></div>
+                    <div id="caviteToast" class="flex items-center gap-2 p-3 mt-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
+                        <i class="flex-shrink-0 fa-solid fa-location-crosshairs"></i>
                         <span id="caviteToastMsg">Please pin a location within Cavite only.</span>
                     </div>
                 </div>
@@ -426,14 +462,14 @@
                     $existingGallery = optional($branch->profile)->gallery_images ?? [];
                 @endphp
 
-                <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 mb-4">
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                     <div class="mb-4">
                         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Cover Image</h2>
                         <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">The main photo shown on the listing card.</p>
                     </div>
                     <input type="hidden" name="remove_cover_image" id="remove_cover_image" value="0">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-                        <div class="w-full sm:w-52 flex-shrink-0">
+                        <div class="flex-shrink-0 w-full sm:w-52">
                             <div class="relative flex items-center justify-center overflow-hidden bg-gray-100 border border-dashed border-gray-300 rounded-2xl aspect-[4/3] dark:bg-gray-700 dark:border-gray-600">
                                 <img id="coverPreview" src="{{ $existingCover ? asset('storage/' . $existingCover) : '' }}"
                                      class="{{ $existingCover ? '' : 'hidden' }} object-cover w-full h-full">
@@ -457,7 +493,7 @@
                 </div>
 
                 {{-- ── Gallery ─────────────────────────────────────────────── --}}
-                <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 mb-4">
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                     <div class="mb-4">
                         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Gallery Images</h2>
                         <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Up to 4 additional photos shown in the branch detail view.</p>
@@ -468,7 +504,7 @@
                         <div class="space-y-2">
                             <input type="hidden" name="existing_gallery_images[{{ $i }}]" value="{{ $existingImage }}">
                             <input type="hidden" name="remove_gallery_images[{{ $i }}]" id="remove_gallery_image_{{ $i }}" value="0">
-                            <div class="relative overflow-hidden bg-gray-100 border border-dashed border-gray-300 rounded-2xl aspect-square dark:bg-gray-700 dark:border-gray-600">
+                            <div class="relative overflow-hidden bg-gray-100 border border-gray-300 border-dashed rounded-2xl aspect-square dark:bg-gray-700 dark:border-gray-600">
                                 <img id="galleryPreview_{{ $i }}" src="{{ $existingImage ? asset('storage/' . $existingImage) : '' }}"
                                      class="{{ $existingImage ? '' : 'hidden' }} object-cover w-full h-full">
                                 <div id="galleryPlaceholder_{{ $i }}"
@@ -494,7 +530,7 @@
                 </div>
 
                 {{-- ── Amenities ───────────────────────────────────────────── --}}
-                <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 mb-4"
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
                      x-data="amenitiesManager()">
 
                     <div class="flex items-center justify-between mb-4">
@@ -517,7 +553,7 @@
                                        class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700">
                                 <span class="flex-1 text-sm text-gray-700 dark:text-gray-200" x-text="amenity.label"></span>
                                 <button x-show="amenity.custom" type="button" @click.prevent="removeCustomAmenity(index)"
-                                    class="text-gray-300 hover:text-red-500 transition">
+                                    class="text-gray-300 transition hover:text-red-500">
                                     <i class="text-xs fa-solid fa-xmark"></i>
                                 </button>
                             </label>
@@ -528,7 +564,7 @@
                     <div x-show="openModal" x-transition.opacity
                          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
                          @click.self="openModal = false">
-                        <div class="w-full max-w-sm p-6 bg-white rounded-2xl shadow-xl dark:bg-gray-800" @click.stop>
+                        <div class="w-full max-w-sm p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800" @click.stop>
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Add Custom Amenity</h3>
                                 <button type="button" @click="openModal = false" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
@@ -548,9 +584,6 @@
                 </div>
 
                 <div class="flex items-center justify-between mt-4">
-                    <a href="{{ route('branches.index') }}" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 transition">
-                        ← Back to Branches
-                    </a>
                     <button type="submit"
                         class="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
                         Save Public Profile

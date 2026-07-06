@@ -159,7 +159,7 @@
                                         class="w-4 h-4 mt-1 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-600"
                                     >
                                     <span class="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                        Enable for this branch
+                                        Enable professional for this branch
                                     </span>
                                 </label>
                             </div>

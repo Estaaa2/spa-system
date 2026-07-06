@@ -38,6 +38,7 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TherapistPerformanceController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Middleware\LandingPageRedirect;
+use App\Http\Controllers\HR\PublicApplicationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -145,6 +146,15 @@ Route::middleware(['auth'])->group(function () {
 
 Route::post('/webhooks/paymongo', [PaymongoWebhookController::class, 'handle'])
     ->name('webhooks.paymongo');
+
+/*
+|--------------------------------------------------------------------------
+| Public Job Application (no auth — anyone can apply)
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/apply/{branch}', [PublicApplicationController::class, 'store'])
+    ->name('public.apply');
 
 /*
 |--------------------------------------------------------------------------
@@ -520,12 +530,12 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     Route::middleware('branch.permission:view billing')->group(function () {
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
     });
-    
+
     Route::middleware('branch.permission:create billing')->group(function () {
         Route::post('/billing/expenses', [BillingController::class, 'storeExpense'])
             ->name('billing.expense.store');
     });
-    
+
     Route::middleware('branch.permission:edit billing')->group(function () {
         Route::patch('/billing/expenses/{expense}/status', [BillingController::class, 'updateExpenseStatus'])
             ->name('billing.expense.updateStatus');

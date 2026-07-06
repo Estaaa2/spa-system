@@ -1,28 +1,28 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-6 max-w-3xl mx-auto">
+<div class="max-w-3xl p-6 mx-auto">
 
-<x-page-header 
-    title="Subscription" 
-    subtitle="Manage your spa subscription plan." 
+<x-page-header
+    title="Subscription"
+    subtitle="Manage your spa subscription plan."
 />
 
 {{-- CURRENT PLAN --}}
-<div class="mt-6 bg-white shadow rounded-xl dark:bg-gray-800 dark:border dark:border-gray-700 p-6">
+<div class="p-6 mt-6 bg-white shadow rounded-xl dark:bg-gray-800 dark:border dark:border-gray-700">
 
     <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">
         Current Plan
     </h2>
 
-    <div class="mt-4 flex items-center justify-between">
+    <div class="flex items-center justify-between mt-4">
 
         <div>
-            <p class="text-gray-500 dark:text-gray-400 text-sm">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
                 Tier
             </p>
 
-            <p class="text-xl font-bold text-gray-800 dark:text-gray-100 capitalize">
+            <p class="text-xl font-bold text-gray-800 capitalize dark:text-gray-100">
                 {{ $spa->business_tier }}
             </p>
         </div>
@@ -59,7 +59,7 @@
 {{-- SHOW UPGRADE IF BASIC --}}
 @if($spa->business_tier !== 'professional')
 
-<div class="mt-6 bg-white shadow rounded-xl dark:bg-gray-800 dark:border dark:border-gray-700 p-6">
+<div class="p-6 mt-6 bg-white shadow rounded-xl dark:bg-gray-800 dark:border dark:border-gray-700">
 
     <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">
         Upgrade to Professional
@@ -69,7 +69,7 @@
         Unlock advanced features to grow your spa business.
     </p>
 
-    <ul class="mt-6 space-y-2 list-disc list-inside text-gray-600 dark:text-gray-300">
+    <ul class="mt-6 space-y-2 text-gray-600 list-disc list-inside dark:text-gray-300">
         <li>Branch public listing</li>
         <li>Customer online reservation</li>
         <li>Enhanced decision support tools</li>
@@ -101,7 +101,7 @@
 {{-- SHOW CANCEL IF PROFESSIONAL --}}
 @if($spa->business_tier === 'professional')
 
-<div class="mt-6 bg-red-50 border border-red-200 rounded-xl p-6">
+<div class="p-6 mt-6 border border-red-200 bg-red-50 rounded-xl">
 
     <h3 class="text-lg font-semibold text-red-700">
         Cancel Subscription
@@ -111,16 +111,57 @@
         Cancelling will downgrade your spa to the Basic tier immediately, and you will lose access to all Professional features.
     </p>
 
-    <form action="{{ route('owner.subscription.cancel-subscription') }}" method="POST" class="mt-4">
-        @csrf
+    <button
+        type="button"
+        onclick="document.getElementById('cancel-sub-modal').classList.remove('hidden')"
+        class="px-6 py-2 mt-4 text-white bg-red-600 rounded-lg hover:bg-red-700">
 
-        <button
-            class="px-6 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700">
+        Cancel Subscription
 
-            Cancel Subscription
+    </button>
 
-        </button>
-    </form>
+</div>
+
+{{-- CONFIRMATION MODAL --}}
+<div id="cancel-sub-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+
+    {{-- backdrop --}}
+    <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('cancel-sub-modal').classList.add('hidden')"></div>
+
+    {{-- modal card --}}
+    <div class="relative w-full max-w-md p-6 bg-white shadow-xl dark:bg-gray-800 rounded-xl">
+
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            Are you sure you want to cancel?
+        </h3>
+
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            This will immediately downgrade your spa to the <span class="font-semibold">Basic</span> tier.
+            You'll lose access to branch listing, online reservations, decision support tools, priority support,
+            and unlimited staff/branches right away. This action cannot be undone.
+        </p>
+
+        <div class="flex justify-end gap-3 mt-6">
+
+            <button
+                type="button"
+                onclick="document.getElementById('cancel-sub-modal').classList.add('hidden')"
+                class="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                Keep my subscription
+            </button>
+
+            <form action="{{ route('owner.subscription.cancel-subscription') }}" method="POST">
+                @csrf
+                <button
+                    type="submit"
+                    class="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700">
+                    Yes, cancel it
+                </button>
+            </form>
+
+        </div>
+
+    </div>
 
 </div>
 

@@ -272,6 +272,8 @@ class BranchController extends Controller
             'longitude'        => 'nullable|numeric|between:-180,180',
             'amenities'        => 'nullable|array',
             'amenities.*'      => 'nullable|string|max:100',
+            'is_hiring'        => 'nullable|boolean',
+            'hiring_note'      => 'nullable|string|max:150',
         ]);
 
         if ($validator->fails()) {
@@ -298,6 +300,10 @@ class BranchController extends Controller
 
         $profileData              = $validator->validated();
         $profileData['is_listed'] = $request->boolean('is_listed');
+        $profileData['is_hiring'] = $request->boolean('is_hiring');
+        $profileData['hiring_note'] = $profileData['is_hiring']
+            ? ($profileData['hiring_note'] ?? null)
+            : null;
 
         // Cover image
         if ($request->boolean('remove_cover_image')) {

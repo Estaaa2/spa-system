@@ -4,11 +4,14 @@
 namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
+use App\Mail\DeploymentApproved;
+use App\Mail\DeploymentRejected;
 use App\Models\Branch;
 use App\Models\Staff;
 use App\Models\StaffBranchDeployment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 
 class BranchDeploymentController extends Controller
 {
@@ -181,6 +184,12 @@ class BranchDeploymentController extends Controller
             'reviewed_by' => $user->id,
         ]);
 
+        // ✅ Notify the staff member by email
+        $deployment->load(['staff.user', 'fromBranch', 'toBranch']);
+        if ($deployment->staff?->user?->email) {
+            Mail::to($deployment->staff->user->email)->send(new DeploymentApproved($deployment));
+        }
+
         return redirect()
             ->route('deployment.index', ['staff_id' => $deployment->staff_id])
             ->with('success', 'Deployment approved. The staff member will be moved on the scheduled start date.');
@@ -210,6 +219,12 @@ class BranchDeploymentController extends Controller
             'reviewed_by'      => $user->id,
             'rejection_reason' => $validated['rejection_reason'],
         ]);
+
+        // ✅ Notify the staff member by email
+        $deployment->load(['staff.user', 'fromBranch', 'toBranch']);
+        if ($deployment->staff?->user?->email) {
+            Mail::to($deployment->staff->user->email)->send(new DeploymentRejected($deployment));
+        }
 
         return redirect()
             ->route('deployment.index', ['staff_id' => $deployment->staff_id])

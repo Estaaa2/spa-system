@@ -34,9 +34,7 @@ class OnlineBookingCheckoutController extends Controller
         ]);
 
         if ($validated['service_type'] === 'in_home' && blank($validated['customer_address'])) {
-            return back()
-                ->with('booking_error', 'Home address is required for home service bookings.')
-                ->withInput();
+            return $this->fail($request, 'Home address is required for home service bookings.');
         }
 
         // Resolve treatment or package
@@ -57,16 +55,12 @@ class OnlineBookingCheckoutController extends Controller
                 ->firstOrFail();
             $bookableType = 'package';
         } else {
-            return back()
-                ->with('booking_error', 'Invalid service selected.')
-                ->withInput();
+            return $this->fail($request, 'Invalid service selected.');
         }
 
         $fullAmount = (float) $item->price;
         if ($fullAmount <= 0) {
-            return back()
-                ->with('booking_error', 'Selected service has an invalid price.')
-                ->withInput();
+            return $this->fail($request, 'Selected service has an invalid price.');
         }
 
         // =====================================================
@@ -78,9 +72,7 @@ class OnlineBookingCheckoutController extends Controller
             ->first();
 
         if (!$hours || $hours->is_closed) {
-            return back()
-                ->with('booking_error', 'The spa is closed on the selected day. Please choose another date.')
-                ->withInput();
+            return $this->fail($request, 'The spa is closed on the selected day. Please choose another date.');
         }
 
         $start   = Carbon::parse($validated['start_time']);
@@ -88,18 +80,14 @@ class OnlineBookingCheckoutController extends Controller
         $closing = Carbon::parse($hours->closing_time);
 
         if ($start->lt($opening) || $start->gte($closing)) {
-            return back()
-                ->with('booking_error', "Please select a time within spa operating hours: {$hours->opening_time} - {$hours->closing_time}")
-                ->withInput();
+            return $this->fail($request, "Please select a time within spa operating hours: {$hours->opening_time} - {$hours->closing_time}");
         }
 
         $durationMinutes = $item->duration ?? ($item->total_duration ?? 60);
         $endTime         = $start->copy()->addMinutes($durationMinutes)->format('H:i');
 
         if (Carbon::parse($endTime)->gt($closing)) {
-            return back()
-                ->with('booking_error', 'This service would end after closing hours. Please choose an earlier time.')
-                ->withInput();
+            return $this->fail($request, 'This service would end after closing hours. Please choose an earlier time.');
         }
 
         // =====================================================
@@ -114,9 +102,7 @@ class OnlineBookingCheckoutController extends Controller
             ->get();
 
         if ($therapists->isEmpty()) {
-            return back()
-                ->with('booking_error', 'No therapists are available at this branch.')
-                ->withInput();
+            return $this->fail($request, 'No therapists are available at this branch.');
         }
 
         $busyIds = Booking::query()
@@ -135,9 +121,7 @@ class OnlineBookingCheckoutController extends Controller
         $availableTherapists = $therapists->reject(fn($t) => $busyIds->contains($t->id));
 
         if ($availableTherapists->isEmpty()) {
-            return back()
-                ->with('booking_error', 'All therapists are fully booked for the selected date and time. Please choose a different time slot.')
-                ->withInput();
+            return $this->fail($request, 'All therapists are fully booked for the selected date and time. Please choose a different time slot.');
         }
 
         // =====================================================
@@ -211,9 +195,7 @@ class OnlineBookingCheckoutController extends Controller
                 'reservation_status' => 'failed',
             ]);
 
-            return back()
-                ->with('booking_error', 'Unable to connect to the payment gateway. Please check your connection and try again.')
-                ->withInput();
+            return $this->fail($request, 'Unable to connect to the payment gateway. Please check your connection and try again.');
         }
 
         if (!$response->successful()) {
@@ -223,9 +205,7 @@ class OnlineBookingCheckoutController extends Controller
                 'paymongo_payload'   => $response->json(),
             ]);
 
-            return back()
-                ->with('booking_error', 'Unable to create payment session. Please try again.')
-                ->withInput();
+            return $this->fail($request, 'Unable to create payment session. Please try again.');
         }
 
         $checkoutData = $response->json('data');
@@ -235,7 +215,26 @@ class OnlineBookingCheckoutController extends Controller
             'paymongo_payload'             => $response->json(),
         ]);
 
-        return redirect()->away(data_get($checkoutData, 'attributes.checkout_url'));
+        $checkoutUrl = data_get($checkoutData, 'attributes.checkout_url');
+
+        if ($request->expectsJson()) {
+            return response()->json(['checkout_url' => $checkoutUrl]);
+        }
+
+        return redirect()->away($checkoutUrl);
+    }
+
+    /**
+     * Return a validation-style error response.
+     * JSON (422) for AJAX/fetch requests, classic redirect-back for normal form posts.
+     */
+    private function fail(Request $request, string $message, int $status = 422)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], $status);
+        }
+
+        return back()->with('booking_error', $message)->withInput();
     }
 
     public function success(Request $request)

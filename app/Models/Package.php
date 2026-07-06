@@ -18,7 +18,10 @@ class Package extends Model
         'total_duration',
         'price',
         'description',
+        'image_path',
     ];
+
+    protected $appends = ['image_url'];
 
     // Treatments included in this package
     public function treatments()
@@ -26,6 +29,11 @@ class Package extends Model
         return $this->belongsToMany(Treatment::class, 'package_treatment')
                     ->withPivot('quantity')
                     ->withTimestamps();
+    }
+
+    public function getImageUrlAttribute()
+    {
+        return $this->image_path ? asset('storage/' . $this->image_path) : null;
     }
 
     // Optional helper: get total duration

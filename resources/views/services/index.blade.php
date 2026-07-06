@@ -106,8 +106,12 @@
                         <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-[#8B7355] flex items-center justify-center text-white">
-                                        <i class="fas fa-spa"></i>
+                                    <div class="w-10 h-10 rounded-full bg-[#8B7355] flex items-center justify-center text-white overflow-hidden">
+                                        @if($treatment->image_url)
+                                            <img src="{{ $treatment->image_url }}" alt="{{ $treatment->name }}" class="object-cover w-full h-full">
+                                        @else
+                                            <i class="fas fa-spa"></i>
+                                        @endif
                                     </div>
                                     <div>
                                         <p class="font-medium text-gray-900 dark:text-white">{{ $treatment->name }}</p>
@@ -147,6 +151,7 @@
                                                 data-price="{{ $treatment->price }}"
                                                 data-service-type="{{ $treatment->service_type }}"
                                                 data-description="{{ $treatment->description }}"
+                                                data-image="{{ $treatment->image_url }}"
                                                 class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                                 Edit
                                             </button>
@@ -256,8 +261,12 @@
                         <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B7355] to-[#6F5430] flex items-center justify-center text-white">
-                                        <i class="fas fa-gift"></i>
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B7355] to-[#6F5430] flex items-center justify-center text-white overflow-hidden">
+                                        @if($package->image_url)
+                                            <img src="{{ $package->image_url }}" alt="{{ $package->name }}" class="object-cover w-full h-full">
+                                        @else
+                                            <i class="fas fa-gift"></i>
+                                        @endif
                                     </div>
                                     <div>
                                         <p class="font-medium text-gray-900 dark:text-white">{{ $package->name }}</p>
@@ -310,6 +319,7 @@
                                                 data-price="{{ $package->price }}"
                                                 data-description="{{ $package->description }}"
                                                 data-treatments="{{ $package->treatments->pluck('id')->join(',') }}"
+                                                data-image="{{ $package->image_url }}"
                                                 class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
                                                 Edit
                                             </button>
@@ -417,7 +427,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <form action="{{ route('treatments.store') }}" method="POST" id="addTreatmentForm" novalidate>
+        <form action="{{ route('treatments.store') }}" method="POST" id="addTreatmentForm" enctype="multipart/form-data" novalidate>
             @csrf
             <div class="space-y-4">
                 <div>
@@ -460,6 +470,13 @@
                 </div>
 
                 <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Image</label>
+                    <input type="file" name="image" accept="image/*"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">JPG, PNG or WEBP, max 2MB.</p>
+                </div>
+
+                <div>
                     <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
                     <textarea name="description" rows="3"
                         class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]"></textarea>
@@ -491,7 +508,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <form id="editTreatmentForm" method="POST">
+        <form id="editTreatmentForm" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             <div class="space-y-4">
@@ -522,6 +539,14 @@
                         <option value="in_branch_only">In Branch Only</option>
                         <option value="in_branch_and_home">In Branch & Home</option>
                     </select>
+                </div>
+
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Image</label>
+                    <img id="edit_treatment_image_preview" src="" alt="" class="hidden object-cover w-20 h-20 mb-2 border border-gray-300 rounded-md dark:border-gray-600">
+                    <input type="file" name="image" id="edit_treatment_image_input" accept="image/*"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave blank to keep current image.</p>
                 </div>
 
                 <div>
@@ -571,7 +596,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <form action="{{ route('packages.store') }}" method="POST" id="addPackageForm">
+        <form action="{{ route('packages.store') }}" method="POST" id="addPackageForm" enctype="multipart/form-data">
             @csrf
             <div class="space-y-4">
                 <div>
@@ -613,6 +638,13 @@
                 </div>
 
                 <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Image</label>
+                    <input type="file" name="image" accept="image/*"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">JPG, PNG or WEBP, max 2MB.</p>
+                </div>
+
+                <div>
                     <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
                     <textarea name="description" rows="3" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]"></textarea>
                 </div>
@@ -636,7 +668,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <form id="editPackageForm" method="POST">
+        <form id="editPackageForm" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             <div class="space-y-4">
@@ -678,6 +710,14 @@
                         <input type="number" id="edit_package_price" name="price" step="0.01" required min="0" readonly class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355] bg-gray-100 dark:bg-gray-600 cursor-not-allowed">
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Auto-calculated from selected treatments</p>
                     </div>
+                </div>
+
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Image</label>
+                    <img id="edit_package_image_preview" src="" alt="" class="hidden object-cover w-20 h-20 mb-2 border border-gray-300 rounded-md dark:border-gray-600">
+                    <input type="file" name="image" id="edit_package_image_input" accept="image/*"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#8B7355]">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave blank to keep current image.</p>
                 </div>
 
                 <div>
@@ -758,6 +798,19 @@
         document.getElementById('edit_treatment_service_type').value = d.serviceType || '';
         document.getElementById('edit_treatment_description').value = d.description || '';
         document.getElementById('editTreatmentForm').action = '/treatments/' + d.id;
+
+        const preview = document.getElementById('edit_treatment_image_preview');
+        const imageInput = document.getElementById('edit_treatment_image_input');
+        if (imageInput) imageInput.value = ''; // clear any previously chosen file
+        if (preview) {
+            if (d.image) {
+                preview.src = d.image;
+                preview.classList.remove('hidden');
+            } else {
+                preview.src = '';
+                preview.classList.add('hidden');
+            }
+        }
 
         const modal = document.getElementById('editTreatmentModal');
         if (modal) {
@@ -864,6 +917,19 @@
         });
 
         document.getElementById('editPackageForm').action = '/packages/' + d.id;
+
+        const preview = document.getElementById('edit_package_image_preview');
+        const imageInput = document.getElementById('edit_package_image_input');
+        if (imageInput) imageInput.value = ''; // clear any previously chosen file
+        if (preview) {
+            if (d.image) {
+                preview.src = d.image;
+                preview.classList.remove('hidden');
+            } else {
+                preview.src = '';
+                preview.classList.add('hidden');
+            }
+        }
 
         const modal = document.getElementById('editPackageModal');
         if (modal) {

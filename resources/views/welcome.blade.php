@@ -144,7 +144,7 @@
 
                 {{-- HEADER: never scrolls --}}
                 <div class="relative px-6 py-6 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center flex-shrink-0">
-                    <div class="flex items-center justify-center w-14 h-14 mx-auto text-xl font-bold rounded-full bg-white/20 ring-2 ring-white/30">
+                    <div class="flex items-center justify-center mx-auto text-xl font-bold rounded-full w-14 h-14 bg-white/20 ring-2 ring-white/30">
                         {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
                     </div>
                     <h3 class="mt-2 text-base font-semibold font-['Playfair_Display']">
@@ -162,7 +162,7 @@
                     @method('PATCH')
 
                     {{-- SCROLLABLE BODY --}}
-                    <div class="flex-1 overflow-y-auto p-5 space-y-4">
+                    <div class="flex-1 p-5 space-y-4 overflow-y-auto">
 
                         {{-- Name row: 3 columns to save vertical space --}}
                         <div class="grid grid-cols-3 gap-3">
@@ -234,7 +234,7 @@
                     </div>{{-- end scrollable body --}}
 
                     {{-- FOOTER: always visible --}}
-                    <div class="flex gap-2 px-5 py-4 border-t border-black/5 bg-white flex-shrink-0">
+                    <div class="flex flex-shrink-0 gap-2 px-5 py-4 bg-white border-t border-black/5">
                         <button type="submit"
                             class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
                             Save Changes
@@ -680,6 +680,8 @@
                                     'treatments'      => $branchTreatments,
                                     'packages'        => $branchPackages,
                                     'amenities'       => $profile->amenities ?? [],
+                                    'is_hiring'   => $profile->is_hiring ?? false,
+                                    'hiring_note' => $profile->hiring_note ?? null,
                                 ];
                             @endphp
 
@@ -694,6 +696,13 @@
                                         <i class="fa-solid fa-star text-[#F5C842] text-[10px]"></i>
                                         Featured
                                     </div>
+                                    @if($profile->is_hiring ?? false)
+                                        <span onclick="event.stopPropagation(); openApplicationModal({{ $spa->id }}, {{ $branch->id }}, '{{ addslashes($spa->name) }}')"
+                                            class="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500 hover:bg-red-700 text-white text-[11px] font-semibold backdrop-blur-sm transition cursor-pointer">
+                                            <i class="fa-solid fa-briefcase text-[10px]"></i>
+                                            We're Hiring · <span class="underline underline-offset-2">Apply Now</span>
+                                        </span>
+                                    @endif
                                 </div>
                                 <div class="p-5">
                                     <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
@@ -811,6 +820,8 @@
                                             'treatments'      => $branchTreatments,
                                             'packages'        => $branchPackages,
                                             'amenities'       => $profile->amenities ?? [],
+                                            'is_hiring'   => $profile->is_hiring ?? false,
+                                            'hiring_note' => $profile->hiring_note ?? null,
                                         ];
                                     @endphp
 
@@ -825,6 +836,13 @@
                                                 <i class="fa-solid fa-spa text-[#8B7355] text-[10px]"></i>
                                                 Verified
                                             </div>
+                                            @if($profile->is_hiring ?? false)
+                                                <span onclick="event.stopPropagation(); openApplicationModal({{ $spa->id }}, {{ $branch->id }}, '{{ addslashes($spa->name) }}')"
+                                                    class="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500 hover:bg-red-700 text-white text-[11px] font-semibold backdrop-blur-sm transition cursor-pointer">
+                                                    <i class="fa-solid fa-briefcase text-[10px]"></i>
+                                                    We're Hiring · <span class="underline underline-offset-2">Apply Now</span>
+                                                </span>
+                                            @endif
                                         </div>
                                         <div class="p-4">
                                             <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
@@ -956,6 +974,13 @@
                                 <h4 class="mb-2 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23]">About this spa</h4>
                                 <p id="spaModalDesc" class="text-sm leading-relaxed text-gray-600"></p>
                             </div>
+                            <div id="spaModalHiring" class="hidden p-4 rounded-2xl bg-green-50 ring-1 ring-green-200">
+                                <div class="flex items-center gap-2">
+                                    <i class="text-sm text-green-600 fa-solid fa-briefcase"></i>
+                                    <p class="text-sm font-semibold text-green-700">We're Hiring</p>
+                                </div>
+                                <p id="spaModalHiringNote" class="mt-1 text-sm text-green-700/90"></p>
+                            </div>
                             <hr class="border-[#E8DDD0]">
                             <div>
                                 <h4 class="mb-4 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23]">What this place offers</h4>
@@ -1048,13 +1073,18 @@
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
                                 <input type="text" name="customer_phone" id="bookingCustomerPhone"
-                                    placeholder="09xxxxxxxxx"
-                                    maxlength="11"
-                                    pattern="^09\d{9}$"
-                                    inputmode="numeric"
+                                    placeholder="09xxxxxxxxx" maxlength="11"
                                     class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
                                     required>
+                                <p class="mt-1 text-[11px] text-gray-500">Format: 09xxxxxxxxx (11 digits)</p>
                             </div>
+
+                            {{-- <div>
+                                <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
+                                <input type="text" name="customer_phone" id="bookingCustomerPhone"
+                                    value="{{ auth()->user()->phone }}" readonly
+                                    class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
+                            </div> --}}
 
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600">Treatment / Package</label>
@@ -1063,6 +1093,16 @@
                                     required>
                                     <option value="">Select treatment or package</option>
                                 </select>
+
+                                <div id="treatmentPreview" class="hidden items-center gap-3 p-3 mt-3 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6]">
+                                    <img id="treatmentPreviewImage" src="" alt=""
+                                        class="flex-shrink-0 object-cover w-16 h-16 rounded-lg ring-1 ring-black/5">
+                                    <div class="min-w-0">
+                                        <p id="treatmentPreviewName" class="text-sm font-semibold text-[#3C2F23] truncate"></p>
+                                        <p id="treatmentPreviewDesc" class="mt-0.5 text-xs text-gray-500 line-clamp-2"></p>
+                                    </div>
+                                </div>
+
                             </div>
 
                             <div>
@@ -1102,13 +1142,6 @@
                                 </div>
                             </div>
 
-                            @if($errors->has('start_time'))
-                                <div class="p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200">
-                                    <i class="mr-1 fa-solid fa-circle-exclamation"></i>
-                                    {{ $errors->first('start_time') }}
-                                </div>
-                            @endif
-
                             <!-- Terms & Agreements -->
                             <div class="p-4 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6] space-y-3">
                                 <label class="flex items-center gap-3 pt-1 cursor-pointer group">
@@ -1143,6 +1176,185 @@
             <div class="h-10"></div>
         </div>
     </div>
+
+    <!-- ================= JOB APPLICATION MODAL ================= -->
+    <div id="applicationModal" class="fixed inset-0 z-[115] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeApplicationModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-3xl mt-8 mb-8">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10 flex flex-col max-h-[90vh]">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <div>
+                        <h3 class="text-lg font-semibold text-[#3C2F23]">Apply for a Position</h3>
+                        <p id="applicationSpaMeta" class="mt-0.5 text-xs text-gray-500">Spa Name</p>
+                    </div>
+                    <button type="button" onclick="closeApplicationModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-6 overflow-y-auto">
+                    <form id="applicationForm" method="POST" class="space-y-6">
+                        @csrf
+                        <input type="hidden" name="spa_id" id="applicationSpaId">
+                        <input type="hidden" name="branch_id" id="applicationBranchId">
+                        <input type="hidden" name="source" value="website">
+
+                        {{-- PERSONAL INFORMATION --}}
+                        <div>
+                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
+                                <i class="fa-solid fa-user"></i> Personal Information
+                            </h4>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Full Name <span class="text-red-500">*</span></label>
+                                    <input type="text" name="full_name" required
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Email <span class="text-red-500">*</span></label>
+                                    <input type="email" name="email" required
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Phone <span class="text-red-500">*</span></label>
+                                    <input type="text" name="phone" required placeholder="09xxxxxxxxx"
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Gender</label>
+                                    <select name="gender" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <option value="">Select</option>
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Date of Birth</label>
+                                    <input type="date" name="date_of_birth"
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Civil Status</label>
+                                    <select name="civil_status" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <option value="">Select</option>
+                                        <option value="single">Single</option>
+                                        <option value="married">Married</option>
+                                        <option value="widowed">Widowed</option>
+                                        <option value="separated">Separated</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Address <span class="text-red-500">*</span></label>
+                                    <input type="text" name="address" required placeholder="Street, Barangay, City"
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-[#E8DDD0]">
+
+                        {{-- POSITION DETAILS --}}
+                        <div>
+                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
+                                <i class="fa-solid fa-briefcase"></i> Position Details
+                            </h4>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Applying For <span class="text-red-500">*</span></label>
+                                    <select name="position_applied" required class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <option value="">Select</option>
+                                        <option value="therapist">Therapist</option>
+                                        <option value="receptionist">Receptionist</option>
+                                        <option value="manager">Manager</option>
+                                        <option value="hr">HR</option>
+                                        <option value="finance">Finance</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Shift Availability</label>
+                                    <select name="availability" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <option value="">Select</option>
+                                        <option value="full_time">Full Time</option>
+                                        <option value="part_time">Part Time</option>
+                                        <option value="weekdays">Weekdays Only</option>
+                                        <option value="weekends">Weekends Only</option>
+                                        <option value="shifting">Shifting</option>
+                                        <option value="flexible">Flexible</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Expected Start Date</label>
+                                    <input type="date" name="expected_start_date"
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Educational Attainment</label>
+                                    <select name="education" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <option value="">Select</option>
+                                        <option value="high_school">High School</option>
+                                        <option value="vocational">Vocational</option>
+                                        <option value="undergraduate">Undergraduate</option>
+                                        <option value="college">College Graduate</option>
+                                        <option value="postgrad">Post Graduate</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Skills / Certifications</label>
+                                    <input type="text" name="skills" placeholder="e.g. Swedish Massage, NC II..."
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Work Experience</label>
+                                    <textarea name="work_experience" rows="3" placeholder="Previous work experience..."
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 resize-none"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-[#E8DDD0]">
+
+                        {{-- EMERGENCY CONTACT --}}
+                        <div>
+                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
+                                <i class="fa-solid fa-phone-volume"></i> Emergency Contact
+                            </h4>
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Contact Person</label>
+                                    <input type="text" name="emergency_contact_name"
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Relationship</label>
+                                    <input type="text" name="emergency_contact_relation" placeholder="e.g. Mother"
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Contact Number</label>
+                                    <input type="text" name="emergency_contact_phone" placeholder="09xxxxxxxxx"
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="applicationError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200">
+                            <i class="mr-1 fa-solid fa-circle-exclamation"></i>
+                            <span id="applicationErrorText"></span>
+                        </div>
+
+                        <button type="submit" id="applicationSubmitBtn"
+                            class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                            <i class="mr-2 fa-solid fa-paper-plane"></i>
+                            Submit Application
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ================= BUSINESS REGISTER INFO MODAL ================= -->
     @role('customer')
     <div id="businessInfoModal" class="fixed inset-0 z-[150] hidden">
@@ -1154,7 +1366,7 @@
                         <i class="fa-solid fa-store text-2xl text-[#8B7355]"></i>
                     </div>
                     <h3 class="mt-4 text-lg font-semibold text-[#3C2F23]">Business Account Required</h3>
-                    <p class="mt-2 text-sm text-gray-500 leading-relaxed">
+                    <p class="mt-2 text-sm leading-relaxed text-gray-500">
                         You're currently logged in as a customer. Listing a spa requires a separate business account.
                         Please log out first, then register as a business partner.
                     </p>
@@ -1163,7 +1375,7 @@
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit"
-                            class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
+                            class="w-full py-3 text-sm font-semibold text-white transition shadow-md rounded-xl booking-btn hover:shadow-lg">
                             <i class="mr-2 fa-solid fa-right-from-bracket"></i>
                             Log Out & Register as Business
                         </button>
