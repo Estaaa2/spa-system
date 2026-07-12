@@ -81,6 +81,19 @@ function closeProfileModal() {
     }
 }
 
+function openLogoutModal() {
+    document.getElementById('logoutModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeLogoutModal() {
+    document.getElementById('logoutModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+window.openLogoutModal  = openLogoutModal;
+window.closeLogoutModal = closeLogoutModal;
+
 function toggleEmail() {
     const display = document.getElementById('emailDisplay');
     const btn     = document.getElementById('emailToggleBtn');
@@ -275,7 +288,9 @@ function populateTreatmentsForSelectedBranch() {
         option.dataset.itemType    = 'treatment';
         option.dataset.image       = t.image_url ?? '';
         option.dataset.description = t.description ?? '';
+        option.dataset.price       = t.price ?? '';
         treatmentSelect.appendChild(option);
+
     });
 
     (selectedSpa.packages ?? []).forEach(p => {
@@ -288,6 +303,7 @@ function populateTreatmentsForSelectedBranch() {
         option.dataset.itemType    = 'package';
         option.dataset.image       = p.image_url ?? '';
         option.dataset.description = p.description ?? '';
+        option.dataset.price       = p.price ?? '';
         treatmentSelect.appendChild(option);
     });
 
@@ -538,7 +554,7 @@ bookingDateInput?.addEventListener('change', updateAvailableTimes);
 bookingTimeInput?.addEventListener('change', validateBookingTime);
 bookingTimeInput?.addEventListener('input', validateBookingTime);
 
-bookingForm?.addEventListener('submit', async function (e) {
+bookingForm?.addEventListener('submit', function (e) {
     e.preventDefault();
 
     if (!validateBookingTime()) return;
@@ -547,10 +563,64 @@ bookingForm?.addEventListener('submit', async function (e) {
         return;
     }
 
-    const submitBtn = document.getElementById('bookingSubmitBtn');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Reserving...';
+    openBookingConfirmModal();
+});
+
+function openBookingConfirmModal() {
+    const modal = document.getElementById('bookingConfirmModal');
+    if (!modal || !selectedSpa) return;
+
+    const selectedOption = treatmentSelect?.options[treatmentSelect.selectedIndex];
+    const rawPrice = parseFloat(selectedOption?.dataset.price || '0') || 0;
+    const downpayment = rawPrice * 0.20;
+
+    document.getElementById('confirmSpaName').textContent = selectedSpa.branch_location
+        ? `${selectedSpa.name} • ${selectedSpa.branch_location} Branch`
+        : `${selectedSpa.name} • ${selectedSpa.branch_name ?? ''}`;
+
+    document.getElementById('confirmTreatment').textContent = selectedOption?.dataset.itemType === 'package'
+        ? selectedOption.textContent.replace(' (Package)', '')
+        : (selectedOption?.textContent ?? '');
+
+    const dateValue = bookingDateInput?.value;
+    document.getElementById('confirmDate').textContent = dateValue
+        ? new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        : '';
+
+    document.getElementById('confirmTime').textContent = formatTime12Hour(bookingTimeInput?.value || '');
+
+    const serviceTypeValue = serviceTypeSelect?.value;
+    document.getElementById('confirmServiceType').textContent =
+        serviceTypeValue === 'in_home' ? 'Home Service' : 'In-Branch';
+
+    const addressRow = document.getElementById('confirmAddressRow');
+    if (serviceTypeValue === 'in_home' && addressInput?.value) {
+        document.getElementById('confirmAddress').textContent = addressInput.value;
+        addressRow?.classList.remove('hidden');
+    } else {
+        addressRow?.classList.add('hidden');
+    }
+
+    document.getElementById('confirmDownpayment').textContent = rawPrice
+        ? `₱${downpayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : 'To be confirmed at the spa';
+
+    document.getElementById('confirmTotalPrice').textContent = rawPrice
+        ? `₱${rawPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : '';
+
+    modal.classList.remove('hidden');
+}
+
+function closeBookingConfirmModal() {
+    document.getElementById('bookingConfirmModal')?.classList.add('hidden');
+}
+
+async function submitBookingConfirmed() {
+    const confirmBtn = document.getElementById('confirmBookingSubmitBtn');
+    const originalText = confirmBtn.innerHTML;
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Reserving...';
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -580,6 +650,7 @@ bookingForm?.addEventListener('submit', async function (e) {
             return;
         }
 
+        closeBookingConfirmModal();
         closeBookingModal();
         closeSpaModal();
         showSpaToast(data.message ?? 'Appointment reserved!', 'success');
@@ -589,10 +660,10 @@ bookingForm?.addEventListener('submit', async function (e) {
     } catch (err) {
         showSpaToast('Network error. Please try again.', 'error');
     } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalText;
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = originalText;
     }
-});
+}
 
 document.getElementById('bookingCustomerPhone')?.addEventListener('input', function () {
     this.value = this.value.replace(/\D/g, '').slice(0, 11);
@@ -623,6 +694,27 @@ function loadAppointments() {
             allAppointments = data;
             updateTabCounts();
             renderTab(currentTab);
+
+            const today = getTodayLocal();
+            const upcomingCount = data.filter(b =>
+                ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today
+            ).length;
+            updateAppointmentsBadge(upcomingCount);
+        });
+}
+
+function updateAppointmentsBadge(count) {
+    [document.getElementById('myAppointmentsBadge'), document.getElementById('myAppointmentsBadgeMobile')]
+        .forEach(el => {
+            if (!el) return;
+            if (count > 0) {
+                el.textContent = count > 99 ? '99+' : count;
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+            } else {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            }
         });
 }
 
@@ -1229,6 +1321,12 @@ async function loadNearbySpas() {
 
 document.addEventListener('DOMContentLoaded', loadNearbySpas);
 
+document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('myAppointmentsBadge')) {
+        loadAppointments();
+    }
+});
+
 // =====================================================
 // MAP (For Profile Modal) - FIXED with container check
 // =====================================================
@@ -1282,6 +1380,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // =====================================================
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+        if (!document.getElementById('logoutModal')?.classList.contains('hidden'))          closeLogoutModal();
         if (!document.getElementById('rescheduleModal')?.classList.contains('hidden'))      closeRescheduleModal();
         if (!document.getElementById('bookingDetailsModal')?.classList.contains('hidden'))  closeBookingDetailsModal();
         if (!document.getElementById('termsModal')?.classList.contains('hidden'))           closeTermsModal();
@@ -1289,6 +1388,7 @@ window.addEventListener('keydown', (e) => {
         if (!bookingModal?.classList.contains('hidden'))                                    closeBookingModal();
         if (!document.getElementById('businessInfoModal')?.classList.contains('hidden'))    closeBusinessInfo();
         if (!document.getElementById('applicationModal')?.classList.contains('hidden'))     closeApplicationModal();
+        if (!document.getElementById('bookingConfirmModal')?.classList.contains('hidden'))  closeBookingConfirmModal();
     }
 });
 
@@ -1322,6 +1422,11 @@ window._dayBookingMap           = _dayBookingMap;
 window._appointmentMap          = _appointmentMap;
 window.openApplicationModal     = openApplicationModal;
 window.closeApplicationModal    = closeApplicationModal;
+window.openLogoutModal          = openLogoutModal;
+window.closeLogoutModal         = closeLogoutModal;
+window.openBookingConfirmModal  = openBookingConfirmModal;
+window.closeBookingConfirmModal = closeBookingConfirmModal;
+window.submitBookingConfirmed   = submitBookingConfirmed;
 
 // =====================================================
 // TOAST

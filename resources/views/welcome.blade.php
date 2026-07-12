@@ -78,9 +78,14 @@
                     @role('customer')
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-1">
+                            <div class="flex items-center gap-1">
                             <a href="#" onclick="openAppointmentsModal()"
-                                class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                                class="relative flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
                                 My Appointments
+                                <span id="myAppointmentsBadge"
+                                    class="hidden absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full ring-2 ring-[#F6EFE6]">
+                                    0
+                                </span>
                             </a>
                             <a href="#" onclick="openScheduleModal()"
                                 class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
@@ -110,14 +115,11 @@
                                         <i class="fa-solid fa-user text-[#8B7355] w-4"></i>
                                         Profile
                                     </button>
-                                    <form method="POST" action="{{ route('logout') }}">
-                                        @csrf
-                                        <button type="submit"
-                                            class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
-                                            <i class="w-4 fa-solid fa-right-from-bracket"></i>
-                                            Logout
-                                        </button>
-                                    </form>
+                                    <button type="button" onclick="closeProfileDropdown(); openLogoutModal();"
+                                        class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
+                                        <i class="w-4 fa-solid fa-right-from-bracket"></i>
+                                        Logout
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -264,15 +266,18 @@
                 <a href="{{ route('register.business') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Join as a Partner</a>
             @else
                 @role('customer')
-                    <a href="#" onclick="openAppointmentsModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">My Appointments</a>
+                    <a href="#" onclick="openAppointmentsModal()" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                        My Appointments
+                        <span id="myAppointmentsBadgeMobile"
+                            class="hidden items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                            0
+                        </span>
+                    </a>
                     <a href="#" onclick="openScheduleModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">My Schedule</a>
                     <a href="#" onclick="openProfileModal();" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">Profile</a>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
-                            Logout
-                        </button>
-                    </form>
+                    <button type="button" onclick="openLogoutModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                        Logout
+                    </button>
                 @endrole
             @endguest
         </div>
@@ -403,6 +408,50 @@
                 </div>
             </div>
             <div class="h-10"></div>
+        </div>
+    </div>
+
+    <!-- ================= LOGOUT CONFIRMATION MODAL ================= -->
+    <div id="logoutModal" class="fixed inset-0 z-[145] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeLogoutModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-md mt-24 sm:mt-32">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <h3 class="text-lg font-semibold text-[#3C2F23]">Confirm Logout</h3>
+                    <button type="button" onclick="closeLogoutModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 rounded-full">
+                            <i class="text-xl text-red-600 fa-solid fa-right-from-bracket"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-[#3C2F23]">Are you sure?</h4>
+                            <p class="mt-1 text-sm text-gray-500">
+                                You will be logged out of your account and redirected to the home page.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 px-6 pb-6">
+                    <button type="button" onclick="closeLogoutModal()"
+                        class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        Cancel
+                    </button>
+                    <form method="POST" action="{{ route('logout') }}" class="flex-1">
+                        @csrf
+                        <button type="submit"
+                            class="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition">
+                            Yes, Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1174,6 +1223,113 @@
                 </div>
             </div>
             <div class="h-10"></div>
+        </div>
+    </div>
+
+    <!-- ================= BOOKING CONFIRMATION MODAL ================= -->
+    <div id="bookingConfirmModal" class="fixed inset-0 z-[112] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onclick="closeBookingConfirmModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-md mt-16 sm:mt-24">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <h3 class="text-lg font-semibold text-[#3C2F23]">Confirm Your Reservation</h3>
+                    <button type="button" onclick="closeBookingConfirmModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="p-6 space-y-3">
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                            <i class="fa-solid fa-spa text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Spa & Branch</p>
+                            <p id="confirmSpaName" class="text-sm font-semibold text-[#3C2F23]"></p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                            <i class="fa-solid fa-list-check text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Treatment / Package</p>
+                            <p id="confirmTreatment" class="text-sm font-semibold text-[#3C2F23]"></p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                                <i class="fa-solid fa-calendar text-[#8B7355] text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</p>
+                                <p id="confirmDate" class="text-sm font-semibold text-[#3C2F23]"></p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                                <i class="fa-solid fa-clock text-[#8B7355] text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Time</p>
+                                <p id="confirmTime" class="text-sm font-semibold text-[#3C2F23]"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                            <i class="fa-solid fa-house-medical text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Service Type</p>
+                            <p id="confirmServiceType" class="text-sm font-semibold text-[#3C2F23]"></p>
+                        </div>
+                    </div>
+
+                    <div id="confirmAddressRow" class="hidden items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
+                            <i class="fa-solid fa-location-dot text-[#8B7355] text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Home Address</p>
+                            <p id="confirmAddress" class="text-sm font-semibold text-[#3C2F23]"></p>
+                        </div>
+                    </div>
+
+                    <hr class="border-[#E8DDD0]">
+
+                    <div class="p-4 rounded-xl bg-[#FDFAF6] ring-1 ring-[#E8DDD0] space-y-1.5">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Total Service Price</span>
+                            <span id="confirmTotalPrice" class="font-medium text-[#3C2F23]"></span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-[#3C2F23]">Downpayment Due Now (20%)</span>
+                            <span id="confirmDownpayment" class="text-lg font-bold text-[#6F5430]"></span>
+                        </div>
+                        <p class="text-[11px] text-gray-500 pt-1">
+                            The remaining balance is payable at the spa on the day of your appointment. Downpayments are non-refundable.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 px-6 pb-6">
+                    <button type="button" onclick="closeBookingConfirmModal()"
+                        class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        Back & Edit
+                    </button>
+                    <button type="button" id="confirmBookingSubmitBtn" onclick="submitBookingConfirmed()"
+                        class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                        <i class="mr-2 fa-solid fa-check"></i>
+                        Confirm & Proceed to Payment
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

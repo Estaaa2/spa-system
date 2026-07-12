@@ -56,7 +56,7 @@
 
                     <!-- First Name -->
                     <div>
-                        <x-input-label for="first_name" :value="__('First Name')" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block" />
+                        <x-input-label for="first_name" :value="__('First Name')" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" />
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,7 +73,7 @@
 
                     <!-- Middle Name -->
                     <div>
-                        <x-input-label for="middle_name" :value="__('Middle Name')" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block" />
+                        <x-input-label for="middle_name" :value="__('Middle Name')" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" />
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,7 +90,7 @@
 
                     <!-- Surname -->
                     <div>
-                        <x-input-label for="last_name" :value="__('Surname')" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block" />
+                        <x-input-label for="last_name" :value="__('Surname')" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" />
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,13 +143,20 @@
                             </div>
                             <x-text-input
                                 id="password"
-                                class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
+                                class="block w-full pl-10 pr-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
                                 type="password"
                                 name="password"
                                 required
                                 autocomplete="new-password"
                                 placeholder="Enter your password"
                             />
+                            <button type="button"
+                                    class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
+                                    data-target="password"
+                                    aria-label="Show password"
+                                    tabindex="-1">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
                         </div>
                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
                     </div>
@@ -167,13 +174,20 @@
                             </div>
                             <x-text-input
                                 id="password_confirmation"
-                                class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
+                                class="block w-full pl-10 pr-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
                                 type="password"
                                 name="password_confirmation"
                                 required
                                 autocomplete="new-password"
                                 placeholder="Confirm your password"
                             />
+                            <button type="button"
+                                    class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
+                                    data-target="password_confirmation"
+                                    aria-label="Show password"
+                                    tabindex="-1">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
                         </div>
                         <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
                     </div>
@@ -205,4 +219,26 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.querySelectorAll('.toggle-password').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const target = document.getElementById(btn.dataset.target);
+                const icon = btn.querySelector('i');
+                if (!target) return;
+
+                if (target.type === 'password') {
+                    target.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                    btn.setAttribute('aria-label', 'Hide password');
+                } else {
+                    target.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                    btn.setAttribute('aria-label', 'Show password');
+                }
+            });
+        });
+    </script>
 </x-guest-layout>

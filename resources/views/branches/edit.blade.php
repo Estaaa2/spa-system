@@ -243,7 +243,7 @@
 
                         {{-- Inline time-range error (mirrors operating-hours.blade.php) --}}
                         <p id="time_error_{{ $suffix }}"
-                           class="flex items-center gap-1 mt-2 text-xs text-red-600">
+                           class="flex items-center hidden gap-1 mt-2 text-xs text-red-600">
                             <i class="flex-shrink-0 fa-solid fa-circle-exclamation"></i>
                             Closing time must be after opening time.
                         </p>
@@ -431,12 +431,25 @@
                                    placeholder="09xxxxxxxxx"
                                    class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
                         </div>
-                        <div>
+                        <div class="relative">
                             <label for="address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
-                            <input type="text" name="address" id="address"
-                                   value="{{ old('address', optional($branch->profile)->address) }}"
-                                   placeholder="Street, Barangay, City"
-                                   class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                            <input type="text" name="address" id="address" autocomplete="off"
+                                value="{{ old('address', optional($branch->profile)->address) }}"
+                                placeholder="e.g. Camella Homes, Bacoor, Cavite"
+                                class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-400">
+                                Tip: search by subdivision/village, barangay, or city name block & lot numbers alone won't be found. You can drag the pin afterward for the exact spot.
+                            </p>
+
+                            {{-- Autocomplete suggestions dropdown --}}
+                            <div id="addressSuggestions"
+                                class="absolute z-20 hidden w-full mt-1 overflow-hidden bg-white border border-gray-200 shadow-lg rounded-xl dark:bg-gray-700 dark:border-gray-600">
+                                {{-- populated by JS --}}
+                            </div>
+
+                            <p id="addressSearching" class="hidden mt-1 text-xs text-gray-400">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Searching...
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -450,7 +463,7 @@
                     <input type="hidden" name="latitude"  id="latitude"  value="{{ old('latitude',  optional($branch->profile)->latitude) }}">
                     <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', optional($branch->profile)->longitude) }}">
                     <div id="profileMap" class="w-full h-64 overflow-hidden border border-gray-200 rounded-xl dark:border-gray-600"></div>
-                    <div id="caviteToast" class="flex items-center gap-2 p-3 mt-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
+                    <div id="caviteToast" class="flex items-center hidden gap-2 p-3 mt-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
                         <i class="flex-shrink-0 fa-solid fa-location-crosshairs"></i>
                         <span id="caviteToastMsg">Please pin a location within Cavite only.</span>
                     </div>
@@ -813,8 +826,8 @@ function initLeafletMap() {
     const mapContainer = document.getElementById('profileMap');
     if (!mapContainer || leafletMapInstance) return;
 
-    const caviteBounds = L.latLngBounds([13.983, 120.850], [14.600, 121.200]);
-    const caviteCenter = [14.2823, 120.8687];
+    const caviteBounds = L.latLngBounds([14.020, 120.620], [14.520, 121.100]);
+    const caviteCenter = [14.2456, 120.8786];
 
     let defaultLat = parseFloat(document.getElementById('latitude').value);
     let defaultLng = parseFloat(document.getElementById('longitude').value);
@@ -860,6 +873,191 @@ function showCaviteToast(message) {
     setTimeout(() => toast.classList.add('hidden'), 4000);
 }
 
+// ── Forward geocoding: address text → autocomplete dropdown → pin
+let addressGeocodeTimeout = null;
+let currentSuggestions = [];
+let activeSuggestionIndex = -1;
+
+const CAVITE_BOUNDS_VIEWBOX = '120.620,14.520,121.100,14.020'; // left,top,right,bottom
+const CAVITE_BOUNDS_LATLNG  = L.latLngBounds([14.020, 120.620], [14.520, 121.100]);
+
+function fetchAddressSuggestions(query) {
+    const searchingEl = document.getElementById('addressSearching');
+    const dropdown    = document.getElementById('addressSuggestions');
+
+    if (query.length < 4) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+    }
+
+    searchingEl?.classList.remove('hidden');
+    performGeocodeSearch(query, true);
+
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Cavite, Philippines')}&format=json&limit=5&viewbox=${CAVITE_BOUNDS_VIEWBOX}&bounded=1&addressdetails=1`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            searchingEl?.classList.add('hidden');
+            currentSuggestions = (data || []).filter(item => {
+                const latlng = L.latLng(parseFloat(item.lat), parseFloat(item.lon));
+                return CAVITE_BOUNDS_LATLNG.contains(latlng);
+            });
+            renderAddressSuggestions();
+        })
+        .catch(() => {
+            searchingEl?.classList.add('hidden');
+            dropdown.classList.add('hidden');
+        });
+}
+
+function performGeocodeSearch(query, allowFallback) {
+    const searchingEl = document.getElementById('addressSearching');
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Cavite, Philippines')}&format=json&limit=5&viewbox=${CAVITE_BOUNDS_VIEWBOX}&bounded=1&addressdetails=1`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            let results = (data || []).filter(item => {
+                const latlng = L.latLng(parseFloat(item.lat), parseFloat(item.lon));
+                return CAVITE_BOUNDS_LATLNG.contains(latlng);
+            });
+
+            if (results.length === 0 && allowFallback) {
+                // Strip block/lot/unit-style tokens and retry once with the remainder
+                const stripped = query
+                    .replace(/\b(blk|block|lot|unit|phase|ph)\.?\s*\d+\w*/gi, '')
+                    .replace(/\s{2,}/g, ' ')
+                    .trim();
+
+                if (stripped.length >= 4 && stripped !== query) {
+                    performGeocodeSearch(stripped, false);
+                    return;
+                }
+            }
+
+            searchingEl?.classList.add('hidden');
+            currentSuggestions = results;
+            renderAddressSuggestions();
+        })
+        .catch(() => {
+            searchingEl?.classList.add('hidden');
+            document.getElementById('addressSuggestions').classList.add('hidden');
+        });
+}
+
+function renderAddressSuggestions() {
+    const dropdown = document.getElementById('addressSuggestions');
+    activeSuggestionIndex = -1;
+
+    if (currentSuggestions.length === 0) {
+        dropdown.innerHTML = `
+            <div class="px-4 py-3 text-sm text-gray-400">
+                No matching locations found in Cavite.
+            </div>`;
+        dropdown.classList.remove('hidden');
+        return;
+    }
+
+    dropdown.innerHTML = currentSuggestions.map((item, index) => `
+        <button type="button"
+                data-index="${index}"
+                class="address-suggestion-item flex items-start w-full gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-0">
+            <i class="fa-solid fa-location-dot text-[#8B7355] text-xs mt-1 flex-shrink-0"></i>
+            <span class="text-gray-700 dark:text-gray-200">${escapeHtml(item.display_name)}</span>
+        </button>
+    `).join('');
+
+    dropdown.classList.remove('hidden');
+
+    dropdown.querySelectorAll('.address-suggestion-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = parseInt(btn.dataset.index, 10);
+            selectAddressSuggestion(index);
+        });
+    });
+}
+
+function selectAddressSuggestion(index) {
+    const item = currentSuggestions[index];
+    if (!item) return;
+
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
+    const latlng = L.latLng(lat, lng);
+
+    document.getElementById('address').value = item.display_name;
+    document.getElementById('latitude').value  = lat.toFixed(7);
+    document.getElementById('longitude').value = lng.toFixed(7);
+
+    if (leafletMapInstance) {
+        leafletMapInstance.setView(latlng, 16);
+        leafletMapInstance.eachLayer(layer => {
+            if (layer instanceof L.Marker) layer.setLatLng(latlng);
+        });
+    }
+
+    document.getElementById('addressSuggestions').classList.add('hidden');
+    currentSuggestions = [];
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function setupAddressAutocomplete() {
+    const addressInput = document.getElementById('address');
+    const dropdown      = document.getElementById('addressSuggestions');
+    if (!addressInput || !dropdown) return;
+
+    addressInput.addEventListener('input', function () {
+        clearTimeout(addressGeocodeTimeout);
+        const query = this.value.trim();
+        addressGeocodeTimeout = setTimeout(() => fetchAddressSuggestions(query), 500);
+    });
+
+    // Keyboard navigation (up/down/enter)
+    addressInput.addEventListener('keydown', function (e) {
+        const items = dropdown.querySelectorAll('.address-suggestion-item');
+        if (items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeSuggestionIndex = Math.min(activeSuggestionIndex + 1, items.length - 1);
+            highlightSuggestion(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeSuggestionIndex = Math.max(activeSuggestionIndex - 1, 0);
+            highlightSuggestion(items);
+        } else if (e.key === 'Enter') {
+            if (activeSuggestionIndex >= 0) {
+                e.preventDefault();
+                selectAddressSuggestion(activeSuggestionIndex);
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!addressInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+}
+
+function highlightSuggestion(items) {
+    items.forEach((item, i) => {
+        item.classList.toggle('bg-gray-100', i === activeSuggestionIndex);
+        item.classList.toggle('dark:bg-gray-600', i === activeSuggestionIndex);
+    });
+    items[activeSuggestionIndex]?.scrollIntoView({ block: 'nearest' });
+}
+
 // ── On page load: restore operating hours card states
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('#hoursForm input[type="checkbox"][name*="is_closed"]').forEach(cb => {
@@ -870,6 +1068,7 @@ document.addEventListener('DOMContentLoaded', function () {
         cb.addEventListener('change', () => toggleHoursCard(cb, suffix));
     });
     checkAllClosed();
+    setupAddressAutocomplete();
 });
 </script>
 

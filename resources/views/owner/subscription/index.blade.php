@@ -123,7 +123,7 @@
 </div>
 
 {{-- CONFIRMATION MODAL --}}
-<div id="cancel-sub-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+<div id="cancel-sub-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden px-4">
 
     {{-- backdrop --}}
     <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('cancel-sub-modal').classList.add('hidden')"></div>

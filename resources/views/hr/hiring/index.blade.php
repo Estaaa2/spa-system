@@ -57,7 +57,7 @@
                                 <input type="text" name="full_name" required value="{{ old('full_name') }}"
                                     placeholder="Full name"
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                @error('full_name')
+                                @error('full_name', 'application')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -69,7 +69,7 @@
                                 <input type="email" name="email" required value="{{ old('email') }}"
                                     placeholder="user@email.com"
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                @error('email')
+                                @error('email', 'application')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -81,7 +81,7 @@
                                 <input type="text" name="phone" required value="{{ old('phone') }}"
                                     placeholder="09xxxxxxxxx"
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                @error('phone')
+                                @error('phone', 'application')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -97,7 +97,7 @@
                                     <option value="female" {{ old('gender') == 'female' ? 'selected' : '' }}>Female</option>
                                     <option value="other" {{ old('gender') == 'other' ? 'selected' : '' }}>Other</option>
                                 </select>
-                                @error('gender')
+                                @error('gender', 'application')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -108,7 +108,7 @@
                                 </label>
                                 <input type="date" name="date_of_birth" value="{{ old('date_of_birth') }}"
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                @error('date_of_birth')
+                                @error('date_of_birth', 'application')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -129,7 +129,7 @@
                                     <option value="separated" {{ old('civil_status') == 'separated' ? 'selected' : '' }}>
                                         Separated</option>
                                 </select>
-                                @error('civil_status')
+                                @error('civil_status', 'application')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -141,7 +141,7 @@
                                 <input type="text" name="address" required value="{{ old('address') }}"
                                     placeholder="Street, Barangay, City"
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                @error('address')
+                                @error('address', 'application')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -181,14 +181,14 @@
                                         <option value="finance"
                                             {{ old('position_applied') == 'finance' ? 'selected' : '' }}>Finance</option>
                                     </select>
-                                    @error('position_applied')
+                                    @error('position_applied', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
 
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                                        Shit Availability
+                                        Shift Availability
                                     </label>
                                     <select name="availability"
                                         class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -206,7 +206,7 @@
                                         <option value="flexible" {{ old('availability') == 'flexible' ? 'selected' : '' }}>
                                             Flexible</option>
                                     </select>
-                                    @error('availability')
+                                    @error('availability', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -229,7 +229,7 @@
                                         <option value="other" {{ old('source') == 'other' ? 'selected' : '' }}>Other
                                         </option>
                                     </select>
-                                    @error('source')
+                                    @error('source', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -241,7 +241,7 @@
                                     <input type="date" name="expected_start_date"
                                         value="{{ old('expected_start_date') }}"
                                         class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                    @error('expected_start_date')
+                                    @error('expected_start_date', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -265,7 +265,7 @@
                                         <option value="postgrad" {{ old('education') == 'postgrad' ? 'selected' : '' }}>
                                             Post Graduate</option>
                                     </select>
-                                    @error('education')
+                                    @error('education', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -277,7 +277,7 @@
                                     <input type="text" name="skills" value="{{ old('skills') }}"
                                         placeholder="e.g. Swedish Massage, NC II..."
                                         class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                    @error('skills')
+                                    @error('skills', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -288,7 +288,7 @@
                                     </label>
                                     <textarea name="work_experience" rows="3" placeholder="Previous work experience..."
                                         class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('work_experience') }}</textarea>
-                                    @error('work_experience')
+                                    @error('work_experience', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -310,7 +310,7 @@
                                     <input type="text" name="emergency_contact_name"
                                         value="{{ old('emergency_contact_name') }}" placeholder="Full name"
                                         class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                    @error('emergency_contact_name')
+                                    @error('emergency_contact_name', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -323,7 +323,7 @@
                                         <input type="text" name="emergency_contact_relation"
                                             value="{{ old('emergency_contact_relation') }}" placeholder="e.g. Mother"
                                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                        @error('emergency_contact_relation')
+                                        @error('emergency_contact_relation', 'application')
                                             <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                         @enderror
                                     </div>
@@ -335,7 +335,7 @@
                                         <input type="text" name="emergency_contact_phone"
                                             value="{{ old('emergency_contact_phone') }}" placeholder="09xxxxxxxxx"
                                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                        @error('emergency_contact_phone')
+                                        @error('emergency_contact_phone', 'application')
                                             <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                         @enderror
                                     </div>
@@ -349,7 +349,7 @@
                                     </label>
                                     <textarea name="notes" rows="10" placeholder="Additional notes about the applicant..."
                                         class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('notes') }}</textarea>
-                                    @error('notes')
+                                    @error('notes', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -488,7 +488,7 @@
                                 @if ($applicant->status === 'pending' && $canScheduleInterview)
                                     <div class="pt-3 mt-auto border-t border-gray-100 dark:border-gray-700">
                                         <button
-                                            onclick="openScheduleModal({{ $applicant->id }}, '{{ addslashes($applicant->full_name) }}')"
+                                            onclick="openInterviewScheduleModal({{ $applicant->id }}, '{{ addslashes($applicant->full_name) }}')"
                                             class="w-full px-3 py-2 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition">
                                             <i class="mr-1 fa-solid fa-calendar-plus"></i> Schedule Interview
                                         </button>
@@ -510,11 +510,11 @@
 
     {{-- Schedule Interview Modal --}}
     @if ($canScheduleInterview)
-        <div id="scheduleModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
+        <div id="interviewScheduleModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
             <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-xl dark:bg-gray-800">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Schedule Interview</h2>
-                    <button onclick="closeScheduleModal()" class="text-gray-400 hover:text-gray-600">
+                    <button onclick="closeInterviewScheduleModal()" class="text-gray-400 hover:text-gray-600">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
@@ -526,20 +526,28 @@
                     <div>
                         <label class="block mb-1 text-xs font-semibold text-gray-600">Interview Date *</label>
                         <input type="date" name="interview_date" required
+                            value="{{ old('interview_date') }}"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none" />
+                        @error('interview_date', 'schedule')
+                            <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div>
                         <label class="block mb-1 text-xs font-semibold text-gray-600">Interview Time *</label>
                         <input type="time" name="interview_time" required
+                            value="{{ old('interview_time') }}"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none" />
+                        @error('interview_time', 'schedule')
+                            <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div>
                         <label class="block mb-1 text-xs font-semibold text-gray-600">Remarks</label>
                         <textarea name="remarks" rows="2" placeholder="Optional notes..."
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none"></textarea>
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none">{{ old('remarks') }}</textarea>
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" onclick="closeScheduleModal()"
+                        <button type="button" onclick="closeInterviewScheduleModal()"
                             class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
                             Cancel
                         </button>
@@ -557,15 +565,24 @@
         @if ($canScheduleInterview)
             const baseApplicationsUrl = @json(url('/applications'));
 
-            function openScheduleModal(applicantId, name) {
+            function openInterviewScheduleModal(applicantId, name) {
                 document.getElementById('scheduleApplicantName').textContent = 'Applicant: ' + name;
                 document.getElementById('scheduleForm').action = `${baseApplicationsUrl}/${applicantId}/schedule-interview`;
-                document.getElementById('scheduleModal').classList.remove('hidden');
+                document.getElementById('interviewScheduleModal').classList.remove('hidden');   // ✅ fixed
             }
 
-            function closeScheduleModal() {
-                document.getElementById('scheduleModal').classList.add('hidden');
+            function closeInterviewScheduleModal() {
+                document.getElementById('interviewScheduleModal').classList.add('hidden');       // ✅ fixed
             }
+
+            @if ($errors->schedule->any() && session('schedule_reopen_applicant_id'))
+                document.addEventListener('DOMContentLoaded', function () {
+                    openInterviewScheduleModal(
+                        {{ session('schedule_reopen_applicant_id') }},
+                        @json(session('schedule_reopen_applicant_name'))
+                    );
+                });
+            @endif
         @endif
 
         function filterStatus(status) {
