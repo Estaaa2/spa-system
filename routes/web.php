@@ -137,6 +137,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/bookings/online/checkout', [OnlineBookingCheckoutController::class, 'store'])
         ->name('bookings.online.checkout');
 
+    Route::get('/bookings/online/available-slots', [OnlineBookingCheckoutController::class, 'availableSlots'])
+        ->name('bookings.online.available-slots');
+
     Route::get('/bookings/online/payment/success', [OnlineBookingCheckoutController::class, 'success'])
         ->name('bookings.online.payment.success');
 

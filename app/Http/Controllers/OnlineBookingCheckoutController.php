@@ -225,6 +225,108 @@ class OnlineBookingCheckoutController extends Controller
     }
 
     /**
+     * GET /bookings/online/available-slots
+     * Query: spa_id, branch_id, treatment ("treatment_5" / "package_3"), appointment_date
+     *
+     * Read-only. Checks the same `bookings` table and the same
+     * reserved/pending/ongoing statuses store() already checks — nothing new
+     * is written, no schema change is required. This does not yet account for
+     * other customers mid-checkout (that needs the hold/lock mechanism we
+     * discussed separately) — it's the minimum needed to make the picker show
+     * real availability instead of a blind time input.
+     */
+    public function availableSlots(Request $request)
+    {
+        $validated = $request->validate([
+            'spa_id'           => ['required', 'exists:spas,id'],
+            'branch_id'        => ['required', 'exists:branches,id'],
+            'treatment'        => ['required', 'string'],
+            'appointment_date' => ['required', 'date'],
+        ]);
+
+        [$type, $id] = array_pad(explode('_', $validated['treatment'], 2), 2, null);
+
+        $durationMinutes = 60;
+        if ($type === 'treatment') {
+            $durationMinutes = Treatment::withoutGlobalScopes()->find($id)?->duration ?? 60;
+        } elseif ($type === 'package') {
+            $item = Package::withoutGlobalScopes()->find($id);
+            $durationMinutes = $item?->total_duration ?? $item?->duration ?? 60;
+        }
+
+        $dayOfWeek = Carbon::parse($validated['appointment_date'])->format('l');
+        $hours = OperatingHours::where('branch_id', $validated['branch_id'])
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+
+        if (!$hours || $hours->is_closed) {
+            return response()->json(['closed' => true, 'slots' => []]);
+        }
+
+        $opening = Carbon::parse($hours->opening_time);
+        $closing = Carbon::parse($hours->closing_time);
+
+        $therapistCount = User::role('therapist')
+            ->whereHas('staff', fn ($q) => $q->where('spa_id', $validated['spa_id'])
+                ->where('branch_id', $validated['branch_id'])
+                ->where('employment_status', 'active'))
+            ->count();
+
+        // Same table, same statuses store() already checks — every candidate
+        // slot below is evaluated independently against this full list, not
+        // derived relative to the previous booking, so a wide-open block
+        // doesn't get silently truncated to "only the next available slot".
+        $bookingWindows = Booking::query()
+            ->where('spa_id', $validated['spa_id'])
+            ->where('branch_id', $validated['branch_id'])
+            ->where('appointment_date', $validated['appointment_date'])
+            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+            ->get(['start_time', 'end_time'])
+            ->map(fn ($b) => [Carbon::parse($b->start_time), Carbon::parse($b->end_time)]);
+
+        $slots   = [];
+        $cursor  = $opening->copy();
+        $now     = now();
+        $isToday = Carbon::parse($validated['appointment_date'])->isToday();
+
+        while ($cursor->lt($closing)) {
+            $slotStart = $cursor->copy();
+            $slotEnd   = $slotStart->copy()->addMinutes($durationMinutes);
+
+            if ($slotEnd->gt($closing)) {
+                $slots[] = ['time' => $slotStart->format('H:i'), 'available' => false, 'reason' => 'past_closing'];
+            } elseif ($isToday && $slotStart->lte($now)) {
+                $slots[] = ['time' => $slotStart->format('H:i'), 'available' => false, 'reason' => 'past'];
+            } else {
+                // Every active therapist can only be in one non-overlapping
+                // booking at a time (enforced when bookings are created), so
+                // counting overlapping windows is equivalent to counting
+                // distinct busy therapists — the same invariant store()
+                // already relies on via $busyIds->unique().
+                $overlapping = $bookingWindows->filter(
+                    fn ($w) => $slotStart->lt($w[1]) && $slotEnd->gt($w[0])
+                )->count();
+
+                $available = ($therapistCount - $overlapping) > 0;
+                $slots[] = [
+                    'time'      => $slotStart->format('H:i'),
+                    'available' => $available,
+                    'reason'    => $available ? null : 'fully_booked',
+                ];
+            }
+
+            $cursor->addMinutes(30);
+        }
+
+        return response()->json([
+            'closed'       => false,
+            'opening_time' => $hours->opening_time,
+            'closing_time' => $hours->closing_time,
+            'slots'        => $slots,
+        ]);
+    }
+
+    /**
      * Return a validation-style error response.
      * JSON (422) for AJAX/fetch requests, classic redirect-back for normal form posts.
      */

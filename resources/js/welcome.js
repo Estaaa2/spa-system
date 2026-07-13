@@ -234,81 +234,16 @@ const bookingSpaIdInput    = document.getElementById('bookingSpaIdInput');
 const bookingBranchIdInput = document.getElementById('bookingBranchIdInput');
 const serviceTypeSelect    = document.getElementById('bookingServiceType');
 const serviceTypeHint      = document.getElementById('bookingServiceTypeHint');
-const treatmentSelect      = document.getElementById('bookingTreatmentSelect');
+const serviceListContainer = document.getElementById('bookingServiceList');
 const bookingDateInput     = document.getElementById('bookingDateInput');
 const bookingTimeInput     = document.getElementById('bookingTimeInput');
 const addressWrapper       = document.getElementById('addressWrapper');
 const addressInput         = document.getElementById('bookingAddressInput');
+const bookingCustomerPhone = document.getElementById('bookingCustomerPhone');
 const bookingForm          = document.querySelector('#bookingModal form');
 
-function clearBookingSelections() {
-    if (treatmentSelect) {
-        treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
-        treatmentSelect.value = '';
-    }
-    if (bookingBranchIdInput) bookingBranchIdInput.value = '';
-    resetServiceType();
-    if (bookingDateInput) bookingDateInput.value = '';
-    if (bookingTimeInput) {
-        bookingTimeInput.value = '';
-        bookingTimeInput.disabled = false;
-        bookingTimeInput.removeAttribute('min');
-        bookingTimeInput.removeAttribute('max');
-    }
-    if (addressInput) {
-        addressInput.value = '';
-        addressInput.required = false;
-    }
-    if (addressWrapper) addressWrapper.classList.add('hidden');
-
-    const timeError = document.getElementById('bookingTimeError');
-    const submitBtn = document.getElementById('bookingSubmitBtn');
-    if (timeError) { timeError.textContent = ''; timeError.classList.add('hidden'); }
-    if (submitBtn) submitBtn.disabled = false;
-
-    const treatmentPreview = document.getElementById('treatmentPreview');
-    if (treatmentPreview) {
-        treatmentPreview.classList.add('hidden');
-        treatmentPreview.classList.remove('flex');
-    }
-}
-
-function populateTreatmentsForSelectedBranch() {
-    if (!selectedSpa || !treatmentSelect) return;
-
-    treatmentSelect.innerHTML = '<option value="">Select treatment or package</option>';
-
-    (selectedSpa.treatments ?? []).forEach(t => {
-        const option = document.createElement('option');
-        option.value = `treatment_${t.id}`;
-        option.textContent = t.price !== null && t.price !== undefined
-            ? `${t.name} — ₱${parseFloat(t.price).toLocaleString()}`
-            : t.name;
-        option.dataset.serviceType = t.service_type ?? 'in_branch_only';
-        option.dataset.itemType    = 'treatment';
-        option.dataset.image       = t.image_url ?? '';
-        option.dataset.description = t.description ?? '';
-        option.dataset.price       = t.price ?? '';
-        treatmentSelect.appendChild(option);
-
-    });
-
-    (selectedSpa.packages ?? []).forEach(p => {
-        const option = document.createElement('option');
-        option.value = `package_${p.id}`;
-        option.textContent = p.price !== null && p.price !== undefined
-            ? `${p.name} (Package) — ₱${parseFloat(p.price).toLocaleString()}`
-            : `${p.name} (Package)`;
-        option.dataset.serviceType = p.service_type ?? 'in_branch_only';
-        option.dataset.itemType    = 'package';
-        option.dataset.image       = p.image_url ?? '';
-        option.dataset.description = p.description ?? '';
-        option.dataset.price       = p.price ?? '';
-        treatmentSelect.appendChild(option);
-    });
-
-    resetServiceType();
-}
+const TOTAL_BOOKING_STEPS = 3;
+let currentBookingStep    = 1;
 
 function openTermsModal() {
     document.getElementById('termsModal').classList.remove('hidden');
@@ -316,6 +251,260 @@ function openTermsModal() {
 
 function closeTermsModal() {
     document.getElementById('termsModal').classList.add('hidden');
+}
+
+// ── Step navigation ─────────────────────────────────────────────────────────
+function showBookingStep(step) {
+    currentBookingStep = step;
+
+    document.querySelectorAll('[data-booking-step]').forEach(panel => {
+        panel.classList.toggle('hidden', parseInt(panel.dataset.bookingStep, 10) !== step);
+    });
+
+    for (let i = 1; i <= TOTAL_BOOKING_STEPS; i++) {
+        const circle = document.querySelector(`[data-step-circle="${i}"]`);
+        const label  = document.querySelector(`[data-step-label="${i}"]`);
+        const bar    = document.querySelector(`[data-step-bar="${i}"]`);
+
+        if (circle) {
+            if (i < step) {
+                circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-white rounded-full bg-[#8B7355] transition-colors';
+                circle.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i>';
+            } else if (i === step) {
+                circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-white rounded-full bg-[#8B7355] transition-colors';
+                circle.textContent = i;
+            } else {
+                circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 bg-gray-200 rounded-full transition-colors';
+                circle.textContent = i;
+            }
+        }
+        if (label) label.className = `ml-2 text-xs transition-colors ${i <= step ? 'font-semibold text-[#3C2F23]' : 'font-medium text-gray-400'}`;
+        if (bar)   bar.className   = `w-10 h-0.5 mx-3 transition-colors rounded sm:w-16 ${i < step ? 'bg-[#8B7355]' : 'bg-gray-200'}`;
+    }
+
+    const backBtn   = document.getElementById('bookingBackBtn');
+    const nextBtn   = document.getElementById('bookingNextBtn');
+    const submitBtn = document.getElementById('bookingSubmitBtn');
+    if (backBtn)   backBtn.classList.toggle('hidden', step === 1);
+    if (nextBtn)   nextBtn.classList.toggle('hidden', step === TOTAL_BOOKING_STEPS);
+    if (submitBtn) submitBtn.classList.toggle('hidden', step !== TOTAL_BOOKING_STEPS);
+
+    if (step === 3) buildBookingRecap();
+
+    document.querySelector('#bookingModal .overflow-y-auto')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function validateBookingStep(step) {
+    if (step === 1) {
+        const treatmentError = document.getElementById('bookingTreatmentError');
+        if (!getCheckedTreatmentInput()) {
+            treatmentError?.classList.remove('hidden');
+            serviceListContainer?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+        treatmentError?.classList.add('hidden');
+
+        if (!serviceTypeSelect?.value) {
+            showSpaToast('Please select a service type.', 'error');
+            return false;
+        }
+
+        if (serviceTypeSelect.value === 'in_home' && !addressInput?.value.trim()) {
+            showSpaToast('Please enter your home address.', 'error');
+            addressInput?.focus();
+            return false;
+        }
+
+        return true;
+    }
+
+    if (step === 2) {
+        const timeError = document.getElementById('bookingTimeError');
+        if (!bookingDateInput?.value) {
+            showSpaToast('Please select an appointment date.', 'error');
+            return false;
+        }
+        if (!bookingTimeInput?.value) {
+            timeError?.classList.remove('hidden');
+            return false;
+        }
+        timeError?.classList.add('hidden');
+        return true;
+    }
+
+    return true;
+}
+
+// ── Step 1: service cards ───────────────────────────────────────────────────
+let allServiceItems      = [];
+let currentServiceFilter = 'all';
+
+function getCheckedTreatmentInput() {
+    return serviceListContainer?.querySelector('input[name="treatment"]:checked') || null;
+}
+
+function formatPeso(amount) {
+    return `₱${parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Each card is a <label> wrapping a visually-hidden (sr-only) radio input, so
+// the group keeps native keyboard navigation and label-click behavior. All
+// visual states (base look, hover, selected, focus) come from the .svc-card
+// rules in the <style> block above, not Tailwind utility classes — this
+// content is built entirely at runtime, so it can't rely on Tailwind having
+// scanned it at build time. See the note in the <style> block for why.
+function buildServiceCard(item, kind) {
+    const value = `${kind}_${item.id}`;
+
+    const label = document.createElement('label');
+    label.className = 'svc-card';
+    label.dataset.cardFor = value;
+    label.dataset.kind = kind;
+    label.dataset.searchText = (item.name ?? '').toString().toLowerCase();
+
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'treatment';
+    input.value = value;
+    input.className = 'sr-only';
+    input.dataset.serviceType = item.service_type ?? 'in_branch_only';
+    input.dataset.itemType    = kind;
+    input.dataset.price       = item.price ?? '';
+    input.dataset.name        = item.name ?? '';
+
+    const topRow = document.createElement('div');
+    topRow.className = 'svc-card-top';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'svc-card-name';
+    nameEl.textContent = item.name ?? '';
+
+    if (kind === 'package') {
+        const badge = document.createElement('span');
+        badge.className = 'svc-card-badge';
+        badge.textContent = 'Package';
+        nameEl.appendChild(badge);
+    }
+
+    const priceEl = document.createElement('span');
+    priceEl.className = 'svc-card-price';
+    priceEl.textContent = (item.price !== null && item.price !== undefined) ? formatPeso(item.price) : 'Price varies';
+
+    topRow.appendChild(nameEl);
+    topRow.appendChild(priceEl);
+
+    const descEl = document.createElement('p');
+    descEl.className = 'svc-card-desc';
+    const desc = (item.description ?? '').toString().trim();
+    descEl.textContent = desc.length ? desc : 'No description yet.';
+
+    label.appendChild(input);
+    label.appendChild(topRow);
+    label.appendChild(descEl);
+
+    const duration = kind === 'package' ? (item.total_duration ?? item.duration) : item.duration;
+    if (duration) {
+        const metaRow = document.createElement('div');
+        metaRow.className = 'svc-card-meta';
+        metaRow.innerHTML = `<i class="fa-regular fa-clock"></i> ${parseInt(duration, 10)} min`;
+        label.appendChild(metaRow);
+    }
+
+    return label;
+}
+
+function buildSectionHeader(labelText) {
+    const header = document.createElement('p');
+    header.className = 'svc-section-header';
+    header.textContent = labelText;
+    header.dataset.sectionHeader = 'true';
+    return header;
+}
+
+function highlightSelectedCard() {
+    serviceListContainer?.querySelectorAll('.svc-card').forEach(card => card.classList.remove('is-selected'));
+    const checked = getCheckedTreatmentInput();
+    const activeCard = checked && serviceListContainer?.querySelector(`.svc-card[data-card-for="${checked.value}"]`);
+    activeCard?.classList.add('is-selected');
+}
+
+function setServiceFilterTab(filter) {
+    currentServiceFilter = filter;
+    document.querySelectorAll('.svc-filter-tab').forEach(tab => {
+        tab.classList.toggle('is-active', tab.dataset.serviceFilter === filter);
+    });
+}
+
+function applyServiceFilters() {
+    const query = (document.getElementById('bookingServiceSearch')?.value || '').trim().toLowerCase();
+    let treatmentVisible = 0;
+    let packageVisible   = 0;
+
+    serviceListContainer?.querySelectorAll('.svc-card').forEach(card => {
+        const matchesFilter = currentServiceFilter === 'all' || card.dataset.kind === currentServiceFilter;
+        const matchesSearch = !query || card.dataset.searchText.includes(query);
+        const visible = matchesFilter && matchesSearch;
+        card.classList.toggle('hidden', !visible);
+        if (visible && card.dataset.kind === 'treatment') treatmentVisible++;
+        if (visible && card.dataset.kind === 'package')   packageVisible++;
+    });
+
+    // Hide a section header if every card under it got filtered out.
+    serviceListContainer?.querySelectorAll('[data-section-header]').forEach(header => {
+        const isTreatmentHeader = header.textContent === 'Treatments';
+        header.classList.toggle('hidden', isTreatmentHeader ? treatmentVisible === 0 : packageVisible === 0);
+    });
+
+    const emptyState = document.getElementById('bookingServiceEmptyState');
+    if (emptyState) emptyState.classList.toggle('hidden', (treatmentVisible + packageVisible) > 0);
+}
+
+document.getElementById('bookingServiceFilterTabs')?.addEventListener('click', function (e) {
+    const tabBtn = e.target.closest('[data-service-filter]');
+    if (!tabBtn) return;
+    setServiceFilterTab(tabBtn.dataset.serviceFilter);
+    applyServiceFilters();
+});
+
+document.getElementById('bookingServiceSearch')?.addEventListener('input', applyServiceFilters);
+
+function populateTreatmentsForSelectedBranch() {
+    if (!selectedSpa || !serviceListContainer) return;
+
+    serviceListContainer.innerHTML = '';
+    allServiceItems = [];
+
+    const treatments = selectedSpa.treatments ?? [];
+    const packages    = selectedSpa.packages ?? [];
+
+    if (!treatments.length && !packages.length) {
+        serviceListContainer.innerHTML = '<p class="px-4 py-6 text-sm text-center text-gray-400">No services available for this branch.</p>';
+        resetServiceType();
+        return;
+    }
+
+    if (treatments.length) {
+        serviceListContainer.appendChild(buildSectionHeader('Treatments'));
+        treatments.forEach(t => serviceListContainer.appendChild(buildServiceCard(t, 'treatment')));
+    }
+
+    if (packages.length) {
+        serviceListContainer.appendChild(buildSectionHeader('Packages'));
+        packages.forEach(p => serviceListContainer.appendChild(buildServiceCard(p, 'package')));
+    }
+
+    const emptyState = document.createElement('p');
+    emptyState.id = 'bookingServiceEmptyState';
+    emptyState.className = 'hidden px-4 py-6 text-sm text-center text-gray-400';
+    emptyState.textContent = 'No services match your search.';
+    serviceListContainer.appendChild(emptyState);
+
+    const searchInput = document.getElementById('bookingServiceSearch');
+    if (searchInput) searchInput.value = '';
+    setServiceFilterTab('all');
+    applyServiceFilters();
+
+    resetServiceType();
 }
 
 function resetServiceType() {
@@ -329,12 +518,12 @@ function resetServiceType() {
 
 function populateServiceTypeOptions() {
     resetServiceType();
-    if (!treatmentSelect || !serviceTypeSelect) return;
+    if (!serviceListContainer || !serviceTypeSelect) return;
 
-    const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
-    if (!selectedOption || !selectedOption.value) return;
+    const checked = getCheckedTreatmentInput();
+    if (!checked) return;
 
-    const serviceType = selectedOption.dataset.serviceType || 'in_branch_only';
+    const serviceType = checked.dataset.serviceType || 'in_branch_only';
 
     if (serviceType === 'in_branch_only') {
         serviceTypeSelect.innerHTML = `<option value="in_branch">In-Branch</option>`;
@@ -352,89 +541,13 @@ function populateServiceTypeOptions() {
     toggleAddressField();
 }
 
-function updateTreatmentPreview() {
-    const preview      = document.getElementById('treatmentPreview');
-    const previewImage = document.getElementById('treatmentPreviewImage');
-    const previewName  = document.getElementById('treatmentPreviewName');
-    const previewDesc  = document.getElementById('treatmentPreviewDesc');
-    if (!preview || !treatmentSelect) return;
-
-    const selectedOption = treatmentSelect.options[treatmentSelect.selectedIndex];
-    if (!selectedOption || !selectedOption.value) {
-        preview.classList.add('hidden');
-        preview.classList.remove('flex');
-        return;
-    }
-
-    const fallbackImage = document.body.dataset.fallbackImage ?? '';
-    const image       = selectedOption.dataset.image || fallbackImage;
-    const description = selectedOption.dataset.description || 'No description available.';
-
-    if (previewImage) previewImage.src = image;
-    if (previewName)  previewName.textContent = selectedOption.dataset.itemType === 'package'
-        ? selectedOption.textContent.replace(' (Package)', '')
-        : selectedOption.textContent;
-    if (previewDesc)  previewDesc.textContent = description;
-
-    preview.classList.remove('hidden');
-    preview.classList.add('flex');
-}
-
 function toggleAddressField() {
     const isHome = serviceTypeSelect && serviceTypeSelect.value === 'in_home';
     if (addressWrapper) addressWrapper.classList.toggle('hidden', !isHome);
     if (addressInput) addressInput.required = isHome;
 }
 
-async function updateAvailableTimes() {
-    const branchId  = bookingBranchIdInput?.value;
-    const dateValue = bookingDateInput?.value;
-    if (!branchId || !dateValue || !bookingTimeInput) return;
-
-    const day = new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
-
-    try {
-        const response = await fetch(`/api/operating-hours/${branchId}/${day}`);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        if (data.is_closed) {
-            bookingTimeInput.value = '';
-            bookingTimeInput.disabled = true;
-            bookingTimeInput.removeAttribute('min');
-            bookingTimeInput.removeAttribute('max');
-            const errorEl  = document.getElementById('bookingTimeError');
-            const submitBtn = document.getElementById('bookingSubmitBtn');
-            if (errorEl)  { errorEl.textContent = 'This branch is closed on the selected day.'; errorEl.classList.remove('hidden'); }
-            if (submitBtn) submitBtn.disabled = true;
-            showSpaToast('This branch is closed on the selected day.', 'error');
-            return;
-        }
-
-        bookingTimeInput.disabled = false;
-        const errorEl  = document.getElementById('bookingTimeError');
-        const submitBtn = document.getElementById('bookingSubmitBtn');
-        if (errorEl)  { errorEl.textContent = ''; errorEl.classList.add('hidden'); }
-        if (submitBtn) submitBtn.disabled = false;
-
-        const openingTime = (data.opening_time || '').slice(0, 5);
-        const closingTime = (data.closing_time || '').slice(0, 5);
-        bookingTimeInput.min = openingTime;
-        bookingTimeInput.max = closingTime;
-        if (bookingTimeInput.value) validateBookingTime();
-
-    } catch (error) {
-        console.error('Failed to load operating hours:', error);
-        showSpaToast('Unable to check branch operating hours right now.', 'error');
-    }
-
-    validateBookingTime();
-}
-
+// ── Step 2: fetched time-slot grid ──────────────────────────────────────────
 function formatTime12Hour(time) {
     if (!time) return '';
     const [hour, minute] = time.split(':').map(Number);
@@ -443,50 +556,118 @@ function formatTime12Hour(time) {
     return `${h12}:${String(minute).padStart(2, '0')} ${ampm}`;
 }
 
-function validateBookingTime() {
-    const dateValue = bookingDateInput?.value;
-    const timeValue = bookingTimeInput?.value;
-    const errorEl   = document.getElementById('bookingTimeError');
-    const submitBtn = document.getElementById('bookingSubmitBtn');
+const SLOT_REASON_LABELS = {
+    fully_booked: 'Fully booked — all therapists are assigned during this time.',
+    past_closing: 'This service would end after closing.',
+    past: 'This time has already passed today.',
+};
 
-    if (!dateValue || !timeValue) {
-        if (errorEl) { errorEl.textContent = ''; errorEl.classList.add('hidden'); }
-        if (submitBtn) submitBtn.disabled = false;
-        return true;
-    }
+function selectSlot(time, btn) {
+    if (bookingTimeInput) bookingTimeInput.value = time;
+    document.querySelectorAll('#bookingSlotGrid .slot-btn').forEach(b => b.classList.remove('is-selected'));
+    btn.classList.add('is-selected');
+    document.getElementById('bookingTimeError')?.classList.add('hidden');
+}
 
-    const today        = getTodayLocal();
-    const selectedTime = timeValue.slice(0, 5);
-    const openingTime  = (bookingTimeInput.min || '').slice(0, 5);
-    const closingTime  = (bookingTimeInput.max || '').slice(0, 5);
+async function loadAvailableSlots() {
+    const grid    = document.getElementById('bookingSlotGrid');
+    const legend  = document.getElementById('bookingSlotLegend');
+    const loading = document.getElementById('bookingSlotsLoading');
+    const branchId = bookingBranchIdInput?.value;
+    const spaId    = bookingSpaIdInput?.value;
+    const date     = bookingDateInput?.value;
+    const checked  = getCheckedTreatmentInput();
 
-    if (openingTime && selectedTime < openingTime) {
-        if (errorEl) { errorEl.textContent = `Selected time must be within branch hours only (${formatTime12Hour(openingTime)} to ${formatTime12Hour(closingTime)}).`; errorEl.classList.remove('hidden'); }
-        if (submitBtn) submitBtn.disabled = true;
-        return false;
-    }
+    if (!grid || !branchId || !spaId || !date || !checked) return;
 
-    if (closingTime && selectedTime > closingTime) {
-        if (errorEl) { errorEl.textContent = `Selected time must be within branch hours only (${formatTime12Hour(openingTime)} to ${formatTime12Hour(closingTime)}).`; errorEl.classList.remove('hidden'); }
-        if (submitBtn) submitBtn.disabled = true;
-        return false;
-    }
+    if (bookingTimeInput) bookingTimeInput.value = '';
+    document.getElementById('bookingTimeError')?.classList.add('hidden');
 
-    if (dateValue === today) {
-        const now = new Date();
-        const [hh, mm] = selectedTime.split(':').map(Number);
-        const selected  = new Date();
-        selected.setHours(hh, mm, 0, 0);
-        if (selected <= now) {
-            if (errorEl) { errorEl.textContent = 'Please select a future time.'; errorEl.classList.remove('hidden'); }
-            if (submitBtn) submitBtn.disabled = true;
-            return false;
+    loading?.classList.remove('hidden');
+    grid.innerHTML = '';
+    legend?.classList.add('hidden');
+    legend?.classList.remove('flex');
+
+    try {
+        const params = new URLSearchParams({
+            spa_id: spaId,
+            branch_id: branchId,
+            treatment: checked.value,
+            appointment_date: date,
+        });
+
+        const response = await fetch(`/bookings/online/available-slots?${params.toString()}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        if (data.closed) {
+            grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">This branch is closed on the selected day.</p>';
+            return;
         }
+
+        if (!data.slots?.length) {
+            grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">No time slots available for this day.</p>';
+            return;
+        }
+
+        data.slots.forEach(slot => {
+            const slotBtn = document.createElement('button');
+            slotBtn.type = 'button';
+            slotBtn.textContent = formatTime12Hour(slot.time);
+            slotBtn.dataset.slotTime = slot.time;
+            slotBtn.className = 'slot-btn';
+
+            if (slot.available) {
+                slotBtn.addEventListener('click', () => selectSlot(slot.time, slotBtn));
+            } else {
+                slotBtn.disabled = true;
+                slotBtn.title = SLOT_REASON_LABELS[slot.reason] || 'Unavailable';
+                if (slot.reason === 'past_closing') slotBtn.classList.add('is-past-closing');
+            }
+
+            grid.appendChild(slotBtn);
+        });
+
+        legend?.classList.remove('hidden');
+        legend?.classList.add('flex');
+
+    } catch (err) {
+        console.error('Failed to load slots:', err);
+        grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-red-400 sm:col-span-4">Unable to load availability. Please try again.</p>';
+    } finally {
+        loading?.classList.add('hidden');
+    }
+}
+
+// ── Step 3: recap ────────────────────────────────────────────────────────────
+function buildBookingRecap() {
+    const checked = getCheckedTreatmentInput();
+
+    document.getElementById('recapService').textContent = checked?.dataset.name || '—';
+    document.getElementById('recapServiceType').textContent = serviceTypeSelect?.selectedOptions?.[0]?.textContent ?? '—';
+
+    const addressRow = document.getElementById('recapAddressRow');
+    if (serviceTypeSelect?.value === 'in_home') {
+        addressRow?.classList.remove('hidden');
+        addressRow?.classList.add('flex');
+        document.getElementById('recapAddress').textContent = addressInput?.value ?? '';
+    } else {
+        addressRow?.classList.add('hidden');
+        addressRow?.classList.remove('flex');
     }
 
-    if (errorEl) { errorEl.textContent = ''; errorEl.classList.add('hidden'); }
-    if (submitBtn) submitBtn.disabled = false;
-    return true;
+    const dateVal = bookingDateInput?.value;
+    const timeVal = bookingTimeInput?.value;
+    document.getElementById('recapDateTime').textContent = (dateVal && timeVal)
+        ? `${new Date(dateVal + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${formatTime12Hour(timeVal)}`
+        : '—';
+
+    const price = checked ? parseFloat(checked.dataset.price || '0') : 0;
+    document.getElementById('recapTotalPrice').textContent = price ? formatPeso(price) : '—';
+    document.getElementById('recapDownpayment').textContent = price ? `${formatPeso(price * 0.2)} due now` : '—';
 }
 
 function openBookingModal() {
@@ -507,9 +688,38 @@ function openBookingModal() {
     if (bookingDateInput) bookingDateInput.min = today;
 
     populateTreatmentsForSelectedBranch();
+    showBookingStep(1);
 
     bookingModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+}
+
+function clearBookingSelections() {
+    if (serviceListContainer) {
+        serviceListContainer.querySelectorAll('input[name="treatment"]').forEach(r => { r.checked = false; });
+        highlightSelectedCard();
+    }
+    if (bookingBranchIdInput) bookingBranchIdInput.value = '';
+    resetServiceType();
+    if (bookingDateInput) bookingDateInput.value = '';
+    if (bookingTimeInput) bookingTimeInput.value = '';
+    document.getElementById('bookingSlotGrid').innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">Pick a date to see available times.</p>';
+    document.getElementById('bookingSlotLegend')?.classList.add('hidden');
+    if (addressInput) {
+        addressInput.value = '';
+        addressInput.required = false;
+    }
+    if (addressWrapper) addressWrapper.classList.add('hidden');
+    if (bookingCustomerPhone) bookingCustomerPhone.value = '';
+    const termsCheckbox = document.getElementById('bookingTermsCheckbox');
+    if (termsCheckbox) termsCheckbox.checked = false;
+
+    const timeError = document.getElementById('bookingTimeError');
+    const treatmentError = document.getElementById('bookingTreatmentError');
+    const submitBtn = document.getElementById('bookingSubmitBtn');
+    if (timeError) { timeError.classList.add('hidden'); }
+    if (treatmentError) treatmentError.classList.add('hidden');
+    if (submitBtn) submitBtn.disabled = false;
 }
 
 function openApplicationModal(spaId, branchId, spaName) {
@@ -547,80 +757,57 @@ function closeBookingModal() {
 openBookingBtn?.addEventListener('click', openBookingModal);
 closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal));
 
-treatmentSelect?.addEventListener('change', populateServiceTypeOptions);
-treatmentSelect?.addEventListener('change', updateTreatmentPreview);
-serviceTypeSelect?.addEventListener('change', toggleAddressField);
-bookingDateInput?.addEventListener('change', updateAvailableTimes);
-bookingTimeInput?.addEventListener('change', validateBookingTime);
-bookingTimeInput?.addEventListener('input', validateBookingTime);
+serviceListContainer?.addEventListener('change', function (e) {
+    if (e.target?.name !== 'treatment') return;
+    highlightSelectedCard();
+    populateServiceTypeOptions();
+    document.getElementById('bookingTreatmentError')?.classList.add('hidden');
 
-bookingForm?.addEventListener('submit', function (e) {
+    // Duration may have changed — a previously picked time might no longer be
+    // valid, so drop it and let the next slot fetch (step 2) recompute it.
+    if (bookingTimeInput) bookingTimeInput.value = '';
+});
+
+serviceTypeSelect?.addEventListener('change', toggleAddressField);
+bookingDateInput?.addEventListener('change', loadAvailableSlots);
+
+document.getElementById('bookingNextBtn')?.addEventListener('click', function () {
+    if (!validateBookingStep(currentBookingStep)) return;
+    if (currentBookingStep < TOTAL_BOOKING_STEPS) {
+        const nextStep = currentBookingStep + 1;
+        showBookingStep(nextStep);
+        if (nextStep === 2 && bookingDateInput?.value) loadAvailableSlots();
+    }
+});
+
+document.getElementById('bookingBackBtn')?.addEventListener('click', function () {
+    if (currentBookingStep > 1) showBookingStep(currentBookingStep - 1);
+});
+
+bookingForm?.addEventListener('submit', async function (e) {
     e.preventDefault();
 
-    if (!validateBookingTime()) return;
-    if (bookingTimeInput?.disabled) {
-        showSpaToast('Please select a valid booking date and time.', 'error');
+    if (!validateBookingStep(1) || !validateBookingStep(2)) {
+        showSpaToast('Please complete all booking steps first.', 'error');
         return;
     }
 
-    openBookingConfirmModal();
-});
-
-function openBookingConfirmModal() {
-    const modal = document.getElementById('bookingConfirmModal');
-    if (!modal || !selectedSpa) return;
-
-    const selectedOption = treatmentSelect?.options[treatmentSelect.selectedIndex];
-    const rawPrice = parseFloat(selectedOption?.dataset.price || '0') || 0;
-    const downpayment = rawPrice * 0.20;
-
-    document.getElementById('confirmSpaName').textContent = selectedSpa.branch_location
-        ? `${selectedSpa.name} • ${selectedSpa.branch_location} Branch`
-        : `${selectedSpa.name} • ${selectedSpa.branch_name ?? ''}`;
-
-    document.getElementById('confirmTreatment').textContent = selectedOption?.dataset.itemType === 'package'
-        ? selectedOption.textContent.replace(' (Package)', '')
-        : (selectedOption?.textContent ?? '');
-
-    const dateValue = bookingDateInput?.value;
-    document.getElementById('confirmDate').textContent = dateValue
-        ? new Date(dateValue + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-        : '';
-
-    document.getElementById('confirmTime').textContent = formatTime12Hour(bookingTimeInput?.value || '');
-
-    const serviceTypeValue = serviceTypeSelect?.value;
-    document.getElementById('confirmServiceType').textContent =
-        serviceTypeValue === 'in_home' ? 'Home Service' : 'In-Branch';
-
-    const addressRow = document.getElementById('confirmAddressRow');
-    if (serviceTypeValue === 'in_home' && addressInput?.value) {
-        document.getElementById('confirmAddress').textContent = addressInput.value;
-        addressRow?.classList.remove('hidden');
-    } else {
-        addressRow?.classList.add('hidden');
+    const phone = bookingCustomerPhone?.value ?? '';
+    if (!/^09\d{9}$/.test(phone)) {
+        showSpaToast('Please enter a valid 11-digit phone number (09xxxxxxxxx).', 'error');
+        bookingCustomerPhone?.focus();
+        return;
     }
 
-    document.getElementById('confirmDownpayment').textContent = rawPrice
-        ? `₱${downpayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : 'To be confirmed at the spa';
+    if (!document.getElementById('bookingTermsCheckbox')?.checked) {
+        showSpaToast('Please agree to the terms and conditions.', 'error');
+        return;
+    }
 
-    document.getElementById('confirmTotalPrice').textContent = rawPrice
-        ? `₱${rawPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : '';
-
-    modal.classList.remove('hidden');
-}
-
-function closeBookingConfirmModal() {
-    document.getElementById('bookingConfirmModal')?.classList.add('hidden');
-}
-
-async function submitBookingConfirmed() {
-    const confirmBtn = document.getElementById('confirmBookingSubmitBtn');
-    const originalText = confirmBtn.innerHTML;
-    confirmBtn.disabled = true;
-    confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Reserving...';
+    const submitBtn = document.getElementById('bookingSubmitBtn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Reserving...';
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -650,7 +837,6 @@ async function submitBookingConfirmed() {
             return;
         }
 
-        closeBookingConfirmModal();
         closeBookingModal();
         closeSpaModal();
         showSpaToast(data.message ?? 'Appointment reserved!', 'success');
@@ -660,12 +846,12 @@ async function submitBookingConfirmed() {
     } catch (err) {
         showSpaToast('Network error. Please try again.', 'error');
     } finally {
-        confirmBtn.disabled = false;
-        confirmBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
     }
-}
+});
 
-document.getElementById('bookingCustomerPhone')?.addEventListener('input', function () {
+bookingCustomerPhone?.addEventListener('input', function () {
     this.value = this.value.replace(/\D/g, '').slice(0, 11);
 });
 
@@ -1388,7 +1574,6 @@ window.addEventListener('keydown', (e) => {
         if (!bookingModal?.classList.contains('hidden'))                                    closeBookingModal();
         if (!document.getElementById('businessInfoModal')?.classList.contains('hidden'))    closeBusinessInfo();
         if (!document.getElementById('applicationModal')?.classList.contains('hidden'))     closeApplicationModal();
-        if (!document.getElementById('bookingConfirmModal')?.classList.contains('hidden'))  closeBookingConfirmModal();
     }
 });
 
@@ -1424,9 +1609,6 @@ window.openApplicationModal     = openApplicationModal;
 window.closeApplicationModal    = closeApplicationModal;
 window.openLogoutModal          = openLogoutModal;
 window.closeLogoutModal         = closeLogoutModal;
-window.openBookingConfirmModal  = openBookingConfirmModal;
-window.closeBookingConfirmModal = closeBookingConfirmModal;
-window.submitBookingConfirmed   = submitBookingConfirmed;
 
 // =====================================================
 // TOAST

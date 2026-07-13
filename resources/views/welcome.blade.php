@@ -78,7 +78,6 @@
                     @role('customer')
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-1">
-                            <div class="flex items-center gap-1">
                             <a href="#" onclick="openAppointmentsModal()"
                                 class="relative flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
                                 My Appointments
@@ -1082,6 +1081,36 @@
     </div>
 
     <!-- ================= BOOKING MODAL ================= -->
+    <style>
+        /*
+          These rules back elements that are built entirely in JavaScript
+          (service cards, time slots, filter tabs). Tailwind's build only
+          generates CSS for class names it can find as literal text in
+          scanned files — a class that only ever exists inside a JS string
+          has nothing to generate from, so it silently does nothing. Plain
+          CSS here has no such dependency.
+        */
+        .svc-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; cursor: pointer; border-left: 4px solid transparent; transition: background-color .15s ease, border-color .15s ease; }
+        .svc-card:hover { background-color: rgba(246, 239, 230, 0.5); }
+        .svc-card.is-selected { border-left-color: #8B7355; background-color: rgba(246, 239, 230, 0.7); }
+        .svc-card:focus-within { outline: 2px solid #8B7355; outline-offset: -2px; }
+        .svc-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .svc-card-name { font-size: 13px; font-weight: 500; color: #3C2F23; }
+        .svc-card-badge { margin-left: 6px; font-size: 10px; font-weight: 600; color: #6F5430; background: #F6EFE6; border: 1px solid rgba(0,0,0,0.05); border-radius: 999px; padding: 1px 8px; }
+        .svc-card-price { font-size: 13px; font-weight: 600; color: #6F5430; flex-shrink: 0; }
+        .svc-card-desc { font-size: 12px; color: #6b7280; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .svc-card-meta { font-size: 11px; color: #8B7355; }
+        .svc-section-header { padding: 10px 16px 4px; font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #9ca3af; background: #fafafa; }
+
+        .svc-filter-tab { padding: 6px 12px; font-size: 12px; font-weight: 500; border-radius: 8px; color: #6b7280; background: transparent; transition: background-color .15s ease, color .15s ease; }
+        .svc-filter-tab.is-active { background: #8B7355; color: #fff; }
+
+        .slot-btn { padding: 8px 4px; font-size: 12px; font-weight: 500; border-radius: 10px; border: 1px solid rgba(0,0,0,0.1); color: #3C2F23; background: #fff; transition: border-color .15s ease, background-color .15s ease, color .15s ease; }
+        .slot-btn:hover:not(:disabled) { border-color: #8B7355; background-color: rgba(246, 239, 230, 0.5); }
+        .slot-btn.is-selected { border-color: #8B7355; background-color: #8B7355; color: #fff; }
+        .slot-btn:disabled { cursor: not-allowed; background-color: #f9fafb; color: #d1d5db; border-color: #f3f4f6; }
+        .slot-btn.is-past-closing:disabled { border-style: dashed; border-color: #d1d5db; }
+    </style>
     <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
@@ -1097,119 +1126,199 @@
                         <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="overflow-y-auto max-h-[80vh] p-6">
+                {{-- Step indicator — same numbered-circle pattern as the account setup wizard --}}
+                @auth
+                <div class="px-6 pt-5">
+                    <div class="flex items-center justify-center overflow-x-auto">
+                        <div class="flex items-center min-w-max">
+                            <div class="flex items-center">
+                                <div data-step-circle="1" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-white rounded-full bg-[#8B7355] transition-colors">1</div>
+                                <span data-step-label="1" class="ml-2 text-xs font-semibold text-[#3C2F23] transition-colors">Service</span>
+                            </div>
+                            <div data-step-bar="1" class="w-10 h-0.5 mx-3 transition-colors bg-gray-200 rounded sm:w-16"></div>
+                            <div class="flex items-center">
+                                <div data-step-circle="2" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 bg-gray-200 rounded-full transition-colors">2</div>
+                                <span data-step-label="2" class="ml-2 text-xs font-medium text-gray-400 transition-colors">Date &amp; Time</span>
+                            </div>
+                            <div data-step-bar="2" class="w-10 h-0.5 mx-3 transition-colors bg-gray-200 rounded sm:w-16"></div>
+                            <div class="flex items-center">
+                                <div data-step-circle="3" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 bg-gray-200 rounded-full transition-colors">3</div>
+                                <span data-step-label="3" class="ml-2 text-xs font-medium text-gray-400 transition-colors">Confirm</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endauth
+
+                <div class="overflow-y-auto max-h-[65vh] p-6">
                     @auth
-                        <form method="POST" action="{{ route('bookings.online.checkout') }}" class="space-y-4">
+                        <form method="POST" action="{{ route('bookings.online.checkout') }}" id="bookingForm" class="space-y-4">
                             @csrf
                             <input type="hidden" name="spa_id" id="bookingSpaIdInput">
                             <input type="hidden" name="branch_id" id="bookingBranchIdInput">
 
-                            <div class="grid gap-4 sm:grid-cols-2">
+                            {{-- ============ STEP 1 — SERVICE ============ --}}
+                            <div data-booking-step="1">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Full Name</label>
-                                    <input type="text" name="customer_name" id="bookingCustomerName"
-                                        value="{{ auth()->user()->name }}" readonly
-                                        class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Email</label>
-                                    <input type="email" name="customer_email" id="bookingCustomerEmail"
-                                        value="{{ auth()->user()->email }}" readonly
-                                        class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
-                                <input type="text" name="customer_phone" id="bookingCustomerPhone"
-                                    placeholder="09xxxxxxxxx" maxlength="11"
-                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    required>
-                                <p class="mt-1 text-[11px] text-gray-500">Format: 09xxxxxxxxx (11 digits)</p>
-                            </div>
-
-                            {{-- <div>
-                                <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
-                                <input type="text" name="customer_phone" id="bookingCustomerPhone"
-                                    value="{{ auth()->user()->phone }}" readonly
-                                    class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
-                            </div> --}}
-
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600">Treatment / Package</label>
-                                <select name="treatment" id="bookingTreatmentSelect"
-                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    required>
-                                    <option value="">Select treatment or package</option>
-                                </select>
-
-                                <div id="treatmentPreview" class="hidden items-center gap-3 p-3 mt-3 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6]">
-                                    <img id="treatmentPreviewImage" src="" alt=""
-                                        class="flex-shrink-0 object-cover w-16 h-16 rounded-lg ring-1 ring-black/5">
-                                    <div class="min-w-0">
-                                        <p id="treatmentPreviewName" class="text-sm font-semibold text-[#3C2F23] truncate"></p>
-                                        <p id="treatmentPreviewDesc" class="mt-0.5 text-xs text-gray-500 line-clamp-2"></p>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="block text-xs font-semibold text-gray-600">Treatment / Package</label>
+                                        <div class="inline-flex gap-1 p-1 bg-gray-100 rounded-lg" id="bookingServiceFilterTabs">
+                                            <button type="button" class="svc-filter-tab is-active" data-service-filter="all">All</button>
+                                            <button type="button" class="svc-filter-tab" data-service-filter="treatment">Treatments</button>
+                                            <button type="button" class="svc-filter-tab" data-service-filter="package">Packages</button>
+                                        </div>
                                     </div>
+                                    <div class="relative mt-2">
+                                        <i class="absolute text-xs -translate-y-1/2 fa-solid fa-magnifying-glass left-3 top-1/2 text-gray-300 pointer-events-none"></i>
+                                        <input type="text" id="bookingServiceSearch" placeholder="Search services…" autocomplete="off"
+                                            class="w-full py-2 pl-9 pr-3 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    </div>
+                                    <div id="bookingServiceList"
+                                         class="mt-2 max-h-60 overflow-y-auto rounded-xl border border-black/10 ring-1 ring-black/5 bg-white divide-y divide-black/5">
+                                        <p class="px-4 py-6 text-sm text-center text-gray-400">Select a spa to see its services.</p>
+                                    </div>
+                                    <p id="bookingTreatmentError" class="hidden mt-1 text-[11px] text-red-500">
+
+                                        <i class="fa-solid fa-circle-exclamation"></i>
+                                        Please select a treatment or package.
+                                    </p>
                                 </div>
 
+                                <div class="mt-4">
+                                    <label class="block text-xs font-semibold text-gray-600">Service Type</label>
+                                    <select name="service_type" id="bookingServiceType"
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <option value="">Select service type</option>
+                                    </select>
+                                    <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500"></p>
+                                </div>
+
+                                <div id="addressWrapper" class="hidden mt-4">
+                                    <label class="block text-xs font-semibold text-gray-600">
+                                        Home Address <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" name="customer_address" id="bookingAddressInput"
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                        placeholder="Enter your full address">
+                                    <p class="mt-1 text-[11px] text-gray-500">Required for home service bookings.</p>
+                                </div>
                             </div>
 
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600">Service Type</label>
-                                <select name="service_type" id="bookingServiceType"
-                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    required>
-                                    <option value="">Select service type</option>
-                                </select>
-                                <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500"></p>
-                            </div>
-
-                            <div id="addressWrapper" class="hidden">
-                                <label class="block text-xs font-semibold text-gray-600">
-                                    Home Address <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" name="customer_address" id="bookingAddressInput"
-                                    class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
-                                    placeholder="Enter your full address">
-                                <p class="mt-1 text-[11px] text-gray-500">Required for home service bookings.</p>
-                            </div>
-
-                            <div class="grid gap-4 sm:grid-cols-2">
+                            {{-- ============ STEP 2 — DATE & TIME ============ --}}
+                            <div data-booking-step="2" class="hidden">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
-                                    <input type="date" name="appointment_date" id="bookingDateInput" required
+                                    <input type="date" name="appointment_date" id="bookingDateInput"
                                         class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Start Time</label>
-                                    <input type="time" name="start_time" id="bookingTimeInput" required
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                    <p id="bookingTimeError" class="hidden mt-1 text-[11px] text-red-500">
+
+                                <div class="mt-4">
+                                    <div class="flex items-center justify-between">
+                                        <label class="block text-xs font-semibold text-gray-600">Available Times</label>
+                                        <span id="bookingSlotsLoading" class="hidden text-[11px] text-gray-400">
+                                            <i class="fa-solid fa-spinner fa-spin"></i> Checking availability…
+                                        </span>
+                                    </div>
+                                    <div id="bookingSlotGrid" class="grid grid-cols-3 gap-2 mt-2 sm:grid-cols-4">
+                                        <p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">Pick a date to see available times.</p>
+                                    </div>
+                                    <div id="bookingSlotLegend" class="hidden flex-wrap gap-3 mt-3 text-[11px] text-gray-500">
+                                        <span class="flex items-center gap-1.5"><span class="inline-block border border-gray-200 rounded w-2.5 h-2.5 bg-gray-50"></span> Fully booked</span>
+                                        <span class="flex items-center gap-1.5"><span class="inline-block border border-gray-300 border-dashed rounded w-2.5 h-2.5"></span> Not enough time before closing</span>
+                                    </div>
+                                    <input type="hidden" name="start_time" id="bookingTimeInput">
+                                    <p id="bookingTimeError" class="hidden mt-2 text-[11px] text-red-500">
                                         <i class="fa-solid fa-circle-exclamation"></i>
-                                        Selected time has already passed. Please choose a future time.
+                                        <span id="bookingTimeErrorText">Please select an available time.</span>
                                     </p>
                                 </div>
                             </div>
 
-                            <!-- Terms & Agreements -->
-                            <div class="p-4 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6] space-y-3">
-                                <label class="flex items-center gap-3 pt-1 cursor-pointer group">
-                                    <input type="checkbox" id="bookingTermsCheckbox" name="terms_agreed" value="1"
-                                        class="w-4 h-4 rounded accent-[#8B7355] cursor-pointer flex-shrink-0" required>
-                                    <span class="text-xs font-medium text-gray-700 group-hover:text-[#6F5430] transition">
-                                        I have read and agree to the
-                                        <button type="button" onclick="openTermsModal()"
-                                            class="text-[#8B7355] underline underline-offset-2 hover:text-[#6F5430] transition font-semibold">
-                                            terms and conditions
-                                        </button>.
-                                    </span>
-                                </label>
+                            {{-- ============ STEP 3 — YOUR DETAILS & CONFIRM ============ --}}
+                            <div data-booking-step="3" class="hidden">
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600">Full Name</label>
+                                        <input type="text" name="customer_name" id="bookingCustomerName"
+                                            value="{{ auth()->user()->name }}" readonly
+                                            class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600">Email</label>
+                                        <input type="email" name="customer_email" id="bookingCustomerEmail"
+                                            value="{{ auth()->user()->email }}" readonly
+                                            class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
+                                    <input type="text" name="customer_phone" id="bookingCustomerPhone"
+                                        placeholder="09xxxxxxxxx" maxlength="11"
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <p class="mt-1 text-[11px] text-gray-500">Format: 09xxxxxxxxx (11 digits)</p>
+                                </div>
+
+                                <div class="p-4 mt-4 space-y-2 text-sm border border-[#E8DDD0] rounded-xl bg-[#FDFAF6]">
+                                    <p class="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Booking Summary</p>
+                                    <div class="flex justify-between gap-3">
+                                        <span class="text-gray-500">Service</span>
+                                        <span id="recapService" class="font-medium text-[#3C2F23] text-right"></span>
+                                    </div>
+                                    <div class="flex justify-between gap-3">
+                                        <span class="text-gray-500">Type</span>
+                                        <span id="recapServiceType" class="font-medium text-[#3C2F23]"></span>
+                                    </div>
+                                    <div id="recapAddressRow" class="hidden justify-between gap-3">
+                                        <span class="text-gray-500">Address</span>
+                                        <span id="recapAddress" class="font-medium text-[#3C2F23] text-right"></span>
+                                    </div>
+                                    <div class="flex justify-between gap-3">
+                                        <span class="text-gray-500">Date &amp; Time</span>
+                                        <span id="recapDateTime" class="font-medium text-[#3C2F23] text-right"></span>
+                                    </div>
+                                    <div class="flex justify-between gap-3 pt-2 mt-2 border-t border-black/5">
+                                        <span class="text-gray-500">Total Service Price</span>
+                                        <span id="recapTotalPrice" class="font-medium text-[#3C2F23]"></span>
+                                    </div>
+                                    <div class="flex justify-between gap-3">
+                                        <span class="text-gray-500">Reservation fee (20%)</span>
+                                        <span id="recapDownpayment" class="font-semibold text-[#6F5430]"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Terms & Agreements -->
+                                <div class="p-4 mt-4 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6] space-y-3">
+                                    <label class="flex items-center gap-3 pt-1 cursor-pointer group">
+                                        <input type="checkbox" id="bookingTermsCheckbox" name="terms_agreed" value="1"
+                                            class="w-4 h-4 rounded accent-[#8B7355] cursor-pointer flex-shrink-0">
+                                        <span class="text-xs font-medium text-gray-700 group-hover:text-[#6F5430] transition">
+                                            I have read and agree to the
+                                            <button type="button" onclick="openTermsModal()"
+                                                class="text-[#8B7355] underline underline-offset-2 hover:text-[#6F5430] transition font-semibold">
+                                                terms and conditions
+                                            </button>.
+                                        </span>
+                                    </label>
+                                </div>
                             </div>
 
-                            <button type="submit" id="bookingSubmitBtn"
-                                    class="w-full booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0">
-                                Reserve An Appointment
-                            </button>
+                            {{-- ============ STEP NAVIGATION ============ --}}
+                            <div class="flex items-center justify-between pt-2">
+                                <button type="button" id="bookingBackBtn"
+                                        class="hidden px-5 py-2.5 text-sm font-semibold text-gray-600 transition rounded-xl hover:bg-gray-100">
+                                    <i class="mr-1 fa-solid fa-arrow-left"></i> Back
+                                </button>
+                                <div class="flex-1"></div>
+                                <button type="button" id="bookingNextBtn"
+                                        class="booking-btn text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                                    Continue <i class="ml-1 fa-solid fa-arrow-right"></i>
+                                </button>
+                                <button type="submit" id="bookingSubmitBtn"
+                                        class="hidden booking-btn text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0">
+                                    Reserve An Appointment
+                                </button>
+                            </div>
                         </form>
                     @else
                         <div class="p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5">
@@ -1223,113 +1332,6 @@
                 </div>
             </div>
             <div class="h-10"></div>
-        </div>
-    </div>
-
-    <!-- ================= BOOKING CONFIRMATION MODAL ================= -->
-    <div id="bookingConfirmModal" class="fixed inset-0 z-[112] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onclick="closeBookingConfirmModal()"></div>
-        <div class="relative mx-auto w-[92%] max-w-md mt-16 sm:mt-24">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
-                    <h3 class="text-lg font-semibold text-[#3C2F23]">Confirm Your Reservation</h3>
-                    <button type="button" onclick="closeBookingConfirmModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-
-                <div class="p-6 space-y-3">
-                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                            <i class="fa-solid fa-spa text-[#8B7355] text-sm"></i>
-                        </div>
-                        <div>
-                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Spa & Branch</p>
-                            <p id="confirmSpaName" class="text-sm font-semibold text-[#3C2F23]"></p>
-                        </div>
-                    </div>
-
-                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                            <i class="fa-solid fa-list-check text-[#8B7355] text-sm"></i>
-                        </div>
-                        <div>
-                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Treatment / Package</p>
-                            <p id="confirmTreatment" class="text-sm font-semibold text-[#3C2F23]"></p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                                <i class="fa-solid fa-calendar text-[#8B7355] text-sm"></i>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</p>
-                                <p id="confirmDate" class="text-sm font-semibold text-[#3C2F23]"></p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                                <i class="fa-solid fa-clock text-[#8B7355] text-sm"></i>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Time</p>
-                                <p id="confirmTime" class="text-sm font-semibold text-[#3C2F23]"></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                            <i class="fa-solid fa-house-medical text-[#8B7355] text-sm"></i>
-                        </div>
-                        <div>
-                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Service Type</p>
-                            <p id="confirmServiceType" class="text-sm font-semibold text-[#3C2F23]"></p>
-                        </div>
-                    </div>
-
-                    <div id="confirmAddressRow" class="hidden items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                            <i class="fa-solid fa-location-dot text-[#8B7355] text-sm"></i>
-                        </div>
-                        <div>
-                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Home Address</p>
-                            <p id="confirmAddress" class="text-sm font-semibold text-[#3C2F23]"></p>
-                        </div>
-                    </div>
-
-                    <hr class="border-[#E8DDD0]">
-
-                    <div class="p-4 rounded-xl bg-[#FDFAF6] ring-1 ring-[#E8DDD0] space-y-1.5">
-                        <div class="flex items-center justify-between text-sm">
-                            <span class="text-gray-500">Total Service Price</span>
-                            <span id="confirmTotalPrice" class="font-medium text-[#3C2F23]"></span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm font-semibold text-[#3C2F23]">Downpayment Due Now (20%)</span>
-                            <span id="confirmDownpayment" class="text-lg font-bold text-[#6F5430]"></span>
-                        </div>
-                        <p class="text-[11px] text-gray-500 pt-1">
-                            The remaining balance is payable at the spa on the day of your appointment. Downpayments are non-refundable.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="flex gap-2 px-6 pb-6">
-                    <button type="button" onclick="closeBookingConfirmModal()"
-                        class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
-                        Back & Edit
-                    </button>
-                    <button type="button" id="confirmBookingSubmitBtn" onclick="submitBookingConfirmed()"
-                        class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                        <i class="mr-2 fa-solid fa-check"></i>
-                        Confirm & Proceed to Payment
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
 
