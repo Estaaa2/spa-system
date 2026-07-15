@@ -1090,7 +1090,11 @@
           has nothing to generate from, so it silently does nothing. Plain
           CSS here has no such dependency.
         */
-        .svc-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; cursor: pointer; border-left: 4px solid transparent; transition: background-color .15s ease, border-color .15s ease; }
+        .svc-card { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; padding: 12px 16px; cursor: pointer; border-left: 4px solid transparent; transition: background-color .15s ease, border-color .15s ease; }
+        .svc-card.hidden { display: none !important; }
+        .svc-card-thumb { flex-shrink: 0; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; background: #F6EFE6; border: 1px solid rgba(0,0,0,0.05); }
+        .svc-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .svc-card-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
         .svc-card:hover { background-color: rgba(246, 239, 230, 0.5); }
         .svc-card.is-selected { border-left-color: #8B7355; background-color: rgba(246, 239, 230, 0.7); }
         .svc-card:focus-within { outline: 2px solid #8B7355; outline-offset: -2px; }
@@ -1137,12 +1141,12 @@
                             </div>
                             <div data-step-bar="1" class="w-10 h-0.5 mx-3 transition-colors bg-gray-200 rounded sm:w-16"></div>
                             <div class="flex items-center">
-                                <div data-step-circle="2" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 bg-gray-200 rounded-full transition-colors">2</div>
+                                <div data-step-circle="2" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 transition-colors bg-gray-200 rounded-full">2</div>
                                 <span data-step-label="2" class="ml-2 text-xs font-medium text-gray-400 transition-colors">Date &amp; Time</span>
                             </div>
                             <div data-step-bar="2" class="w-10 h-0.5 mx-3 transition-colors bg-gray-200 rounded sm:w-16"></div>
                             <div class="flex items-center">
-                                <div data-step-circle="3" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 bg-gray-200 rounded-full transition-colors">3</div>
+                                <div data-step-circle="3" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 transition-colors bg-gray-200 rounded-full">3</div>
                                 <span data-step-label="3" class="ml-2 text-xs font-medium text-gray-400 transition-colors">Confirm</span>
                             </div>
                         </div>
@@ -1169,12 +1173,12 @@
                                         </div>
                                     </div>
                                     <div class="relative mt-2">
-                                        <i class="absolute text-xs -translate-y-1/2 fa-solid fa-magnifying-glass left-3 top-1/2 text-gray-300 pointer-events-none"></i>
+                                        <i class="absolute text-xs text-gray-300 -translate-y-1/2 pointer-events-none fa-solid fa-magnifying-glass left-3 top-1/2"></i>
                                         <input type="text" id="bookingServiceSearch" placeholder="Search services…" autocomplete="off"
                                             class="w-full py-2 pl-9 pr-3 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
                                     </div>
                                     <div id="bookingServiceList"
-                                         class="mt-2 max-h-60 overflow-y-auto rounded-xl border border-black/10 ring-1 ring-black/5 bg-white divide-y divide-black/5">
+                                         class="mt-2 overflow-y-auto bg-white border divide-y max-h-60 rounded-xl border-black/10 ring-1 ring-black/5 divide-black/5">
                                         <p class="px-4 py-6 text-sm text-center text-gray-400">Select a spa to see its services.</p>
                                     </div>
                                     <p id="bookingTreatmentError" class="hidden mt-1 text-[11px] text-red-500">
@@ -1187,7 +1191,7 @@
                                 <div class="mt-4">
                                     <label class="block text-xs font-semibold text-gray-600">Service Type</label>
                                     <select name="service_type" id="bookingServiceType"
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-80">
                                         <option value="">Select service type</option>
                                     </select>
                                     <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500"></p>
@@ -1269,7 +1273,7 @@
                                         <span class="text-gray-500">Type</span>
                                         <span id="recapServiceType" class="font-medium text-[#3C2F23]"></span>
                                     </div>
-                                    <div id="recapAddressRow" class="hidden justify-between gap-3">
+                                    <div id="recapAddressRow" class="justify-between hidden gap-3">
                                         <span class="text-gray-500">Address</span>
                                         <span id="recapAddress" class="font-medium text-[#3C2F23] text-right"></span>
                                     </div>

@@ -274,7 +274,7 @@ function showBookingStep(step) {
                 circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-white rounded-full bg-[#8B7355] transition-colors';
                 circle.textContent = i;
             } else {
-                circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 bg-gray-200 rounded-full transition-colors';
+                circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 transition-colors bg-gray-200 rounded-full';
                 circle.textContent = i;
             }
         }
@@ -372,6 +372,21 @@ function buildServiceCard(item, kind) {
     input.dataset.price       = item.price ?? '';
     input.dataset.name        = item.name ?? '';
 
+    // Thumbnail
+    const fallbackImage = document.body.dataset.fallbackImage ?? '';
+    const thumbWrap = document.createElement('div');
+    thumbWrap.className = 'svc-card-thumb';
+    const thumbImg = document.createElement('img');
+    thumbImg.src = item.image_url || fallbackImage;
+    thumbImg.alt = item.name ?? '';
+    thumbImg.loading = 'lazy';
+    thumbImg.onerror = function () { this.onerror = null; this.src = fallbackImage; };
+    thumbWrap.appendChild(thumbImg);
+
+    // Text content wrapper
+    const content = document.createElement('div');
+    content.className = 'svc-card-content';
+
     const topRow = document.createElement('div');
     topRow.className = 'svc-card-top';
 
@@ -398,17 +413,20 @@ function buildServiceCard(item, kind) {
     const desc = (item.description ?? '').toString().trim();
     descEl.textContent = desc.length ? desc : 'No description yet.';
 
-    label.appendChild(input);
-    label.appendChild(topRow);
-    label.appendChild(descEl);
+    content.appendChild(topRow);
+    content.appendChild(descEl);
 
     const duration = kind === 'package' ? (item.total_duration ?? item.duration) : item.duration;
     if (duration) {
         const metaRow = document.createElement('div');
         metaRow.className = 'svc-card-meta';
         metaRow.innerHTML = `<i class="fa-regular fa-clock"></i> ${parseInt(duration, 10)} min`;
-        label.appendChild(metaRow);
+        content.appendChild(metaRow);
     }
+
+    label.appendChild(input);
+    label.appendChild(thumbWrap);
+    label.appendChild(content);
 
     return label;
 }
@@ -511,6 +529,7 @@ function resetServiceType() {
     if (!serviceTypeSelect) return;
     serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
     serviceTypeSelect.value = '';
+    serviceTypeSelect.disabled = false;
     if (serviceTypeHint) serviceTypeHint.textContent = '';
     if (addressWrapper) addressWrapper.classList.add('hidden');
     if (addressInput) addressInput.required = false;
@@ -528,13 +547,15 @@ function populateServiceTypeOptions() {
     if (serviceType === 'in_branch_only') {
         serviceTypeSelect.innerHTML = `<option value="in_branch">In-Branch</option>`;
         serviceTypeSelect.value = 'in_branch';
-        if (serviceTypeHint) serviceTypeHint.textContent = 'This selection is available for in-branch service only.';
+        serviceTypeSelect.disabled = true;
+        if (serviceTypeHint) serviceTypeHint.textContent = 'This treatment is only offered in-branch.';
     } else if (serviceType === 'in_branch_and_home') {
         serviceTypeSelect.innerHTML = `
             <option value="">Select service type</option>
             <option value="in_branch">In-Branch</option>
             <option value="in_home">Home Service</option>
         `;
+        serviceTypeSelect.disabled = false;
         if (serviceTypeHint) serviceTypeHint.textContent = 'This selection is available for both in-branch and home service.';
     }
 
@@ -667,7 +688,7 @@ function buildBookingRecap() {
 
     const price = checked ? parseFloat(checked.dataset.price || '0') : 0;
     document.getElementById('recapTotalPrice').textContent = price ? formatPeso(price) : '—';
-    document.getElementById('recapDownpayment').textContent = price ? `${formatPeso(price * 0.2)} due now` : '—';
+    document.getElementById('recapDownpayment').textContent = price ? `${formatPeso(price * 0.2)}` : '—';
 }
 
 function openBookingModal() {
@@ -811,7 +832,12 @@ bookingForm?.addEventListener('submit', async function (e) {
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const serviceTypeWasDisabled = serviceTypeSelect?.disabled;
+        if (serviceTypeWasDisabled) serviceTypeSelect.disabled = false;
+
         const formData = new FormData(bookingForm);
+
+        if (serviceTypeWasDisabled) serviceTypeSelect.disabled = true;
 
         const response = await fetch(bookingForm.action, {
             method: 'POST',
