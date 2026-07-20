@@ -763,6 +763,11 @@
                                             : (implode(', ', $parts) ?: 'Location unavailable');
                                     @endphp
                                     <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
+                                    @if($lowestPrice)
+                                        <p class="mt-2 text-xs font-medium text-[#8B7355]">
+                                            Starts at ₱{{ number_format($lowestPrice, 2) }}
+                                        </p>
+                                    @endif
                                     <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
                                 </div>
                             </button>

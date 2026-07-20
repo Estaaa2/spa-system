@@ -755,3 +755,92 @@
         filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
     }
 </style>
+
+<script>
+function sidebar() {
+    const STORAGE_KEY = 'levictas_sidebar_state';
+
+    // These mirror the exact route checks your nav links already use —
+    // so "the section you're currently inside" is the source of truth
+    // for what should be open on a fresh page load.
+    const routeIsOperations = {{ (request()->routeIs('booking') || request()->routeIs('appointments.*') || request()->routeIs('schedule.*') || request()->routeIs('therapist.performance') || (!$suiteEnabled && request()->routeIs('attendance.*'))) ? 'true' : 'false' }};
+    const routeIsPeople     = {{ (request()->routeIs('hiring.*') || request()->routeIs('applications.*') || request()->routeIs('interviews.*') || request()->routeIs('staff.*') || request()->routeIs('depolyment.*') || request()->routeIs('payroll.*') || ($suiteEnabled && request()->routeIs('attendance.*'))) ? 'true' : 'false' }};
+    const routeIsManagement = {{ (request()->routeIs('services.*') || request()->routeIs('branches.*') || (!$suiteEnabled && request()->routeIs('staff.*'))) ? 'true' : 'false' }};
+    const routeIsFinance    = {{ (request()->routeIs('revenue.*') || request()->routeIs('billing.*')) ? 'true' : 'false' }};
+    const routeIsInsights   = {{ (request()->routeIs('decision-support.*') || request()->routeIs('reports.*')) ? 'true' : 'false' }};
+    const routeIsInventory  = {{ (request()->routeIs('inventory.*')) ? 'true' : 'false' }};
+    const routeIsSettings   = {{ (request()->routeIs('profile.*') || request()->routeIs('owner.spa-profile.*') || request()->routeIs('owner.workforce-finance-suite.*') || request()->routeIs('owner.subscription.*') || request()->routeIs('owner.roles-permissions.*')) ? 'true' : 'false' }};
+
+    let saved = {};
+    try {
+        saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch (e) {
+        saved = {};
+    }
+
+    return {
+        open: false,
+        mobileBranchesOpen: false,
+        branchesDropdown: false,
+        showLogoutModal: false,
+
+        selectedBranch: {{ Js::from($currentBranch?->name ?? 'Select Branch') }},
+        selectedBranchId: {{ $currentBranch?->id ?? 'null' }},
+
+        operationsOpen: saved.operationsOpen ?? routeIsOperations,
+        peopleOpen:     saved.peopleOpen     ?? routeIsPeople,
+        managementOpen: saved.managementOpen ?? routeIsManagement,
+        financeOpen:    saved.financeOpen    ?? routeIsFinance,
+        insightsOpen:   saved.insightsOpen   ?? routeIsInsights,
+        inventoryOpen:  saved.inventoryOpen  ?? routeIsInventory,
+        settingsOpen:   saved.settingsOpen   ?? routeIsSettings,
+
+        init() {
+            // Whatever section you're currently viewing stays open even if
+            // it was previously collapsed — no reason to hide the page
+            // you're already looking at.
+            if (routeIsOperations) this.operationsOpen = true;
+            if (routeIsPeople)     this.peopleOpen     = true;
+            if (routeIsManagement) this.managementOpen = true;
+            if (routeIsFinance)    this.financeOpen    = true;
+            if (routeIsInsights)   this.insightsOpen   = true;
+            if (routeIsInventory)  this.inventoryOpen  = true;
+            if (routeIsSettings)   this.settingsOpen   = true;
+
+            this.persist();
+
+            this.$watch('operationsOpen', () => this.persist());
+            this.$watch('peopleOpen',     () => this.persist());
+            this.$watch('managementOpen', () => this.persist());
+            this.$watch('financeOpen',    () => this.persist());
+            this.$watch('insightsOpen',   () => this.persist());
+            this.$watch('inventoryOpen',  () => this.persist());
+            this.$watch('settingsOpen',   () => this.persist());
+        },
+
+        persist() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                operationsOpen: this.operationsOpen,
+                peopleOpen:     this.peopleOpen,
+                managementOpen: this.managementOpen,
+                financeOpen:    this.financeOpen,
+                insightsOpen:   this.insightsOpen,
+                inventoryOpen:  this.inventoryOpen,
+                settingsOpen:   this.settingsOpen,
+            }));
+        },
+
+        // TODO: replace this URL with your actual branch-switch endpoint —
+        // I don't have it, so this is a placeholder that will 404 as-is.
+        switchBranch(branchId) {
+            fetch('/branches/switch/' + branchId, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+                    'Accept': 'application/json',
+                },
+            }).then(() => window.location.reload());
+        }
+    }
+}
+</script>

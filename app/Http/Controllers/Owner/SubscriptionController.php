@@ -27,7 +27,8 @@ class SubscriptionController extends Controller
 
     public function checkout()
     {
-        $spa = auth()->user()->spa;
+        $owner = auth()->user();
+        $spa = $owner->spa;
 
         $subscription = Subscription::create([
             'spa_id'         => $spa->id,
@@ -35,6 +36,8 @@ class SubscriptionController extends Controller
             'amount'         => 200.00,
             'payment_status' => 'pending',
         ]);
+
+        $ownerName = trim(($owner->first_name ?? '') . ' ' . ($owner->last_name ?? ''));
 
         $response = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
             ->post('https://api.paymongo.com/v1/checkout_sessions', [
@@ -47,6 +50,11 @@ class SubscriptionController extends Controller
                             'quantity' => 1,
                         ]],
                         'payment_method_types' => ['gcash'],
+                        'billing' => [
+                            'name'  => $ownerName ?: null,
+                            'email' => $owner->email ?? null,
+                            'phone' => $owner->phone ?? null,
+                        ],
                         'success_url' => route('owner.subscription.success'),
                         'cancel_url'  => route('owner.subscription.cancel'),
                     ],

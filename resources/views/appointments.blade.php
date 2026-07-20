@@ -32,7 +32,7 @@
                     bg-white border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700
                     text-gray-500 dark:text-gray-400 select-none">
             <span id="liveIndicatorDot"
-                  class="inline-block w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 transition-colors duration-300"></span>
+                  class="inline-block w-2 h-2 transition-colors duration-300 bg-gray-300 rounded-full dark:bg-gray-600"></span>
             <span id="liveIndicatorLabel">Connecting…</span>
         </div>
     </div>
@@ -85,8 +85,7 @@
                 overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl
                 dark:bg-gray-800 dark:border-amber-800">
 
-        <div class="flex items-center justify-between px-6 py-4 border-b border-amber-200
-                    bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
             <div>
                 <h2 class="text-lg font-semibold text-amber-900 dark:text-amber-200">Needs Attention Right Now</h2>
                 <p class="text-sm text-amber-700 dark:text-amber-300">
@@ -94,8 +93,7 @@
                 </p>
             </div>
             <span id="pendingBadge"
-                  class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full
-                         bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                  class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                 {{ $todayPending->total() }} Pending
             </span>
         </div>
@@ -103,8 +101,7 @@
         <div class="p-6">
             <div id="pendingList" class="space-y-4">
                 @forelse($todayPending as $booking)
-                    <div class="p-4 border rounded-2xl border-amber-200 bg-amber-50/60
-                                dark:border-amber-800 dark:bg-amber-900/10">
+                    <div class="p-4 border rounded-2xl border-amber-200 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-900/10">
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div class="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <div>
@@ -152,8 +149,7 @@
                                             data-paid="{{ $booking->resolved_amount_paid }}"
                                             data-due="{{ $booking->resolved_balance_amount }}"
                                             data-status="{{ $booking->status }}"
-                                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white
-                                                   rounded-xl bg-amber-600 hover:bg-amber-700">
+                                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-xl bg-amber-600 hover:bg-amber-700">
                                         Process Now
                                     </button>
                                 </div>
@@ -552,18 +548,29 @@
                 <input type="hidden" id="edit_status" name="status">
                 <div class="md:col-span-2">
                     <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
-                    <input type="text" id="edit_customer_name" name="customer_name"
-                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <input type="text" id="edit_customer_name" name="customer_name" readonly
+                        class="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-300 cursor-not-allowed rounded-xl dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                    <p class="mt-1 text-xs text-gray-400">Customer name cannot be changed here.</p>
                 </div>
                 <div>
                     <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Email</label>
-                    <input type="email" id="edit_customer_email" name="customer_email"
-                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <input type="email" id="edit_customer_email" name="customer_email" readonly
+                        class="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-300 cursor-not-allowed rounded-xl dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                    <p class="mt-1 text-xs text-gray-400">Customer email cannot be changed here.</p>
                 </div>
                 <div>
-                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Phone</label>
-                    <input type="text" id="edit_customer_phone" name="customer_phone"
-                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Customer Phone</label>
+                        <button type="button" id="edit_phone_toggle" onclick="togglePhoneEdit()"
+                                class="text-xs font-semibold text-[#8B7355] hover:text-[#6F5430]">
+                            <i class="mr-1 fa-solid fa-pen"></i>Edit
+                        </button>
+                    </div>
+                    <input type="text" id="edit_customer_phone" name="customer_phone" readonly
+                        class="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-300 cursor-not-allowed rounded-xl dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400">
+                    <p id="edit_phone_hint" class="hidden mt-1 text-xs text-amber-600 dark:text-amber-400">
+                        Only change this if the customer lost access to their previous number.
+                    </p>
                 </div>
                 <div class="md:col-span-2">
                     <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Address</label>
@@ -739,12 +746,16 @@ function openProcessModal(btn) {
     document.getElementById('processForm').action = '/appointments/' + d.id + '/status';
     document.getElementById('processModal').classList.remove('hidden');
 }
-function closeProcessModal() { document.getElementById('processModal').classList.add('hidden'); }
+
+function closeProcessModal() {
+    document.getElementById('processModal').classList.add('hidden');
+}
 
 function clearEditErrors() {
     document.querySelectorAll('.edit-field-error').forEach(e => e.remove());
     document.querySelectorAll('.has-error').forEach(i => i.classList.remove('has-error','border-red-500','dark:border-red-500'));
 }
+
 function showFieldError(fieldId, message) {
     const existing = document.getElementById(`error-${fieldId}`);
     if (existing) existing.remove();
@@ -758,6 +769,7 @@ function showFieldError(fieldId, message) {
         field.parentNode.insertBefore(div, field.nextSibling);
     }
 }
+
 function validateAppointmentDate() {
     const statusSelect     = document.getElementById('edit_status');
     const appointmentDate  = document.getElementById('edit_appointment_date').value;
@@ -771,6 +783,7 @@ function validateAppointmentDate() {
     }
     return true;
 }
+
 function showConfirmationDialog(title, message, onConfirm, onCancel) {
     const existing = document.getElementById('confirmationModal');
     if (existing) existing.remove();
@@ -793,6 +806,7 @@ function showConfirmationDialog(title, message, onConfirm, onCancel) {
     modal.onclick = e => { if(e.target===modal){ modal.remove(); if(onCancel) onCancel(); } };
     return false;
 }
+
 function openEditModal(btn) {
     const d = btn.dataset;
     clearEditErrors();
@@ -813,27 +827,96 @@ function openEditModal(btn) {
         opt.hidden = opt.dataset.branch != d.branchId;
     });
     therapistSelect.value = d.therapistId || '';
+
+    // Always re-lock the phone field for each newly opened booking, so a
+    // previously-unlocked phone from a different customer's edit session
+    // never carries over into this one.
+    const phoneInput  = document.getElementById('edit_customer_phone');
+    const phoneToggle = document.getElementById('edit_phone_toggle');
+    const phoneHint   = document.getElementById('edit_phone_hint');
+    phoneInput.setAttribute('readonly', true);
+    phoneInput.classList.add('bg-gray-100', 'cursor-not-allowed', 'dark:bg-gray-900', 'dark:text-gray-400');
+    phoneInput.classList.remove('bg-white', 'dark:bg-gray-700', 'dark:text-white');
+    phoneToggle.innerHTML = '<i class="mr-1 fa-solid fa-pen"></i>Edit';
+    phoneHint.classList.add('hidden');
+
     document.getElementById('editForm').action = '/appointments/' + d.id;
     document.getElementById('editModal').classList.remove('hidden');
     attachEditEventListeners();
 }
+
+function validateEditPhone() {
+    const phoneInput = document.getElementById('edit_customer_phone');
+    const phone = phoneInput.value.trim();
+
+    // Only enforce the format if the field was actually unlocked and
+    // possibly changed — a locked, untouched value is already known-good
+    // from when the booking was created.
+    if (phoneInput.hasAttribute('readonly')) return true;
+
+    if (!/^09\d{9}$/.test(phone)) {
+        showFieldError('edit_customer_phone', 'Enter a valid 11-digit phone number (09xxxxxxxxx).');
+        return false;
+    }
+    return true;
+}
+
+function togglePhoneEdit() {
+    const input = document.getElementById('edit_customer_phone');
+    const btn   = document.getElementById('edit_phone_toggle');
+    const hint  = document.getElementById('edit_phone_hint');
+    const isLocked = input.hasAttribute('readonly');
+
+    if (isLocked) {
+        input.removeAttribute('readonly');
+        input.classList.remove('bg-gray-100', 'cursor-not-allowed', 'dark:bg-gray-900', 'dark:text-gray-400');
+        input.classList.add('bg-white', 'dark:bg-gray-700', 'dark:text-white');
+        input.focus();
+        btn.innerHTML = '<i class="mr-1 fa-solid fa-lock"></i>Lock';
+        hint.classList.remove('hidden');
+    } else {
+        input.setAttribute('readonly', true);
+        input.classList.add('bg-gray-100', 'cursor-not-allowed', 'dark:bg-gray-900', 'dark:text-gray-400');
+        input.classList.remove('bg-white', 'dark:bg-gray-700', 'dark:text-white');
+        btn.innerHTML = '<i class="mr-1 fa-solid fa-pen"></i>Edit';
+        hint.classList.add('hidden');
+    }
+}
+window.togglePhoneEdit = togglePhoneEdit;
+
 function attachEditEventListeners() {
     const statusSelect = document.getElementById('edit_status');
     const dateInput    = document.getElementById('edit_appointment_date');
     const editForm     = document.getElementById('editForm');
+    const phoneInput   = document.getElementById('edit_customer_phone');
+
     if (window._editStatusListener) {
         statusSelect?.removeEventListener('change', window._editStatusListener);
         dateInput?.removeEventListener('change', window._editDateListener);
         editForm?.removeEventListener('submit', window._editSubmitListener);
+        phoneInput?.removeEventListener('input', window._editPhoneListener);
     }
+
     window._editStatusListener  = () => { clearEditErrors(); validateAppointmentDate(); };
     window._editDateListener    = () => { clearEditErrors(); validateAppointmentDate(); };
-    window._editSubmitListener  = e  => { clearEditErrors(); if(!validateAppointmentDate()){ e.preventDefault(); return false; } };
+    window._editPhoneListener   = function () { this.value = this.value.replace(/\D/g, '').slice(0, 11); };
+    window._editSubmitListener  = e  => {
+        clearEditErrors();
+        const dateOk  = validateAppointmentDate();
+        const phoneOk = validateEditPhone();
+        if (!dateOk || !phoneOk) {
+            e.preventDefault();
+            return false;
+        }
+    };
+
     statusSelect?.addEventListener('change', window._editStatusListener);
     dateInput?.addEventListener('change',    window._editDateListener);
     editForm?.addEventListener('submit',     window._editSubmitListener);
+    phoneInput?.addEventListener('input',    window._editPhoneListener);
     editForm?.querySelectorAll('input, select').forEach(inp => inp.addEventListener('focus', clearEditErrors));
 }
+
 function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); clearEditErrors(); }
 @endif
 

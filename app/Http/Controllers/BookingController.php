@@ -128,7 +128,7 @@ class BookingController extends Controller
             'customer_address' => $request->service_type === 'in_home'
                 ? 'required|string|max:255'
                 : 'nullable|string|max:255',
-            'customer_email' => 'required|email|max:255',
+            'customer_email' => 'nullable|email|max:255',
             'appointment_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required',
         ]);
@@ -361,7 +361,7 @@ class BookingController extends Controller
         $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_email' => 'required|email|max:255',
-            'customer_phone' => 'nullable|string|max:255',
+            'customer_phone' => ['nullable', 'string', 'regex:/^09\d{9}$/'],
             'customer_address' => 'nullable|string|max:255',
             'service_type' => 'required|string|in:in_branch,in_home',
             'treatment' => 'required|string',
@@ -442,10 +442,28 @@ class BookingController extends Controller
             ])->withInput();
         }
 
+        // Capture the pre-update schedule so we only notify the customer
+        // when the actual date or time changed — not on every field edit
+        // (e.g. re-assigning a therapist with the same slot).
+        $oldDate      = $booking->appointment_date->format('Y-m-d');
+        $oldStartTime = $booking->start_time;
+
         $booking->update([
             ...$validated,
             'end_time' => $end->format('H:i'),
         ]);
+
+        $scheduleChanged = $oldDate !== $validated['appointment_date']
+            || $oldStartTime !== $validated['start_time'];
+
+        if ($scheduleChanged && $booking->customer_email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($booking->customer_email)
+                    ->send(new \App\Mail\AppointmentUpdated($booking->fresh(), $oldDate, $oldStartTime));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send appointment update email: ' . $e->getMessage());
+            }
+        }
 
         return redirect()
             ->route('appointments.index')
@@ -874,11 +892,11 @@ class BookingController extends Controller
     {
         $user            = Auth::user();
         $currentBranchId = $user->currentBranchId() ?? $user->branch_id;
- 
+
         $this->syncAutomaticStatuses($user->spa_id, $currentBranchId);
- 
+
         $baseQuery = Booking::with(['therapist', 'branch']);
- 
+
         if ($user->hasRole('owner')) {
             $branchId = $user->currentBranchId();
             $baseQuery->where('spa_id', $user->spa_id);
@@ -894,35 +912,35 @@ class BookingController extends Controller
                       ->where('branch_id', $user->branch_id)
                       ->where('therapist_id', $user->id);
         }
- 
+
         $today = now()->toDateString();
- 
+
         $todayBase = (clone $baseQuery)
             ->whereDate('appointment_date', $today)
             ->whereIn('status', ['reserved', 'pending', 'ongoing']);
- 
+
         $upcomingBase = (clone $baseQuery)
             ->whereDate('appointment_date', '>', $today)
             ->whereIn('status', ['reserved', 'pending']);
- 
+
         $pendingAppointments  = (clone $todayBase)
             ->where('status', 'pending')
             ->orderBy('start_time')
             ->get()
             ->map(fn ($b) => $this->formatForLive($b));
- 
+
         $todayAppointments    = (clone $todayBase)
             ->orderBy('start_time')
             ->get()
             ->map(fn ($b) => $this->formatForLive($b));
- 
+
         $upcomingAppointments = (clone $upcomingBase)
             ->orderBy('appointment_date')
             ->orderBy('start_time')
             ->limit(25)
             ->get()
             ->map(fn ($b) => $this->formatForLive($b));
- 
+
         return response()->json([
             'summary' => [
                 'today_total'     => (clone $todayBase)->count(),
@@ -940,7 +958,7 @@ class BookingController extends Controller
     private function formatForLive(Booking $b): array
     {
         $b = $this->decorateBooking($b);
- 
+
         // Resolve a human-readable treatment name in case the model
         // does not expose a treatment_label accessor.
         $treatmentLabel = $b->treatment_label
@@ -957,14 +975,14 @@ class BookingController extends Controller
                 }
                 return $b->treatment ?? '—';
             })();
- 
+
         $serviceLabel = $b->service_type_label
             ?? match ($b->service_type) {
                 'in_branch' => 'In Branch',
                 'in_home'   => 'In Home',
                 default     => ucfirst($b->service_type ?? ''),
             };
- 
+
         return [
             'id'                      => $b->id,
             'customer_name'           => $b->customer_name           ?? 'Walk-in Customer',

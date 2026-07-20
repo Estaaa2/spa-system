@@ -56,7 +56,7 @@
 
                         {{-- Closed-day error banner (shown by JS when branch is closed on selected date) --}}
                         <div id="closedDayError"
-                             class="hidden items-start gap-2 p-3 mb-4 text-sm text-red-700 border rounded-lg bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400">
+                             class="items-start hidden gap-2 p-3 mb-4 text-sm text-red-700 border border-red-200 rounded-lg bg-red-50 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400">
                             <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>
@@ -187,14 +187,13 @@
                         {{-- Customer Email --}}
                         <div class="mt-4">
                             <label for="customer_email" class="block mb-1.5 text-sm font-medium text-gray-800 dark:text-white">
-                                Email <span class="text-red-500">*</span>
+                                Email <span class="font-normal text-gray-400">(optional)</span>
                             </label>
                             <input type="email" id="customer_email" name="customer_email"
                                 value="{{ old('customer_email') }}"
                                 placeholder="Enter customer's email address"
                                 class="w-full px-3 py-2 text-gray-800 bg-white border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-[#8B7355] focus:border-transparent
-                                       {{ $errors->has('customer_email') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}"
-                                required>
+                                    {{ $errors->has('customer_email') ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600' }}">
                             @error('customer_email')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
@@ -289,7 +288,7 @@
                     {{-- Booking source badge --}}
                     <div class="pt-5 mt-6 border-t border-gray-200 dark:border-gray-700">
                         <div class="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-200 dark:ring-amber-700">
-                            <svg class="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="flex-shrink-0 w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                             </svg>

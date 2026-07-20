@@ -175,6 +175,11 @@ class OnlineBookingCheckoutController extends Controller
                                 ],
                             ],
                             'payment_method_types' => ['gcash', 'paymaya'],
+                            'billing' => [
+                                'name'  => $pending->customer_name,
+                                'email' => $pending->customer_email,
+                                'phone' => $pending->customer_phone,
+                            ],
                             'success_url' => route('bookings.online.payment.success') . '?reservation=' . $pending->id,
                             'cancel_url'  => route('bookings.online.payment.cancel') . '?reservation=' . $pending->id,
                             'metadata'    => [
