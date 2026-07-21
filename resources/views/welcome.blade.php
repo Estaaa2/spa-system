@@ -9,6 +9,7 @@
     @vite(['resources/css/app.css','resources/css/landing.css', 'resources/js/app.js', 'resources/js/welcome.js'])
 
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="images/1.png" />
 
 </head>
 
