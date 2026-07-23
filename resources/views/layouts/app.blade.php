@@ -220,7 +220,7 @@
                         </div>
                     </div>
                 `,
-                duration: 3500,
+                duration: 2000,
                 gravity: "top",
                 position: "right",
                 close: false,

@@ -1174,6 +1174,7 @@ function loadAppointments() {
                 ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today
             ).length;
             updateAppointmentsBadge(upcomingCount);
+            checkUnratedBookings(data);
         });
 }
 
@@ -1343,9 +1344,11 @@ function statusBadge(status) {
 // =====================================================
 // MY SCHEDULE MODAL
 // =====================================================
-let scheduleBookings = [];
-let calendarDate     = new Date();
-let _dayBookingMap   = {};
+let scheduleBookings  = [];
+let calendarDate      = new Date();
+let _dayBookingMap    = {};
+let _listBookingMap   = {};
+let scheduleViewMode  = 'list'; // 'list' | 'calendar'
 
 function openScheduleModal() {
     document.getElementById('scheduleModal').classList.remove('hidden');
@@ -1363,16 +1366,131 @@ function loadSchedule() {
         .then(r => r.json())
         .then(data => {
             scheduleBookings = data;
-            renderCalendar();
+            renderSchedule();
         });
+}
+
+function renderSchedule() {
+    if (scheduleViewMode === 'list') {
+        renderScheduleList();
+    } else {
+        renderCalendar();
+    }
+}
+
+function toggleScheduleView() {
+    scheduleViewMode = scheduleViewMode === 'list' ? 'calendar' : 'list';
+
+    const listView  = document.getElementById('scheduleListView');
+    const calView   = document.getElementById('scheduleCalendarView');
+    const toggleBtn = document.getElementById('scheduleViewToggleBtn');
+
+    if (scheduleViewMode === 'list') {
+        listView?.classList.remove('hidden');
+        calView?.classList.add('hidden');
+        if (toggleBtn) {
+            toggleBtn.title = 'Switch to calendar view';
+            toggleBtn.innerHTML = '<i class="text-sm fa-solid fa-calendar-days"></i>';
+        }
+    } else {
+        listView?.classList.add('hidden');
+        calView?.classList.remove('hidden');
+        if (toggleBtn) {
+            toggleBtn.title = 'Switch to list view';
+            toggleBtn.innerHTML = '<i class="text-sm fa-solid fa-list"></i>';
+        }
+        document.getElementById('selectedDayBookings')?.classList.add('hidden');
+    }
+
+    renderSchedule();
 }
 
 function changeMonth(dir) {
     calendarDate.setMonth(calendarDate.getMonth() + dir);
-    renderCalendar();
-    document.getElementById('selectedDayBookings').classList.add('hidden');
+    document.getElementById('selectedDayBookings')?.classList.add('hidden');
+    renderSchedule();
 }
 
+// ── LIST VIEW: every booking this month, grouped by day ────────────────────
+function renderScheduleList() {
+    const year  = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    document.getElementById('calendarTitle').textContent =
+        calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const monthBookings = scheduleBookings
+        .filter(b => {
+            const d = new Date(b.date_raw + 'T00:00:00');
+            return d.getFullYear() === year && d.getMonth() === month;
+        })
+        .sort((a, b) => {
+            if (a.date_raw !== b.date_raw) return a.date_raw.localeCompare(b.date_raw);
+            return (a.start_time || '').localeCompare(b.start_time || '');
+        });
+
+    const container = document.getElementById('scheduleListContent');
+    if (!container) return;
+
+    if (!monthBookings.length) {
+        container.innerHTML = `
+            <div class="py-12 text-center text-gray-400">
+                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
+                <p class="text-sm">No bookings this month</p>
+            </div>`;
+        return;
+    }
+
+    const groups = {};
+    monthBookings.forEach(b => { (groups[b.date_raw] ??= []).push(b); });
+
+    Object.keys(_listBookingMap).forEach(k => delete _listBookingMap[k]);
+    let idx = 0;
+
+    const today = getTodayLocal();
+
+    container.innerHTML = Object.keys(groups).sort().map(dateRaw => {
+        const dayBookings = groups[dateRaw];
+        const isToday     = dateRaw === today;
+        const dateLabel   = new Date(dateRaw + 'T00:00:00').toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric'
+        });
+
+        const items = dayBookings.map(b => {
+            _listBookingMap[idx] = b;
+            const html = `
+                <div class="p-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5 cursor-pointer hover:shadow-md transition"
+                    onclick="openBookingDetailsModal(_listBookingMap[${idx}])">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-semibold text-[#3C2F23]">${escapeHtml(b.spa_name)}</p>
+                        <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
+                    <p class="mt-1 text-xs text-gray-500">
+                        <i class="fa-solid fa-clock text-[#8B7355]"></i>
+                        ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${escapeHtml(b.therapist)}
+                    </p>
+                    ${b.reschedule_status === 'pending' ? `
+                    <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
+                    </div>` : ''}
+                </div>`;
+            idx++;
+            return html;
+        }).join('');
+
+        return `
+            <div class="mb-5">
+                <div class="flex items-center gap-2 mb-2">
+                    <h4 class="text-sm font-semibold ${isToday ? 'text-[#8B7355]' : 'text-[#3C2F23]'}">${dateLabel}</h4>
+                    ${isToday ? '<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#8B7355] text-white">Today</span>' : ''}
+                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#F6EFE6] text-[#6F5430]">${dayBookings.length}</span>
+                </div>
+                <div class="space-y-2">${items}</div>
+            </div>`;
+    }).join('');
+}
+
+// ── CALENDAR VIEW (unchanged behavior, now optional) ────────────────────────
 function renderCalendar() {
     const year  = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
@@ -1897,6 +2015,7 @@ window.openApplicationModal     = openApplicationModal;
 window.closeApplicationModal    = closeApplicationModal;
 window.openLogoutModal          = openLogoutModal;
 window.closeLogoutModal         = closeLogoutModal;
+window.toggleScheduleView = toggleScheduleView;
 
 // =====================================================
 // TOAST
@@ -2087,3 +2206,96 @@ if (ratingFeedback) {
         if (el) el.textContent = this.value.length;
     });
 }
+
+// =====================================================
+// RATE REMINDER (unrated completed bookings)
+// =====================================================
+const RATE_REMINDER_STORAGE_KEY = 'levictas_rate_reminder_dismissed_date';
+let _reminderBookingMap = {};
+
+function shouldShowRateReminderToday() {
+    try {
+        const dismissedDate = localStorage.getItem(RATE_REMINDER_STORAGE_KEY);
+        return dismissedDate !== getTodayLocal();
+    } catch (e) {
+        // localStorage unavailable (privacy mode, etc.) — default to showing it.
+        return true;
+    }
+}
+
+function markRateReminderDismissedToday() {
+    try {
+        localStorage.setItem(RATE_REMINDER_STORAGE_KEY, getTodayLocal());
+    } catch (e) {
+        // Ignore — worst case it reminds again this session.
+    }
+}
+
+function checkUnratedBookings(bookings) {
+    if (!shouldShowRateReminderToday()) return;
+
+    const unrated = bookings.filter(b => b.status === 'completed' && !b.has_rating);
+    if (!unrated.length) return;
+
+    showRateReminderModal(unrated);
+}
+
+function showRateReminderModal(unrated) {
+    const modal   = document.getElementById('rateReminderModal');
+    const content = document.getElementById('rateReminderContent');
+    if (!modal || !content) return;
+
+    Object.keys(_reminderBookingMap).forEach(k => delete _reminderBookingMap[k]);
+
+    content.innerHTML = `
+        <p class="text-sm text-gray-600">
+            You have ${unrated.length} completed ${unrated.length === 1 ? 'appointment' : 'appointments'} waiting for your feedback.
+        </p>
+        ${unrated.map((b, i) => {
+            _reminderBookingMap[i] = b;
+            return `
+            <div class="p-4 border border-black/5 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-semibold text-[#3C2F23]">${escapeHtml(b.spa_name)}</p>
+                        <p class="mt-0.5 text-xs text-gray-500">${escapeHtml(b.branch_location ?? b.branch_name)} • ${escapeHtml(b.treatment)}</p>
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fa-solid fa-user-nurse text-[#8B7355]"></i> ${escapeHtml(b.therapist)}
+                            &nbsp;•&nbsp; <i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}
+                        </p>
+                    </div>
+                    <button type="button"
+                        onclick="rateFromReminder(${i})"
+                        class="flex-shrink-0 px-4 py-2 text-xs font-semibold text-white transition rounded-xl bg-[#8B7355] hover:bg-[#6F5430]">
+                        <i class="mr-1 fa-solid fa-star"></i> Rate
+                    </button>
+                </div>
+            </div>`;
+        }).join('')}
+    `;
+
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function rateFromReminder(index) {
+    const b = _reminderBookingMap[index];
+    if (!b) return;
+    closeRateReminderModalOnly();
+    openRatingModal(b.id, b.therapist, b.spa_name, b.branch_name, b.branch_location);
+}
+
+// Closes the reminder without marking it "dismissed" — used when the
+// customer chose to rate instead of skipping.
+function closeRateReminderModalOnly() {
+    document.getElementById('rateReminderModal')?.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function dismissRateReminder() {
+    markRateReminderDismissedToday();
+    closeRateReminderModalOnly();
+}
+
+window.dismissRateReminder = dismissRateReminder;
+window.rateFromReminder    = rateFromReminder;

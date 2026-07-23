@@ -1,5 +1,4 @@
 <x-guest-layout>
-    <x-auth-session-status class="mb-10" :status="session('status')" />
 
     <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2 rounded-2xl ">
 
@@ -189,4 +188,77 @@
             });
         });
     </script>
+
+    @if (session('status'))
+        @push('toasts')
+            {{-- guest.blade.php doesn't currently load Toastify, so pull it in here --}}
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+            <script>
+                // Same showSpaToast used across the authenticated app
+                // (layouts/app.blade.php), duplicated here so the guest/login
+                // page doesn't depend on that layout's script being loaded.
+                if (typeof showSpaToast !== 'function') {
+                    window.showSpaToast = function (message, type = 'success') {
+                        const isSuccess = type === 'success';
+                        Toastify({
+                            text: `
+                                <div style="display:flex; align-items:center; gap:12px; padding: 2px 0;">
+                                    <div style="
+                                        width: 36px;
+                                        height: 36px;
+                                        border-radius: 50%;
+                                        background: ${isSuccess ? '#f0fdf4' : '#fef2f2'};
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        flex-shrink: 0;
+                                    ">
+                                        <i class="${isSuccess ? 'fa-solid fa-spa' : 'fa-solid fa-circle-xmark'}"
+                                           style="color: ${isSuccess ? '#16a34a' : '#dc2626'}; font-size: 15px;">
+                                        </i>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:2px;">
+                                        <span style="
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                            letter-spacing: 0.08em;
+                                            text-transform: uppercase;
+                                            color: ${isSuccess ? '#15803d' : '#b91c1c'};
+                                        ">${isSuccess ? 'Success' : 'Error'}</span>
+                                        <span style="
+                                            font-size: 13px;
+                                            color: #374151;
+                                            font-weight: 400;
+                                            line-height: 1.4;
+                                        ">${message}</span>
+                                    </div>
+                                </div>
+                            `,
+                            duration: 3500,
+                            gravity: "top",
+                            position: "right",
+                            close: false,
+                            escapeMarkup: false,
+                            style: {
+                                background: "#ffffff",
+                                border: isSuccess ? "1px solid #bbf7d0" : "1px solid #fecaca",
+                                borderLeft: isSuccess ? "4px solid #16a34a" : "4px solid #dc2626",
+                                borderRadius: "10px",
+                                minWidth: "300px",
+                                maxWidth: "360px",
+                                padding: "14px 18px",
+                                boxShadow: "0 10px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)",
+                            }
+                        }).showToast();
+                    };
+                }
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    showSpaToast(@json(session('status')), 'success');
+                });
+            </script>
+        @endpush
+    @endif
 </x-guest-layout>

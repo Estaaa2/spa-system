@@ -388,22 +388,35 @@
                             class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5">
                             <i class="text-sm fa-solid fa-chevron-right"></i>
                         </button>
+                        <button type="button" onclick="toggleScheduleView()" id="scheduleViewToggleBtn"
+                            title="Switch to calendar view"
+                            class="flex items-center justify-center w-8 h-8 ml-1 text-[#8B7355] transition rounded-lg hover:bg-[#F6EFE6] ring-1 ring-black/5">
+                            <i class="text-sm fa-solid fa-calendar-days"></i>
+                        </button>
                     </div>
                     <button onclick="closeScheduleModal()"
                         class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
                         <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="p-6">
-                    <div class="grid grid-cols-7 mb-2">
-                        @foreach(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $day)
-                        <div class="py-2 text-xs font-semibold text-center text-gray-400">{{ $day }}</div>
-                        @endforeach
+                <div class="p-6 overflow-y-auto max-h-[65vh]">
+                    {{-- LIST VIEW (default) --}}
+                    <div id="scheduleListView">
+                        <div id="scheduleListContent" class="space-y-3"></div>
                     </div>
-                    <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
-                    <div id="selectedDayBookings" class="hidden mt-6 space-y-3">
-                        <h4 id="selectedDayTitle" class="text-sm font-semibold text-[#3C2F23]"></h4>
-                        <div id="selectedDayContent"></div>
+
+                    {{-- CALENDAR VIEW (optional, toggled via the icon in the header) --}}
+                    <div id="scheduleCalendarView" class="hidden">
+                        <div class="grid grid-cols-7 mb-2">
+                            @foreach(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $day)
+                            <div class="py-2 text-xs font-semibold text-center text-gray-400">{{ $day }}</div>
+                            @endforeach
+                        </div>
+                        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+                        <div id="selectedDayBookings" class="hidden mt-6 space-y-3">
+                            <h4 id="selectedDayTitle" class="text-sm font-semibold text-[#3C2F23]"></h4>
+                            <div id="selectedDayContent"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1685,6 +1698,45 @@
             </div>
         </div>
     </div>
+
+    <!-- ================= RATE REMINDER MODAL ================= -->
+    @auth
+    @role('customer')
+    <div id="rateReminderModal" class="fixed inset-0 z-[135] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="dismissRateReminder()"></div>
+        <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center w-10 h-10 bg-[#F6EFE6] rounded-2xl ring-1 ring-black/5">
+                            <i class="fa-solid fa-star text-[#D2A85B]"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-[#3C2F23]">How was your visit?</h3>
+                            <p class="mt-0.5 text-xs text-gray-500">You have unrated appointments</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="dismissRateReminder()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
+                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div id="rateReminderContent" class="overflow-y-auto max-h-[55vh] p-6 space-y-3">
+                    {{-- filled by JS --}}
+                </div>
+
+                <div class="px-6 pt-2 pb-6">
+                    <button type="button" onclick="dismissRateReminder()"
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        Maybe Later
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endrole
+    @endauth
 
     <!-- ================= HOW IT WORKS ================= -->
     <section class="bg-[#EFE3D6] py-20">
