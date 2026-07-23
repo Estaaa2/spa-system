@@ -689,5 +689,6 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::get('/web-api/spas/nearby', [LandingController::class, 'nearbySpasList']);
+Route::get('/web-api/spas/search', [LandingController::class, 'searchSpas']);
 
 require __DIR__.'/auth.php';

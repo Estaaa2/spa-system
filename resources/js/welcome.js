@@ -49,7 +49,13 @@ document.addEventListener('click', function (e) {
 });
 
 function openProfileModal() {
-    document.getElementById('profileModal').classList.remove('hidden');
+    const profileModalEl = document.getElementById('profileModal');
+    if (!profileModalEl) {
+        console.warn('openProfileModal: #profileModal is not in the DOM (guest session?) — skipping.');
+        return;
+    }
+
+    profileModalEl.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
 
     setTimeout(() => {
@@ -58,8 +64,12 @@ function openProfileModal() {
         }
 
         // If user already has a pinned location, show it
-        const savedLat = parseFloat(document.getElementById('latitude').value);
-        const savedLng = parseFloat(document.getElementById('longitude').value);
+        const latInput = document.getElementById('latitude');
+        const lngInput = document.getElementById('longitude');
+        if (!latInput || !lngInput) return;
+
+        const savedLat = parseFloat(latInput.value);
+        const savedLng = parseFloat(lngInput.value);
         if (savedLat && savedLng && window.profileMap) {
             window.profileMap.setView([savedLat, savedLng], 15);
             if (marker) window.profileMap.removeLayer(marker);
@@ -69,7 +79,10 @@ function openProfileModal() {
 }
 
 function closeProfileModal() {
-    document.getElementById('profileModal').classList.add('hidden');
+    const profileModalEl = document.getElementById('profileModal');
+    if (!profileModalEl) return;
+
+    profileModalEl.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
     const btn     = document.getElementById('emailToggleBtn');
     const display = document.getElementById('emailDisplay');
@@ -222,6 +235,242 @@ document.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
 });
 
 closeSpaBtns.forEach(btn => btn.addEventListener('click', closeSpaModal));
+
+// =====================================================
+// LIVE SPA SEARCH (name + location, no page reload)
+// =====================================================
+const spaSearchInput     = document.getElementById('spaSearchInput');
+const spaSearchForm      = document.getElementById('spaSearchForm');
+const spaSearchClearBtn  = document.getElementById('spaSearchClearBtn');
+const featuredSpasGrid   = document.getElementById('featuredSpasGrid');
+const otherSpasContainer = document.getElementById('otherSpasContainer');
+const featuredSubtitleEl = document.getElementById('featuredSpasSubtitle');
+const otherSubtitleEl    = document.getElementById('otherSpasSubtitle');
+
+if (spaSearchInput && featuredSpasGrid && otherSpasContainer) {
+
+    // Snapshot exactly what the server rendered on load. A cleared search
+    // restores this instantly instead of trying to reproduce every
+    // empty-state / auth-gated CTA variant in JS.
+    const originalFeaturedGridHTML   = featuredSpasGrid.innerHTML;
+    const originalOtherContainerHTML = otherSpasContainer.innerHTML;
+    const originalFeaturedSubtitle   = featuredSubtitleEl ? featuredSubtitleEl.innerHTML : '';
+    const originalOtherSubtitle      = otherSubtitleEl ? otherSubtitleEl.innerHTML : '';
+
+    let debounceTimer   = null;
+    let inFlightRequest = null;
+
+    function spaAddressSummary(address) {
+        const cleaned = (address || '').replace(/,?\s*(Philippines|Calabarzon|\d{4})\s*/gi, '');
+        const parts   = cleaned.split(',').map(p => p.trim()).filter(Boolean);
+        return parts.length >= 2 ? parts.slice(-2).join(', ') : (parts.join(', ') || 'Location unavailable');
+    }
+
+    function spaHiringBadge(spa) {
+        if (!spa.is_hiring) return '';
+        const safeName = (spa.name ?? '').replace(/'/g, "\\'");
+        return `
+            <span onclick="event.stopPropagation(); openApplicationModal(${spa.id}, ${spa.branch_id}, '${safeName}')"
+                class="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500 hover:bg-red-700 text-white text-[11px] font-semibold backdrop-blur-sm transition cursor-pointer">
+                <i class="fa-solid fa-briefcase text-[10px]"></i>
+                We're Hiring · <span class="underline underline-offset-2">Apply Now</span>
+            </span>`;
+    }
+
+    function buildFeaturedSpaCard(spa) {
+        const thumb   = spa.photos?.[0] || (document.body.dataset.fallbackImage ?? '');
+        const addr    = spaAddressSummary(spa.address);
+        const escaped = JSON.stringify(spa).replace(/'/g, '&#39;');
+
+        return `
+            <button type="button"
+                class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                data-open-spa-modal
+                data-spa='${escaped}'>
+                <div class="relative overflow-hidden">
+                    <img src="${thumb}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="${escapeHtml(spa.name)}">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+                    <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#6F5430]/90 text-white text-[11px] font-semibold backdrop-blur-sm">
+                        <i class="fa-solid fa-star text-[#F5C842] text-[10px]"></i>
+                        Featured
+                    </div>
+                    ${spaHiringBadge(spa)}
+                </div>
+                <div class="p-5">
+                    <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">${escapeHtml(spa.name)}</h3>
+                    <p class="mt-1 text-xs text-gray-500">${escapeHtml(addr)}</p>
+                    ${spa.price_note ? `<p class="mt-2 text-xs font-medium text-[#8B7355]">Starts at ₱${spa.price_note}</p>` : ''}
+                    <p class="mt-3 text-sm text-gray-600 line-clamp-2">${escapeHtml(spa.desc) || 'No description yet.'}</p>
+                </div>
+            </button>`;
+    }
+
+    function buildOtherSpaCard(spa) {
+        const thumb   = spa.photos?.[0] || (document.body.dataset.fallbackImage ?? '');
+        const addr    = spaAddressSummary(spa.address);
+        const escaped = JSON.stringify(spa).replace(/'/g, '&#39;');
+
+        return `
+            <button type="button"
+                class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-xl"
+                data-open-spa-modal
+                data-spa='${escaped}'>
+                <div class="relative overflow-hidden">
+                    <img src="${thumb}" class="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="${escapeHtml(spa.name)}">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-transparent"></div>
+                    <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 text-[#6F5430] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5">
+                        <i class="fa-solid fa-spa text-[#8B7355] text-[10px]"></i>
+                        Verified
+                    </div>
+                    ${spaHiringBadge(spa)}
+                </div>
+                <div class="p-4">
+                    <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">${escapeHtml(spa.name)}</h3>
+                    <p class="mt-1 text-xs text-gray-900">${escapeHtml(addr)}</p>
+                    ${spa.price_note ? `<p class="mt-2 text-xs font-medium text-[#8B7355]">Starts at ₱${spa.price_note}</p>` : ''}
+                    <p class="mt-2 text-sm text-gray-500 line-clamp-2">${escapeHtml(spa.desc) || 'No description yet.'}</p>
+                </div>
+            </button>`;
+    }
+
+    function attachSpaModalHandlers(container) {
+        container.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                try {
+                    openSpaModal(JSON.parse(btn.getAttribute('data-spa')));
+                } catch (e) {
+                    console.error('Invalid spa data', e);
+                }
+            });
+        });
+    }
+
+    function renderFeaturedResults(cards, term) {
+        if (!cards.length) {
+            featuredSpasGrid.innerHTML = `
+                <div class="py-16 text-center col-span-full">
+                    <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
+                        <i class="fa-solid fa-star text-xl text-[#8B7355]"></i>
+                    </div>
+                    <p class="font-semibold text-[#3C2F23]">No featured spas found</p>
+                    <p class="mt-1 text-sm text-gray-500">No featured spas match "${escapeHtml(term)}". Try a different name or location.</p>
+                </div>`;
+            return;
+        }
+        featuredSpasGrid.innerHTML = cards.map(buildFeaturedSpaCard).join('');
+    }
+
+    function renderOtherResults(cards, term) {
+        if (!cards.length) {
+            otherSpasContainer.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16 mt-12 border border-dashed border-[#C4A97D]/40 rounded-3xl bg-white/50">
+                    <div class="flex items-center justify-center w-16 h-16 mb-5 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
+                        <i class="fa-solid fa-spa text-2xl text-[#8B7355]"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23]">No spas found for "${escapeHtml(term)}"</h3>
+                    <p class="max-w-xs mt-2 text-sm text-center text-gray-500">Try a different name or location, or browse all available spas.</p>
+                    <button type="button" onclick="clearSpaSearch()"
+                        class="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white rounded-xl booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
+                        <i class="text-xs fa-solid fa-arrow-left"></i>
+                        Browse All Spas
+                    </button>
+                </div>`;
+            return;
+        }
+        otherSpasContainer.innerHTML = `
+            <div class="grid grid-cols-1 gap-5 mt-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                ${cards.map(buildOtherSpaCard).join('')}
+            </div>`;
+    }
+
+    function updateSpaSearchUrl(term) {
+        const url = new URL(window.location.href);
+        if (term) {
+            url.searchParams.set('search', term);
+        } else {
+            url.searchParams.delete('search');
+        }
+        url.searchParams.delete('city'); // drop the old param name if it's present
+        window.history.replaceState(null, '', url.toString());
+    }
+
+    // Exposed on window because it's referenced from onclick="" in
+    // dynamically-injected HTML (the "Browse All Spas" button above), which
+    // always runs in global scope.
+    window.clearSpaSearch = function () {
+        spaSearchInput.value = '';
+        if (inFlightRequest) inFlightRequest.abort();
+        featuredSpasGrid.innerHTML   = originalFeaturedGridHTML;
+        otherSpasContainer.innerHTML = originalOtherContainerHTML;
+        if (featuredSubtitleEl) featuredSubtitleEl.innerHTML = originalFeaturedSubtitle;
+        if (otherSubtitleEl)    otherSubtitleEl.innerHTML    = originalOtherSubtitle;
+        spaSearchClearBtn?.classList.add('hidden');
+        attachSpaModalHandlers(featuredSpasGrid);
+        attachSpaModalHandlers(otherSpasContainer);
+        updateSpaSearchUrl('');
+    };
+
+    async function runSpaSearch(term) {
+        if (inFlightRequest) inFlightRequest.abort();
+        const controller = new AbortController();
+        inFlightRequest  = controller;
+
+        try {
+            const res = await fetch(`/web-api/spas/search?search=${encodeURIComponent(term)}`, {
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal,
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+
+            const subtitleHtml = `Showing results for "<span class="font-semibold text-[#8B7355]">${escapeHtml(term)}</span>"`;
+            if (featuredSubtitleEl) featuredSubtitleEl.innerHTML = subtitleHtml;
+            if (otherSubtitleEl)    otherSubtitleEl.innerHTML    = subtitleHtml;
+
+            renderFeaturedResults(data.featured, term);
+            renderOtherResults(data.other, term);
+            attachSpaModalHandlers(featuredSpasGrid);
+            attachSpaModalHandlers(otherSpasContainer);
+
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error('Spa search failed:', err);
+            }
+        } finally {
+            if (inFlightRequest === controller) inFlightRequest = null;
+        }
+    }
+
+    spaSearchInput.addEventListener('input', function () {
+        const term = this.value.trim();
+        clearTimeout(debounceTimer);
+        spaSearchClearBtn?.classList.toggle('hidden', !term);
+
+        if (!term) {
+            window.clearSpaSearch();
+            return;
+        }
+
+        updateSpaSearchUrl(term);
+        debounceTimer = setTimeout(() => runSpaSearch(term), 350);
+    });
+
+    // Enter key or the Search button: run immediately, skip the debounce wait.
+    // preventDefault() only fires once this listener is attached, so if the
+    // script fails to load at all, the form still falls back to a real GET
+    // submit that LandingController::index() handles the same way.
+    spaSearchForm?.addEventListener('submit', function (e) {
+        e.preventDefault();
+        clearTimeout(debounceTimer);
+        const term = spaSearchInput.value.trim();
+        term ? runSpaSearch(term) : window.clearSpaSearch();
+    });
+
+    spaSearchClearBtn?.addEventListener('click', function (e) {
+        e.preventDefault();
+        window.clearSpaSearch();
+    });
+}
 
 // =====================================================
 // BOOKING MODAL
@@ -665,9 +914,15 @@ async function loadAvailableSlots() {
 
 // ── Step 3: recap ────────────────────────────────────────────────────────────
 function buildBookingRecap() {
+    const recapServiceEl = document.getElementById('recapService');
+    if (!recapServiceEl) {
+        console.warn('buildBookingRecap: booking form is not in the DOM (guest session?) — skipping.');
+        return;
+    }
+
     const checked = getCheckedTreatmentInput();
 
-    document.getElementById('recapService').textContent = checked?.dataset.name || '—';
+    recapServiceEl.textContent = checked?.dataset.name || '—';
     document.getElementById('recapServiceType').textContent = serviceTypeSelect?.selectedOptions?.[0]?.textContent ?? '—';
 
     const addressRow = document.getElementById('recapAddressRow');
@@ -724,7 +979,8 @@ function clearBookingSelections() {
     resetServiceType();
     if (bookingDateInput) bookingDateInput.value = '';
     if (bookingTimeInput) bookingTimeInput.value = '';
-    document.getElementById('bookingSlotGrid').innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">Pick a date to see available times.</p>';
+    const slotGridEl = document.getElementById('bookingSlotGrid');
+    if (slotGridEl) slotGridEl.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">Pick a date to see available times.</p>';
     document.getElementById('bookingSlotLegend')?.classList.add('hidden');
     if (addressInput) {
         addressInput.value = '';
@@ -775,7 +1031,13 @@ function closeBookingModal() {
     document.body.classList.remove('overflow-hidden');
 }
 
-openBookingBtn?.addEventListener('click', openBookingModal);
+openBookingBtn?.addEventListener('click', () => {
+    try {
+        openBookingModal();
+    } catch (e) {
+        console.error('openBookingModal failed to open:', e);
+    }
+});
 closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal));
 
 serviceListContainer?.addEventListener('change', function (e) {

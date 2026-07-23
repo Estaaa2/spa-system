@@ -74,7 +74,7 @@
                         </x-nav-link>
                         @endcan
 
-                        {{-- ✅ REPLACE WITH THIS --}}
+                        <!-- Settings -->
                         <div class="mb-1">
                             <button @click="settingsOpen = !settingsOpen"
                                 class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">

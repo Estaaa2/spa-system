@@ -44,8 +44,7 @@ class AuthenticatedSessionController extends Controller
 
         // Force password change if using temporary password
         if ($user->password_reset_required) {
-            return redirect()->route('profile.edit')
-                ->with('warning', 'Please change your temporary password to continue.');
+            return redirect(route('profile.edit') . '#password');
         }
 
         $redirectMap = [

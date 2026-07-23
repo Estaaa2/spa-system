@@ -306,7 +306,7 @@
                 </p>
             </div>
 
-            <form action="{{ url('/') }}" method="GET"
+            <form action="{{ url('/') }}" method="GET" id="spaSearchForm"
                   class="grid max-w-4xl grid-cols-1 gap-4 p-4 mx-auto mt-10 shadow-2xl bg-white/90 rounded-2xl ring-1 ring-black/5 md:grid-cols-12">
                 <div class="flex items-center gap-3 px-4 py-3 bg-white border border-black/10 md:col-span-8 rounded-xl">
                     <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-[#F6EFE6] ring-1 ring-black/5">
@@ -314,17 +314,17 @@
                     </span>
                     <input
                         type="text"
-                        name="city"
-                        value="{{ $city ?? '' }}"
-                        placeholder="Search by city or location..."
+                        id="spaSearchInput"
+                        name="search"
+                        value="{{ $search ?? '' }}"
+                        placeholder="Search by spa name or location..."
                         class="w-full text-sm bg-transparent border-0 focus:ring-0 soft-ring placeholder:text-gray-400"
                         autocomplete="off"
                     >
-                    @if(!empty($city))
-                        <a href="{{ url('/') }}" class="flex-shrink-0 text-gray-400 transition hover:text-red-400" title="Clear search">
-                            <i class="text-sm fa-solid fa-xmark"></i>
-                        </a>
-                    @endif
+                    <a href="{{ url('/') }}" id="spaSearchClearBtn" title="Clear search"
+                       class="flex-shrink-0 text-gray-400 transition hover:text-red-400 {{ empty($search) ? 'hidden' : '' }}">
+                        <i class="text-sm fa-solid fa-xmark"></i>
+                    </a>
                 </div>
                 <button class="md:col-span-4 booking-btn text-white rounded-xl font-semibold hover:opacity-95 transition shadow-lg active:translate-y-0.5">
                     <span class="inline-flex items-center justify-center gap-2 py-3">
@@ -660,16 +660,16 @@
                     <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Featured Spas</h2>
                     <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                 </div>
-                <p class="mt-3 text-sm text-gray-600">
-                    @if(!empty($city))
-                        Featured spas in <span class="font-semibold text-[#8B7355]">{{ $city }}</span>
+                <p id="featuredSpasSubtitle" class="mt-3 text-sm text-gray-600">
+                    @if(!empty($search))
+                        Showing results for "<span class="font-semibold text-[#8B7355]">{{ $search }}</span>"
                     @else
                         Curated picks for a premium relaxation experience.
                     @endif
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-6 mt-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div id="featuredSpasGrid" class="grid grid-cols-1 gap-6 mt-5 sm:grid-cols-2 lg:grid-cols-4">
                 @php $featuredCount = 0; @endphp
                 @forelse($spas as $spa)
                     @foreach($spa->branches as $branch)
@@ -784,8 +784,8 @@
                         </div>
                         <p class="font-semibold text-[#3C2F23]">No featured spas found</p>
                         <p class="mt-1 text-sm text-gray-500">
-                            @if(!empty($city))
-                                No featured spas match "{{ $city }}". Try a different location.
+                            @if(!empty($search))
+                                No featured spas match "{{ $search }}". Try a different name or location.
                             @else
                                 No featured spas available yet.
                             @endif
@@ -804,9 +804,9 @@
                         <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Other Spas in Cavite</h2>
                         <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
                     </div>
-                    <p class="mt-3 text-sm text-gray-600">
-                        @if(!empty($city))
-                            Verified spas in <span class="font-semibold text-[#8B7355]">{{ $city }}</span>
+                    <p id="otherSpasSubtitle" class="mt-3 text-sm text-gray-600">
+                        @if(!empty($search))
+                            Showing results for "<span class="font-semibold text-[#8B7355]">{{ $search }}</span>"
                         @else
                             Explore more verified wellness destinations.
                         @endif
@@ -817,6 +817,7 @@
                     $hasListedBasic = $basicSpas->flatMap->branches->contains(fn($b) => $b->profile?->is_listed);
                 @endphp
 
+                <div id="otherSpasContainer">
                 @if($hasListedBasic)
                     <div class="grid grid-cols-1 gap-5 mt-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         @foreach($basicSpas as $spa)
@@ -928,10 +929,10 @@
                         <div class="flex items-center justify-center w-16 h-16 mb-5 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
                             <i class="fa-solid fa-spa text-2xl text-[#8B7355]"></i>
                         </div>
-                        @if(!empty($city))
-                            <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23]">No spas found in "{{ $city }}"</h3>
+                        @if(!empty($search))
+                            <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23]">No spas found for "{{ $search }}"</h3>
                             <p class="max-w-xs mt-2 text-sm text-center text-gray-500">
-                                Try searching a nearby city or browse all available spas.
+                                Try a different name or location, or browse all available spas.
                             </p>
                             <a href="{{ url('/') }}"
                                 class="inline-flex items-center gap-2 mt-6 px-6 py-2.5 text-sm font-semibold text-white rounded-xl booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
@@ -967,6 +968,7 @@
                         @endif
                     </div>
                 @endif
+                </div>
             </div>
         </section>
     </section>
