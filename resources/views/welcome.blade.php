@@ -1212,19 +1212,21 @@
         .svc-card-meta { font-size: 11px; color: #8B7355; }
         .svc-section-header { padding: 10px 16px 4px; font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #9ca3af; background: #fafafa; }
 
+        /* Filter Tabs */
         .svc-filter-tab { padding: 6px 12px; font-size: 12px; font-weight: 500; border-radius: 8px; color: #6b7280; background: transparent; transition: background-color .15s ease, color .15s ease; }
         .svc-filter-tab.is-active { background: #8B7355; color: #fff; }
 
+        /* Slot Button */
         .slot-btn { padding: 8px 4px; font-size: 12px; font-weight: 500; border-radius: 10px; border: 1px solid rgba(0,0,0,0.1); color: #3C2F23; background: #fff; transition: border-color .15s ease, background-color .15s ease, color .15s ease; }
         .slot-btn:hover:not(:disabled) { border-color: #8B7355; background-color: rgba(246, 239, 230, 0.5); }
         .slot-btn.is-selected { border-color: #8B7355; background-color: #8B7355; color: #fff; }
         .slot-btn:disabled { cursor: not-allowed; background-color: #f9fafb; color: #d1d5db; border-color: #f3f4f6; }
         .slot-btn.is-past-closing:disabled { border-style: dashed; border-color: #d1d5db; }
 
-        /* Segmented search pill (Place + Treatment) */
+        /* Segmented Search Pill */
         .search-segment { border-radius: 999px; transition: box-shadow .15s ease; }
         .search-segment.active { box-shadow: 0 1px 8px rgba(0,0,0,0.12); }
-        .search-dropdown { position: absolute; left: 0; z-index: 30; display: none; width: 320px; padding: 14px; margin-top: 12px; overflow-y: auto; background: #fff; border-radius: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06); max-height: 320px; top: 100%; }
+        .search-dropdown { position: fixed; z-index: 200; display: none; width: 320px; max-width: calc(100vw - 32px); padding: 14px; overflow-y: auto; background: #fff; border-radius: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06); max-height: 320px; }
         .search-dropdown.open { display: block; }
         .search-dropdown-label { margin-bottom: 8px; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #9a8f80; }
         .search-chip { padding: 6px 14px; border-radius: 999px; background: #F6EFE6; font-size: 13px; cursor: pointer; border: 1px solid rgba(0,0,0,0.05); color: #3C2F23; }

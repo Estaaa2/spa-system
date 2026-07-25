@@ -274,6 +274,40 @@ function closeSearchDropdowns() {
     treatmentDropdown?.classList.remove('open');
 }
 
+// .search-dropdown is `position: fixed` (see landing.css / the <style> block
+// in welcome.blade.php) so it can't be clipped by the hero section's
+// `overflow-hidden`. Because it's fixed, it no longer inherits a position
+// from its segment automatically — this computes top/left from the
+// segment's actual on-screen position instead, and clamps left so the box
+// (whose CSS width is capped at `calc(100vw - 32px)`) always stays fully
+// within the viewport, left AND right, on any screen size.
+function positionSearchDropdown(segmentEl, dropdownEl) {
+    if (!segmentEl || !dropdownEl) return;
+    const rect          = segmentEl.getBoundingClientRect();
+    const gap            = 12;
+    const viewportMargin = 16;
+    const dropdownWidth  = Math.min(320, window.innerWidth - (viewportMargin * 2));
+    const maxLeft         = window.innerWidth - dropdownWidth - viewportMargin;
+    const left            = Math.max(viewportMargin, Math.min(rect.left, maxLeft));
+
+    dropdownEl.style.top  = `${rect.bottom + gap}px`;
+    dropdownEl.style.left = `${left}px`;
+}
+
+// Fixed-position elements stay put visually on scroll while the segment
+// they're anchored to moves with the page, so keep them in sync: reposition
+// on resize (e.g. orientation change), and simply close on scroll (matches
+// how most anchored dropdowns behave, and avoids a scroll-jank repaint loop).
+window.addEventListener('resize', () => {
+    if (placeSegment?.classList.contains('active')) positionSearchDropdown(placeSegment, placeDropdown);
+    if (treatmentSegment?.classList.contains('active')) positionSearchDropdown(treatmentSegment, treatmentDropdown);
+});
+window.addEventListener('scroll', () => {
+    if (placeSegment?.classList.contains('active') || treatmentSegment?.classList.contains('active')) {
+        closeSearchDropdowns();
+    }
+}, { passive: true });
+
 function renderPlaceChips(filter) {
     if (!placeChips) return;
     const f = (filter || '').toLowerCase();
@@ -303,6 +337,7 @@ if (placeInput) {
         closeSearchDropdowns();
         placeSegment?.classList.add('active');
         placeDropdown?.classList.add('open');
+        positionSearchDropdown(placeSegment, placeDropdown);
         renderPlaceChips(placeInput.value);
     });
     placeInput.addEventListener('input', () => renderPlaceChips(placeInput.value));
@@ -313,6 +348,7 @@ if (treatmentInput) {
         closeSearchDropdowns();
         treatmentSegment?.classList.add('active');
         treatmentDropdown?.classList.add('open');
+        positionSearchDropdown(treatmentSegment, treatmentDropdown);
         renderTreatmentSuggestions(treatmentInput.value);
     });
     treatmentInput.addEventListener('input', () => renderTreatmentSuggestions(treatmentInput.value));
