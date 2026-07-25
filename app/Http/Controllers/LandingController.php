@@ -10,80 +10,161 @@ use Illuminate\Http\Request;
 class LandingController extends Controller
 {
     /**
-     * Shared filter: a branch matches when its own location/name matches the
-     * search term, or when it belongs to a spa whose name matches. Used by
-     * both the SSR page load and the live-search JSON endpoint so the two
-     * can never drift apart.
+     * Shared filter: Place matches a branch's own location/name or its
+     * owning spa's name (so "Serenity" still finds a spa by name even
+     * though the Place segment mainly surfaces city suggestions).
+     * Treatment matches a branch's treatment OR package names. Both are
+     * independent AND'd constraints - specifying both narrows to spas
+     * matching *both*, not either.
      */
-    private function spaSearchQuery(string $search)
+    private function spaSearchQuery(string $place, string $treatment)
     {
-        $branchMatchesSearch = function ($query) use ($search) {
-            $query->whereHas('profile', fn($p) => $p->where('is_listed', 1))
-                ->when($search, function ($q) use ($search) {
-                    $q->where(function ($sub) use ($search) {
-                        $sub->where('location', 'LIKE', "%{$search}%")
-                            ->orWhere('name', 'LIKE', "%{$search}%")
-                            ->orWhereIn('spa_id', Spa::query()
-                                ->where('name', 'LIKE', "%{$search}%")
-                                ->select('id'));
-                    });
+        $branchMatches = function ($query) use ($place, $treatment) {
+            $query->whereHas('profile', fn($p) => $p->where('is_listed', 1));
+
+            if ($place) {
+                $query->where(function ($sub) use ($place) {
+                    $sub->where('location', 'LIKE', "%{$place}%")
+                        ->orWhere('name', 'LIKE', "%{$place}%")
+                        ->orWhereIn('spa_id', Spa::query()
+                            ->where('name', 'LIKE', "%{$place}%")
+                            ->select('id'));
                 });
+            }
+
+            if ($treatment) {
+                $query->where(function ($sub) use ($treatment) {
+                    $sub->whereHas('treatments', function ($t) use ($treatment) {
+                            $t->withoutGlobalScope('spa_branch')->where('name', 'LIKE', "%{$treatment}%");
+                        })
+                        ->orWhereHas('packages', function ($p) use ($treatment) {
+                            $p->withoutGlobalScope('spa_branch')->where('name', 'LIKE', "%{$treatment}%");
+                        });
+                });
+            }
         };
 
         return Spa::with([
-            'branches' => function ($query) use ($branchMatchesSearch) {
-                $branchMatchesSearch($query);
+            'branches' => function ($query) use ($branchMatches) {
+                $branchMatches($query);
                 $query->with(['profile', 'treatments', 'packages']);
             },
             'subscriptions',
         ])
         ->where('verification_status', 'verified')
-        ->whereHas('branches', $branchMatchesSearch);
+        ->whereHas('branches', $branchMatches);
+    }
+
+    /**
+     * Frequency-sorted, deduplicated treatment + package names across all
+     * listed branches. Powers the Treatment segment's suggestion dropdown.
+     * There's no category/type taxonomy in the schema yet, so this is
+     * literal names, not curated categories - revisit once categories exist.
+     */
+    private function treatmentSuggestions(): array
+    {
+        $treatmentNames = Treatment::withoutGlobalScope('spa_branch')
+            ->whereHas('branch.profile', fn($q) => $q->where('is_listed', 1))
+            ->select('name')
+            ->selectRaw('COUNT(*) as cnt')
+            ->groupBy('name')
+            ->orderByDesc('cnt')
+            ->pluck('name');
+
+        $packageNames = Package::withoutGlobalScope('spa_branch')
+            ->whereHas('branch.profile', fn($q) => $q->where('is_listed', 1))
+            ->select('name')
+            ->selectRaw('COUNT(*) as cnt')
+            ->groupBy('name')
+            ->orderByDesc('cnt')
+            ->pluck('name');
+
+        return $treatmentNames->merge($packageNames)->unique()->values()->take(40)->all();
+    }
+
+    /**
+     * One merged, relevance-ish list instead of two tiers. Featured
+     * (professional-tier) spas still sort first when they have matches -
+     * preserving the value of their subscription - but no longer as a
+     * separate section a visitor must scroll past when it's empty.
+     */
+    private function unifiedResults(string $place, string $treatment): array
+    {
+        $allSpas = $this->spaSearchQuery($place, $treatment)->get();
+
+        $sorted = $allSpas->sortByDesc(fn($spa) => $spa->isProfessional() ? 1 : 0)->values();
+
+        return $this->buildSpaCards($sorted);
     }
 
     public function index(Request $request)
     {
-        // Falls back to the old `city` param so any existing bookmarked or
-        // shared links keep working.
-        $search = trim($request->input('search', $request->input('city', '')));
+        $place     = trim($request->input('place', ''));
+        $treatment = trim($request->input('treatment', ''));
 
-        $allSpas   = $this->spaSearchQuery($search)->get();
+        // Falls back to the older single-field `search`/`city` params from
+        // earlier iterations of this page, treating them as a Place search.
+        if (!$place && !$treatment) {
+            $legacy = trim($request->input('search', $request->input('city', '')));
+            if ($legacy) {
+                $place = $legacy;
+            }
+        }
+
+        $isSearching = (bool) ($place || $treatment);
+
+        // Always compute the default browse listing, even while searching,
+        // so clearing the search restores it instantly with no round trip.
+        $allSpas = Spa::with([
+                'branches' => fn($q) => $q->whereHas('profile', fn($p) => $p->where('is_listed', 1))
+                    ->with(['profile', 'treatments', 'packages']),
+                'subscriptions',
+            ])
+            ->where('verification_status', 'verified')
+            ->whereHas('branches', fn($q) => $q->whereHas('profile', fn($p) => $p->where('is_listed', 1)))
+            ->get();
+
         $spas      = $allSpas->filter(fn($spa) => $spa->isProfessional());
         $basicSpas = $allSpas->filter(fn($spa) => !$spa->isProfessional());
+
+        $results = $isSearching ? $this->unifiedResults($place, $treatment) : [];
 
         $treatments = Treatment::withoutGlobalScope('spa_branch')->get()->groupBy('branch_id');
         $packages   = Package::withoutGlobalScope('spa_branch')->get()->groupBy('branch_id');
 
-        return view('welcome', compact('spas', 'basicSpas', 'treatments', 'packages', 'search'));
+        return view('welcome', compact(
+            'spas', 'basicSpas', 'treatments', 'packages',
+            'isSearching', 'place', 'treatment', 'results'
+        ) + ['treatmentSuggestions' => $this->treatmentSuggestions()]);
     }
 
     /**
-     * Live search endpoint (no page reload). Same matching rules as index(),
-     * returns pre-built card payloads shaped exactly like the data-spa
-     * attribute already used by the Blade views, so openSpaModal() and the
-     * booking flow in welcome.js work unchanged for live results too.
+     * Live refine endpoint (no page reload) fired when "Search" is clicked.
+     * Same matching + sort rules as index(), returns one unified array of
+     * pre-built card payloads shaped exactly like the data-spa attribute
+     * already used by the Blade views, so openSpaModal() and the booking
+     * flow in welcome.js work unchanged for these results too.
      */
     public function searchSpas(Request $request)
     {
-        $search = trim($request->input('search', ''));
-
-        $allSpas   = $this->spaSearchQuery($search)->get();
-        $spas      = $allSpas->filter(fn($spa) => $spa->isProfessional())->values();
-        $basicSpas = $allSpas->filter(fn($spa) => !$spa->isProfessional())->values();
+        $place     = trim($request->input('place', ''));
+        $treatment = trim($request->input('treatment', ''));
 
         return response()->json([
-            'search'   => $search,
-            'featured' => $this->buildSpaCards($spas, 'Featured Spa'),
-            'other'    => $this->buildSpaCards($basicSpas, 'Listed Spa'),
+            'place'      => $place,
+            'treatment'  => $treatment,
+            'results'    => $this->unifiedResults($place, $treatment),
         ]);
     }
 
-    private function buildSpaCards($spas, string $tag): array
+    private function buildSpaCards($spas): array
     {
         $fallback = asset('storage/branch_profiles/emptyspa.jpg');
         $cards    = [];
 
         foreach ($spas as $spa) {
+            $isFeatured = $spa->isProfessional();
+
             foreach ($spa->branches as $branch) {
                 $profile = $branch->profile;
                 if (!$profile?->is_listed) continue;
@@ -119,7 +200,8 @@ class LandingController extends Controller
                 $cards[] = [
                     'id'              => $spa->id,
                     'name'            => $spa->name,
-                    'tag'             => $tag,
+                    'tag'             => $isFeatured ? 'Featured Spa' : 'Listed Spa',
+                    'is_featured'     => $isFeatured,
                     'branch_id'       => $branch->id,
                     'branch_name'     => $branch->name,
                     'branch_location' => $branch->location ?? '',

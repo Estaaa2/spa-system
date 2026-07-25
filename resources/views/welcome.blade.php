@@ -307,32 +307,40 @@
             </div>
 
             <form action="{{ url('/') }}" method="GET" id="spaSearchForm"
-                  class="grid max-w-4xl grid-cols-1 gap-4 p-4 mx-auto mt-10 shadow-2xl bg-white/90 rounded-2xl ring-1 ring-black/5 md:grid-cols-12">
-                <div class="flex items-center gap-3 px-4 py-3 bg-white border border-black/10 md:col-span-8 rounded-xl">
-                    <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-location-dot text-[#8B7355]"></i>
-                    </span>
-                    <input
-                        type="text"
-                        id="spaSearchInput"
-                        name="search"
-                        value="{{ $search ?? '' }}"
-                        placeholder="Search by spa name or location..."
-                        class="w-full text-sm bg-transparent border-0 focus:ring-0 soft-ring placeholder:text-gray-400"
-                        autocomplete="off"
-                    >
-                    <a href="{{ url('/') }}" id="spaSearchClearBtn" title="Clear search"
-                       class="flex-shrink-0 text-gray-400 transition hover:text-red-400 {{ empty($search) ? 'hidden' : '' }}">
-                        <i class="text-sm fa-solid fa-xmark"></i>
-                    </a>
+                  class="flex items-stretch max-w-2xl gap-1 p-2 mx-auto mt-10 bg-white shadow-2xl rounded-full ring-1 ring-black/5">
+                <div class="relative flex-1 px-5 py-2 text-left search-segment" id="placeSegment">
+                    <label class="block text-[10px] font-bold uppercase tracking-wide text-[#8B7355]">Place</label>
+                    <input type="text" id="placeInput" name="place" value="{{ $place ?? '' }}"
+                           placeholder="Anywhere in Cavite" autocomplete="off"
+                           class="w-full text-sm bg-transparent border-0 focus:ring-0 placeholder:text-gray-400">
+                    <div id="placeDropdown" class="search-dropdown">
+                        <p class="search-dropdown-label">Cities &amp; municipalities</p>
+                        <div id="placeChips" class="flex flex-wrap gap-2"></div>
+                    </div>
                 </div>
-                <button class="md:col-span-4 booking-btn text-white rounded-xl font-semibold hover:opacity-95 transition shadow-lg active:translate-y-0.5">
-                    <span class="inline-flex items-center justify-center gap-2 py-3">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        Search
-                    </span>
+
+                <div class="w-px my-2 bg-black/10"></div>
+
+                <div class="relative flex-1 px-5 py-2 text-left search-segment" id="treatmentSegment">
+                    <label class="block text-[10px] font-bold uppercase tracking-wide text-[#8B7355]">Treatment</label>
+                    <input type="text" id="treatmentInput" name="treatment" value="{{ $treatment ?? '' }}"
+                           placeholder="Any treatment" autocomplete="off"
+                           class="w-full text-sm bg-transparent border-0 focus:ring-0 placeholder:text-gray-400">
+                    <div id="treatmentDropdown" class="search-dropdown">
+                        <p class="search-dropdown-label">Suggested treatments</p>
+                        <div id="treatmentSuggestionList"></div>
+                    </div>
+                </div>
+
+                <button type="submit" title="Search"
+                        class="booking-btn flex-shrink-0 flex items-center justify-center w-11 h-11 my-1 text-white rounded-full shadow-lg hover:opacity-95 transition active:translate-y-0.5">
+                    <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
             </form>
+
+            {{-- Treatment suggestions are real data (names actually offered today); embedded once
+                 so the pill can filter them client-side with zero network calls per keystroke. --}}
+            <script id="treatmentSuggestionsData" type="application/json">{!! json_encode($treatmentSuggestions ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) !!}</script>
         </div>
 
         <div class="h-10 bg-gradient-to-b from-transparent to-[#F6EFE6]"></div>
@@ -665,6 +673,7 @@
     @endauth
 
     <!-- ================= FEATURED SPAS ================= -->
+    <div id="browseSections" class="{{ $isSearching ? 'hidden' : '' }}">
     <section class="py-5">
         <div class="px-6 mx-auto mt-5 max-w-7xl">
             <div class="text-center">
@@ -985,6 +994,82 @@
             </div>
         </section>
     </section>
+    </div>
+
+    <!-- ================= SEARCH RESULTS (shown instead of the two sections above while searching) ================= -->
+    <section id="unifiedResultsSection" class="py-5 {{ $isSearching ? '' : 'hidden' }}">
+        <div class="px-6 mx-auto mt-5 max-w-7xl">
+            <div class="text-center">
+                <div class="flex items-center justify-center gap-6">
+                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Search Results</h2>
+                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                </div>
+                <p id="unifiedResultsSubtitle" class="mt-3 text-sm text-gray-600">
+                    @if($place || $treatment)
+                        Showing results
+                        @if($place) in "<span class="font-semibold text-[#8B7355]">{{ $place }}</span>" @endif
+                        @if($treatment) for "<span class="font-semibold text-[#8B7355]">{{ $treatment }}</span>" @endif
+                    @else
+                        Showing all spas
+                    @endif
+                    <button type="button" onclick="clearSpaSearch()" class="ml-2 text-[#8B7355] underline underline-offset-2">Clear search</button>
+                </p>
+            </div>
+
+            <div id="unifiedResultsGrid" class="grid grid-cols-1 gap-6 mt-8 sm:grid-cols-2 lg:grid-cols-4">
+                @forelse($results ?? [] as $item)
+                    @php
+                        $addr = $item['address'] ?? '';
+                        $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', $addr);
+                        $parts = array_values(array_filter(array_map('trim', explode(',', $cleaned))));
+                        $addrSummary = count($parts) >= 2
+                            ? implode(', ', array_slice($parts, -2))
+                            : (implode(', ', $parts) ?: 'Location unavailable');
+                    @endphp
+                    <button type="button"
+                        class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                        data-open-spa-modal
+                        data-spa='@json($item)'>
+                        <div class="relative overflow-hidden">
+                            <img src="{{ $item['photos'][0] ?? '' }}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $item['name'] }}">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+                            <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full {{ $item['is_featured'] ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 text-[#6F5430] ring-1 ring-black/5' }} text-[11px] font-semibold backdrop-blur-sm">
+                                <i class="fa-solid {{ $item['is_featured'] ? 'fa-star text-[#F5C842]' : 'fa-spa text-[#8B7355]' }} text-[10px]"></i>
+                                {{ $item['is_featured'] ? 'Featured' : 'Verified' }}
+                            </div>
+                            @if($item['is_hiring'] ?? false)
+                                <span onclick="event.stopPropagation(); openApplicationModal({{ $item['id'] }}, {{ $item['branch_id'] }}, '{{ addslashes($item['name']) }}')"
+                                    class="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500 hover:bg-red-700 text-white text-[11px] font-semibold backdrop-blur-sm transition cursor-pointer">
+                                    <i class="fa-solid fa-briefcase text-[10px]"></i>
+                                    We're Hiring · <span class="underline underline-offset-2">Apply Now</span>
+                                </span>
+                            @endif
+                        </div>
+                        <div class="p-5">
+                            <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $item['name'] }}</h3>
+                            <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
+                            @if($item['price_note'] ?? null)
+                                <p class="mt-2 text-xs font-medium text-[#8B7355]">Starts at ₱{{ $item['price_note'] }}</p>
+                            @endif
+                            <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $item['desc'] ?: 'No description yet.' }}</p>
+                        </div>
+                    </button>
+                @empty
+                    <div class="py-16 text-center col-span-full">
+                        <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
+                            <i class="fa-solid fa-magnifying-glass text-xl text-[#8B7355]"></i>
+                        </div>
+                        <p class="font-semibold text-[#3C2F23]">No spas found</p>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Try a different place or treatment, or
+                            <button type="button" onclick="clearSpaSearch()" class="text-[#8B7355] underline underline-offset-2">browse all spas</button>.
+                        </p>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    </section>
 
     <!-- ================= SPA MODAL ================= -->
     <div id="spaModal" class="fixed inset-0 z-[100] hidden">
@@ -1135,6 +1220,18 @@
         .slot-btn.is-selected { border-color: #8B7355; background-color: #8B7355; color: #fff; }
         .slot-btn:disabled { cursor: not-allowed; background-color: #f9fafb; color: #d1d5db; border-color: #f3f4f6; }
         .slot-btn.is-past-closing:disabled { border-style: dashed; border-color: #d1d5db; }
+
+        /* Segmented search pill (Place + Treatment) */
+        .search-segment { border-radius: 999px; transition: box-shadow .15s ease; }
+        .search-segment.active { box-shadow: 0 1px 8px rgba(0,0,0,0.12); }
+        .search-dropdown { position: absolute; left: 0; z-index: 30; display: none; width: 320px; padding: 14px; margin-top: 12px; overflow-y: auto; background: #fff; border-radius: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06); max-height: 320px; top: 100%; }
+        .search-dropdown.open { display: block; }
+        .search-dropdown-label { margin-bottom: 8px; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #9a8f80; }
+        .search-chip { padding: 6px 14px; border-radius: 999px; background: #F6EFE6; font-size: 13px; cursor: pointer; border: 1px solid rgba(0,0,0,0.05); color: #3C2F23; }
+        .search-chip:hover { background: #efe0cd; }
+        .search-suggestion-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; cursor: pointer; font-size: 13.5px; color: #3C2F23; }
+        .search-suggestion-row:hover { background: #F6EFE6; }
+        .search-empty-note { padding: 8px 4px; font-size: 12px; color: #9a8f80; }
     </style>
     <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>

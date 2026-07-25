@@ -30,7 +30,12 @@ class Package extends Model
                     ->withPivot('quantity')
                     ->withTimestamps();
     }
-
+    
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+    
     public function getImageUrlAttribute()
     {
         return $this->image_path ? asset('storage/' . $this->image_path) : null;
