@@ -1,4 +1,4 @@
-<x-guest-layout>
+<x-guest-layout title="Login">
 
     <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2 rounded-2xl ">
 

@@ -199,7 +199,7 @@ Route::middleware(['auth'])->group(function () {
 // CORS headers to these routes that Flutter calls
 Route::get('/reschedule-requests/booking/{bookingId}', [RescheduleRequestController::class, 'status'])
     ->middleware('auth')
-    ->name('reschedule.status');
+    ->name('reschedule.flutter.status');
 
 Route::patch('/profile', [ProfileController::class, 'update'])
     ->middleware('auth')
@@ -659,9 +659,12 @@ Route::middleware(['auth', 'verified', 'role:owner'])->group(function () {
         ->name('owner.workforce-finance-suite.update');
 });
 
-// =====================================================
-// Owner/Manager: Reschedule Approvals
-// =====================================================
+/*
+|--------------------------------------------------------------------------
+| Owner/Manager: Reschedule Approvals
+|--------------------------------------------------------------------------
+*/
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reschedule-requests', [RescheduleRequestController::class, 'index'])
         ->middleware('branch.permission:edit appointments')

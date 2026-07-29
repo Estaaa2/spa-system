@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Levictas | Spa & Wellness</title>
+    <title>Levictas</title>
 
     @vite(['resources/css/app.css','resources/css/landing.css', 'resources/js/app.js', 'resources/js/welcome.js'])
 
@@ -30,7 +30,7 @@
 @endphp
 
 {{-- data-fallback-image lets welcome.js read the asset URL without needing inline Blade --}}
-<body class="bg-[#F6EFE6] text-gray-800 selection:bg-[#D2A85B]/30 selection:text-[#3C2F23]"
+<body class="bg-[#F6EFE6] dark:bg-gray-900 text-gray-800 dark:text-gray-100 selection:bg-[#D2A85B]/30 selection:text-[#3C2F23]"
       data-fallback-image="{{ asset('storage/branch_profiles/emptyspa.jpg') }}">
 
 <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 nav-glass" id="topNav">
@@ -40,10 +40,10 @@
                 <a href="{{ url('/') }}" class="flex items-center space-x-3 group">
                     <img src="{{ asset('images/1.png') }}" alt="Levictas" class="w-auto h-10 rounded-md ring-1 ring-black/5">
                     <div class="flex flex-col leading-tight">
-                        <span class="text-2xl font-semibold text-[#2D3748] font-['Playfair_Display'] tracking-wide group-hover:text-[#6F5430] transition">
+                        <span class="text-2xl font-semibold text-[#2D3748] dark:text-white font-['Playfair_Display'] tracking-wide group-hover:text-[#6F5430] dark:group-hover:text-[#C4A97D] transition">
                             Levictas
                         </span>
-                        <span class="text-[10px] tracking-[0.18em] text-gray-500 uppercase">
+                        <span class="text-[10px] tracking-[0.18em] text-gray-500 dark:text-gray-400 uppercase">
                             Spa & Wellness Sanctuary
                         </span>
                     </div>
@@ -53,20 +53,20 @@
             <div class="items-center hidden space-x-2 md:flex">
                 <a href="{{ url('/') }}"
                    class="relative px-4 py-2 text-sm font-medium rounded-full transition
-                   {{ request()->is('/') ? 'text-[#6F5430] bg-white/60 ring-1 ring-black/5' : 'text-gray-700 hover:text-[#8B7355] hover:bg-white/50' }}">
+                   {{ request()->is('/') ? 'text-[#6F5430] dark:text-[#C4A97D] bg-white/60 dark:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D] hover:bg-white/50 dark:hover:bg-gray-800/50' }}">
                     Home
                 </a>
 
                 @guest
                     <a href="{{ route('login') }}"
                     class="relative px-4 py-2 text-sm font-medium rounded-full transition
-                    {{ request()->is('login') ? 'text-[#6F5430] bg-white/60 ring-1 ring-black/5' : 'text-gray-700 hover:text-[#8B7355] hover:bg-white/50' }}">
+                    {{ request()->is('login') ? 'text-[#6F5430] dark:text-[#C4A97D] bg-white/60 dark:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D] hover:bg-white/50 dark:hover:bg-gray-800/50' }}">
                         Login
                     </a>
 
                     <a href="{{ route('register') }}"
                     class="relative px-4 py-2 text-sm font-medium rounded-full transition
-                    {{ request()->is('register') ? 'text-[#6F5430] bg-white/60 ring-1 ring-black/5' : 'text-gray-700 hover:text-[#8B7355] hover:bg-white/50' }}">
+                    {{ request()->is('register') ? 'text-[#6F5430] dark:text-[#C4A97D] bg-white/60 dark:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D] hover:bg-white/50 dark:hover:bg-gray-800/50' }}">
                         Register
                     </a>
 
@@ -80,22 +80,22 @@
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-1">
                             <a href="#" onclick="openAppointmentsModal()"
-                                class="relative flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                                class="relative flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">
                                 My Appointments
                                 <span id="myAppointmentsBadge"
-                                    class="hidden absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full ring-2 ring-[#F6EFE6]">
+                                    class="hidden absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full ring-2 ring-[#F6EFE6] dark:ring-gray-900">
                                     0
                                 </span>
                             </a>
                             <a href="#" onclick="openScheduleModal()"
-                                class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                                class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">
                                 My Schedule
                             </a>
                         </div>
 
                         <div class="relative" id="profileDropdownWrapper">
                             <button type="button" id="profileDropdownBtn"
-                                class="flex items-center gap-2 px-3 py-2 transition rounded-full hover:bg-white/60 ring-1 ring-black/5">
+                                class="flex items-center gap-2 px-3 py-2 transition rounded-full hover:bg-white/60 dark:hover:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10">
                                 <div class="flex items-center justify-center w-8 h-8 bg-[#8B7355] text-white rounded-full text-xs font-semibold leading-none shrink-0">
                                     {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
                                 </div>
@@ -103,20 +103,20 @@
                             </button>
 
                             <div id="profileDropdownMenu"
-                                class="absolute right-0 z-50 hidden w-48 mt-2 overflow-hidden bg-white shadow-xl rounded-2xl ring-1 ring-black/10">
-                                <div class="px-4 py-3 border-b border-black/5 bg-[#F6EFE6]/60">
-                                    <p class="text-xs font-semibold text-[#3C2F23] truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
+                                class="absolute right-0 z-50 hidden w-48 mt-2 overflow-hidden bg-white dark:bg-gray-800 shadow-xl rounded-2xl ring-1 ring-black/10 dark:ring-white/10">
+                                <div class="px-4 py-3 border-b border-black/5 dark:border-white/10 bg-[#F6EFE6]/60 dark:bg-gray-900/40">
+                                    <p class="text-xs font-semibold text-[#3C2F23] dark:text-white truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
                                     <p class="text-[11px] text-gray-400 truncate">{{ auth()->user()?->email ?? '' }}</p>
                                 </div>
                                 <div class="py-1">
                                     <button type="button"
                                         onclick="closeProfileDropdown(); openProfileModal();"
-                                        class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-[#F6EFE6] transition">
+                                        class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
                                         <i class="fa-solid fa-user text-[#8B7355] w-4"></i>
                                         Profile
                                     </button>
                                     <button type="button" onclick="closeProfileDropdown(); openLogoutModal();"
-                                        class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
+                                        class="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
                                         <i class="w-4 fa-solid fa-right-from-bracket"></i>
                                         Logout
                                     </button>
@@ -130,7 +130,7 @@
 
             <div class="md:hidden">
                 <button type="button" id="mobile-menu-button"
-                        class="relative p-2 text-gray-700 transition-colors duration-200 rounded-xl hover:bg-white/60 ring-1 ring-black/5">
+                        class="relative p-2 text-gray-700 dark:text-gray-300 transition-colors duration-200 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10">
                     <i class="text-xl fas fa-bars"></i>
                 </button>
             </div>
@@ -142,9 +142,9 @@
     <div id="profileModal" class="fixed inset-0 z-[130] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeProfileModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-6 sm:mt-12 pb-6">
-            <div class="flex flex-col overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10 max-h-[88vh]">
+            <div class="flex flex-col overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10 max-h-[88vh]">
 
-                {{-- HEADER: never scrolls --}}
+                {{-- HEADER: never scrolls. Gradient is already dark-toned brown, left as-is. --}}
                 <div class="relative px-6 py-6 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center flex-shrink-0">
                     <div class="flex items-center justify-center mx-auto text-xl font-bold rounded-full w-14 h-14 bg-white/20 ring-2 ring-white/30">
                         {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
@@ -169,28 +169,28 @@
                         {{-- Name row: 3 columns to save vertical space --}}
                         <div class="grid grid-cols-3 gap-3">
                             <div class="space-y-1">
-                                <label class="text-xs font-semibold text-gray-500 uppercase">First</label>
+                                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">First</label>
                                 <input type="text" name="first_name"
                                     value="{{ auth()->user()->first_name }}"
-                                    class="w-full rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
+                                    class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
                             </div>
                             <div class="space-y-1">
-                                <label class="text-xs font-semibold text-gray-500 uppercase">Middle</label>
+                                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Middle</label>
                                 <input type="text" name="middle_name"
                                     value="{{ auth()->user()->middle_name }}"
-                                    class="w-full rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
+                                    class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
                             </div>
                             <div class="space-y-1">
-                                <label class="text-xs font-semibold text-gray-500 uppercase">Last</label>
+                                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Last</label>
                                 <input type="text" name="last_name"
                                     value="{{ auth()->user()->last_name }}"
-                                    class="w-full rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
+                                    class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
                             </div>
                         </div>
 
                         {{-- Email --}}
                         <div class="space-y-1">
-                            <label class="text-xs font-semibold text-gray-500 uppercase">Email Address</label>
+                            <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Email Address</label>
                             @php
                                 $email = auth()->user()?->email ?? '';
                                 $parts = explode('@', $email);
@@ -200,11 +200,11 @@
                                     : str_repeat('*', strlen($name));
                                 $maskedEmail = $maskedName . '@' . $domain;
                             @endphp
-                            <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 ring-1 ring-black/5">
-                                <p id="emailDisplay" class="flex-1 text-sm text-[#3C2F23] truncate">{{ $maskedEmail }}</p>
+                            <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                                <p id="emailDisplay" class="flex-1 text-sm text-[#3C2F23] dark:text-gray-100 truncate">{{ $maskedEmail }}</p>
                                 <button type="button" id="emailToggleBtn" onclick="toggleEmail(this)"
                                     data-masked="{{ $maskedEmail }}" data-real="{{ $email }}"
-                                    class="text-[#8B7355] hover:text-[#6F5430] transition flex-shrink-0">
+                                    class="text-[#8B7355] hover:text-[#6F5430] dark:hover:text-[#C4A97D] transition flex-shrink-0">
                                     <i id="emailToggleIcon" class="text-xs fa-solid fa-eye"></i>
                                 </button>
                             </div>
@@ -212,14 +212,20 @@
 
                         {{-- Address --}}
                         <div class="space-y-1">
-                            <label class="text-xs font-semibold text-gray-500 uppercase">Location / Address</label>
+                            <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Location / Address</label>
                             <input type="text" name="address"
                                 value="{{ auth()->user()->address }}"
                                 placeholder="e.g. Bacoor, Cavite"
-                                class="w-full rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm"
+                                class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm"
                                 id="address">
                             <p class="text-[11px] text-gray-400">Tap the map to pin your exact location for better spa recommendations.</p>
-                            <div id="map" class="w-full h-44 rounded-xl border border-[#E8DDD0] overflow-hidden"></div>
+                            {{-- Leaflet/OSM tiles can't be themed via CSS, so a dimming
+                                 overlay tints the map to sit better against the dark
+                                 modal. pointer-events-none keeps the map fully clickable. --}}
+                            <div class="relative">
+                                <div id="map" class="w-full h-44 rounded-xl border border-[#E8DDD0] dark:border-gray-600 overflow-hidden"></div>
+                                <div class="absolute inset-0 hidden dark:block rounded-xl pointer-events-none bg-gray-900/30 mix-blend-multiply"></div>
+                            </div>
                             <input type="hidden" name="latitude" id="latitude" value="{{ auth()->user()->latitude }}">
                             <input type="hidden" name="longitude" id="longitude" value="{{ auth()->user()->longitude }}">
                         </div>
@@ -236,13 +242,13 @@
                     </div>{{-- end scrollable body --}}
 
                     {{-- FOOTER: always visible --}}
-                    <div class="flex flex-shrink-0 gap-2 px-5 py-4 bg-white border-t border-black/5">
+                    <div class="flex flex-shrink-0 gap-2 px-5 py-4 bg-white dark:bg-gray-800 border-t border-black/5 dark:border-white/10">
                         <button type="submit"
                             class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
                             Save Changes
                         </button>
                         <button type="button" onclick="closeProfileModal()"
-                            class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                            class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] dark:text-[#C4A97D] border border-[#8B7355] dark:border-[#C4A97D] hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
                             Cancel
                         </button>
                     </div>
@@ -253,29 +259,29 @@
     </div>
     @endauth
 
-    <div id="mobile-menu" class="hidden bg-[#F6EFE6]/95 border-t border-black/10 shadow-lg md:hidden">
+    <div id="mobile-menu" class="hidden bg-[#F6EFE6]/95 dark:bg-gray-900/95 border-t border-black/10 dark:border-white/10 shadow-lg md:hidden">
         <div class="px-3 pt-3 pb-5 space-y-2">
             <a href="{{ url('/') }}"
                class="block px-4 py-3 rounded-xl text-sm font-medium transition
-               {{ request()->is('/') ? 'bg-white/70 text-[#6F5430] ring-1 ring-black/5' : 'text-gray-700 hover:bg-white/60' }}">
+               {{ request()->is('/') ? 'bg-white/70 dark:bg-gray-800/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800/60' }}">
                 Home
             </a>
             @guest
-                <a href="{{ route('login') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Login</a>
-                <a href="{{ route('register') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Register</a>
-                <a href="{{ route('register.business') }}" class="block px-4 py-3 text-base font-medium rounded-xl hover:bg-white/60">Join as a Partner</a>
+                <a href="{{ route('login') }}" class="block px-4 py-3 text-base font-medium text-gray-700 dark:text-gray-300 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800/60">Login</a>
+                <a href="{{ route('register') }}" class="block px-4 py-3 text-base font-medium text-gray-700 dark:text-gray-300 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800/60">Register</a>
+                <a href="{{ route('register.business') }}" class="block px-4 py-3 text-base font-medium text-gray-700 dark:text-gray-300 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800/60">Join as a Partner</a>
             @else
                 @role('customer')
-                    <a href="#" onclick="openAppointmentsModal()" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                    <a href="#" onclick="openAppointmentsModal()" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">
                         My Appointments
                         <span id="myAppointmentsBadgeMobile"
                             class="hidden items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
                             0
                         </span>
                     </a>
-                    <a href="#" onclick="openScheduleModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">My Schedule</a>
-                    <a href="#" onclick="openProfileModal();" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">Profile</a>
-                    <button type="button" onclick="openLogoutModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#8B7355]">
+                    <a href="#" onclick="openScheduleModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">My Schedule</a>
+                    <a href="#" onclick="openProfileModal();" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">Profile</a>
+                    <button type="button" onclick="openLogoutModal()" class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">
                         Logout
                     </button>
                 @endrole
@@ -289,7 +295,7 @@
         <div class="absolute inset-0">
             <img src="{{ asset('images/heads.png') }}" class="object-cover w-full h-full" alt="Hero">
             <div class="absolute inset-0 bg-black/45"></div>
-            <div class="absolute inset-0 bg-gradient-to-b from-black/30 via-black/35 to-[#F6EFE6]"></div>
+            <div class="absolute inset-0 bg-gradient-to-b from-black/30 via-black/35 to-[#F6EFE6] dark:to-gray-900"></div>
         </div>
 
         <div class="relative px-6 py-24 mx-auto text-center max-w-7xl">
@@ -307,25 +313,25 @@
             </div>
 
             <form action="{{ url('/') }}" method="GET" id="spaSearchForm"
-                  class="flex items-stretch max-w-2xl gap-1 p-2 mx-auto mt-10 bg-white shadow-2xl rounded-full ring-1 ring-black/5">
+                  class="flex items-stretch max-w-2xl gap-1 p-2 mx-auto mt-10 bg-white dark:bg-gray-800 shadow-2xl rounded-full ring-1 ring-black/5 dark:ring-white/10">
                 <div class="relative flex-1 px-5 py-2 text-left search-segment" id="placeSegment">
-                    <label class="block text-[10px] font-bold uppercase tracking-wide text-[#8B7355]">Place</label>
+                    <label class="block text-[10px] font-bold uppercase tracking-wide text-[#8B7355] dark:text-[#C4A97D]">Place</label>
                     <input type="text" id="placeInput" name="place" value="{{ $place ?? '' }}"
                            placeholder="Anywhere in Cavite" autocomplete="off"
-                           class="w-full text-sm bg-transparent border-0 focus:ring-0 placeholder:text-gray-400">
+                           class="w-full text-sm bg-transparent border-0 focus:ring-0 text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500">
                     <div id="placeDropdown" class="search-dropdown">
                         <p class="search-dropdown-label">Cities &amp; municipalities</p>
                         <div id="placeChips" class="flex flex-wrap gap-2"></div>
                     </div>
                 </div>
 
-                <div class="w-px my-2 bg-black/10"></div>
+                <div class="w-px my-2 bg-black/10 dark:bg-white/10"></div>
 
                 <div class="relative flex-1 px-5 py-2 text-left search-segment" id="treatmentSegment">
-                    <label class="block text-[10px] font-bold uppercase tracking-wide text-[#8B7355]">Treatment</label>
+                    <label class="block text-[10px] font-bold uppercase tracking-wide text-[#8B7355] dark:text-[#C4A97D]">Treatment</label>
                     <input type="text" id="treatmentInput" name="treatment" value="{{ $treatment ?? '' }}"
                            placeholder="Any treatment" autocomplete="off"
-                           class="w-full text-sm bg-transparent border-0 focus:ring-0 placeholder:text-gray-400">
+                           class="w-full text-sm bg-transparent border-0 focus:ring-0 text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500">
                     <div id="treatmentDropdown" class="search-dropdown">
                         <p class="search-dropdown-label">Suggested treatments</p>
                         <div id="treatmentSuggestionList"></div>
@@ -350,29 +356,29 @@
     <div id="appointmentsModal" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeAppointmentsModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
-                    <h3 class="text-lg font-semibold text-[#3C2F23]">My Appointments</h3>
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
+                    <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">My Appointments</h3>
                     <button onclick="closeAppointmentsModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="flex border-b border-black/5">
+                <div class="flex border-b border-black/5 dark:border-white/10">
                     @foreach(['upcoming' => 'Upcoming', 'past' => 'Past', 'cancelled' => 'Cancelled'] as $key => $label)
                     <button onclick="switchTab('{{ $key }}')"
                         id="tab-{{ $key }}"
                         class="flex-1 py-3 text-sm font-semibold transition border-b-2
-                        {{ $key === 'upcoming' ? 'border-[#8B7355] text-[#8B7355]' : 'border-transparent text-gray-500 hover:text-[#8B7355]' }}">
+                        {{ $key === 'upcoming' ? 'border-[#8B7355] dark:border-[#C4A97D] text-[#8B7355] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#C4A97D]' }}">
                         {{ $label }}
                         <span id="tab-count-{{ $key }}"
-                            class="ml-1 px-2 py-0.5 text-xs rounded-full bg-[#F6EFE6] text-[#6F5430]">0</span>
+                            class="ml-1 px-2 py-0.5 text-xs rounded-full bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D]">0</span>
                     </button>
                     @endforeach
                 </div>
                 <div class="overflow-y-auto max-h-[60vh] p-6" id="appointmentsContent">
                     <div class="flex items-center justify-center py-12">
-                        <i class="text-2xl text-gray-300 fa-solid fa-spinner fa-spin"></i>
+                        <i class="text-2xl text-gray-300 dark:text-gray-600 fa-solid fa-spinner fa-spin"></i>
                     </div>
                 </div>
             </div>
@@ -384,27 +390,27 @@
     <div id="scheduleModal" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeScheduleModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div class="flex items-center gap-3">
                         <button onclick="changeMonth(-1)"
-                            class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5">
+                            class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300">
                             <i class="text-sm fa-solid fa-chevron-left"></i>
                         </button>
-                        <h3 id="calendarTitle" class="text-lg font-semibold text-[#3C2F23]">March 2026</h3>
+                        <h3 id="calendarTitle" class="text-lg font-semibold text-[#3C2F23] dark:text-white">March 2026</h3>
                         <button onclick="changeMonth(1)"
-                            class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5">
+                            class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300">
                             <i class="text-sm fa-solid fa-chevron-right"></i>
                         </button>
                         <button type="button" onclick="toggleScheduleView()" id="scheduleViewToggleBtn"
                             title="Switch to calendar view"
-                            class="flex items-center justify-center w-8 h-8 ml-1 text-[#8B7355] transition rounded-lg hover:bg-[#F6EFE6] ring-1 ring-black/5">
+                            class="flex items-center justify-center w-8 h-8 ml-1 text-[#8B7355] dark:text-[#C4A97D] transition rounded-lg hover:bg-[#F6EFE6] dark:hover:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
                             <i class="text-sm fa-solid fa-calendar-days"></i>
                         </button>
                     </div>
                     <button onclick="closeScheduleModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
                 <div class="p-6 overflow-y-auto max-h-[65vh]">
@@ -417,12 +423,12 @@
                     <div id="scheduleCalendarView" class="hidden">
                         <div class="grid grid-cols-7 mb-2">
                             @foreach(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $day)
-                            <div class="py-2 text-xs font-semibold text-center text-gray-400">{{ $day }}</div>
+                            <div class="py-2 text-xs font-semibold text-center text-gray-400 dark:text-gray-500">{{ $day }}</div>
                             @endforeach
                         </div>
                         <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
                         <div id="selectedDayBookings" class="hidden mt-6 space-y-3">
-                            <h4 id="selectedDayTitle" class="text-sm font-semibold text-[#3C2F23]"></h4>
+                            <h4 id="selectedDayTitle" class="text-sm font-semibold text-[#3C2F23] dark:text-white"></h4>
                             <div id="selectedDayContent"></div>
                         </div>
                     </div>
@@ -436,23 +442,23 @@
     <div id="logoutModal" class="fixed inset-0 z-[145] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeLogoutModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-md mt-24 sm:mt-32">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
-                    <h3 class="text-lg font-semibold text-[#3C2F23]">Confirm Logout</h3>
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
+                    <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Confirm Logout</h3>
                     <button type="button" onclick="closeLogoutModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
 
                 <div class="p-6">
                     <div class="flex items-start gap-4">
-                        <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 rounded-full">
-                            <i class="text-xl text-red-600 fa-solid fa-right-from-bracket"></i>
+                        <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full">
+                            <i class="text-xl text-red-600 dark:text-red-400 fa-solid fa-right-from-bracket"></i>
                         </div>
                         <div>
-                            <h4 class="font-semibold text-[#3C2F23]">Are you sure?</h4>
-                            <p class="mt-1 text-sm text-gray-500">
+                            <h4 class="font-semibold text-[#3C2F23] dark:text-white">Are you sure?</h4>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                 You will be logged out of your account and redirected to the home page.
                             </p>
                         </div>
@@ -461,7 +467,7 @@
 
                 <div class="flex gap-2 px-6 pb-6">
                     <button type="button" onclick="closeLogoutModal()"
-                        class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] dark:text-[#C4A97D] border border-[#8B7355] dark:border-[#C4A97D] hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
                         Cancel
                     </button>
                     <form method="POST" action="{{ route('logout') }}" class="flex-1">
@@ -480,70 +486,70 @@
     <div id="bookingDetailsModal" class="fixed inset-0 z-[125] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeBookingDetailsModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
-                    <h3 class="text-lg font-semibold text-[#3C2F23]">Booking Details</h3>
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
+                    <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Booking Details</h3>
                     <button type="button" onclick="closeBookingDetailsModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
                 <div class="p-6 space-y-4">
                     <!-- Spa Info -->
-                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                            <i class="fa-solid fa-spa text-[#8B7355] text-sm"></i>
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                            <i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <div>
                             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Spa & Branch</p>
-                            <p id="detailSpaName" class="text-sm font-semibold text-[#3C2F23]"></p>
+                            <p id="detailSpaName" class="text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
                         </div>
                     </div>
                     <!-- Treatment -->
-                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                            <i class="fa-solid fa-list-check text-[#8B7355] text-sm"></i>
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                            <i class="fa-solid fa-list-check text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <div>
                             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Treatment</p>
-                            <p id="detailTreatment" class="text-sm font-semibold text-[#3C2F23]"></p>
+                            <p id="detailTreatment" class="text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
                         </div>
                     </div>
                     <!-- Date & Time -->
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                                <i class="fa-solid fa-calendar text-[#8B7355] text-sm"></i>
+                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                                <i class="fa-solid fa-calendar text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                             </div>
                             <div>
                                 <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</p>
-                                <p id="detailDate" class="text-sm font-semibold text-[#3C2F23]"></p>
+                                <p id="detailDate" class="text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
                             </div>
                         </div>
-                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                                <i class="fa-solid fa-clock text-[#8B7355] text-sm"></i>
+                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                                <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                             </div>
                             <div>
                                 <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Time</p>
-                                <p id="detailTime" class="text-sm font-semibold text-[#3C2F23]"></p>
+                                <p id="detailTime" class="text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
                             </div>
                         </div>
                     </div>
                     <!-- Therapist -->
-                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                            <i class="fa-solid fa-user-nurse text-[#8B7355] text-sm"></i>
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                            <i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <div>
                             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Therapist</p>
-                            <p id="detailTherapist" class="text-sm font-semibold text-[#3C2F23]"></p>
+                            <p id="detailTherapist" class="text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
                         </div>
                     </div>
                     <!-- Status -->
-                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg ring-1 ring-black/5">
-                            <i class="fa-solid fa-circle-info text-[#8B7355] text-sm"></i>
+                    <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                            <i class="fa-solid fa-circle-info text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <div>
                             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</p>
@@ -565,7 +571,7 @@
                         Request Reschedule
                     </button>
                     <button type="button" onclick="closeBookingDetailsModal()"
-                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] dark:text-[#C4A97D] border border-[#8B7355] dark:border-[#C4A97D] hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
                         Close
                     </button>
                 </div>
@@ -577,45 +583,45 @@
     <div id="rescheduleModal" class="fixed inset-0 z-[130] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeRescheduleModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div>
-                        <h3 class="text-lg font-semibold text-[#3C2F23]">Request Reschedule</h3>
-                        <p class="mt-0.5 text-xs text-gray-500">Please provide a valid reason for rescheduling.</p>
+                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Request Reschedule</h3>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Please provide a valid reason for rescheduling.</p>
                     </div>
                     <button type="button" onclick="closeRescheduleModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
                 <div class="p-6 space-y-4">
                     <input type="hidden" id="rescheduleBookingId">
 
                     <!-- Current Schedule -->
-                    <div class="p-3 rounded-xl bg-[#F6EFE6]/60 ring-1 ring-black/5">
+                    <div class="p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50 ring-1 ring-black/5 dark:ring-white/10">
                         <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Current Schedule</p>
-                        <p id="rescheduleCurrentSchedule" class="text-sm text-[#3C2F23] font-medium"></p>
+                        <p id="rescheduleCurrentSchedule" class="text-sm text-[#3C2F23] dark:text-white font-medium"></p>
                     </div>
 
                     <!-- New Date -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600">
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
                             New Preferred Date <span class="text-red-500">*</span>
                         </label>
                         <input type="date" id="rescheduleDate"
-                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                            class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40"
                             required>
                     </div>
 
                     <!-- New Time -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600">
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
                             New Preferred Time <span class="text-red-500">*</span>
                         </label>
                         <input type="time" id="rescheduleTime"
-                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                            class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40"
                             required>
-                        <p id="rescheduleTimeError" class="hidden mt-1 text-[11px] text-red-500">
+                        <p id="rescheduleTimeError" class="hidden mt-1 text-[11px] text-red-500 dark:text-red-400">
                             <i class="fa-solid fa-circle-exclamation"></i>
                             <span id="rescheduleTimeErrorText"></span>
                         </p>
@@ -623,18 +629,18 @@
 
                     <!-- Reason -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600">
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
                             Reason for Rescheduling <span class="text-red-500">*</span>
                         </label>
                         <textarea id="rescheduleReason" rows="4"
                             placeholder="Please explain why you need to reschedule (minimum 10 characters)..."
-                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"
+                            class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"
                             required></textarea>
-                        <p id="rescheduleReasonCount" class="mt-1 text-[11px] text-gray-400">0 / 1000 characters</p>
+                        <p id="rescheduleReasonCount" class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">0 / 1000 characters</p>
                     </div>
 
                     <!-- Error message -->
-                    <div id="rescheduleError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200">
+                    <div id="rescheduleError" class="hidden p-3 text-sm text-red-600 dark:text-red-300 rounded-xl bg-red-50 dark:bg-red-900/20 ring-1 ring-red-200 dark:ring-red-800">
                         <i class="mr-1 fa-solid fa-circle-exclamation"></i>
                         <span id="rescheduleErrorText"></span>
                     </div>
@@ -658,11 +664,11 @@
         <div class="px-6 mx-auto mt-5 max-w-7xl">
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
-                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Spas Near You</h2>
-                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] dark:text-white font-semibold">Spas Near You</h2>
+                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
                 </div>
-                <p class="mt-3 text-sm text-gray-600">Based on your saved location.</p>
+                <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">Based on your saved location.</p>
             </div>
             <div id="nearbyGrid" class="grid grid-cols-1 gap-6 mt-5 sm:grid-cols-2 lg:grid-cols-4">
                 {{-- filled by JS --}}
@@ -678,13 +684,13 @@
         <div class="px-6 mx-auto mt-5 max-w-7xl">
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
-                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Featured Spas</h2>
-                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] dark:text-white font-semibold">Featured Spas</h2>
+                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
                 </div>
-                <p id="featuredSpasSubtitle" class="mt-3 text-sm text-gray-600">
+                <p id="featuredSpasSubtitle" class="mt-3 text-sm text-gray-600 dark:text-gray-400">
                     @if(!empty($search))
-                        Showing results for "<span class="font-semibold text-[#8B7355]">{{ $search }}</span>"
+                        Showing results for "<span class="font-semibold text-[#8B7355] dark:text-[#C4A97D]">{{ $search }}</span>"
                     @else
                         Curated picks for a premium relaxation experience.
                     @endif
@@ -757,7 +763,7 @@
                             @endphp
 
                             <button type="button"
-                                class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                                class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
                                 data-open-spa-modal
                                 data-spa='@json($spaPayload)'>
                                 <div class="relative overflow-hidden">
@@ -776,7 +782,7 @@
                                     @endif
                                 </div>
                                 <div class="p-5">
-                                    <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
+                                    <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">{{ $spa->name }}</h3>
                                     @php
                                         $addr = $spaPayload['address'] ?? '';
                                         $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', $addr);
@@ -785,13 +791,13 @@
                                             ? implode(', ', array_slice($parts, -2))
                                             : (implode(', ', $parts) ?: 'Location unavailable');
                                     @endphp
-                                    <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $addrSummary }}</p>
                                     @if($lowestPrice)
-                                        <p class="mt-2 text-xs font-medium text-[#8B7355]">
+                                        <p class="mt-2 text-xs font-medium text-[#8B7355] dark:text-[#C4A97D]">
                                             Starts at ₱{{ number_format($lowestPrice, 2) }}
                                         </p>
                                     @endif
-                                    <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
+                                    <p class="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{{ $spaPayload['desc'] ?? 'No description yet.' }}</p>
                                 </div>
                             </button>
                         @endif
@@ -801,11 +807,11 @@
 
                 @if($featuredCount === 0)
                     <div class="py-16 text-center col-span-full">
-                        <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                            <i class="fa-solid fa-star text-xl text-[#8B7355]"></i>
+                        <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
+                            <i class="fa-solid fa-star text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                         </div>
-                        <p class="font-semibold text-[#3C2F23]">No featured spas found</p>
-                        <p class="mt-1 text-sm text-gray-500">
+                        <p class="font-semibold text-[#3C2F23] dark:text-white">No featured spas found</p>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             @if(!empty($search))
                                 No featured spas match "{{ $search }}". Try a different name or location.
                             @else
@@ -822,13 +828,13 @@
             <div class="px-6 mx-auto max-w-7xl">
                 <div class="text-center">
                     <div class="flex items-center justify-center gap-6">
-                        <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                        <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Other Spas in Cavite</h2>
-                        <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                        <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
+                        <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] dark:text-white font-semibold">Other Spas in Cavite</h2>
+                        <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
                     </div>
-                    <p id="otherSpasSubtitle" class="mt-3 text-sm text-gray-600">
+                    <p id="otherSpasSubtitle" class="mt-3 text-sm text-gray-600 dark:text-gray-400">
                         @if(!empty($search))
-                            Showing results for "<span class="font-semibold text-[#8B7355]">{{ $search }}</span>"
+                            Showing results for "<span class="font-semibold text-[#8B7355] dark:text-[#C4A97D]">{{ $search }}</span>"
                         @else
                             Explore more verified wellness destinations.
                         @endif
@@ -903,14 +909,14 @@
                                     @endphp
 
                                     <button type="button"
-                                        class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-xl"
+                                        class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl"
                                         data-open-spa-modal
                                         data-spa='@json($spaPayload)'>
                                         <div class="relative overflow-hidden">
                                             <img src="{{ $coverPhoto }}" class="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $spa->name }}">
                                             <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-transparent"></div>
-                                            <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 text-[#6F5430] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5">
-                                                <i class="fa-solid fa-spa text-[#8B7355] text-[10px]"></i>
+                                            <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5 dark:ring-white/10">
+                                                <i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>
                                                 Verified
                                             </div>
                                             @if($profile->is_hiring ?? false)
@@ -922,7 +928,7 @@
                                             @endif
                                         </div>
                                         <div class="p-4">
-                                            <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $spa->name }}</h3>
+                                            <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">{{ $spa->name }}</h3>
                                             @php
                                                 $addr = $spaPayload['address'] ?? '';
                                                 $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', $addr);
@@ -931,13 +937,13 @@
                                                     ? implode(', ', array_slice($parts, -2))
                                                     : (implode(', ', $parts) ?: 'Location unavailable');
                                             @endphp
-                                            <p class="mt-1 text-xs text-gray-900">{{ $addrSummary }}</p>
+                                            <p class="mt-1 text-xs text-gray-900 dark:text-gray-300">{{ $addrSummary }}</p>
                                             @if($lowestPrice)
-                                                <p class="mt-2 text-xs font-medium text-[#8B7355]">
+                                                <p class="mt-2 text-xs font-medium text-[#8B7355] dark:text-[#C4A97D]">
                                                     Starts at ₱{{ number_format($lowestPrice, 2) }}
                                                 </p>
                                             @endif
-                                            <p class="mt-2 text-sm text-gray-500 line-clamp-2">
+                                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
                                                 {{ $spaPayload['desc'] ?: 'No description yet.' }}
                                             </p>
                                         </div>
@@ -947,13 +953,13 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="flex flex-col items-center justify-center py-16 mt-12 border border-dashed border-[#C4A97D]/40 rounded-3xl bg-white/50">
-                        <div class="flex items-center justify-center w-16 h-16 mb-5 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                            <i class="fa-solid fa-spa text-2xl text-[#8B7355]"></i>
+                    <div class="flex flex-col items-center justify-center py-16 mt-12 border border-dashed border-[#C4A97D]/40 dark:border-[#C4A97D]/25 rounded-3xl bg-white/50 dark:bg-gray-800/40">
+                        <div class="flex items-center justify-center w-16 h-16 mb-5 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                            <i class="fa-solid fa-spa text-2xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                         </div>
                         @if(!empty($search))
-                            <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23]">No spas found for "{{ $search }}"</h3>
-                            <p class="max-w-xs mt-2 text-sm text-center text-gray-500">
+                            <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23] dark:text-white">No spas found for "{{ $search }}"</h3>
+                            <p class="max-w-xs mt-2 text-sm text-center text-gray-500 dark:text-gray-400">
                                 Try a different name or location, or browse all available spas.
                             </p>
                             <a href="{{ url('/') }}"
@@ -962,8 +968,8 @@
                                 Browse All Spas
                             </a>
                         @else
-                            <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23]">No spas listed yet</h3>
-                            <p class="max-w-xs mt-2 text-sm text-center text-gray-500">
+                            <h3 class="text-lg font-semibold font-['Playfair_Display'] text-[#3C2F23] dark:text-white">No spas listed yet</h3>
+                            <p class="max-w-xs mt-2 text-sm text-center text-gray-500 dark:text-gray-400">
                                 Be the first to list your spa and reach customers looking for wellness experiences.
                             </p>
                             @auth
@@ -1001,19 +1007,19 @@
         <div class="px-6 mx-auto mt-5 max-w-7xl">
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
-                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Search Results</h2>
-                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] dark:text-white font-semibold">Search Results</h2>
+                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
                 </div>
-                <p id="unifiedResultsSubtitle" class="mt-3 text-sm text-gray-600">
+                <p id="unifiedResultsSubtitle" class="mt-3 text-sm text-gray-600 dark:text-gray-400">
                     @if($place || $treatment)
                         Showing results
-                        @if($place) in "<span class="font-semibold text-[#8B7355]">{{ $place }}</span>" @endif
-                        @if($treatment) for "<span class="font-semibold text-[#8B7355]">{{ $treatment }}</span>" @endif
+                        @if($place) in "<span class="font-semibold text-[#8B7355] dark:text-[#C4A97D]">{{ $place }}</span>" @endif
+                        @if($treatment) for "<span class="font-semibold text-[#8B7355] dark:text-[#C4A97D]">{{ $treatment }}</span>" @endif
                     @else
                         Showing all spas
                     @endif
-                    <button type="button" onclick="clearSpaSearch()" class="ml-2 text-[#8B7355] underline underline-offset-2">Clear search</button>
+                    <button type="button" onclick="clearSpaSearch()" class="ml-2 text-[#8B7355] dark:text-[#C4A97D] underline underline-offset-2">Clear search</button>
                 </p>
             </div>
 
@@ -1028,14 +1034,14 @@
                             : (implode(', ', $parts) ?: 'Location unavailable');
                     @endphp
                     <button type="button"
-                        class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                        class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
                         data-open-spa-modal
                         data-spa='@json($item)'>
                         <div class="relative overflow-hidden">
                             <img src="{{ $item['photos'][0] ?? '' }}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $item['name'] }}">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
-                            <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full {{ $item['is_featured'] ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 text-[#6F5430] ring-1 ring-black/5' }} text-[11px] font-semibold backdrop-blur-sm">
-                                <i class="fa-solid {{ $item['is_featured'] ? 'fa-star text-[#F5C842]' : 'fa-spa text-[#8B7355]' }} text-[10px]"></i>
+                            <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full {{ $item['is_featured'] ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10' }} text-[11px] font-semibold backdrop-blur-sm">
+                                <i class="fa-solid {{ $item['is_featured'] ? 'fa-star text-[#F5C842]' : 'fa-spa text-[#8B7355] dark:text-[#C4A97D]' }} text-[10px]"></i>
                                 {{ $item['is_featured'] ? 'Featured' : 'Verified' }}
                             </div>
                             @if($item['is_hiring'] ?? false)
@@ -1047,23 +1053,23 @@
                             @endif
                         </div>
                         <div class="p-5">
-                            <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">{{ $item['name'] }}</h3>
-                            <p class="mt-1 text-xs text-gray-500">{{ $addrSummary }}</p>
+                            <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">{{ $item['name'] }}</h3>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $addrSummary }}</p>
                             @if($item['price_note'] ?? null)
-                                <p class="mt-2 text-xs font-medium text-[#8B7355]">Starts at ₱{{ $item['price_note'] }}</p>
+                                <p class="mt-2 text-xs font-medium text-[#8B7355] dark:text-[#C4A97D]">Starts at ₱{{ $item['price_note'] }}</p>
                             @endif
-                            <p class="mt-3 text-sm text-gray-600 line-clamp-2">{{ $item['desc'] ?: 'No description yet.' }}</p>
+                            <p class="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{{ $item['desc'] ?: 'No description yet.' }}</p>
                         </div>
                     </button>
                 @empty
                     <div class="py-16 text-center col-span-full">
-                        <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                            <i class="fa-solid fa-magnifying-glass text-xl text-[#8B7355]"></i>
+                        <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
+                            <i class="fa-solid fa-magnifying-glass text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                         </div>
-                        <p class="font-semibold text-[#3C2F23]">No spas found</p>
-                        <p class="mt-1 text-sm text-gray-500">
+                        <p class="font-semibold text-[#3C2F23] dark:text-white">No spas found</p>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Try a different place or treatment, or
-                            <button type="button" onclick="clearSpaSearch()" class="text-[#8B7355] underline underline-offset-2">browse all spas</button>.
+                            <button type="button" onclick="clearSpaSearch()" class="text-[#8B7355] dark:text-[#C4A97D] underline underline-offset-2">browse all spas</button>.
                         </p>
                     </div>
                 @endforelse
@@ -1075,42 +1081,42 @@
     <div id="spaModal" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-spa-modal></div>
         <div class="relative mx-auto w-[92%] max-w-5xl mt-8 mb-8">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl flex flex-col max-h-[90vh]">
-                <div class="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-white/95 backdrop-blur-sm border-black/5">
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl flex flex-col max-h-[90vh]">
+                <div class="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-black/5 dark:border-white/10">
                     <div>
-                        <h3 id="spaModalName" class="text-2xl font-['Playfair_Display'] font-bold tracking-tight text-[#3C2F23]">Spa Name</h3>
-                        <div class="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
-                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F6EFE6] text-[#6F5430] text-xs font-semibold ring-1 ring-[#8B7355]/20">
+                        <h3 id="spaModalName" class="text-2xl font-['Playfair_Display'] font-bold tracking-tight text-[#3C2F23] dark:text-white">Spa Name</h3>
+                        <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D] text-xs font-semibold ring-1 ring-[#8B7355]/20 dark:ring-[#C4A97D]/20">
                                 <i class="fa-solid fa-star text-[#D2A85B] text-[10px]"></i>
                                 <span id="spaModalTag">Featured Spa</span>
                             </span>
-                            <span class="text-gray-300">·</span>
-                            <i class="fa-solid fa-location-dot text-[#8B7355] text-xs"></i>
-                            <span id="spaModalAddressSummary" class="font-medium text-[#6F5430] underline underline-offset-2 decoration-dotted">Location</span>
+                            <span class="text-gray-300 dark:text-gray-600">·</span>
+                            <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-xs"></i>
+                            <span id="spaModalAddressSummary" class="font-medium text-[#6F5430] dark:text-[#C4A97D] underline underline-offset-2 decoration-dotted">Location</span>
                         </div>
                     </div>
                     <button data-close-spa-modal
-                        class="flex items-center justify-center w-9 h-9 text-gray-500 transition rounded-xl hover:bg-[#F6EFE6] hover:text-[#3C2F23] ring-1 ring-black/5">
+                        class="flex items-center justify-center w-9 h-9 text-gray-500 dark:text-gray-400 transition rounded-xl hover:bg-[#F6EFE6] dark:hover:bg-gray-700 hover:text-[#3C2F23] dark:hover:text-white ring-1 ring-black/5 dark:ring-white/10">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
                 <div class="overflow-y-auto">
                     <div class="p-6">
                         <div class="grid grid-cols-4 grid-rows-2 gap-2 h-[380px] rounded-2xl overflow-hidden">
-                            <div class="relative col-span-2 row-span-2 bg-gray-100 cursor-pointer group">
+                            <div class="relative col-span-2 row-span-2 bg-gray-100 dark:bg-gray-700 cursor-pointer group">
                                 <img id="spaModalMainPhoto" src="" class="object-cover w-full h-full transition duration-500 group-hover:scale-[1.02]">
                                 <div class="absolute inset-0 transition opacity-0 bg-gradient-to-t from-black/20 to-transparent group-hover:opacity-100"></div>
                             </div>
-                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100">
+                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700">
                                 <img id="gallery_1" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
                             </div>
-                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100">
+                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700">
                                 <img id="gallery_2" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
                             </div>
-                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100">
+                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700">
                                 <img id="gallery_3" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
                             </div>
-                            <div class="relative col-span-1 row-span-1 overflow-hidden bg-gray-100 cursor-pointer group">
+                            <div class="relative col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700 cursor-pointer group">
                                 <img id="gallery_4" class="object-cover w-full h-full transition duration-300 group-hover:scale-105">
                                 <div id="spaModalGalleryCount"
                                     class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white bg-black/40 backdrop-blur-[1px] transition group-hover:bg-black/50">
@@ -1125,54 +1131,60 @@
                     <div class="grid gap-8 px-6 pb-8 md:grid-cols-3">
                         <div class="space-y-7 md:col-span-2">
                             <div>
-                                <h4 class="mb-2 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23]">About this spa</h4>
-                                <p id="spaModalDesc" class="text-sm leading-relaxed text-gray-600"></p>
+                                <h4 class="mb-2 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23] dark:text-white">About this spa</h4>
+                                <p id="spaModalDesc" class="text-sm leading-relaxed text-gray-600 dark:text-gray-400"></p>
                             </div>
-                            <div id="spaModalHiring" class="hidden p-4 rounded-2xl bg-green-50 ring-1 ring-green-200">
+                            <div id="spaModalHiring" class="hidden p-4 rounded-2xl bg-green-50 dark:bg-green-900/20 ring-1 ring-green-200 dark:ring-green-800">
                                 <div class="flex items-center gap-2">
-                                    <i class="text-sm text-green-600 fa-solid fa-briefcase"></i>
-                                    <p class="text-sm font-semibold text-green-700">We're Hiring</p>
+                                    <i class="text-sm text-green-600 dark:text-green-400 fa-solid fa-briefcase"></i>
+                                    <p class="text-sm font-semibold text-green-700 dark:text-green-300">We're Hiring</p>
                                 </div>
-                                <p id="spaModalHiringNote" class="mt-1 text-sm text-green-700/90"></p>
+                                <p id="spaModalHiringNote" class="mt-1 text-sm text-green-700/90 dark:text-green-300/80"></p>
                             </div>
-                            <hr class="border-[#E8DDD0]">
+                            <hr class="border-[#E8DDD0] dark:border-gray-700">
                             <div>
-                                <h4 class="mb-4 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23]">What this place offers</h4>
+                                <h4 class="mb-4 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23] dark:text-white">What this place offers</h4>
                                 <div id="spaModalAmenities">
-                                    <p class="text-sm italic text-gray-400">No amenities listed yet.</p>
+                                    <p class="text-sm italic text-gray-400 dark:text-gray-500">No amenities listed yet.</p>
                                 </div>
                             </div>
                         </div>
                         <div class="md:col-span-1">
-                            <div class="sticky top-4 p-5 space-y-3 border border-[#E8DDD0] shadow-sm rounded-2xl bg-[#FDFAF6]">
-                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white ring-1 ring-black/5 flex-shrink-0 mt-0.5">
-                                        <i class="fa-solid fa-location-dot text-[#8B7355] text-sm"></i>
+                            <div class="sticky top-4 p-5 space-y-3 border border-[#E8DDD0] dark:border-gray-700 shadow-sm rounded-2xl bg-[#FDFAF6] dark:bg-gray-900/40">
+                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10 flex-shrink-0 mt-0.5">
+                                        <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                                     </div>
                                     <div>
                                         <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Address</p>
-                                        <p id="spaModalAddress" class="mt-0.5 text-sm text-[#3C2F23] leading-snug"></p>
+                                        <p id="spaModalAddress" class="mt-0.5 text-sm text-[#3C2F23] dark:text-gray-200 leading-snug"></p>
                                     </div>
                                 </div>
-                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white ring-1 ring-black/5 flex-shrink-0 mt-0.5">
-                                        <i class="fa-solid fa-phone text-[#8B7355] text-sm"></i>
+                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10 flex-shrink-0 mt-0.5">
+                                        <i class="fa-solid fa-phone text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                                     </div>
                                     <div>
                                         <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Contact</p>
-                                        <p id="spaModalPhone" class="mt-0.5 text-sm text-[#3C2F23]"></p>
+                                        <p id="spaModalPhone" class="mt-0.5 text-sm text-[#3C2F23] dark:text-gray-200"></p>
                                     </div>
                                 </div>
-                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60">
-                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white ring-1 ring-black/5 flex-shrink-0 mt-0.5">
-                                        <i class="fa-solid fa-tag text-[#8B7355] text-sm"></i>
+                                <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10 flex-shrink-0 mt-0.5">
+                                        <i class="fa-solid fa-tag text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                                     </div>
                                     <div>
                                         <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Price</p>
-                                        <p id="spaModalPrice" class="mt-0.5 text-sm font-semibold text-[#6F5430]"></p>
+                                        <p id="spaModalPrice" class="mt-0.5 text-sm font-semibold text-[#6F5430] dark:text-[#C4A97D]"></p>
                                     </div>
                                 </div>
-                                <div id="spaModalMap" class="w-full h-[170px] rounded-xl border border-[#E8DDD0] bg-[#F6EFE6] overflow-hidden shadow-inner"></div>
+                                {{-- Leaflet/OSM tiles can't be themed via CSS; dimming overlay
+                                     keeps the map readable against the dark sidebar without
+                                     blocking interaction (pointer-events-none). --}}
+                                <div class="relative">
+                                    <div id="spaModalMap" class="w-full h-[170px] rounded-xl border border-[#E8DDD0] dark:border-gray-700 bg-[#F6EFE6] dark:bg-gray-700 overflow-hidden shadow-inner"></div>
+                                    <div class="absolute inset-0 hidden dark:block rounded-xl pointer-events-none bg-gray-900/30 mix-blend-multiply"></div>
+                                </div>
                                 <button type="button" id="openBookingModalBtn"
                                     class="flex items-center justify-center w-full gap-2 py-3 mt-1 text-sm font-semibold text-white transition rounded-xl booking-btn shadow-md hover:shadow-lg active:translate-y-0.5">
                                     <i class="fa-solid fa-calendar-check"></i>
@@ -1234,40 +1246,108 @@
         .search-suggestion-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; cursor: pointer; font-size: 13.5px; color: #3C2F23; }
         .search-suggestion-row:hover { background: #F6EFE6; }
         .search-empty-note { padding: 8px 4px; font-size: 12px; color: #9a8f80; }
+
+        /* Amenity chips (built in welcome.js's openSpaModal) - same rationale
+           as svc-card/slot-btn above: JS template strings aren't scanned by
+           Tailwind, so arbitrary-value dark: classes there would be silently
+           dropped. Plain CSS class instead. */
+        .amenity-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(246, 239, 230, 0.7); border: 1px solid rgba(139, 115, 85, 0.10); }
+        .amenity-chip-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: #fff; border: 1px solid rgba(0,0,0,0.05); color: #8B7355; font-size: 11px; }
+        .amenity-chip-label { font-size: 12px; font-weight: 500; color: #3C2F23; }
+
+        /* Booking modal step indicator - welcome.js's showBookingStep()
+           overwrites circle/label/bar className wholesale on every step
+           change, so dark: utility classes here would be wiped on the very
+           first click. Plain CSS with state classes survives that. */
+        .step-circle { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; font-size: 0.75rem; font-weight: 600; border-radius: 9999px; transition: background-color .15s ease, color .15s ease; }
+        .step-circle.is-pending { color: #9ca3af; background: #e5e7eb; }
+        .step-circle.is-active, .step-circle.is-done { color: #fff; background: #8B7355; }
+        .step-label { margin-left: 0.5rem; font-size: 0.75rem; transition: color .15s ease; }
+        .step-label.is-pending { font-weight: 500; color: #9ca3af; }
+        .step-label.is-active { font-weight: 600; color: #3C2F23; }
+        .step-bar { width: 2.5rem; height: 2px; margin: 0 0.75rem; border-radius: 9999px; transition: background-color .15s ease; }
+        @media (min-width: 640px) { .step-bar { width: 4rem; } }
+        .step-bar.is-pending { background: #e5e7eb; }
+        .step-bar.is-done { background: #8B7355; }
+
+        /* Dark mode (prefers-color-scheme) for the hero search dropdown.
+           Plain CSS, not dark: utilities - no .dark class is ever added. */
+        @media (prefers-color-scheme: dark) {
+            .search-dropdown { background: #1f2937; box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08); }
+            .search-dropdown-label { color: #9ca3af; }
+            .search-chip { background: #374151; color: #e5e7eb; border-color: rgba(255,255,255,0.08); }
+            .search-chip:hover { background: #4b5563; }
+            .search-suggestion-row { color: #e5e7eb; }
+            .search-suggestion-row:hover { background: #374151; }
+            .search-empty-note { color: #9ca3af; }
+
+            .amenity-chip { background: rgba(55, 65, 81, 0.5); border-color: rgba(196, 169, 125, 0.15); }
+            .amenity-chip-icon { background: #1f2937; border-color: rgba(255,255,255,0.08); color: #C4A97D; }
+            .amenity-chip-label { color: #f3f4f6; }
+
+            .svc-card-thumb { background: #374151; border-color: rgba(255,255,255,0.06); }
+            .svc-card:hover { background-color: rgba(55, 65, 81, 0.5); }
+            .svc-card.is-selected { border-left-color: #C4A97D; background-color: rgba(55, 65, 81, 0.7); }
+            .svc-card:focus-within { outline-color: #C4A97D; }
+            .svc-card-name { color: #f3f4f6; }
+            .svc-card-badge { color: #C4A97D; background: #374151; border-color: rgba(255,255,255,0.08); }
+            .svc-card-price { color: #C4A97D; }
+            .svc-card-desc { color: #9ca3af; }
+            .svc-card-meta { color: #C4A97D; }
+            .svc-section-header { color: #9ca3af; background: #1f2937; }
+
+            .svc-filter-tab { color: #9ca3af; }
+            .svc-filter-tab.is-active { background: #8B7355; color: #fff; }
+
+            .slot-btn { color: #f3f4f6; background: #374151; border-color: rgba(255,255,255,0.08); }
+            .slot-btn:hover:not(:disabled) { border-color: #C4A97D; background-color: rgba(55, 65, 81, 0.8); }
+            .slot-btn.is-selected { border-color: #C4A97D; background-color: #8B7355; color: #fff; }
+            .slot-btn:disabled { background-color: #1f2937; color: #4b5563; border-color: #374151; }
+            .slot-btn.is-past-closing:disabled { border-color: #4b5563; }
+
+            .step-circle.is-pending { background: #374151; color: #9ca3af; }
+            .step-circle.is-active, .step-circle.is-done { background: #8B7355; color: #fff; }
+            .step-label.is-active { color: #f3f4f6; }
+            .step-label.is-pending { color: #6b7280; }
+            .step-bar.is-pending { background: #374151; }
+            .step-bar.is-done { background: #C4A97D; }
+        }
     </style>
     <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div>
-                        <h3 class="text-lg font-semibold text-[#3C2F23]">Make a Reservation</h3>
-                        <p id="bookingSpaMeta" class="mt-1 text-xs text-gray-500">Spa • Branch</p>
+                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Make a Reservation</h3>
+                        <p id="bookingSpaMeta" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Spa • Branch</p>
                     </div>
                     <button type="button"
-                            class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5"
+                            class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10"
                             data-close-booking-modal aria-label="Close">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                {{-- Step indicator — same numbered-circle pattern as the account setup wizard --}}
+                {{-- Step indicator — plain CSS state classes (.is-pending/.is-active/.is-done),
+                     since welcome.js's showBookingStep() rewrites className wholesale on every
+                     step change and isn't scanned by Tailwind's content config. --}}
                 @auth
                 <div class="px-6 pt-5">
                     <div class="flex items-center justify-center overflow-x-auto">
                         <div class="flex items-center min-w-max">
                             <div class="flex items-center">
-                                <div data-step-circle="1" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-white rounded-full bg-[#8B7355] transition-colors">1</div>
-                                <span data-step-label="1" class="ml-2 text-xs font-semibold text-[#3C2F23] transition-colors">Service</span>
+                                <div data-step-circle="1" class="step-circle is-active">1</div>
+                                <span data-step-label="1" class="step-label is-active">Service</span>
                             </div>
-                            <div data-step-bar="1" class="w-10 h-0.5 mx-3 transition-colors bg-gray-200 rounded sm:w-16"></div>
+                            <div data-step-bar="1" class="step-bar is-pending"></div>
                             <div class="flex items-center">
-                                <div data-step-circle="2" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 transition-colors bg-gray-200 rounded-full">2</div>
-                                <span data-step-label="2" class="ml-2 text-xs font-medium text-gray-400 transition-colors">Date &amp; Time</span>
+                                <div data-step-circle="2" class="step-circle is-pending">2</div>
+                                <span data-step-label="2" class="step-label is-pending">Date &amp; Time</span>
                             </div>
-                            <div data-step-bar="2" class="w-10 h-0.5 mx-3 transition-colors bg-gray-200 rounded sm:w-16"></div>
+                            <div data-step-bar="2" class="step-bar is-pending"></div>
                             <div class="flex items-center">
-                                <div data-step-circle="3" class="flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 transition-colors bg-gray-200 rounded-full">3</div>
-                                <span data-step-label="3" class="ml-2 text-xs font-medium text-gray-400 transition-colors">Confirm</span>
+                                <div data-step-circle="3" class="step-circle is-pending">3</div>
+                                <span data-step-label="3" class="step-label is-pending">Confirm</span>
                             </div>
                         </div>
                     </div>
@@ -1285,23 +1365,23 @@
                             <div data-booking-step="1">
                                 <div>
                                     <div class="flex items-center justify-between gap-2">
-                                        <label class="block text-xs font-semibold text-gray-600">Treatment / Package</label>
-                                        <div class="inline-flex gap-1 p-1 bg-gray-100 rounded-lg" id="bookingServiceFilterTabs">
+                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Treatment / Package</label>
+                                        <div class="inline-flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg" id="bookingServiceFilterTabs">
                                             <button type="button" class="svc-filter-tab is-active" data-service-filter="all">All</button>
                                             <button type="button" class="svc-filter-tab" data-service-filter="treatment">Treatments</button>
                                             <button type="button" class="svc-filter-tab" data-service-filter="package">Packages</button>
                                         </div>
                                     </div>
                                     <div class="relative mt-2">
-                                        <i class="absolute text-xs text-gray-300 -translate-y-1/2 pointer-events-none fa-solid fa-magnifying-glass left-3 top-1/2"></i>
+                                        <i class="absolute text-xs text-gray-300 dark:text-gray-500 -translate-y-1/2 pointer-events-none fa-solid fa-magnifying-glass left-3 top-1/2"></i>
                                         <input type="text" id="bookingServiceSearch" placeholder="Search services…" autocomplete="off"
-                                            class="w-full py-2 pl-9 pr-3 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                            class="w-full py-2 pl-9 pr-3 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-400 ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                     </div>
                                     <div id="bookingServiceList"
-                                         class="mt-2 overflow-y-auto bg-white border divide-y max-h-60 rounded-xl border-black/10 ring-1 ring-black/5 divide-black/5">
-                                        <p class="px-4 py-6 text-sm text-center text-gray-400">Select a spa to see its services.</p>
+                                         class="mt-2 overflow-y-auto bg-white dark:bg-gray-800 border divide-y max-h-60 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10 divide-black/5 dark:divide-white/10">
+                                        <p class="px-4 py-6 text-sm text-center text-gray-400 dark:text-gray-500">Select a spa to see its services.</p>
                                     </div>
-                                    <p id="bookingTreatmentError" class="hidden mt-1 text-[11px] text-red-500">
+                                    <p id="bookingTreatmentError" class="hidden mt-1 text-[11px] text-red-500 dark:text-red-400">
 
                                         <i class="fa-solid fa-circle-exclamation"></i>
                                         Please select a treatment or package.
@@ -1309,49 +1389,49 @@
                                 </div>
 
                                 <div class="mt-4">
-                                    <label class="block text-xs font-semibold text-gray-600">Service Type</label>
+                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Service Type</label>
                                     <select name="service_type" id="bookingServiceType"
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:opacity-80">
+                                        class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed disabled:opacity-80">
                                         <option value="">Select service type</option>
                                     </select>
-                                    <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500"></p>
+                                    <p id="bookingServiceTypeHint" class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"></p>
                                 </div>
 
                                 <div id="addressWrapper" class="hidden mt-4">
-                                    <label class="block text-xs font-semibold text-gray-600">
+                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
                                         Home Address <span class="text-red-500">*</span>
                                     </label>
                                     <input type="text" name="customer_address" id="bookingAddressInput"
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40"
+                                        class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40"
                                         placeholder="Enter your full address">
-                                    <p class="mt-1 text-[11px] text-gray-500">Required for home service bookings.</p>
+                                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Required for home service bookings.</p>
                                 </div>
                             </div>
 
                             {{-- ============ STEP 2 — DATE & TIME ============ --}}
                             <div data-booking-step="2" class="hidden">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600">Appointment Date</label>
+                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Appointment Date</label>
                                     <input type="date" name="appointment_date" id="bookingDateInput"
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
 
                                 <div class="mt-4">
                                     <div class="flex items-center justify-between">
-                                        <label class="block text-xs font-semibold text-gray-600">Available Times</label>
-                                        <span id="bookingSlotsLoading" class="hidden text-[11px] text-gray-400">
+                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Available Times</label>
+                                        <span id="bookingSlotsLoading" class="hidden text-[11px] text-gray-400 dark:text-gray-500">
                                             <i class="fa-solid fa-spinner fa-spin"></i> Checking availability…
                                         </span>
                                     </div>
                                     <div id="bookingSlotGrid" class="grid grid-cols-3 gap-2 mt-2 sm:grid-cols-4">
-                                        <p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">Pick a date to see available times.</p>
+                                        <p class="col-span-3 py-6 text-sm text-center text-gray-400 dark:text-gray-500 sm:col-span-4">Pick a date to see available times.</p>
                                     </div>
-                                    <div id="bookingSlotLegend" class="hidden flex-wrap gap-3 mt-3 text-[11px] text-gray-500">
-                                        <span class="flex items-center gap-1.5"><span class="inline-block border border-gray-200 rounded w-2.5 h-2.5 bg-gray-50"></span> Fully booked</span>
-                                        <span class="flex items-center gap-1.5"><span class="inline-block border border-gray-300 border-dashed rounded w-2.5 h-2.5"></span> Not enough time before closing</span>
+                                    <div id="bookingSlotLegend" class="hidden flex-wrap gap-3 mt-3 text-[11px] text-gray-500 dark:text-gray-400">
+                                        <span class="flex items-center gap-1.5"><span class="inline-block border border-gray-200 dark:border-gray-600 rounded w-2.5 h-2.5 bg-gray-50 dark:bg-gray-800"></span> Fully booked</span>
+                                        <span class="flex items-center gap-1.5"><span class="inline-block border border-gray-300 dark:border-gray-500 border-dashed rounded w-2.5 h-2.5"></span> Not enough time before closing</span>
                                     </div>
                                     <input type="hidden" name="start_time" id="bookingTimeInput">
-                                    <p id="bookingTimeError" class="hidden mt-2 text-[11px] text-red-500">
+                                    <p id="bookingTimeError" class="hidden mt-2 text-[11px] text-red-500 dark:text-red-400">
                                         <i class="fa-solid fa-circle-exclamation"></i>
                                         <span id="bookingTimeErrorText">Please select an available time.</span>
                                     </p>
@@ -1362,64 +1442,64 @@
                             <div data-booking-step="3" class="hidden">
                                 <div class="grid gap-4 sm:grid-cols-2">
                                     <div>
-                                        <label class="block text-xs font-semibold text-gray-600">Full Name</label>
+                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Full Name</label>
                                         <input type="text" name="customer_name" id="bookingCustomerName"
                                             value="{{ auth()->user()->name }}" readonly
-                                            class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
+                                            class="w-full mt-1 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold text-gray-600">Email</label>
+                                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Email</label>
                                         <input type="email" name="customer_email" id="bookingCustomerEmail"
                                             value="{{ auth()->user()->email }}" readonly
-                                            class="w-full mt-1 text-gray-700 bg-gray-100 rounded-xl border-black/10 ring-1 ring-black/5">
+                                            class="w-full mt-1 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10">
                                     </div>
                                 </div>
 
                                 <div class="mt-4">
-                                    <label class="block text-xs font-semibold text-gray-600">Phone Number</label>
+                                    <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Phone Number</label>
                                     <input type="text" name="customer_phone" id="bookingCustomerPhone"
                                         placeholder="09xxxxxxxxx" maxlength="11"
-                                        class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
-                                    <p class="mt-1 text-[11px] text-gray-500">Format: 09xxxxxxxxx (11 digits)</p>
+                                        class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Format: 09xxxxxxxxx (11 digits)</p>
                                 </div>
 
-                                <div class="p-4 mt-4 space-y-2 text-sm border border-[#E8DDD0] rounded-xl bg-[#FDFAF6]">
+                                <div class="p-4 mt-4 space-y-2 text-sm border border-[#E8DDD0] dark:border-gray-700 rounded-xl bg-[#FDFAF6] dark:bg-gray-900/40">
                                     <p class="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Booking Summary</p>
                                     <div class="flex justify-between gap-3">
-                                        <span class="text-gray-500">Service</span>
-                                        <span id="recapService" class="font-medium text-[#3C2F23] text-right"></span>
+                                        <span class="text-gray-500 dark:text-gray-400">Service</span>
+                                        <span id="recapService" class="font-medium text-[#3C2F23] dark:text-white text-right"></span>
                                     </div>
                                     <div class="flex justify-between gap-3">
-                                        <span class="text-gray-500">Type</span>
-                                        <span id="recapServiceType" class="font-medium text-[#3C2F23]"></span>
+                                        <span class="text-gray-500 dark:text-gray-400">Type</span>
+                                        <span id="recapServiceType" class="font-medium text-[#3C2F23] dark:text-white"></span>
                                     </div>
                                     <div id="recapAddressRow" class="justify-between hidden gap-3">
-                                        <span class="text-gray-500">Address</span>
-                                        <span id="recapAddress" class="font-medium text-[#3C2F23] text-right"></span>
+                                        <span class="text-gray-500 dark:text-gray-400">Address</span>
+                                        <span id="recapAddress" class="font-medium text-[#3C2F23] dark:text-white text-right"></span>
                                     </div>
                                     <div class="flex justify-between gap-3">
-                                        <span class="text-gray-500">Date &amp; Time</span>
-                                        <span id="recapDateTime" class="font-medium text-[#3C2F23] text-right"></span>
+                                        <span class="text-gray-500 dark:text-gray-400">Date &amp; Time</span>
+                                        <span id="recapDateTime" class="font-medium text-[#3C2F23] dark:text-white text-right"></span>
                                     </div>
-                                    <div class="flex justify-between gap-3 pt-2 mt-2 border-t border-black/5">
-                                        <span class="text-gray-500">Total Service Price</span>
-                                        <span id="recapTotalPrice" class="font-medium text-[#3C2F23]"></span>
+                                    <div class="flex justify-between gap-3 pt-2 mt-2 border-t border-black/5 dark:border-white/10">
+                                        <span class="text-gray-500 dark:text-gray-400">Total Service Price</span>
+                                        <span id="recapTotalPrice" class="font-medium text-[#3C2F23] dark:text-white"></span>
                                     </div>
                                     <div class="flex justify-between gap-3">
-                                        <span class="text-gray-500">Reservation fee (20%)</span>
-                                        <span id="recapDownpayment" class="font-semibold text-[#6F5430]"></span>
+                                        <span class="text-gray-500 dark:text-gray-400">Reservation fee (20%)</span>
+                                        <span id="recapDownpayment" class="font-semibold text-[#6F5430] dark:text-[#C4A97D]"></span>
                                     </div>
                                 </div>
 
                                 <!-- Terms & Agreements -->
-                                <div class="p-4 mt-4 border border-[#E8DDD0] rounded-xl bg-[#FDFAF6] space-y-3">
+                                <div class="p-4 mt-4 border border-[#E8DDD0] dark:border-gray-700 rounded-xl bg-[#FDFAF6] dark:bg-gray-900/40 space-y-3">
                                     <label class="flex items-center gap-3 pt-1 cursor-pointer group">
                                         <input type="checkbox" id="bookingTermsCheckbox" name="terms_agreed" value="1"
                                             class="w-4 h-4 rounded accent-[#8B7355] cursor-pointer flex-shrink-0">
-                                        <span class="text-xs font-medium text-gray-700 group-hover:text-[#6F5430] transition">
+                                        <span class="text-xs font-medium text-gray-700 dark:text-gray-300 group-hover:text-[#6F5430] dark:group-hover:text-[#C4A97D] transition">
                                             I have read and agree to the
                                             <button type="button" onclick="openTermsModal()"
-                                                class="text-[#8B7355] underline underline-offset-2 hover:text-[#6F5430] transition font-semibold">
+                                                class="text-[#8B7355] dark:text-[#C4A97D] underline underline-offset-2 hover:text-[#6F5430] dark:hover:text-white transition font-semibold">
                                                 terms and conditions
                                             </button>.
                                         </span>
@@ -1430,7 +1510,7 @@
                             {{-- ============ STEP NAVIGATION ============ --}}
                             <div class="flex items-center justify-between pt-2">
                                 <button type="button" id="bookingBackBtn"
-                                        class="hidden px-5 py-2.5 text-sm font-semibold text-gray-600 transition rounded-xl hover:bg-gray-100">
+                                        class="hidden px-5 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-300 transition rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700">
                                     <i class="mr-1 fa-solid fa-arrow-left"></i> Back
                                 </button>
                                 <div class="flex-1"></div>
@@ -1445,8 +1525,8 @@
                             </div>
                         </form>
                     @else
-                        <div class="p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-black/5">
-                            <p class="text-sm text-gray-700">Please log in to book an appointment.</p>
+                        <div class="p-4 rounded-2xl bg-[#F6EFE6]/70 dark:bg-gray-700/50 ring-1 ring-black/5 dark:ring-white/10">
+                            <p class="text-sm text-gray-700 dark:text-gray-300">Please log in to book an appointment.</p>
                             <a href="{{ route('login') }}"
                             class="block mt-4 text-center booking-btn text-white py-3 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition active:translate-y-0.5">
                                 Login to Continue
@@ -1463,15 +1543,15 @@
     <div id="applicationModal" class="fixed inset-0 z-[115] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeApplicationModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-3xl mt-8 mb-8">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10 flex flex-col max-h-[90vh]">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10 flex flex-col max-h-[90vh]">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div>
-                        <h3 class="text-lg font-semibold text-[#3C2F23]">Apply for a Position</h3>
-                        <p id="applicationSpaMeta" class="mt-0.5 text-xs text-gray-500">Spa Name</p>
+                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Apply for a Position</h3>
+                        <p id="applicationSpaMeta" class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Spa Name</p>
                     </div>
                     <button type="button" onclick="closeApplicationModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
 
@@ -1484,28 +1564,28 @@
 
                         {{-- PERSONAL INFORMATION --}}
                         <div>
-                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
+                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] dark:text-[#C4A97D] uppercase">
                                 <i class="fa-solid fa-user"></i> Personal Information
                             </h4>
                             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Full Name <span class="text-red-500">*</span></label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Full Name <span class="text-red-500">*</span></label>
                                     <input type="text" name="full_name" required
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Email <span class="text-red-500">*</span></label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Email <span class="text-red-500">*</span></label>
                                     <input type="email" name="email" required
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Phone <span class="text-red-500">*</span></label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Phone <span class="text-red-500">*</span></label>
                                     <input type="text" name="phone" required placeholder="09xxxxxxxxx"
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Gender</label>
-                                    <select name="gender" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Gender</label>
+                                    <select name="gender" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                         <option value="">Select</option>
                                         <option value="male">Male</option>
                                         <option value="female">Female</option>
@@ -1513,13 +1593,13 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Date of Birth</label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Date of Birth</label>
                                     <input type="date" name="date_of_birth"
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Civil Status</label>
-                                    <select name="civil_status" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Civil Status</label>
+                                    <select name="civil_status" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                         <option value="">Select</option>
                                         <option value="single">Single</option>
                                         <option value="married">Married</option>
@@ -1528,24 +1608,24 @@
                                     </select>
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Address <span class="text-red-500">*</span></label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Address <span class="text-red-500">*</span></label>
                                     <input type="text" name="address" required placeholder="Street, Barangay, City"
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                             </div>
                         </div>
 
-                        <hr class="border-[#E8DDD0]">
+                        <hr class="border-[#E8DDD0] dark:border-gray-700">
 
                         {{-- POSITION DETAILS --}}
                         <div>
-                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
+                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] dark:text-[#C4A97D] uppercase">
                                 <i class="fa-solid fa-briefcase"></i> Position Details
                             </h4>
                             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Applying For <span class="text-red-500">*</span></label>
-                                    <select name="position_applied" required class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Applying For <span class="text-red-500">*</span></label>
+                                    <select name="position_applied" required class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                         <option value="">Select</option>
                                         <option value="therapist">Therapist</option>
                                         <option value="receptionist">Receptionist</option>
@@ -1555,8 +1635,8 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Shift Availability</label>
-                                    <select name="availability" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Shift Availability</label>
+                                    <select name="availability" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                         <option value="">Select</option>
                                         <option value="full_time">Full Time</option>
                                         <option value="part_time">Part Time</option>
@@ -1567,13 +1647,13 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Expected Start Date</label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Expected Start Date</label>
                                     <input type="date" name="expected_start_date"
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Educational Attainment</label>
-                                    <select name="education" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Educational Attainment</label>
+                                    <select name="education" class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                         <option value="">Select</option>
                                         <option value="high_school">High School</option>
                                         <option value="vocational">Vocational</option>
@@ -1583,45 +1663,45 @@
                                     </select>
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Skills / Certifications</label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Skills / Certifications</label>
                                     <input type="text" name="skills" placeholder="e.g. Swedish Massage, NC II..."
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Work Experience</label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Work Experience</label>
                                     <textarea name="work_experience" rows="3" placeholder="Previous work experience..."
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 resize-none"></textarea>
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 resize-none"></textarea>
                                 </div>
                             </div>
                         </div>
 
-                        <hr class="border-[#E8DDD0]">
+                        <hr class="border-[#E8DDD0] dark:border-gray-700">
 
                         {{-- EMERGENCY CONTACT --}}
                         <div>
-                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
+                            <h4 class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] dark:text-[#C4A97D] uppercase">
                                 <i class="fa-solid fa-phone-volume"></i> Emergency Contact
                             </h4>
                             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Contact Person</label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Contact Person</label>
                                     <input type="text" name="emergency_contact_name"
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Relationship</label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Relationship</label>
                                     <input type="text" name="emergency_contact_relation" placeholder="e.g. Mother"
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600">Contact Number</label>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Contact Number</label>
                                     <input type="text" name="emergency_contact_phone" placeholder="09xxxxxxxxx"
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                             </div>
                         </div>
 
-                        <div id="applicationError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200">
+                        <div id="applicationError" class="hidden p-3 text-sm text-red-600 dark:text-red-300 rounded-xl bg-red-50 dark:bg-red-900/20 ring-1 ring-red-200 dark:ring-red-800">
                             <i class="mr-1 fa-solid fa-circle-exclamation"></i>
                             <span id="applicationErrorText"></span>
                         </div>
@@ -1642,13 +1722,13 @@
     <div id="businessInfoModal" class="fixed inset-0 z-[150] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeBusinessInfo()"></div>
         <div class="relative mx-auto w-[92%] max-w-md mt-24 sm:mt-32">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="p-6 text-center">
-                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-store text-2xl text-[#8B7355]"></i>
+                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                        <i class="fa-solid fa-store text-2xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
-                    <h3 class="mt-4 text-lg font-semibold text-[#3C2F23]">Business Account Required</h3>
-                    <p class="mt-2 text-sm leading-relaxed text-gray-500">
+                    <h3 class="mt-4 text-lg font-semibold text-[#3C2F23] dark:text-white">Business Account Required</h3>
+                    <p class="mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
                         You're currently logged in as a customer. Listing a spa requires a separate business account.
                         Please log out first, then register as a business partner.
                     </p>
@@ -1663,7 +1743,7 @@
                         </button>
                     </form>
                     <button type="button" onclick="closeBusinessInfo()"
-                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] dark:text-[#C4A97D] border border-[#8B7355] dark:border-[#C4A97D] hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
                         Maybe Later
                     </button>
                 </div>
@@ -1676,34 +1756,34 @@
     <div id="termsModal" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeTermsModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
-                    <h3 class="text-lg font-semibold text-[#3C2F23]">Terms & Conditions</h3>
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
+                    <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Terms & Conditions</h3>
                     <button type="button" onclick="closeTermsModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
                 <div class="overflow-y-auto max-h-[60vh] p-6">
-                    <ul class="space-y-4 text-xs leading-relaxed text-gray-600">
-                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
-                            <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                    <ul class="space-y-4 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40">
+                            <i class="fa-solid fa-circle-check text-[#8B7355] dark:text-[#C4A97D] mt-0.5 flex-shrink-0 text-sm"></i>
                             <div>
-                                <p class="font-semibold text-[#3C2F23] mb-1">Downpayment</p>
+                                <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">Downpayment</p>
                                 <p>A 20% non-refundable downpayment is required to confirm your reservation. The remaining 80% is payable at the spa on the day of your appointment.</p>
                             </div>
                         </li>
-                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
-                            <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40">
+                            <i class="fa-solid fa-circle-check text-[#8B7355] dark:text-[#C4A97D] mt-0.5 flex-shrink-0 text-sm"></i>
                             <div>
-                                <p class="font-semibold text-[#3C2F23] mb-1">Cancellation</p>
+                                <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">Cancellation</p>
                                 <p>Cancellations must be made at least 24 hours before your appointment. The 20% downpayment is non-refundable regardless of cancellation timing.</p>
                             </div>
                         </li>
-                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50">
-                            <i class="fa-solid fa-circle-check text-[#8B7355] mt-0.5 flex-shrink-0 text-sm"></i>
+                        <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40">
+                            <i class="fa-solid fa-circle-check text-[#8B7355] dark:text-[#C4A97D] mt-0.5 flex-shrink-0 text-sm"></i>
                             <div>
-                                <p class="font-semibold text-[#3C2F23] mb-1">No-Show Policy</p>
+                                <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">No-Show Policy</p>
                                 <p>Failure to arrive without prior notice will forfeit your downpayment and may result in restricted future bookings on this platform.</p>
                             </div>
                         </li>
@@ -1723,15 +1803,15 @@
     <div id="ratingModal" class="fixed inset-0 z-[140] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeRatingModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div>
-                        <h3 class="text-lg font-semibold text-[#3C2F23]">Rate Your Experience</h3>
-                        <p class="mt-0.5 text-xs text-gray-500">Help us improve our service quality</p>
+                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Rate Your Experience</h3>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Help us improve our service quality</p>
                     </div>
                     <button type="button" onclick="closeRatingModal()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
                 <div class="p-6 space-y-5">
@@ -1739,18 +1819,18 @@
                     <input type="hidden" id="selectedRating" value="0">
 
                     <!-- Therapist Info - Fixed to show branch location instead of duplicate spa name -->
-                    <div class="p-4 rounded-xl bg-[#F6EFE6]/60 ring-1 ring-black/5">
+                    <div class="p-4 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50 ring-1 ring-black/5 dark:ring-white/10">
                         <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Therapist</p>
-                        <p id="ratingTherapistName" class="mt-1 text-base font-semibold text-[#3C2F23]"></p>
+                        <p id="ratingTherapistName" class="mt-1 text-base font-semibold text-[#3C2F23] dark:text-white"></p>
                         <div class="flex items-center gap-1 mt-1">
-                            <i class="fa-solid fa-location-dot text-[#8B7355] text-[10px]"></i>
-                            <p id="ratingBranchLocation" class="text-xs text-gray-500"></p>
+                            <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>
+                            <p id="ratingBranchLocation" class="text-xs text-gray-500 dark:text-gray-400"></p>
                         </div>
                     </div>
 
                     <!-- Star Rating -->
                     <div>
-                        <label class="block mb-2 text-xs font-semibold text-gray-600">
+                        <label class="block mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
                             Your Rating <span class="text-red-500">*</span>
                         </label>
                         <div class="flex items-center gap-2">
@@ -1758,29 +1838,29 @@
                                 {!! implode('', array_map(fn($i) =>
                                     '<button type="button" onclick="setRating('.$i.')"
                                         class="transition focus:outline-none hover:scale-110">
-                                        <i id="star-'.$i.'" class="text-2xl text-gray-300 fa-solid fa-star"></i>
+                                        <i id="star-'.$i.'" class="text-2xl text-gray-300 dark:text-gray-600 fa-solid fa-star"></i>
                                     </button>', range(1, 5))) !!}
                             </div>
-                            <span id="ratingLabel" class="ml-2 text-sm text-gray-500">Select rating</span>
+                            <span id="ratingLabel" class="ml-2 text-sm text-gray-500 dark:text-gray-400">Select rating</span>
                         </div>
                     </div>
 
                     <!-- Short Comment -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600">What went well?</label>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">What went well?</label>
                         <textarea id="ratingComment" rows="2" maxlength="500"
                             placeholder="e.g., Great massage, very professional..."
-                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
-                        <p class="mt-1 text-right text-[10px] text-gray-400"><span id="ratingCommentCount">0</span>/500</p>
+                            class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
+                        <p class="mt-1 text-right text-[10px] text-gray-400 dark:text-gray-500"><span id="ratingCommentCount">0</span>/500</p>
                     </div>
 
                     <!-- Detailed Feedback -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600">Suggestions for improvement (optional)</label>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Suggestions for improvement (optional)</label>
                         <textarea id="ratingFeedback" rows="2" maxlength="1000"
                             placeholder="e.g., Could be more attentive, room was cold..."
-                            class="w-full mt-1 rounded-xl border-black/10 ring-1 ring-black/5 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
-                        <p class="mt-1 text-right text-[10px] text-gray-400"><span id="ratingFeedbackCount">0</span>/1000</p>
+                            class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
+                        <p class="mt-1 text-right text-[10px] text-gray-400 dark:text-gray-500"><span id="ratingFeedbackCount">0</span>/1000</p>
                     </div>
                 </div>
                 <div class="px-6 pb-6 space-y-2">
@@ -1790,7 +1870,7 @@
                         Submit Rating
                     </button>
                     <button type="button" onclick="closeRatingModal()"
-                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] dark:text-[#C4A97D] border border-[#8B7355] dark:border-[#C4A97D] hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
                         Maybe Later
                     </button>
                 </div>
@@ -1804,20 +1884,20 @@
     <div id="rateReminderModal" class="fixed inset-0 z-[135] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="dismissRateReminder()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white shadow-2xl rounded-3xl ring-1 ring-black/10">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5">
+            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div class="flex items-center gap-3">
-                        <div class="flex items-center justify-center w-10 h-10 bg-[#F6EFE6] rounded-2xl ring-1 ring-black/5">
+                        <div class="flex items-center justify-center w-10 h-10 bg-[#F6EFE6] dark:bg-gray-700 rounded-2xl ring-1 ring-black/5 dark:ring-white/10">
                             <i class="fa-solid fa-star text-[#D2A85B]"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold text-[#3C2F23]">How was your visit?</h3>
-                            <p class="mt-0.5 text-xs text-gray-500">You have unrated appointments</p>
+                            <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">How was your visit?</h3>
+                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">You have unrated appointments</p>
                         </div>
                     </div>
                     <button type="button" onclick="dismissRateReminder()"
-                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5">
-                        <i class="text-lg text-gray-700 fa-solid fa-xmark"></i>
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
 
@@ -1827,7 +1907,7 @@
 
                 <div class="px-6 pt-2 pb-6">
                     <button type="button" onclick="dismissRateReminder()"
-                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] border border-[#8B7355] hover:bg-[#F6EFE6] transition">
+                        class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] dark:text-[#C4A97D] border border-[#8B7355] dark:border-[#C4A97D] hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
                         Maybe Later
                     </button>
                 </div>
@@ -1838,37 +1918,37 @@
     @endauth
 
     <!-- ================= HOW IT WORKS ================= -->
-    <section class="bg-[#EFE3D6] py-20">
+    <section class="bg-[#EFE3D6] dark:bg-gray-800 py-20">
         <div class="px-6 mx-auto max-w-7xl">
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
-                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">How It Works</h2>
-                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] dark:text-white font-semibold">How It Works</h2>
+                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
                 </div>
-                <p class="mt-3 text-sm text-gray-600">Book in minutes with a simple flow.</p>
+                <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">Book in minutes with a simple flow.</p>
             </div>
             <div class="grid gap-6 mt-12 md:grid-cols-3">
-                <div class="p-8 text-center transition shadow-sm bg-white/70 rounded-3xl ring-1 ring-black/5 hover:shadow-lg">
-                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-location-dot text-2xl text-[#8B7355]"></i>
+                <div class="p-8 text-center transition shadow-sm bg-white/70 dark:bg-gray-900/40 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-lg">
+                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                        <i class="fa-solid fa-location-dot text-2xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
-                    <h3 class="mt-5 font-semibold text-[#3C2F23]">Find Your Spa</h3>
-                    <p class="mt-2 text-sm text-gray-600">Browse verified spas near you.</p>
+                    <h3 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Find Your Spa</h3>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Browse verified spas near you.</p>
                 </div>
-                <div class="p-8 text-center transition shadow-sm bg-white/70 rounded-3xl ring-1 ring-black/5 hover:shadow-lg">
-                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-list-check text-2xl text-[#8B7355]"></i>
+                <div class="p-8 text-center transition shadow-sm bg-white/70 dark:bg-gray-900/40 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-lg">
+                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                        <i class="fa-solid fa-list-check text-2xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
-                    <h3 class="mt-5 font-semibold text-[#3C2F23]">Choose Service</h3>
-                    <p class="mt-2 text-sm text-gray-600">Select the service you want.</p>
+                    <h3 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Choose Service</h3>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Select the service you want.</p>
                 </div>
-                <div class="p-8 text-center transition shadow-sm bg-white/70 rounded-3xl ring-1 ring-black/5 hover:shadow-lg">
-                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-spa text-2xl text-[#8B7355]"></i>
+                <div class="p-8 text-center transition shadow-sm bg-white/70 dark:bg-gray-900/40 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-lg">
+                    <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                        <i class="fa-solid fa-spa text-2xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
-                    <h3 class="mt-5 font-semibold text-[#3C2F23]">Relax & Enjoy</h3>
-                    <p class="mt-2 text-sm text-gray-600">Arrive and unwind.</p>
+                    <h3 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Relax & Enjoy</h3>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Arrive and unwind.</p>
                 </div>
             </div>
         </div>
@@ -1879,40 +1959,40 @@
         <div class="px-6 mx-auto max-w-7xl">
             <div class="text-center">
                 <div class="flex items-center justify-center gap-6">
-                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355]"></span>
-                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] font-semibold">Why Book With Us</h2>
-                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355]"></span>
+                    <span class="h-px w-24 bg-gradient-to-r from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
+                    <h2 class="text-4xl font-['Playfair_Display'] text-[#3C2F23] dark:text-white font-semibold">Why Book With Us</h2>
+                    <span class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
                 </div>
-                <p class="mt-3 text-sm text-gray-600">Built for convenience and trust.</p>
+                <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">Built for convenience and trust.</p>
             </div>
             <div class="grid gap-6 mt-12 md:grid-cols-4">
-                <div class="transition bg-white shadow-sm p-7 rounded-3xl ring-1 ring-black/5 hover:shadow-xl">
-                    <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-check text-xl text-[#8B7355]"></i>
+                <div class="transition bg-white dark:bg-gray-800 shadow-sm p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
+                    <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                        <i class="fa-solid fa-check text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
-                    <h4 class="mt-5 font-semibold text-[#3C2F23]">Verified Spas</h4>
-                    <p class="mt-2 text-sm text-gray-600">Only trusted listings appear on the platform.</p>
+                    <h4 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Verified Spas</h4>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Only trusted listings appear on the platform.</p>
                 </div>
-                <div class="transition bg-white shadow-sm p-7 rounded-3xl ring-1 ring-black/5 hover:shadow-xl">
-                    <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-calendar-check text-xl text-[#8B7355]"></i>
+                <div class="transition bg-white dark:bg-gray-800 shadow-sm p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
+                    <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                        <i class="fa-solid fa-calendar-check text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
-                    <h4 class="mt-5 font-semibold text-[#3C2F23]">Easy Booking</h4>
-                    <p class="mt-2 text-sm text-gray-600">Reserve quickly with clear scheduling.</p>
+                    <h4 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Easy Booking</h4>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Reserve quickly with clear scheduling.</p>
                 </div>
-                <div class="transition bg-white shadow-sm p-7 rounded-3xl ring-1 ring-black/5 hover:shadow-xl">
-                    <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-user-nurse text-xl text-[#8B7355]"></i>
+                <div class="transition bg-white dark:bg-gray-800 shadow-sm p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
+                    <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                        <i class="fa-solid fa-user-nurse text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
-                    <h4 class="mt-5 font-semibold text-[#3C2F23]">Expert Therapists</h4>
-                    <p class="mt-2 text-sm text-gray-600">Quality care from professional practitioners.</p>
+                    <h4 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Expert Therapists</h4>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Quality care from professional practitioners.</p>
                 </div>
-                <div class="transition bg-white shadow-sm p-7 rounded-3xl ring-1 ring-black/5 hover:shadow-xl">
-                    <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                        <i class="fa-solid fa-lock text-xl text-[#8B7355]"></i>
+                <div class="transition bg-white dark:bg-gray-800 shadow-sm p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
+                    <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
+                        <i class="fa-solid fa-lock text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
-                    <h4 class="mt-5 font-semibold text-[#3C2F23]">Secure Payments</h4>
-                    <p class="mt-2 text-sm text-gray-600">Safe checkout experience and privacy-focused flow.</p>
+                    <h4 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Secure Payments</h4>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Safe checkout experience and privacy-focused flow.</p>
                 </div>
             </div>
         </div>

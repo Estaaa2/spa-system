@@ -170,16 +170,16 @@ function openSpaModal(spaData) {
                     ${amenities.map(a => {
                         const label = a.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                         return `
-                            <div class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#F6EFE6]/70 border border-[#8B7355]/10 outline-none shadow-none">
-                                <div class="flex items-center justify-center flex-shrink-0 bg-white rounded-lg w-7 h-7 border border-black/5">
-                                    <i class="fa-solid fa-spa text-[#8B7355] text-xs"></i>
+                            <div class="amenity-chip">
+                                <div class="amenity-chip-icon">
+                                    <i class="fa-solid fa-spa"></i>
                                 </div>
-                                <span class="text-xs font-medium text-[#3C2F23]">${label}</span>
+                                <span class="amenity-chip-label">${label}</span>
                             </div>`;
                     }).join('')}
                 </div>`;
         } else {
-            amenitiesContainer.innerHTML = `<p class="text-sm italic text-gray-400">No amenities listed yet.</p>`;
+            amenitiesContainer.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">No amenities listed yet.</p>`;
         }
     }
 
@@ -274,13 +274,6 @@ function closeSearchDropdowns() {
     treatmentDropdown?.classList.remove('open');
 }
 
-// .search-dropdown is `position: fixed` (see landing.css / the <style> block
-// in welcome.blade.php) so it can't be clipped by the hero section's
-// `overflow-hidden`. Because it's fixed, it no longer inherits a position
-// from its segment automatically — this computes top/left from the
-// segment's actual on-screen position instead, and clamps left so the box
-// (whose CSS width is capped at `calc(100vw - 32px)`) always stays fully
-// within the viewport, left AND right, on any screen size.
 function positionSearchDropdown(segmentEl, dropdownEl) {
     if (!segmentEl || !dropdownEl) return;
     const rect          = segmentEl.getBoundingClientRect();
@@ -294,10 +287,6 @@ function positionSearchDropdown(segmentEl, dropdownEl) {
     dropdownEl.style.left = `${left}px`;
 }
 
-// Fixed-position elements stay put visually on scroll while the segment
-// they're anchored to moves with the page, so keep them in sync: reposition
-// on resize (e.g. orientation change), and simply close on scroll (matches
-// how most anchored dropdowns behave, and avoids a scroll-jank repaint loop).
 window.addEventListener('resize', () => {
     if (placeSegment?.classList.contains('active')) positionSearchDropdown(placeSegment, placeDropdown);
     if (treatmentSegment?.classList.contains('active')) positionSearchDropdown(treatmentSegment, treatmentDropdown);
@@ -383,13 +372,13 @@ function buildUnifiedCard(spa) {
     const thumb = spa.photos?.[0] || (document.body.dataset.fallbackImage ?? '');
     const addr  = spaAddressSummary(spa.address);
     const escaped = JSON.stringify(spa).replace(/'/g, '&#39;');
-    const badgeClass = spa.is_featured ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 text-[#6F5430] ring-1 ring-black/5';
-    const badgeIcon  = spa.is_featured ? 'fa-star text-[#F5C842]' : 'fa-spa text-[#8B7355]';
+    const badgeClass = spa.is_featured ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10';
+    const badgeIcon  = spa.is_featured ? 'fa-star text-[#F5C842]' : 'fa-spa text-[#8B7355] dark:text-[#C4A97D]';
     const badgeText  = spa.is_featured ? 'Featured' : 'Verified';
 
     return `
         <button type="button"
-            class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+            class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
             data-open-spa-modal
             data-spa='${escaped}'>
             <div class="relative overflow-hidden">
@@ -402,10 +391,10 @@ function buildUnifiedCard(spa) {
                 ${spaHiringBadge(spa)}
             </div>
             <div class="p-5">
-                <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">${escapeHtml(spa.name)}</h3>
-                <p class="mt-1 text-xs text-gray-500">${escapeHtml(addr)}</p>
-                ${spa.price_note ? `<p class="mt-2 text-xs font-medium text-[#8B7355]">Starts at ₱${spa.price_note}</p>` : ''}
-                <p class="mt-3 text-sm text-gray-600 line-clamp-2">${escapeHtml(spa.desc) || 'No description yet.'}</p>
+                <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">${escapeHtml(spa.name)}</h3>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(addr)}</p>
+                ${spa.price_note ? `<p class="mt-2 text-xs font-medium text-[#8B7355] dark:text-[#C4A97D]">Starts at ₱${spa.price_note}</p>` : ''}
+                <p class="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${escapeHtml(spa.desc) || 'No description yet.'}</p>
             </div>
         </button>`;
 }
@@ -433,10 +422,10 @@ function showUnifiedResults(data) {
 
     if (unifiedResultsSubtitle) {
         const parts = [];
-        if (data.place) parts.push(`in "<span class="font-semibold text-[#8B7355]">${escapeHtml(data.place)}</span>"`);
-        if (data.treatment) parts.push(`for "<span class="font-semibold text-[#8B7355]">${escapeHtml(data.treatment)}</span>"`);
+        if (data.place) parts.push(`in "<span class="font-semibold text-[#8B7355] dark:text-[#C4A97D]">${escapeHtml(data.place)}</span>"`);
+        if (data.treatment) parts.push(`for "<span class="font-semibold text-[#8B7355] dark:text-[#C4A97D]">${escapeHtml(data.treatment)}</span>"`);
         const lead = parts.length ? `Showing results ${parts.join(' ')}` : 'Showing all spas';
-        unifiedResultsSubtitle.innerHTML = `${lead} <button type="button" onclick="clearSpaSearch()" class="ml-2 text-[#8B7355] underline underline-offset-2">Clear search</button>`;
+        unifiedResultsSubtitle.innerHTML = `${lead} <button type="button" onclick="clearSpaSearch()" class="ml-2 text-[#8B7355] dark:text-[#C4A97D] underline underline-offset-2">Clear search</button>`;
     }
 
     if (!unifiedResultsGrid) return;
@@ -444,13 +433,13 @@ function showUnifiedResults(data) {
     if (!data.results.length) {
         unifiedResultsGrid.innerHTML = `
             <div class="py-16 text-center col-span-full">
-                <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] ring-1 ring-black/5">
-                    <i class="fa-solid fa-magnifying-glass text-xl text-[#8B7355]"></i>
+                <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#F6EFE6] dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
+                    <i class="fa-solid fa-magnifying-glass text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                 </div>
-                <p class="font-semibold text-[#3C2F23]">No spas found</p>
-                <p class="mt-1 text-sm text-gray-500">
+                <p class="font-semibold text-[#3C2F23] dark:text-white">No spas found</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     Try a different place or treatment, or
-                    <button type="button" onclick="clearSpaSearch()" class="text-[#8B7355] underline underline-offset-2">browse all spas</button>.
+                    <button type="button" onclick="clearSpaSearch()" class="text-[#8B7355] dark:text-[#C4A97D] underline underline-offset-2">browse all spas</button>.
                 </p>
             </div>`;
         return;
@@ -561,18 +550,18 @@ function showBookingStep(step) {
 
         if (circle) {
             if (i < step) {
-                circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-white rounded-full bg-[#8B7355] transition-colors';
+                circle.className = 'step-circle is-done';
                 circle.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i>';
             } else if (i === step) {
-                circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-white rounded-full bg-[#8B7355] transition-colors';
+                circle.className = 'step-circle is-active';
                 circle.textContent = i;
             } else {
-                circle.className = 'flex items-center justify-center w-8 h-8 text-xs font-semibold text-gray-400 transition-colors bg-gray-200 rounded-full';
+                circle.className = 'step-circle is-pending';
                 circle.textContent = i;
             }
         }
-        if (label) label.className = `ml-2 text-xs transition-colors ${i <= step ? 'font-semibold text-[#3C2F23]' : 'font-medium text-gray-400'}`;
-        if (bar)   bar.className   = `w-10 h-0.5 mx-3 transition-colors rounded sm:w-16 ${i < step ? 'bg-[#8B7355]' : 'bg-gray-200'}`;
+        if (label) label.className = `step-label ${i <= step ? 'is-active' : 'is-pending'}`;
+        if (bar)   bar.className   = `step-bar ${i < step ? 'is-done' : 'is-pending'}`;
     }
 
     const backBtn   = document.getElementById('bookingBackBtn');
@@ -918,12 +907,12 @@ async function loadAvailableSlots() {
         const data = await response.json();
 
         if (data.closed) {
-            grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">This branch is closed on the selected day.</p>';
+            grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 dark:text-gray-500 sm:col-span-4">This branch is closed on the selected day.</p>';
             return;
         }
 
         if (!data.slots?.length) {
-            grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">No time slots available for this day.</p>';
+            grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 dark:text-gray-500 sm:col-span-4">No time slots available for this day.</p>';
             return;
         }
 
@@ -950,7 +939,7 @@ async function loadAvailableSlots() {
 
     } catch (err) {
         console.error('Failed to load slots:', err);
-        grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-red-400 sm:col-span-4">Unable to load availability. Please try again.</p>';
+        grid.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-red-400 dark:text-red-300 sm:col-span-4">Unable to load availability. Please try again.</p>';
     } finally {
         loading?.classList.add('hidden');
     }
@@ -1024,7 +1013,7 @@ function clearBookingSelections() {
     if (bookingDateInput) bookingDateInput.value = '';
     if (bookingTimeInput) bookingTimeInput.value = '';
     const slotGridEl = document.getElementById('bookingSlotGrid');
-    if (slotGridEl) slotGridEl.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 sm:col-span-4">Pick a date to see available times.</p>';
+    if (slotGridEl) slotGridEl.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 dark:text-gray-500 sm:col-span-4">Pick a date to see available times.</p>';
     document.getElementById('bookingSlotLegend')?.classList.add('hidden');
     if (addressInput) {
         addressInput.value = '';
@@ -1252,11 +1241,11 @@ function switchTab(tab) {
     ['upcoming', 'past', 'cancelled'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
         if (t === tab) {
-            el.classList.add('border-[#8B7355]', 'text-[#8B7355]');
-            el.classList.remove('border-transparent', 'text-gray-500');
+            el.classList.add('border-[#8B7355]', 'dark:border-[#C4A97D]', 'text-[#8B7355]', 'dark:text-[#C4A97D]');
+            el.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
         } else {
-            el.classList.remove('border-[#8B7355]', 'text-[#8B7355]');
-            el.classList.add('border-transparent', 'text-gray-500');
+            el.classList.remove('border-[#8B7355]', 'dark:border-[#C4A97D]', 'text-[#8B7355]', 'dark:text-[#C4A97D]');
+            el.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
         }
     });
     renderTab(tab);
@@ -1279,7 +1268,7 @@ function renderTab(tab) {
     const container = document.getElementById('appointmentsContent');
     if (!filtered.length) {
         container.innerHTML = `
-            <div class="py-12 text-center text-gray-400">
+            <div class="py-12 text-center text-gray-400 dark:text-gray-500">
                 <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
                 <p class="text-sm">No ${tab} appointments</p>
             </div>`;
@@ -1291,30 +1280,30 @@ function renderTab(tab) {
         const hasRating = b.has_rating === true;
 
         return `
-        <div class="p-4 mb-3 border border-black/5 rounded-2xl bg-[#F6EFE6]/40 ring-1 ring-black/5 transition hover:shadow-md">
+        <div class="p-4 mb-3 border border-black/5 dark:border-white/10 rounded-2xl bg-[#F6EFE6]/40 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 transition hover:shadow-md">
             <div onclick="openBookingDetailsModal(_appointmentMap[${i}])" class="cursor-pointer">
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="font-semibold text-[#3C2F23]">${escapeHtml(b.spa_name)}</p>
-                        <p class="text-xs text-gray-500">${escapeHtml(b.branch_location ?? b.branch_name)} • ${b.service_type}</p>
+                        <p class="font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_location ?? b.branch_name)} • ${b.service_type}</p>
                     </div>
                     <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
                         ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                     </span>
                 </div>
-                <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600">
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355]"></i> ${escapeHtml(b.treatment)}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355]"></i> ${escapeHtml(b.therapist)}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
+                <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600 dark:text-gray-400">
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.treatment)}</div>
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.therapist)}</div>
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355] dark:text-[#C4A97D]"></i> ${b.date}</div>
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
                 </div>
                 ${b.reschedule_status === 'pending' ? `
-                <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
+                <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
                 </div>` : ''}
             </div>
             ${canRate ? `
-            <div class="mt-3 pt-3 border-t border-gray-200">
+            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <button onclick="openRatingModal(_appointmentMap[${i}].id, _appointmentMap[${i}].therapist, _appointmentMap[${i}].spa_name, _appointmentMap[${i}].branch_name, _appointmentMap[${i}].branch_location)"
                     class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition rounded-xl bg-[#8B7355] hover:bg-[#6F5430] w-full justify-center">
                     <i class="fa-solid fa-star"></i>
@@ -1322,11 +1311,11 @@ function renderTab(tab) {
                 </button>
             </div>` : ''}
             ${hasRating ? `
-            <div class="mt-3 pt-3 border-t border-gray-200">
+            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-circle-check text-green-600 text-sm"></i>
-                        <span class="text-sm font-semibold text-green-600">Thank you for rating!</span>
+                        <i class="fa-solid fa-circle-check text-green-600 dark:text-green-400 text-sm"></i>
+                        <span class="text-sm font-semibold text-green-600 dark:text-green-400">Thank you for rating!</span>
                     </div>
                     <div class="flex items-center gap-0.5">
                         ${renderStars(b.rating_value)}
@@ -1369,20 +1358,23 @@ function renderStars(rating) {
     if (!rating) return '';
     let stars = '';
     for (let i = 1; i <= 5; i++) {
-        stars += `<i class="fa-solid fa-star ${i <= rating ? 'text-yellow-400' : 'text-gray-300'} text-xs"></i>`;
+        stars += `<i class="fa-solid fa-star ${i <= rating ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'} text-xs"></i>`;
     }
     return stars;
 }
 
 function statusBadge(status) {
+    // Aligned to the same reserved/pending/ongoing/completed/cancelled hues
+    // used in appointments.blade.php (blue/amber/emerald/slate/red) so the
+    // dark: variants here are guaranteed to already be compiled.
     const map = {
-        reserved:  'bg-blue-100 text-blue-700',
-        ongoing:   'bg-green-100 text-green-700',
-        completed: 'bg-gray-100 text-gray-600',
-        cancelled: 'bg-red-100 text-red-600',
-        pending:   'bg-yellow-100 text-yellow-700',
+        reserved:  'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+        ongoing:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+        completed: 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+        cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+        pending:   'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
     };
-    return map[status] ?? 'bg-gray-100 text-gray-600';
+    return map[status] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300';
 }
 
 // =====================================================
@@ -1477,7 +1469,7 @@ function renderScheduleList() {
 
     if (!monthBookings.length) {
         container.innerHTML = `
-            <div class="py-12 text-center text-gray-400">
+            <div class="py-12 text-center text-gray-400 dark:text-gray-500">
                 <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
                 <p class="text-sm">No bookings this month</p>
             </div>`;
@@ -1502,19 +1494,19 @@ function renderScheduleList() {
         const items = dayBookings.map(b => {
             _listBookingMap[idx] = b;
             const html = `
-                <div class="p-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5 cursor-pointer hover:shadow-md transition"
+                <div class="p-3 border border-black/5 dark:border-white/10 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 cursor-pointer hover:shadow-md transition"
                     onclick="openBookingDetailsModal(_listBookingMap[${idx}])">
                     <div class="flex items-center justify-between">
-                        <p class="text-sm font-semibold text-[#3C2F23]">${escapeHtml(b.spa_name)}</p>
+                        <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
                         <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
                     </div>
-                    <p class="mt-1 text-xs text-gray-500">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
-                    <p class="mt-1 text-xs text-gray-500">
-                        <i class="fa-solid fa-clock text-[#8B7355]"></i>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i>
                         ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${escapeHtml(b.therapist)}
                     </p>
                     ${b.reschedule_status === 'pending' ? `
-                    <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
+                    <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                         <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
                     </div>` : ''}
                 </div>`;
@@ -1525,9 +1517,9 @@ function renderScheduleList() {
         return `
             <div class="mb-5">
                 <div class="flex items-center gap-2 mb-2">
-                    <h4 class="text-sm font-semibold ${isToday ? 'text-[#8B7355]' : 'text-[#3C2F23]'}">${dateLabel}</h4>
+                    <h4 class="text-sm font-semibold ${isToday ? 'text-[#8B7355] dark:text-[#C4A97D]' : 'text-[#3C2F23] dark:text-white'}">${dateLabel}</h4>
                     ${isToday ? '<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#8B7355] text-white">Today</span>' : ''}
-                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#F6EFE6] text-[#6F5430]">${dayBookings.length}</span>
+                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D]">${dayBookings.length}</span>
                 </div>
                 <div class="space-y-2">${items}</div>
             </div>`;
@@ -1556,11 +1548,11 @@ function renderCalendar() {
             <button onclick="selectDay('${dateStr}')"
                 class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
                 ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
-                ${hasBooking && !isToday ? 'bg-[#F6EFE6] text-[#6F5430] font-semibold ring-1 ring-[#8B7355]/30' : ''}
-                ${isPast && !isToday ? 'text-gray-300 cursor-default' : 'hover:bg-[#F6EFE6]'}
-                ${!hasBooking && !isToday && !isPast ? 'text-gray-700' : ''}">
+                ${hasBooking && !isToday ? 'bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D] font-semibold ring-1 ring-[#8B7355]/30 dark:ring-[#C4A97D]/30' : ''}
+                ${isPast && !isToday ? 'text-gray-300 dark:text-gray-600 cursor-default' : 'hover:bg-[#F6EFE6] dark:hover:bg-gray-700'}
+                ${!hasBooking && !isToday && !isPast ? 'text-gray-700 dark:text-gray-300' : ''}">
                 ${d}
-                ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355]'}"></span>` : ''}
+                ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355] dark:bg-[#C4A97D]'}"></span>` : ''}
             </button>`;
     }
 }
@@ -1577,19 +1569,19 @@ function selectDay(dateStr) {
     });
     document.getElementById('selectedDayTitle').textContent = title;
     document.getElementById('selectedDayContent').innerHTML = dayBookings.map((b, i) => `
-        <div class="p-3 mb-3 border border-black/5 rounded-xl bg-[#F6EFE6]/50 ring-1 ring-black/5 cursor-pointer hover:shadow-md transition"
+        <div class="p-3 mb-3 border border-black/5 dark:border-white/10 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 cursor-pointer hover:shadow-md transition"
             onclick="openBookingDetailsModal(_dayBookingMap[${i}])">
             <div class="flex items-center justify-between">
-                <p class="text-sm font-semibold text-[#3C2F23]">${escapeHtml(b.spa_name)}</p>
+                <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
                 <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
             </div>
-            <p class="mt-1 text-xs text-gray-500">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
-            <p class="mt-1 text-xs text-gray-500">
-                <i class="fa-solid fa-clock text-[#8B7355]"></i>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i>
                 ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${escapeHtml(b.therapist)}
             </p>
             ${b.reschedule_status === 'pending' ? `
-            <div class="mt-2 text-[11px] font-semibold text-yellow-600 flex items-center gap-1">
+            <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                 <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
             </div>` : ''}
         </div>
@@ -1632,23 +1624,23 @@ function openBookingDetailsModal(booking) {
 
     if (booking.reschedule_status === 'pending') {
         rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-yellow-50 ring-yellow-200';
+        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-amber-50 dark:bg-amber-900/20 ring-amber-200 dark:ring-amber-800';
         rescheduleStatusText.textContent = '⏳ Reschedule request is pending approval.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-yellow-700';
+        rescheduleStatusText.className   = 'text-sm font-semibold text-amber-700 dark:text-amber-300';
         rescheduleBtn.disabled           = true;
         rescheduleBtn.classList.add('opacity-50', 'cursor-not-allowed');
     } else if (booking.reschedule_status === 'approved') {
         rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-green-50 ring-green-200';
+        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-green-50 dark:bg-green-900/20 ring-green-200 dark:ring-green-800';
         rescheduleStatusText.textContent = '✅ Your reschedule was approved.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-green-700';
+        rescheduleStatusText.className   = 'text-sm font-semibold text-green-700 dark:text-green-300';
         rescheduleBtn.disabled           = false;
         rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     } else if (booking.reschedule_status === 'rejected') {
         rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-red-50 ring-red-200';
+        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-red-50 dark:bg-red-900/20 ring-red-200 dark:ring-red-800';
         rescheduleStatusText.textContent = '❌ Your last reschedule request was rejected.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-red-600';
+        rescheduleStatusText.className   = 'text-sm font-semibold text-red-600 dark:text-red-400';
         rescheduleBtn.disabled           = false;
         rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     } else {
@@ -1674,13 +1666,13 @@ function closeBookingDetailsModal() {
 
 function statusColor(status) {
     const map = {
-        reserved:  'text-blue-600',
-        pending:   'text-yellow-600',
-        ongoing:   'text-green-600',
-        completed: 'text-gray-500',
-        cancelled: 'text-red-500',
+        reserved:  'text-blue-600 dark:text-blue-400',
+        pending:   'text-amber-600 dark:text-amber-400',
+        ongoing:   'text-emerald-600 dark:text-emerald-400',
+        completed: 'text-gray-500 dark:text-gray-400',
+        cancelled: 'text-red-500 dark:text-red-400',
     };
-    return map[status] ?? 'text-gray-600';
+    return map[status] ?? 'text-gray-600 dark:text-gray-400';
 }
 
 // =====================================================
@@ -1922,20 +1914,20 @@ async function loadNearbySpas() {
 
             return `
                 <button type="button"
-                    class="w-full overflow-hidden text-left transition bg-white shadow-sm group rounded-3xl ring-1 ring-black/5 hover:shadow-2xl"
+                    class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
                     data-open-spa-modal
                     data-spa='${escapedData}'>
                     <div class="relative overflow-hidden">
                         <img src="${thumb}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="${spa.name}">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
-                        <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 text-[#6F5430] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5">
-                            <i class="fa-solid fa-location-dot text-[#8B7355] text-[10px]"></i>
+                        <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5 dark:ring-white/10">
+                            <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>
                             ${spa.distance_km} km away
                         </div>
                     </div>
                     <div class="p-5">
-                        <h3 class="text-[15px] font-semibold text-[#3C2F23] leading-tight">${spa.name}</h3>
-                        <p class="mt-1 text-xs text-gray-500">${addrSummary}</p>
+                        <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">${spa.name}</h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${addrSummary}</p>
                     </div>
                 </button>`;
         }).join('');
@@ -2066,15 +2058,42 @@ window.toggleScheduleView = toggleScheduleView;
 // =====================================================
 function showSpaToast(message, type = 'success') {
     const isSuccess = type === 'success';
+    // Toastify renders via inline styles injected at call time, so a CSS
+    // media query can't reach it - we check prefers-color-scheme directly
+    // in JS instead, matching the same gray-800/900 palette used elsewhere.
+    const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    const palette = isDark
+        ? {
+            iconBg:     isSuccess ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.15)',
+            iconColor:  isSuccess ? '#4ade80' : '#f87171',
+            labelColor: isSuccess ? '#4ade80' : '#f87171',
+            textColor:  '#e5e7eb',
+            background: '#1f2937', // gray-800
+            border:     isSuccess ? '1px solid rgba(74,222,128,0.35)' : '1px solid rgba(248,113,113,0.35)',
+            borderLeft: isSuccess ? '4px solid #22c55e' : '4px solid #ef4444',
+            shadow:     '0 10px 30px rgba(0,0,0,0.45)',
+        }
+        : {
+            iconBg:     isSuccess ? '#f0fdf4' : '#fef2f2',
+            iconColor:  isSuccess ? '#16a34a' : '#dc2626',
+            labelColor: isSuccess ? '#15803d' : '#b91c1c',
+            textColor:  '#374151',
+            background: '#ffffff',
+            border:     isSuccess ? '1px solid #bbf7d0' : '1px solid #fecaca',
+            borderLeft: isSuccess ? '4px solid #16a34a' : '4px solid #dc2626',
+            shadow:     '0 10px 30px rgba(0,0,0,0.08)',
+        };
+
     Toastify({
         text: `
             <div style="display:flex;align-items:center;gap:12px;padding:2px 0;">
-                <div style="width:36px;height:36px;border-radius:50%;background:${isSuccess ? '#f0fdf4' : '#fef2f2'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="${isSuccess ? 'fa-solid fa-spa' : 'fa-solid fa-circle-xmark'}" style="color:${isSuccess ? '#16a34a' : '#dc2626'};font-size:15px;"></i>
+                <div style="width:36px;height:36px;border-radius:50%;background:${palette.iconBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="${isSuccess ? 'fa-solid fa-spa' : 'fa-solid fa-circle-xmark'}" style="color:${palette.iconColor};font-size:15px;"></i>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:2px;">
-                    <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${isSuccess ? '#15803d' : '#b91c1c'};">${isSuccess ? 'Success' : 'Error'}</span>
-                    <span style="font-size:13px;color:#374151;font-weight:400;line-height:1.4;">${message}</span>
+                    <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${palette.labelColor};">${isSuccess ? 'Success' : 'Error'}</span>
+                    <span style="font-size:13px;color:${palette.textColor};font-weight:400;line-height:1.4;">${message}</span>
                 </div>
             </div>`,
         duration: 3500,
@@ -2083,14 +2102,14 @@ function showSpaToast(message, type = 'success') {
         close: false,
         escapeMarkup: false,
         style: {
-            background: '#ffffff',
-            border: isSuccess ? '1px solid #bbf7d0' : '1px solid #fecaca',
-            borderLeft: isSuccess ? '4px solid #16a34a' : '4px solid #dc2626',
+            background: palette.background,
+            border: palette.border,
+            borderLeft: palette.borderLeft,
             borderRadius: '10px',
             minWidth: '300px',
             maxWidth: '360px',
             padding: '14px 18px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+            boxShadow: palette.shadow,
         }
     }).showToast();
 }
@@ -2152,7 +2171,7 @@ function resetStars() {
         const star = document.getElementById(`star-${i}`);
         if (!star) continue;
         star.classList.remove('text-yellow-400');
-        star.classList.add('text-gray-300');
+        star.classList.add('text-gray-300', 'dark:text-gray-600');
     }
     const selectedRating = document.getElementById('selectedRating');
     if (selectedRating) selectedRating.value = 0;
@@ -2166,11 +2185,11 @@ function setRating(rating) {
         const star = document.getElementById(`star-${i}`);
         if (!star) continue;
         if (i <= rating) {
-            star.classList.remove('text-gray-300');
+            star.classList.remove('text-gray-300', 'dark:text-gray-600');
             star.classList.add('text-yellow-400');
         } else {
             star.classList.remove('text-yellow-400');
-            star.classList.add('text-gray-300');
+            star.classList.add('text-gray-300', 'dark:text-gray-600');
         }
     }
 }
@@ -2292,20 +2311,20 @@ function showRateReminderModal(unrated) {
     Object.keys(_reminderBookingMap).forEach(k => delete _reminderBookingMap[k]);
 
     content.innerHTML = `
-        <p class="text-sm text-gray-600">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
             You have ${unrated.length} completed ${unrated.length === 1 ? 'appointment' : 'appointments'} waiting for your feedback.
         </p>
         ${unrated.map((b, i) => {
             _reminderBookingMap[i] = b;
             return `
-            <div class="p-4 border border-black/5 rounded-2xl bg-[#F6EFE6]/50 ring-1 ring-black/5">
+            <div class="p-4 border border-black/5 dark:border-white/10 rounded-2xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <p class="text-sm font-semibold text-[#3C2F23]">${escapeHtml(b.spa_name)}</p>
-                        <p class="mt-0.5 text-xs text-gray-500">${escapeHtml(b.branch_location ?? b.branch_name)} • ${escapeHtml(b.treatment)}</p>
-                        <p class="mt-1 text-xs text-gray-500">
-                            <i class="fa-solid fa-user-nurse text-[#8B7355]"></i> ${escapeHtml(b.therapist)}
-                            &nbsp;•&nbsp; <i class="fa-solid fa-calendar text-[#8B7355]"></i> ${b.date}
+                        <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_location ?? b.branch_name)} • ${escapeHtml(b.treatment)}</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            <i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.therapist)}
+                            &nbsp;•&nbsp; <i class="fa-solid fa-calendar text-[#8B7355] dark:text-[#C4A97D]"></i> ${b.date}
                         </p>
                     </div>
                     <button type="button"
