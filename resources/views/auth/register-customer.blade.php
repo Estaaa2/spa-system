@@ -1,4 +1,4 @@
-<x-guest-layout title="Register">
+<x-guest-layout title="Register Mo">
     <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2 rounded-2xl">
 
         <!-- LEFT IMAGE PANEL -->
