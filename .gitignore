@@ -24,6 +24,7 @@ Homestead.yaml
 Thumbs.db
 
 deploy.js
+deploy.cjs
 .env.deploy.example
 .last-deploy
 DEPLOY.md
