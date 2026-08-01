@@ -36,6 +36,7 @@ class RolePermissionSeeder extends Seeder
             'view appointments',
             'edit appointments',
             'delete appointments',
+            'request appointment reassignment',
 
             // ── Schedule ──────────────────────────────────────────────────────
             'view schedule',
@@ -319,6 +320,7 @@ class RolePermissionSeeder extends Seeder
 
             'view appointments',
             'view schedule',
+            'request appointment reassignment',
 
             'view attendance',
             'view leave requests',

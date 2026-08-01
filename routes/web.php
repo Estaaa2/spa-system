@@ -29,6 +29,7 @@ use App\Http\Controllers\Owner\WorkforceFinanceSuiteController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReassignmentRequestController;
 use App\Http\Controllers\RescheduleRequestController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
@@ -282,6 +283,11 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
     Route::middleware('branch.permission:delete appointments')->group(function () {
         Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
+    });
+
+    Route::middleware('branch.permission:request appointment reassignment')->group(function () {
+        Route::post('/appointments/{booking}/reassignment-requests', [ReassignmentRequestController::class, 'store'])
+            ->name('reassignment.store');
     });
 
     /*
@@ -677,6 +683,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/reschedule-requests/{rescheduleRequest}/reject', [RescheduleRequestController::class, 'reject'])
         ->middleware('branch.permission:edit appointments')
         ->name('reschedule.reject');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Owner/Manager/Receptionist: Reassignment Approvals
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/reassignment-requests', [ReassignmentRequestController::class, 'index'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('reassignment.index');
+
+    Route::post('/reassignment-requests/{reassignmentRequest}/approve', [ReassignmentRequestController::class, 'approve'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('reassignment.approve');
+
+    Route::post('/reassignment-requests/{reassignmentRequest}/reject', [ReassignmentRequestController::class, 'reject'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('reassignment.reject');
 });
 
 /*

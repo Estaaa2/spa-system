@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Dashboard')
 @section('content')
 @php
     $user = auth()->user();
@@ -53,7 +54,7 @@
                     bg-white border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700
                     text-gray-500 dark:text-gray-400 select-none">
             <span id="liveIndicatorDot"
-                class="inline-block w-2 h-2 transition-colors duration-300 bg-gray-300 rounded-full dark:bg-gray-600"></span>
+                class="inline-block w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 transition-colors duration-300"></span>
             <span id="liveIndicatorLabel">Connecting…</span>
         </div>
     </div>
@@ -67,7 +68,7 @@
             <a href="{{ route('booking') }}"
                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl
                       bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5">
-                <i class="text-xs fa-solid fa-plus"></i>
+                <i class="fa-solid fa-plus text-xs"></i>
                 New Booking
             </a>
             @endif
@@ -97,7 +98,7 @@
                 <div class="flex items-center justify-between">
                     <p class="text-xs font-semibold tracking-wide uppercase text-emerald-700 dark:text-emerald-400">Ongoing</p>
                     <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
-                        <i class="text-sm fa-solid fa-spinner text-emerald-600 dark:text-emerald-400"></i>
+                        <i class="fa-solid fa-spinner text-emerald-600 dark:text-emerald-400 text-sm"></i>
                     </div>
                 </div>
                 <p id="my-stat-ongoing" class="mt-3 text-3xl font-bold text-emerald-900 dark:text-emerald-200">{{ $myStats['ongoing'] ?? 0 }}</p>
@@ -108,18 +109,18 @@
                 <div class="flex items-center justify-between">
                     <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Completed</p>
                     <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800">
-                        <i class="text-sm fa-solid fa-circle-check text-slate-500"></i>
+                        <i class="fa-solid fa-circle-check text-slate-500 text-sm"></i>
                     </div>
                 </div>
                 <p id="my-stat-completed" class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ $myStats['completed'] ?? 0 }}</p>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Done today</p>
             </div>
 
-            <div class="p-5 border border-blue-200 shadow-sm bg-blue-50 rounded-2xl dark:bg-blue-900/10 dark:border-blue-800">
+            <div class="p-5 border shadow-sm bg-blue-50 border-blue-200 rounded-2xl dark:bg-blue-900/10 dark:border-blue-800">
                 <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide text-blue-700 uppercase dark:text-blue-400">Remaining</p>
-                    <div class="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-xl dark:bg-blue-900/30">
-                        <i class="text-sm text-blue-600 fa-regular fa-clock dark:text-blue-400"></i>
+                    <p class="text-xs font-semibold tracking-wide uppercase text-blue-700 dark:text-blue-400">Remaining</p>
+                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                        <i class="fa-regular fa-clock text-blue-600 dark:text-blue-400 text-sm"></i>
                     </div>
                 </div>
                 <p id="my-stat-remaining" class="mt-3 text-3xl font-bold text-blue-900 dark:text-blue-200">{{ $myStats['remaining'] ?? 0 }}</p>
@@ -129,7 +130,7 @@
         </div>
 
         {{-- Personal schedule timeline --}}
-        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+        <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
 
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <div>
@@ -147,9 +148,9 @@
             <div id="my-timeline-body">
                 @if($myTodayAppointments->isEmpty())
                     <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
-                        <i class="mb-3 text-3xl fa-regular fa-calendar-check"></i>
+                        <i class="fa-regular fa-calendar-check text-3xl mb-3"></i>
                         <p class="text-sm font-medium">No appointments assigned to you today.</p>
-                        <p class="mt-1 text-xs text-gray-400">Check your upcoming schedule below.</p>
+                        <p class="text-xs mt-1 text-gray-400">Check your upcoming schedule below.</p>
                     </div>
                 @else
                     <div class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -167,7 +168,7 @@
                             <div class="flex-shrink-0 w-16 text-right">
                                 <p class="text-xs font-bold text-gray-800 dark:text-white tabular-nums">{{ $startC->format('h:i') }}</p>
                                 <p class="text-[10px] font-semibold text-gray-400">{{ $startC->format('A') }}</p>
-                                <div class="w-px h-4 mx-auto mt-1 bg-gray-200 dark:bg-gray-700"></div>
+                                <div class="mt-1 mx-auto w-px h-4 bg-gray-200 dark:bg-gray-700"></div>
                                 <p class="text-[10px] text-gray-400 tabular-nums">{{ $endC->format('h:i A') }}</p>
                             </div>
                             <div class="flex-shrink-0 mt-1.5">
@@ -182,7 +183,7 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
-                                        <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
                                             {{ $booking->customer_name ?? 'Walk-in Customer' }}
                                         </p>
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -206,6 +207,18 @@
                                     {{ $booking->customer_phone }}
                                 </p>
                                 @endif
+                                @if(in_array($booking->status, ['reserved', 'pending']))
+                                <button type="button" onclick="openReassignFlagModal(this)"
+                                        data-reassign-flag-btn="{{ $booking->id }}"
+                                        data-id="{{ $booking->id }}"
+                                        data-customer="{{ $booking->customer_name ?? 'Walk-in Customer' }}"
+                                        data-treatment="{{ $booking->treatment_display ?? '—' }}"
+                                        data-date="{{ \Carbon\Carbon::parse($booking->appointment_date)->format('M d, Y') }}"
+                                        data-time="{{ $startC->format('h:i A') }}"
+                                        class="mt-2 text-[10px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Can't make it? Request reassignment
+                                </button>
+                                @endif
                             </div>
                         </div>
                         @endforeach
@@ -220,7 +233,7 @@
                     <div>
                         <p id="my-next-name" class="text-sm font-medium text-gray-800 dark:text-gray-200">
                             {{ ($myNextAppointment->customer_name ?? 'Walk-in Customer') }}
-                            <span class="mx-1 font-normal text-gray-400">·</span>
+                            <span class="text-gray-400 font-normal mx-1">·</span>
                             {{ $myNextAppointment->treatment_display ?? '—' }}
                         </p>
                         <p id="my-next-date" class="text-xs text-gray-500 dark:text-gray-400">
@@ -230,13 +243,15 @@
                             @endif
                         </p>
                     </div>
-                    <span class="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full dark:bg-blue-900/40 dark:text-blue-300">
+                    <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                         Reserved
                     </span>
                 </div>
             </div>
 
         </div>
+
+        @include('dashboard.partials.reassignment-flag-modal')
 
     @endif {{-- end my today --}}
 
@@ -250,20 +265,20 @@
 
             <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Total appointments</p>
+                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Today</p>
                     <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#8B7355]/10">
                         <i class="fa-solid fa-calendar-day text-[#8B7355] text-sm"></i>
                     </div>
                 </div>
                 <p id="kpi-today-count" class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ $todayCount ?? 0 }}</p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Today</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Total appointments</p>
             </div>
 
             <div class="p-5 border shadow-sm bg-emerald-50 border-emerald-200 rounded-2xl dark:bg-emerald-900/10 dark:border-emerald-800">
                 <div class="flex items-center justify-between">
                     <p class="text-xs font-semibold tracking-wide uppercase text-emerald-700 dark:text-emerald-400">Ongoing</p>
                     <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
-                        <i class="text-sm fa-solid fa-spinner text-emerald-600 dark:text-emerald-400"></i>
+                        <i class="fa-solid fa-spinner text-emerald-600 dark:text-emerald-400 text-sm"></i>
                     </div>
                 </div>
                 <p id="kpi-ongoing" class="mt-3 text-3xl font-bold text-emerald-900 dark:text-emerald-200">{{ $ongoingToday ?? 0 }}</p>
@@ -274,7 +289,7 @@
                 <div class="flex items-center justify-between">
                     <p class="text-xs font-semibold tracking-wide uppercase text-amber-700 dark:text-amber-400">Pending</p>
                     <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/30">
-                        <i class="text-sm fa-solid fa-circle-exclamation text-amber-600 dark:text-amber-400"></i>
+                        <i class="fa-solid fa-circle-exclamation text-amber-600 dark:text-amber-400 text-sm"></i>
                     </div>
                 </div>
                 <p id="kpi-pending" class="mt-3 text-3xl font-bold text-amber-900 dark:text-amber-200">{{ $pendingToday ?? 0 }}</p>
@@ -336,7 +351,7 @@
                         <p id="kpi-online" class="text-2xl font-bold text-violet-700 dark:text-violet-400">{{ $onlineToday ?? 0 }}</p>
                         <p class="text-[10px] font-semibold text-violet-600 dark:text-violet-400 uppercase">Online</p>
                     </div>
-                    <span class="mb-1 text-lg font-light text-gray-300 dark:text-gray-600">/</span>
+                    <span class="mb-1 text-gray-300 dark:text-gray-600 text-lg font-light">/</span>
                     <div>
                         <p id="kpi-walkin" class="text-2xl font-bold text-gray-700 dark:text-gray-300">{{ $walkInToday ?? 0 }}</p>
                         <p class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase">Walk-in</p>
@@ -383,7 +398,7 @@
             <div id="timeline-body" class="divide-y divide-gray-100 dark:divide-gray-700 max-h-[460px] overflow-y-auto">
                 @if($todayAppointments->isEmpty())
                     <div id="timeline-empty" class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
-                        <i class="mb-3 text-3xl fa-regular fa-calendar-xmark"></i>
+                        <i class="fa-regular fa-calendar-xmark text-3xl mb-3"></i>
                         <p class="text-sm">No appointments scheduled today.</p>
                         @if($canBookingBtn)
                         <a href="{{ route('booking') }}"
@@ -408,7 +423,7 @@
                         <div class="flex-shrink-0 w-16 text-right">
                             <p class="text-xs font-bold text-gray-800 dark:text-white tabular-nums">{{ $startC->format('h:i') }}</p>
                             <p class="text-[10px] font-semibold text-gray-400">{{ $startC->format('A') }}</p>
-                            <div class="w-px h-4 mx-auto mt-1 bg-gray-200 dark:bg-gray-700"></div>
+                            <div class="mt-1 mx-auto w-px h-4 bg-gray-200 dark:bg-gray-700"></div>
                             <p class="text-[10px] text-gray-400 tabular-nums">{{ $endC->format('h:i A') }}</p>
                         </div>
                         <div class="flex-shrink-0 mt-1.5">
@@ -423,7 +438,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
                                         {{ $booking->customer_name ?? 'Walk-in Customer' }}
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
@@ -460,7 +475,7 @@
                         <p id="next-appointment-name" class="text-sm font-medium text-gray-800 dark:text-gray-200">
                             @if($nextAppointment)
                                 {{ $nextAppointment->customer_name ?? 'Walk-in' }}
-                                <span class="mx-1 font-normal text-gray-400">·</span>
+                                <span class="text-gray-400 font-normal mx-1">·</span>
                                 {{ $nextAppointment->treatment_display ?? '—' }}
                             @endif
                         </p>
@@ -471,7 +486,7 @@
                             @endif
                         </p>
                     </div>
-                    <span class="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full dark:bg-blue-900/40 dark:text-blue-300">
+                    <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                         Reserved
                     </span>
                 </div>
@@ -492,7 +507,7 @@
             <div id="therapist-panel-body">
                 @if($therapists->isEmpty())
                     <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
-                        <i class="mb-3 text-3xl fa-solid fa-user-nurse"></i>
+                        <i class="fa-solid fa-user-nurse text-3xl mb-3"></i>
                         <p class="text-sm">No active therapists assigned.</p>
                     </div>
                 @else
@@ -526,12 +541,12 @@
                         @endphp
                         <div class="px-6 py-4">
                             <div class="flex items-center justify-between gap-3">
-                                <div class="flex items-center min-w-0 gap-3">
+                                <div class="flex items-center gap-3 min-w-0">
                                     <div class="flex items-center justify-center w-9 h-9 rounded-full bg-[#8B7355]/15 text-[#8B7355] flex-shrink-0 text-sm font-bold">
                                         {{ strtoupper(substr($therapist->first_name ?? '?', 0, 1)) }}
                                     </div>
                                     <div class="min-w-0">
-                                        <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
                                             {{ trim(($therapist->first_name ?? '') . ' ' . ($therapist->last_name ?? '')) }}
                                         </p>
                                         <p class="text-[10px] text-gray-400 dark:text-gray-500 truncate">{{ $therapist->email }}</p>
@@ -597,7 +612,7 @@
 
         {{-- ── Alerts ── --}}
         @if($canAlerts)
-        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+        <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Alerts</h2>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Operational issues right now</p>
@@ -656,7 +671,7 @@
                 </div>
 
                 <div id="alert-all-good" class="{{ ($late === 0 && $cancelled === 0 && $overloaded === 0) ? '' : 'hidden' }} flex items-center justify-center gap-2 pt-1">
-                    <i class="text-sm fa-solid fa-circle-check text-emerald-500"></i>
+                    <i class="fa-solid fa-circle-check text-emerald-500 text-sm"></i>
                     <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Everything looks good!</span>
                 </div>
 
@@ -666,7 +681,7 @@
 
         {{-- ── Today's Breakdown ── --}}
         @if($canRevenue)
-        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+        <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Today's Breakdown</h2>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Service + status summary</p>
@@ -679,14 +694,14 @@
                         <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-[#8B7355]/15 flex-shrink-0">
                             <i class="fa-solid fa-spa text-[#8B7355] text-sm"></i>
                         </div>
-                        <p id="breakdown-top-service" class="text-sm font-semibold text-gray-800 truncate dark:text-gray-200">
+                        <p id="breakdown-top-service" class="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
                             {{ $topServiceLabel ?? 'No bookings yet' }}
                         </p>
                     </div>
                 </div>
 
                 <div>
-                    <p class="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Status Split</p>
+                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400 mb-2">Status Split</p>
                     <div id="breakdown-bars" class="space-y-2">
                         @php
                             $statusBars = [
@@ -701,7 +716,7 @@
                         @foreach($statusBars as $s)
                         <div id="{{ $s['id'] }}-row" class="{{ $s['count'] > 0 ? '' : 'hidden' }} flex items-center gap-3">
                             <span class="text-[10px] font-medium text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">{{ $s['label'] }}</span>
-                            <div class="flex-1 h-2 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-700">
+                            <div class="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                                 <div id="{{ $s['id'] }}-fill" class="{{ $s['color'] }} h-full rounded-full transition-all duration-500"
                                      style="width: {{ $total > 0 ? round(($s['count'] / $total) * 100) : 0 }}%"></div>
                             </div>
@@ -717,12 +732,12 @@
         @endif
 
         {{-- ── Quick Actions ── --}}
-        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+        <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Jump to common pages</p>
             </div>
-            <div class="grid grid-cols-2 gap-2 p-4">
+            <div class="p-4 grid grid-cols-2 gap-2">
 
                 @if($canBookAppointments)
                 <a href="{{ route('booking') }}"
@@ -1006,7 +1021,7 @@
             <div class="flex-shrink-0 w-16 text-right">
                 <p class="text-xs font-bold text-gray-800 dark:text-white tabular-nums">${esc(b.start_time_fmt)}</p>
                 <p class="text-[10px] font-semibold text-gray-400">${esc(b.start_ampm)}</p>
-                <div class="w-px h-4 mx-auto mt-1 bg-gray-200 dark:bg-gray-700"></div>
+                <div class="mt-1 mx-auto w-px h-4 bg-gray-200 dark:bg-gray-700"></div>
                 <p class="text-[10px] text-gray-400 tabular-nums">${esc(b.end_time_fmt)}</p>
             </div>
             <div class="flex-shrink-0 mt-1.5">
@@ -1015,7 +1030,7 @@
             <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">
-                        <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">${esc(b.customer_name)}</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">${esc(b.customer_name)}</p>
                         <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">${esc(b.treatment_display)}</p>
                         ${b.service_type === 'in_home' && b.customer_address ? `
                         <p class="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5 flex items-center gap-1">
@@ -1051,7 +1066,7 @@
         if (!data.appointments.length) {
             body.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
-                    <i class="mb-3 text-3xl fa-regular fa-calendar-xmark"></i>
+                    <i class="fa-regular fa-calendar-xmark text-3xl mb-3"></i>
                     <p class="text-sm">No appointments scheduled today.</p>
                 </div>`;
         } else {
@@ -1068,7 +1083,7 @@
 
         if (wrapper) wrapper.classList.toggle('hidden', !next);
         if (next) {
-            if (nameEl) nameEl.innerHTML = `${esc(next.customer_name)} <span class="mx-1 font-normal text-gray-400">·</span> ${esc(next.treatment_display)}`;
+            if (nameEl) nameEl.innerHTML = `${esc(next.customer_name)} <span class="text-gray-400 font-normal mx-1">·</span> ${esc(next.treatment_display)}`;
             if (dateEl) dateEl.textContent = `${next.appointment_date_fmt} at ${next.appointment_date_at}`;
         }
     }
@@ -1081,7 +1096,7 @@
         if (!therapists.length) {
             body.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
-                    <i class="mb-3 text-3xl fa-solid fa-user-nurse"></i>
+                    <i class="fa-solid fa-user-nurse text-3xl mb-3"></i>
                     <p class="text-sm">No active therapists assigned.</p>
                 </div>`;
             return;
@@ -1118,12 +1133,12 @@
             return `
             <div class="px-6 py-4">
                 <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center min-w-0 gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
                         <div class="flex items-center justify-center w-9 h-9 rounded-full bg-[#8B7355]/15 text-[#8B7355] flex-shrink-0 text-sm font-bold">
                             ${initial}
                         </div>
                         <div class="min-w-0">
-                            <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">${esc(fullName)}</p>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">${esc(fullName)}</p>
                             <p class="text-[10px] text-gray-400 dark:text-gray-500 truncate">${esc(t.email)}</p>
                         </div>
                     </div>
@@ -1165,9 +1180,9 @@
             if (!data.appointments.length) {
                 body.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
-                        <i class="mb-3 text-3xl fa-regular fa-calendar-check"></i>
+                        <i class="fa-regular fa-calendar-check text-3xl mb-3"></i>
                         <p class="text-sm font-medium">No appointments assigned to you today.</p>
-                        <p class="mt-1 text-xs text-gray-400">Check your upcoming schedule below.</p>
+                        <p class="text-xs mt-1 text-gray-400">Check your upcoming schedule below.</p>
                     </div>`;
             } else {
                 body.innerHTML = '<div class="divide-y divide-gray-100 dark:divide-gray-700">'
@@ -1180,7 +1195,7 @@
                             <div class="flex-shrink-0 w-16 text-right">
                                 <p class="text-xs font-bold text-gray-800 dark:text-white tabular-nums">${esc(b.start_time_fmt)}</p>
                                 <p class="text-[10px] font-semibold text-gray-400">${esc(b.start_ampm)}</p>
-                                <div class="w-px h-4 mx-auto mt-1 bg-gray-200 dark:bg-gray-700"></div>
+                                <div class="mt-1 mx-auto w-px h-4 bg-gray-200 dark:bg-gray-700"></div>
                                 <p class="text-[10px] text-gray-400 tabular-nums">${esc(b.end_time_fmt)}</p>
                             </div>
                             <div class="flex-shrink-0 mt-1.5">
@@ -1189,7 +1204,7 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
-                                        <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">${esc(b.customer_name)}</p>
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">${esc(b.customer_name)}</p>
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${esc(b.treatment_display)}</p>
                                         ${b.service_type === 'in_home' && b.customer_address ? `
                                         <p class="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5 flex items-center gap-1">
@@ -1204,6 +1219,14 @@
                                 <p class="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
                                     <i class="fa-solid fa-phone text-[#8B7355]"></i> ${esc(b.customer_phone)}
                                 </p>` : ''}
+                                ${(b.status === 'reserved' || b.status === 'pending') ? `
+                                <button type="button" onclick="openReassignFlagModal(this)"
+                                        data-reassign-flag-btn="${b.id}" data-id="${b.id}"
+                                        data-customer="${esc(b.customer_name)}" data-treatment="${esc(b.treatment_display)}"
+                                        data-date="${esc(b.appointment_date_fmt)}" data-time="${esc(b.start_time_fmt)}"
+                                        class="mt-2 text-[10px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Can't make it? Request reassignment
+                                </button>` : ''}
                             </div>
                         </div>`;
                     }).join('')
@@ -1219,7 +1242,7 @@
 
         if (wrapper) wrapper.classList.toggle('hidden', !next);
         if (next) {
-            if (nameEl) nameEl.innerHTML = `${esc(next.customer_name)} <span class="mx-1 font-normal text-gray-400">·</span> ${esc(next.treatment_display)}`;
+            if (nameEl) nameEl.innerHTML = `${esc(next.customer_name)} <span class="text-gray-400 font-normal mx-1">·</span> ${esc(next.treatment_display)}`;
             if (dateEl) dateEl.textContent = `${next.appointment_date_fmt} at ${next.appointment_date_at}`;
         }
     }

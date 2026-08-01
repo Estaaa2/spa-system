@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Appointments')
 @section('content')
 @php
     $user = auth()->user();
@@ -162,6 +163,8 @@
             </div>
         </div>
     </div>
+
+    @include('appointments.partials.reassignment-requests-modal')
 
     {{-- ── Today's Appointments ── --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">

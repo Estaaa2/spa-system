@@ -127,6 +127,16 @@ class Booking extends Model
         return $this->hasOne(RescheduleRequest::class)->latestOfMany();
     }
 
+    public function reassignmentRequests()
+    {
+        return $this->hasMany(ReassignmentRequest::class);
+    }
+
+    public function latestReassignmentRequest()
+    {
+        return $this->hasOne(ReassignmentRequest::class)->latestOfMany();
+    }
+
     public function rating(): HasOne
     {
         return $this->hasOne(Rating::class, 'booking_id');
