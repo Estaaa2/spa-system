@@ -5,7 +5,7 @@
     @if($canMyToday) ... @endif block (it's only relevant to therapists).
     Suggested spot: right after the closing </div> of "my-next-wrapper".
 
-        @include('dashboard.partials.reassignment-flag-modal') 
+        @include('dashboard.partials.reassignment-flag-modal')
 --}}
 <div id="reassignFlagModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
     <div class="w-full max-w-lg mx-auto mt-16 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
@@ -117,13 +117,12 @@
                 showSpaToast(data.message ?? 'Reassignment request submitted.', 'success');
             }
 
-            // Grey out the flag button on this row so the therapist can't double-submit
-            // before the dashboard's next 60s poll cycle catches up.
             const flagBtn = document.querySelector(`[data-reassign-flag-btn="${reassignFlagBookingId}"]`);
             if (flagBtn) {
-                flagBtn.disabled = true;
-                flagBtn.textContent = 'Request Sent';
-                flagBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                const badge = document.createElement('span');
+                badge.className = 'mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300';
+                badge.innerHTML = '<i class="fa-solid fa-clock"></i> Reassignment Pending';
+                flagBtn.replaceWith(badge);
             }
 
         } catch (err) {

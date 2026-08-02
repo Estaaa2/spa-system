@@ -190,8 +190,6 @@ function sidebar() {
 </script>
 
 <style>
-[x-cloak] { display: none !important; }
-
 .overflow-y-auto::-webkit-scrollbar { width: 6px; }
 .overflow-y-auto::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
 .overflow-y-auto::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }

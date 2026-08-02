@@ -174,9 +174,14 @@ class DashboardController extends Controller
 
             $myTodayAppointments = $myBase()
                 ->whereDate('appointment_date', $today)
+                ->with('latestReassignmentRequest')
                 ->orderBy('start_time')
                 ->get()
-                ->map(fn($b) => $this->decorateBooking($b));
+                ->map(function ($b) {
+                    $b = $this->decorateBooking($b);
+                    $b->has_pending_reassignment = $b->latestReassignmentRequest?->isPending() ?? false;
+                    return $b;
+                });
 
             $myStats = [
                 'total'     => $myBase()->whereDate('appointment_date', $today)->count(),
@@ -356,9 +361,14 @@ class DashboardController extends Controller
 
             $myAppointments = $myBase()
                 ->whereDate('appointment_date', $today)
+                ->with('latestReassignmentRequest')
                 ->orderBy('start_time')
                 ->get()
-                ->map(fn($b) => $this->formatForLive($this->decorateBooking($b)));
+                ->map(function ($b) {
+                    $b = $this->decorateBooking($b);
+                    $b->has_pending_reassignment = $b->latestReassignmentRequest?->isPending() ?? false;
+                    return $this->formatForLive($b);
+                });
 
             $myNext = $myBase()
                 ->whereDate('appointment_date', '>', $today)
@@ -413,6 +423,7 @@ class DashboardController extends Controller
             'appointment_date_at'  => $b->start_time
                 ? \Carbon\Carbon::parse($b->start_time)->format('h:i A')
                 : '—',
+            'has_pending_reassignment' => $b->has_pending_reassignment ?? false,
         ];
     }
 

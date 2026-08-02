@@ -208,16 +208,22 @@
                                 </p>
                                 @endif
                                 @if(in_array($booking->status, ['reserved', 'pending']))
-                                <button type="button" onclick="openReassignFlagModal(this)"
-                                        data-reassign-flag-btn="{{ $booking->id }}"
-                                        data-id="{{ $booking->id }}"
-                                        data-customer="{{ $booking->customer_name ?? 'Walk-in Customer' }}"
-                                        data-treatment="{{ $booking->treatment_display ?? '—' }}"
-                                        data-date="{{ \Carbon\Carbon::parse($booking->appointment_date)->format('M d, Y') }}"
-                                        data-time="{{ $startC->format('h:i A') }}"
-                                        class="mt-2 text-[10px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> Can't make it? Request reassignment
-                                </button>
+                                    @if($booking->has_pending_reassignment)
+                                    <span class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
+                                        <i class="fa-solid fa-clock"></i> Reassignment Pending
+                                    </span>
+                                    @else
+                                    <button type="button" onclick="openReassignFlagModal(this)"
+                                            data-reassign-flag-btn="{{ $booking->id }}"
+                                            data-id="{{ $booking->id }}"
+                                            data-customer="{{ $booking->customer_name ?? 'Walk-in Customer' }}"
+                                            data-treatment="{{ $booking->treatment_display ?? '—' }}"
+                                            data-date="{{ \Carbon\Carbon::parse($booking->appointment_date)->format('M d, Y') }}"
+                                            data-time="{{ $startC->format('h:i A') }}"
+                                            class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> Can't Make It?
+                                    </button>
+                                    @endif
                                 @endif
                             </div>
                         </div>
@@ -835,7 +841,7 @@
 ═════════════════════════════════════════════════════════════════════════ --}}
 <script>
 (function () {
-    const POLL_MS  = 60000; // 60 seconds
+    const POLL_MS  = 30000; // 30 seconds
     const LIVE_URL = '{{ route('dashboard.live-data') }}';
     const dot   = document.getElementById('liveIndicatorDot');
     const label = document.getElementById('liveIndicatorLabel');
@@ -1219,14 +1225,19 @@
                                 <p class="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
                                     <i class="fa-solid fa-phone text-[#8B7355]"></i> ${esc(b.customer_phone)}
                                 </p>` : ''}
-                                ${(b.status === 'reserved' || b.status === 'pending') ? `
-                                <button type="button" onclick="openReassignFlagModal(this)"
-                                        data-reassign-flag-btn="${b.id}" data-id="${b.id}"
-                                        data-customer="${esc(b.customer_name)}" data-treatment="${esc(b.treatment_display)}"
-                                        data-date="${esc(b.appointment_date_fmt)}" data-time="${esc(b.start_time_fmt)}"
-                                        class="mt-2 text-[10px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> Can't make it? Request reassignment
-                                </button>` : ''}
+                                ${(b.status === 'reserved' || b.status === 'pending') ? (
+                                    b.has_pending_reassignment
+                                        ? `<span class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
+                                                <i class="fa-solid fa-clock"></i> Reassignment Pending
+                                           </span>`
+                                        : `<button type="button" onclick="openReassignFlagModal(this)"
+                                                data-reassign-flag-btn="${b.id}" data-id="${b.id}"
+                                                data-customer="${esc(b.customer_name)}" data-treatment="${esc(b.treatment_display)}"
+                                                data-date="${esc(b.appointment_date_fmt)}" data-time="${esc(b.start_time_fmt)}"
+                                                class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                                                <i class="fa-solid fa-triangle-exclamation"></i> Can't Make It?
+                                           </button>`
+                                ) : ''}
                             </div>
                         </div>`;
                     }).join('')

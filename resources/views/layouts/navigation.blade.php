@@ -114,7 +114,7 @@
                     <i class="text-xs fa-solid fa-chevron-down" :class="mobileBranchesOpen ? 'rotate-180' : ''"></i>
                 </button>
 
-                <div x-show="mobileBranchesOpen" @click.outside="mobileBranchesOpen = false"
+                <div x-show="mobileBranchesOpen" @click.outside="mobileBranchesOpen = false" x-cloak
                     x-transition:enter="transition ease-out duration-100"
                     x-transition:enter-start="transform opacity-0 scale-95"
                     x-transition:enter-end="transform opacity-100 scale-100"
@@ -220,7 +220,7 @@
                                     :class="branchesDropdown ? 'transform rotate-180' : ''"></i>
                             </button>
 
-                            <div x-show="branchesDropdown" @click.outside="branchesDropdown = false"
+                            <div x-show="branchesDropdown" @click.outside="branchesDropdown = false" x-cloak
                                 x-transition:enter="transition ease-out duration-100"
                                 x-transition:enter-start="transform opacity-0 scale-95"
                                 x-transition:enter-end="transform opacity-100 scale-100"
@@ -719,10 +719,6 @@
 
 
 <style>
-    [x-cloak] {
-        display: none !important;
-    }
-
     .overflow-y-auto::-webkit-scrollbar {
         width: 6px;
     }
