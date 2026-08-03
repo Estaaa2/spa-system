@@ -86,6 +86,7 @@
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Role</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Current Branch</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Latest Deployment</th>
+                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Staff Response</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
@@ -120,10 +121,30 @@
                             'finance'      => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
                         ];
                         $roleColor = $roleColors[$role] ?? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+
+                        // ── Staff response for the latest OPEN deployment (pending/approved) ──
+                        $openDeploy = $member->deployments->whereIn('status', ['pending', 'approved'])->first();
+                        $staffResponse = $openDeploy?->staff_response;
+                        $responseBadge = match($staffResponse) {
+                            'pending'   => 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+                            'accepted'  => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+                            'declined'  => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+                            default     => null,
+                        };
+                        $responseLabel = match($staffResponse) {
+                            'pending'   => 'Awaiting Response',
+                            'accepted'  => 'Accepted',
+                            'declined'  => 'Declined',
+                            default     => null,
+                        };
+                        $needsReview = $member->deployments
+                            ->whereIn('status', ['pending', 'approved'])
+                            ->where('staff_response', 'declined')
+                            ->isNotEmpty();
                     @endphp
                     <tr
                         id="staff-row-{{ $member->id }}"
-                        class="transition-colors border-l-4 border-transparent cursor-pointer staff-row hover:bg-gray-50 dark:hover:bg-gray-900"
+                        class="transition-colors border-l-4 {{ $needsReview ? 'border-red-400' : 'border-transparent' }} cursor-pointer staff-row hover:bg-gray-50 dark:hover:bg-gray-900"
                         onclick="selectStaff({{ $member->id }})"
                     >
                         <td class="px-6 py-4">
@@ -132,8 +153,11 @@
                                     {{ strtoupper(substr($member->user->first_name ?? 'S', 0, 1)) }}
                                 </div>
                                 <div>
-                                    <p class="font-medium text-gray-900 dark:text-white">
+                                    <p class="font-medium text-gray-900 dark:text-white flex items-center gap-1.5">
                                         {{ trim($member->user->first_name . ' ' . ($member->user->middle_name ? $member->user->middle_name . ' ' : '') . $member->user->last_name) }}
+                                        @if($needsReview)
+                                            <i class="text-xs text-red-500 fa-solid fa-triangle-exclamation" title="Staff declined — needs review"></i>
+                                        @endif
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $member->user->email ?? 'No email' }}</p>
                                 </div>
@@ -161,10 +185,17 @@
                                 <span class="text-sm text-gray-400 dark:text-gray-500">No records</span>
                             @endif
                         </td>
+                        <td class="px-6 py-4">
+                            @if($responseBadge)
+                                <span class="px-3 py-1 text-xs font-medium rounded-full {{ $responseBadge }}">{{ $responseLabel }}</span>
+                            @else
+                                <span class="text-sm text-gray-400 dark:text-gray-500">—</span>
+                            @endif
+                        </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="4" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="mb-3 text-4xl text-gray-300 fas fa-users"></i>
                                 <p>No staff members found in this branch.</p>
@@ -390,11 +421,32 @@ const ROLE_COLORS = {
     finance:      'bg-orange-100 text-orange-800',
 };
 
+// ── Staff response label / colour maps ─────────────────────────────────────────
+
+const RESPONSE_LABELS = {
+    pending:  'Awaiting Response',
+    accepted: 'Accepted',
+    declined: 'Declined',
+};
+
+const RESPONSE_COLORS = {
+    pending:  'bg-gray-100  text-gray-600',
+    accepted: 'bg-green-100 text-green-800',
+    declined: 'bg-red-100   text-red-800',
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function statusBadge(status) {
     const color = STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
     const label = STATUS_LABELS[status] || status;
+    return `<span class="px-2.5 py-1 text-xs font-medium rounded-full ${color}">${label}</span>`;
+}
+
+function responseBadge(response) {
+    if (!response) return '<span class="text-xs text-gray-400">—</span>';
+    const color = RESPONSE_COLORS[response] || 'bg-gray-100 text-gray-600';
+    const label = RESPONSE_LABELS[response] || response;
     return `<span class="px-2.5 py-1 text-xs font-medium rounded-full ${color}">${label}</span>`;
 }
 
@@ -448,6 +500,38 @@ function renderDetail(data, panel) {
     const approved = data.deployments.find(d => d.status === 'approved');
     const active   = data.deployments.find(d => d.status === 'active');
 
+    // ── Helper: build the staff-response block shown inside pending/approved cards ──
+    function staffResponseBlock(deploy) {
+        if (deploy.staff_response === 'declined') {
+            return `
+                <div class="p-3 mt-3 border border-red-300 rounded-xl bg-red-100/70 dark:bg-red-900/20 dark:border-red-800">
+                    <p class="flex items-center gap-1.5 text-xs font-semibold text-red-800 dark:text-red-300">
+                        <i class="fa-solid fa-user-xmark"></i> Staff Declined
+                        ${deploy.staff_responded_at_fmt ? `<span class="font-normal text-red-600 dark:text-red-400">&bull; ${esc(deploy.staff_responded_at_fmt)}</span>` : ''}
+                    </p>
+                    ${deploy.staff_decline_reason
+                        ? `<p class="mt-1.5 text-sm text-red-900 dark:text-red-200">"${esc(deploy.staff_decline_reason)}"</p>`
+                        : `<p class="mt-1.5 text-xs italic text-red-500 dark:text-red-400">No reason provided.</p>`}
+                    <p class="mt-2 text-xs text-red-700 dark:text-red-400">
+                        This request was automatically cancelled. File a new deployment request if reassignment is still needed.
+                    </p>
+                </div>`;
+        }
+        if (deploy.staff_response === 'accepted') {
+            return `
+                <div class="flex items-center gap-1.5 p-2.5 mt-3 text-xs font-medium text-green-800 border border-green-200 rounded-xl bg-green-100/70 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
+                    <i class="fa-solid fa-user-check"></i>
+                    Staff Accepted — this deployment can no longer be revoked
+                    ${deploy.staff_responded_at_fmt ? `<span class="font-normal text-green-600 dark:text-green-400">&bull; ${esc(deploy.staff_responded_at_fmt)}</span>` : ''}
+                </div>`;
+        }
+        return `
+            <div class="flex items-center gap-1.5 p-2.5 mt-3 text-xs font-medium text-gray-600 border border-gray-200 rounded-xl bg-gray-100/70 dark:bg-gray-700/40 dark:border-gray-600 dark:text-gray-300">
+                <i class="fa-regular fa-clock"></i>
+                Awaiting staff response
+            </div>`;
+    }
+
     // ── Action card based on current state ───────────────────────────────────
 
     let actionCard = '';
@@ -456,16 +540,19 @@ function renderDetail(data, panel) {
         // ── PENDING: On Review → Owner can Accept or Reject, HR can Cancel ──
         let ownerBtns = '';
         if (canApprove) {
+            const rejectBtn = pending.staff_response === 'accepted'
+                ? ''
+                : `<button onclick="openRejectModal(${pending.id})"
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700">
+                        <i class="mr-1.5 fa-solid fa-ban"></i>Reject
+                   </button>`;
             ownerBtns = `
                 <div class="flex flex-wrap gap-2 mt-4">
                     <button onclick="doApprove(${pending.id})"
                         class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700">
                         <i class="mr-1.5 fa-solid fa-check"></i>Approve
                     </button>
-                    <button onclick="openRejectModal(${pending.id})"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700">
-                        <i class="mr-1.5 fa-solid fa-ban"></i>Reject
-                    </button>
+                    ${rejectBtn}
                 </div>`;
         }
         let cancelBtn = '';
@@ -494,6 +581,7 @@ function renderDetail(data, panel) {
                 <p class="mt-3 text-xs text-yellow-700 dark:text-yellow-400">
                     Requested by: <strong>${esc(pending.requested_by)}</strong> &bull; ${esc(pending.created_at_fmt)}
                 </p>
+                ${staffResponseBlock(pending)}
                 ${ownerBtns}
                 ${cancelBtn}
             </div>`;
@@ -501,7 +589,7 @@ function renderDetail(data, panel) {
     } else if (approved) {
         // ── APPROVED: Scheduled — Owner can still revoke ──────────────────────
         let revokeBtns = '';
-        if (canApprove) {
+        if (canApprove && approved.staff_response !== 'accepted') {
             revokeBtns = `
                 <div class="flex gap-2 mt-4">
                     <button onclick="openRejectModal(${approved.id})"
@@ -524,6 +612,11 @@ function renderDetail(data, panel) {
                 <p class="mt-3 text-xs text-blue-700 dark:text-blue-400">
                     Approved by: <strong>${esc(approved.reviewed_by || '—')}</strong>
                 </p>
+                ${staffResponseBlock(approved)}
+                ${approved.staff_response !== 'accepted' ? `
+                    <p class="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                        <i class="mr-1 fa-solid fa-circle-info"></i>Will not auto-activate on the start date until the staff member accepts.
+                    </p>` : ''}
                 ${revokeBtns}
             </div>`;
 
@@ -579,6 +672,9 @@ function renderDetail(data, panel) {
             const rejectionNote = d.rejection_reason
                 ? `<span class="block text-xs text-red-500 mt-0.5 italic">${esc(d.rejection_reason)}</span>`
                 : '';
+            const declineNote = d.staff_response === 'declined' && d.staff_decline_reason
+                ? `<span class="block text-xs text-red-500 mt-0.5 italic">"${esc(d.staff_decline_reason)}"</span>`
+                : '';
             return `
                 <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
                     <td class="px-4 py-3 text-sm text-gray-800 dark:text-white">${esc(d.from_branch.name)}</td>
@@ -588,6 +684,10 @@ function renderDetail(data, panel) {
                     <td class="px-4 py-3">
                         ${statusBadge(d.status)}
                         ${rejectionNote}
+                    </td>
+                    <td class="px-4 py-3">
+                        ${responseBadge(d.staff_response)}
+                        ${declineNote}
                     </td>
                     <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">${esc(d.requested_by)}</td>
                     <td class="px-4 py-3 text-sm text-gray-400 dark:text-gray-500">${esc(d.created_at_fmt)}</td>
@@ -609,6 +709,7 @@ function renderDetail(data, panel) {
                                 <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Start</th>
                                 <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">End</th>
                                 <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
+                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Staff Response</th>
                                 <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Requested By</th>
                                 <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Date Filed</th>
                             </tr>

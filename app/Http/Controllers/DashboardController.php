@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Treatment;
 use App\Models\Package;
 use App\Models\User;
+use App\Models\StaffBranchDeployment;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +31,17 @@ class DashboardController extends Controller
 
         $base      = fn() => Booking::query()->where('spa_id', $spaId)->where('branch_id', $currentBranchId);
         $todayBase = fn() => $base()->whereDate('appointment_date', $today);
+
+        // ── Pending deployment response (staff-personal, independent of branch perms) ──
+        $pendingDeploymentResponse = null;
+
+        if ($user->staff) {
+            $pendingDeploymentResponse = StaffBranchDeployment::with(['fromBranch', 'toBranch'])
+                ->where('staff_id', $user->staff->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->where('staff_response', 'pending')
+                ->first();
+        }
 
         // ── Decide which data blocks to load based on branch permissions ──
         // Uses hasBranchPermission() so branch-level overrides are respected.
@@ -210,6 +222,7 @@ class DashboardController extends Controller
             'todayAppointments', 'nextAppointment',
             'therapists',
             'myTodayAppointments', 'myStats', 'myNextAppointment',
+            'pendingDeploymentResponse',
         ));
     }
 
@@ -233,6 +246,24 @@ class DashboardController extends Controller
         $todayBase = fn() => $base()->whereDate('appointment_date', $today);
 
         $payload = ['server_time' => now()->toIso8601String()];
+
+        // ── Pending deployment response (personal) ──────────────────────────
+        if ($user->staff) {
+            $pending = StaffBranchDeployment::with(['fromBranch', 'toBranch'])
+                ->where('staff_id', $user->staff->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->where('staff_response', 'pending')
+                ->first();
+
+            $payload['pending_deployment'] = $pending ? [
+                'id'              => $pending->id,
+                'from_branch'     => $pending->fromBranch->name ?? '—',
+                'to_branch'       => $pending->toBranch->name ?? '—',
+                'is_permanent'    => (bool) $pending->is_permanent,
+                'start_date_fmt'  => \Carbon\Carbon::parse($pending->start_date)->format('M d, Y'),
+                'end_date_fmt'    => $pending->end_date ? \Carbon\Carbon::parse($pending->end_date)->format('M d, Y') : null,
+            ] : null;
+        }
 
         // ── KPIs ─────────────────────────────────────────────────────────
         if ($user->hasBranchPermission('view dashboard kpis')

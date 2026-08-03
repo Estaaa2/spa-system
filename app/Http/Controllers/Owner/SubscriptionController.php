@@ -22,6 +22,22 @@ class SubscriptionController extends Controller
             ->latest()
             ->first();
 
+        // Auto-downgrade: if the latest paid subscription has passed its
+        // expiry date but the spa's business_tier hasn't caught up yet
+        // (e.g. owner never visited this page since expiry, or cron hasn't
+        // run), correct it here so the badge/tier shown is always accurate.
+        if (
+            $subscription
+            && $subscription->expires_at
+            && $subscription->expires_at->isPast()
+            && $spa->business_tier === 'professional'
+        ) {
+            $spa->update(['business_tier' => 'basic']);
+            $spa->refresh();
+
+            Log::info("Spa {$spa->id} auto-downgraded to basic on page load (subscription #{$subscription->id} expired {$subscription->expires_at})");
+        }
+
         return view('owner.subscription.index', compact('spa', 'subscription'));
     }
 

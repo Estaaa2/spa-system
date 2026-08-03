@@ -23,12 +23,15 @@ class ProcessScheduledDeployments extends Command
         $today     = now()->toDateString();
         $activated = 0;
         $reverted  = 0;
+        $stalled   = 0;
 
         $this->info('[Branch Deployments] Processing for ' . $today);
 
-        // ── Step 1: Activate approved deployments whose start_date has arrived ──
+        // ── Step 1: Activate approved deployments whose start_date has arrived
+        //            AND whose staff member has accepted ──
         StaffBranchDeployment::with(['staff.user'])
             ->where('status', 'approved')
+            ->where('staff_response', 'accepted')
             ->whereDate('start_date', '<=', $today)
             ->each(function (StaffBranchDeployment $deployment) use (&$activated) {
                 $staff = $deployment->staff;
@@ -52,6 +55,18 @@ class ProcessScheduledDeployments extends Command
 
                 $activated++;
                 $this->line("  ✓ Activated #{$deployment->id}: {$staff->user?->name} → {$deployment->toBranch?->name}");
+            });
+
+        // ── Step 1b: Flag approved deployments whose date has arrived but staff
+        //             hasn't accepted (still pending or declined) — these are
+        //             intentionally NOT activated, just logged for visibility ──
+        StaffBranchDeployment::with(['staff.user'])
+            ->where('status', 'approved')
+            ->where('staff_response', '!=', 'accepted')
+            ->whereDate('start_date', '<=', $today)
+            ->each(function (StaffBranchDeployment $deployment) use (&$stalled) {
+                $stalled++;
+                $this->warn("  ⏸ Deployment #{$deployment->id} start date has passed but staff_response = '{$deployment->staff_response}' — not activated. ({$deployment->staff?->user?->name})");
             });
 
         // ── Step 2: Revert active non-permanent deployments past their end_date ──
@@ -84,7 +99,7 @@ class ProcessScheduledDeployments extends Command
                 $this->line("  ✓ Completed #{$deployment->id}: {$staff->user?->name} returned to {$deployment->fromBranch?->name}");
             });
 
-        $this->info("[Branch Deployments] Done. Activated: {$activated} | Reverted: {$reverted}");
+        $this->info("[Branch Deployments] Done. Activated: {$activated} | Stalled (awaiting response): {$stalled} | Reverted: {$reverted}");
 
         return Command::SUCCESS;
     }

@@ -220,7 +220,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     Route::get('/dashboard/live-data', [DashboardController::class, 'liveData'])
         ->middleware('role:owner|manager|therapist|receptionist')
         ->name('dashboard.live-data');
-    
+
     Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-duration');
@@ -228,6 +228,17 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     Route::post('/appointments/fix-all-durations', [BookingController::class, 'fixAllDurations'])
         ->middleware('branch.permission:edit appointments')
         ->name('appointments.fix-all-durations');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Staff: Respond to own deployment (accept/decline)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/branch-deployments/{deployment}/staff-respond', [BranchDeploymentController::class, 'staffRespond'])
+        ->name('branch-deployments.staff-respond');
 });
 
 

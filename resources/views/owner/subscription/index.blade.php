@@ -44,7 +44,7 @@
     </div>
 
     {{-- Expiry info --}}
-    @if($subscription && $subscription->expires_at)
+    @if($subscription && $subscription->expires_at && $subscription->expires_at->isFuture())
         <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">
             Subscription expires on
             <span class="font-semibold">

@@ -27,14 +27,20 @@ class StaffBranchDeployment extends Model
         'notes',
         'deployed_at',
         'reverted_at',
+
+        // ✅ ADD: independent staff consent track
+        'staff_response',
+        'staff_responded_at',
+        'staff_decline_reason',
     ];
 
     protected $casts = [
-        'start_date'   => 'date',
-        'end_date'     => 'date',
-        'is_permanent' => 'boolean',
-        'deployed_at'  => 'datetime',
-        'reverted_at'  => 'datetime',
+        'start_date'         => 'date',
+        'end_date'           => 'date',
+        'is_permanent'       => 'boolean',
+        'deployed_at'        => 'datetime',
+        'reverted_at'        => 'datetime',
+        'staff_responded_at' => 'datetime',
     ];
 
     // ── Relationships ─────────────────────────────────────────────────────────
@@ -93,5 +99,24 @@ class StaffBranchDeployment extends Model
     public function isBlocking(): bool
     {
         return in_array($this->status, ['pending', 'approved', 'active']);
+    }
+
+    /**
+     * Returns true if BOTH Owner and staff have given affirmative consent —
+     * the only state in which this deployment should be allowed to go active.
+     */
+    public function isFullyApproved(): bool
+    {
+        return $this->status === 'approved' && $this->staff_response === 'accepted';
+    }
+
+    /**
+     * Returns true if the staff declined while the request is still open —
+     * signals HR/Owner that this needs reassignment or cancellation.
+     */
+    public function needsStaffReview(): bool
+    {
+        return in_array($this->status, ['pending', 'approved'])
+            && $this->staff_response === 'declined';
     }
 }
