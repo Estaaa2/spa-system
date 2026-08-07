@@ -17,10 +17,12 @@ use App\Http\Controllers\HR\BranchDeploymentController;
 use App\Http\Controllers\HR\HiringController;
 use App\Http\Controllers\HR\InterviewController;
 use App\Http\Controllers\HR\PayrollController;
+use App\Http\Controllers\HR\PublicApplicationController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
 use App\Http\Controllers\LandingController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\OnlineBookingCheckoutController;
 use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
 use App\Http\Controllers\Owner\SpaProfileController;
@@ -39,7 +41,6 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TherapistPerformanceController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Middleware\LandingPageRedirect;
-use App\Http\Controllers\HR\PublicApplicationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -530,8 +531,23 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     });
 
+    // Self-service clock in/out — identity-based, not permission-gated.
+    Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');
+    Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clock-out');
+
     Route::middleware('branch.permission:edit attendance')->group(function () {
-        Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+        Route::post('/attendance/{staff}/record', [AttendanceController::class, 'recordFor'])->name('attendance.record');
+    });
+
+    // Leave Requests
+    Route::middleware('branch.permission:create leave requests')->group(function () {
+        Route::post('/leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
+    });
+    Route::get('/leave-requests/mine', [LeaveRequestController::class, 'mine'])->name('leave-requests.mine');
+    Route::middleware('branch.permission:edit leave requests')->group(function () {
+        Route::get('/leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
+        Route::post('/leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])->name('leave-requests.approve');
+        Route::post('/leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])->name('leave-requests.reject');
     });
 
     // Payroll

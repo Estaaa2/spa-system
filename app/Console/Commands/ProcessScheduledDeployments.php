@@ -1,12 +1,4 @@
 <?php
-// File path: app/Console/Commands/ProcessScheduledDeployments.php
-//
-// REGISTRATION (Laravel 11+):
-// Add this line to routes/console.php:
-//     Schedule::command('deployments:process')->dailyAt('00:05');
-//
-// Or in app/Console/Kernel.php (Laravel 10):
-//     $schedule->command('deployments:process')->dailyAt('00:05');
 
 namespace App\Console\Commands;
 

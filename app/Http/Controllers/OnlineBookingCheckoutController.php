@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\LeaveRequest;
 use App\Models\OnlineReservationPayment;
 use App\Models\OperatingHours;
 use App\Models\Package;
@@ -118,7 +119,16 @@ class OnlineBookingCheckoutController extends Controller
             ->pluck('therapist_id')
             ->unique();
 
-        $availableTherapists = $therapists->reject(fn($t) => $busyIds->contains($t->id));
+        // ON-LEAVE: exclude therapists with approved leave covering this date.
+        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate(
+            (int) $validated['spa_id'],
+            (int) $validated['branch_id'],
+            $validated['appointment_date']
+        );
+
+        $availableTherapists = $therapists->reject(
+            fn($t) => $busyIds->contains($t->id) || in_array($t->id, $onLeaveIds)
+        );
 
         if ($availableTherapists->isEmpty()) {
             return $this->fail($request, 'All therapists are fully booked for the selected date and time. Please choose a different time slot.');

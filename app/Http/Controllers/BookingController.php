@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\LeaveRequest;
 use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
@@ -740,8 +741,13 @@ class BookingController extends Controller
             ->pluck('therapist_id')
             ->unique();
 
+        // ON-LEAVE: exclude anyone with an approved leave request covering
+        // this appointment date, so the system never recommends or allows
+        // booking a therapist who's already been granted time off.
+        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate($spaId, $branchId, $appointmentDate);
+
         return $therapists
-            ->reject(fn ($therapist) => $busyIds->contains($therapist->id))
+            ->reject(fn ($therapist) => $busyIds->contains($therapist->id) || in_array($therapist->id, $onLeaveIds))
             ->values();
     }
 

@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\LeaveRequest;
 use App\Models\Package;
 use App\Models\ReassignmentRequest;
 use App\Models\Treatment;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ReassignmentRequestController extends Controller
@@ -19,7 +21,9 @@ class ReassignmentRequestController extends Controller
     public function store(Request $request, Booking $booking)
     {
         $validated = $request->validate([
-            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+            'reason'            => ['required', 'string', 'min:10', 'max:1000'],
+            'request_leave_too' => ['nullable', 'boolean'],
+            'leave_type'        => ['nullable', 'in:sick,emergency,vacation,personal,other'],
         ]);
 
         // Only the therapist currently assigned to this booking may flag it —
@@ -43,13 +47,42 @@ class ReassignmentRequestController extends Controller
             ], 422);
         }
 
-        $reassignment = ReassignmentRequest::create([
-            'booking_id'       => $booking->id,
-            'requested_by'     => Auth::id(),
-            'old_therapist_id' => $booking->therapist_id,
-            'reason'           => $validated['reason'],
-            'status'           => 'pending',
-        ]);
+        $reassignment = DB::transaction(function () use ($booking, $validated) {
+            $reassignment = ReassignmentRequest::create([
+                'booking_id'       => $booking->id,
+                'requested_by'     => Auth::id(),
+                'old_therapist_id' => $booking->therapist_id,
+                'reason'           => $validated['reason'],
+                'status'           => 'pending',
+            ]);
+
+            // Optional: file a same-day leave request in the same submission,
+            // so attendance reflects the absence without a second form.
+            if (!empty($validated['request_leave_too'])) {
+                $alreadyPendingLeave = LeaveRequest::where('user_id', Auth::id())
+                    ->where('status', 'pending')
+                    ->exists();
+
+                if (!$alreadyPendingLeave) {
+                    $user  = Auth::user();
+                    $leave = LeaveRequest::create([
+                        'user_id'    => Auth::id(),
+                        'spa_id'     => $user->spa_id,
+                        'branch_id'  => $booking->branch_id,
+                        'leave_type' => $validated['leave_type'] ?? 'sick',
+                        'start_date' => $booking->appointment_date,
+                        'end_date'   => $booking->appointment_date,
+                        'reason'     => $validated['reason'],
+                        'status'     => 'pending',
+                    ]);
+
+                    $reassignment->leave_request_id = $leave->id;
+                    $reassignment->save();
+                }
+            }
+
+            return $reassignment;
+        });
 
         return response()->json([
             'message' => 'Reassignment request submitted. The front desk has been notified.',

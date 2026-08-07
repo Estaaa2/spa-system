@@ -19,6 +19,7 @@ class ReassignmentRequest extends Model
         'rejection_reason',
         'reviewed_by',
         'reviewed_at',
+        'leave_request_id',
     ];
 
     protected $casts = [
@@ -52,6 +53,11 @@ class ReassignmentRequest extends Model
     public function reviewedBy()
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function leaveRequest()
+    {
+        return $this->belongsTo(LeaveRequest::class);
     }
 
     // =====================
