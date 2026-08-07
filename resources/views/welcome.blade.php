@@ -339,7 +339,7 @@
                 </div>
 
                 <button type="submit" title="Search"
-                        class="booking-btn flex-shrink-0 flex items-center justify-center w-11 h-11 my-1 text-white rounded-full shadow-lg hover:opacity-95 transition active:translate-y-0.5">
+                         class="booking-btn self-center flex-shrink-0 flex items-center justify-center w-11 h-11 my-1 text-white rounded-full shadow-lg hover:opacity-95 transition active:translate-y-0.5">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
             </form>
