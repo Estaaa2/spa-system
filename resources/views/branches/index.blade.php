@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('title', 'Branches Management')
-
 @section('content')
 @php
     $canUseProfessionalSuite = ($spa->business_tier ?? null) === 'professional';
@@ -186,7 +185,7 @@
                     {{-- The three edit buttons are always the same width and structure.
                          Remove is always rendered (disabled when conditions aren't met),
                          so the card height is consistent across all branches. --}}
-                    <div class="mt-5 pt-4 border-t dark:border-gray-700 space-y-2">
+                    <div class="pt-4 mt-5 space-y-2 border-t dark:border-gray-700">
 
                         {{-- Three tab direct-links in a row --}}
                         <div class="grid grid-cols-3 gap-2">

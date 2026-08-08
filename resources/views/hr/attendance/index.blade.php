@@ -1,4 +1,6 @@
 @extends('layouts.app')
+
+@section('title', 'Attendance')
 @section('content')
 @php
     $user = auth()->user();
@@ -46,24 +48,24 @@
             </div>
         </div>
 
-        <div class="p-5 border shadow-sm bg-green-50 border-green-200 rounded-2xl dark:bg-green-900/10 dark:border-green-800">
-            <p class="text-xs font-semibold tracking-wide uppercase text-green-700 dark:text-green-300">Present</p>
+        <div class="p-5 border border-green-200 shadow-sm bg-green-50 rounded-2xl dark:bg-green-900/10 dark:border-green-800">
+            <p class="text-xs font-semibold tracking-wide text-green-700 uppercase dark:text-green-300">Present</p>
             <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-green-900 dark:text-green-200">{{ $summary['present'] }}</h3>
                 <span class="text-sm text-green-700 dark:text-green-300">Marked present</span>
             </div>
         </div>
 
-        <div class="p-5 border shadow-sm bg-red-50 border-red-200 rounded-2xl dark:bg-red-900/10 dark:border-red-800">
-            <p class="text-xs font-semibold tracking-wide uppercase text-red-700 dark:text-red-300">Absent</p>
+        <div class="p-5 border border-red-200 shadow-sm bg-red-50 rounded-2xl dark:bg-red-900/10 dark:border-red-800">
+            <p class="text-xs font-semibold tracking-wide text-red-700 uppercase dark:text-red-300">Absent</p>
             <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-red-900 dark:text-red-200">{{ $summary['absent'] }}</h3>
                 <span class="text-sm text-red-700 dark:text-red-300">Marked absent</span>
             </div>
         </div>
 
-        <div class="p-5 border shadow-sm bg-yellow-50 border-yellow-200 rounded-2xl dark:bg-yellow-900/10 dark:border-yellow-800">
-            <p class="text-xs font-semibold tracking-wide uppercase text-yellow-700 dark:text-yellow-300">Late</p>
+        <div class="p-5 border border-yellow-200 shadow-sm bg-yellow-50 rounded-2xl dark:bg-yellow-900/10 dark:border-yellow-800">
+            <p class="text-xs font-semibold tracking-wide text-yellow-700 uppercase dark:text-yellow-300">Late</p>
             <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-yellow-900 dark:text-yellow-200">{{ $summary['late'] }}</h3>
                 <span class="text-sm text-yellow-700 dark:text-yellow-300">Marked late</span>

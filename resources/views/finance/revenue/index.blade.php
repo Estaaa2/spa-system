@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Revenue')
 @section('content')
 <div class="p-6 mx-auto space-y-6 max-w-7xl">
 
@@ -123,7 +124,7 @@
                         <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">₱{{ number_format($onlineRevenue, 2) }}</span>
                     </div>
                     @php $onlinePct = $totalRevenue > 0 ? round(($onlineRevenue / $totalRevenue) * 100) : 0; @endphp
-                    <div class="h-2 rounded-full bg-gray-100 dark:bg-gray-700">
+                    <div class="h-2 bg-gray-100 rounded-full dark:bg-gray-700">
                         <div class="h-2 rounded-full bg-violet-500" style="width: {{ $onlinePct }}%"></div>
                     </div>
                     <p class="mt-0.5 text-xs text-gray-400">{{ $onlinePct }}% of total</p>
@@ -135,7 +136,7 @@
                         <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">₱{{ number_format($walkInRevenue, 2) }}</span>
                     </div>
                     @php $walkPct = $totalRevenue > 0 ? round(($walkInRevenue / $totalRevenue) * 100) : 0; @endphp
-                    <div class="h-2 rounded-full bg-gray-100 dark:bg-gray-700">
+                    <div class="h-2 bg-gray-100 rounded-full dark:bg-gray-700">
                         <div class="h-2 rounded-full bg-[#8B7355]" style="width: {{ $walkPct }}%"></div>
                     </div>
                     <p class="mt-0.5 text-xs text-gray-400">{{ $walkPct }}% of total</p>

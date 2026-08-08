@@ -1,4 +1,6 @@
 @extends('layouts.app')
+
+@section('title', 'Payroll')
 @section('content')
 @php
     $user = auth()->user();
@@ -35,16 +37,16 @@
             </div>
         </div>
 
-        <div class="p-5 border shadow-sm bg-yellow-50 border-yellow-200 rounded-2xl dark:bg-yellow-900/10 dark:border-yellow-800">
-            <p class="text-xs font-semibold tracking-wide uppercase text-yellow-700 dark:text-yellow-300">Draft Payrolls</p>
+        <div class="p-5 border border-yellow-200 shadow-sm bg-yellow-50 rounded-2xl dark:bg-yellow-900/10 dark:border-yellow-800">
+            <p class="text-xs font-semibold tracking-wide text-yellow-700 uppercase dark:text-yellow-300">Draft Payrolls</p>
             <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-yellow-900 dark:text-yellow-200">{{ $summary['draft'] }}</h3>
                 <span class="text-sm text-yellow-700 dark:text-yellow-300">Pending finalization</span>
             </div>
         </div>
 
-        <div class="p-5 border shadow-sm bg-green-50 border-green-200 rounded-2xl dark:bg-green-900/10 dark:border-green-800">
-            <p class="text-xs font-semibold tracking-wide uppercase text-green-700 dark:text-green-300">Finalized</p>
+        <div class="p-5 border border-green-200 shadow-sm bg-green-50 rounded-2xl dark:bg-green-900/10 dark:border-green-800">
+            <p class="text-xs font-semibold tracking-wide text-green-700 uppercase dark:text-green-300">Finalized</p>
             <div class="flex items-end justify-between mt-3">
                 <h3 class="text-3xl font-semibold text-green-900 dark:text-green-200">{{ $summary['finalized'] }}</h3>
                 <span class="text-sm text-green-700 dark:text-green-300">Completed payrolls</span>

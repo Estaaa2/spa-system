@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Book An Appointments')
 @section('content')
 <div class="mx-auto max-w-7xl">
 

@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Reports')
 @section('content')
 <div class="p-6 mx-auto space-y-6 max-w-7xl">
 

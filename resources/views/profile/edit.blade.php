@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Profile')
 @section('content')
 <div class="p-6 mx-auto space-y-6 max-w-7xl">
     <x-page-header
@@ -27,7 +28,7 @@
 
     @if (session('success'))
         <div class="flex items-center gap-3 p-4 border border-green-200 bg-green-50 rounded-xl dark:bg-green-900/10 dark:border-green-800">
-            <i class="fa-solid fa-circle-check text-green-600 flex-shrink-0"></i>
+            <i class="flex-shrink-0 text-green-600 fa-solid fa-circle-check"></i>
             <p class="text-sm text-green-800 dark:text-green-300">{{ session('success') }}</p>
         </div>
     @endif

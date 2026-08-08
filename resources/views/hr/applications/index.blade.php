@@ -1,4 +1,6 @@
 @extends('layouts.app')
+
+@section('title', 'Applications')
 @section('content')
 @php
     $user = auth()->user();

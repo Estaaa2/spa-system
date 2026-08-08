@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Inventory Products')
 @section('content')
 <div class="p-6"
      x-data="{

@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Subscription')
 @section('content')
 <div class="max-w-3xl p-6 mx-auto">
 

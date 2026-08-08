@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Workforce & Finance Suite')
 @section('content')
 <div class="max-w-5xl p-6 mx-auto">
     <x-page-header

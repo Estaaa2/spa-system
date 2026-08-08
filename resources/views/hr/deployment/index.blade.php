@@ -1,6 +1,8 @@
 {{-- File path: resources/views/hr/deployment/index.blade.php --}}
 
 @extends('layouts.app')
+
+@section('title', 'Staff Deployment')
 @section('content')
 @php
     $user = auth()->user();

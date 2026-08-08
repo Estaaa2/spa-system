@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Billing & Expenses')
 @section('content')
 <div class="p-6 mx-auto space-y-6 max-w-7xl">
 
@@ -10,7 +11,7 @@
 
     {{-- ── Success Flash ───────────────────────────────────────────────────── --}}
     @if(session('success'))
-        <div class="flex items-center gap-3 px-4 py-3 text-sm text-emerald-800 border border-emerald-200 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300">
+        <div class="flex items-center gap-3 px-4 py-3 text-sm border text-emerald-800 border-emerald-200 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300">
             <span class="font-semibold">✓</span> {{ session('success') }}
         </div>
     @endif
@@ -287,7 +288,7 @@
                             <td class="px-6 py-4">
                                 <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $expense->title }}</p>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+                            <td class="max-w-xs px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
                                 {{ $expense->description ? \Str::limit($expense->description, 80) : '—' }}
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -301,7 +302,7 @@
                                     {{ $expStatusLabels[$expense->status] ?? ucfirst($expense->status) }}
                                 </span>
                                 @if($expense->review_notes)
-                                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500 max-w-xs">
+                                    <p class="max-w-xs mt-1 text-xs text-gray-400 dark:text-gray-500">
                                         "{{ \Str::limit($expense->review_notes, 60) }}"
                                     </p>
                                 @endif
@@ -314,7 +315,7 @@
                                         Review
                                     </button>
                                 @elseif($expense->status === 'accepted')
-                                    <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Funds Released</span>
+                                    <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Funds Released</span>
                                 @else
                                     <span class="text-xs text-gray-400">—</span>
                                 @endif
@@ -414,7 +415,7 @@
 
             <div id="notesWrapper">
                 <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Notes <span id="notesRequired" class="text-red-500 hidden">*</span>
+                    Notes <span id="notesRequired" class="hidden text-red-500">*</span>
                     <span id="notesOptional" class="font-normal text-gray-400">(optional)</span>
                 </label>
                 <textarea name="review_notes" id="review_notes" rows="3"

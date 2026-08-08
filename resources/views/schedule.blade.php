@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Schedule')
 @section('content')
     <div class="mx-auto max-w-7xl">
         <div class="p-6">
@@ -12,15 +13,15 @@
                 {{-- "Today" button — jumps back to the current week from anywhere --}}
                 <a href="{{ route('schedule.index') }}"
                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#8B7355] border border-[#8B7355]/40 rounded-lg hover:bg-[#8B7355]/5 transition dark:text-[#C4A97D] dark:border-[#C4A97D]/30">
-                    <i class="fa-regular fa-calendar-check text-xs"></i>
+                    <i class="text-xs fa-regular fa-calendar-check"></i>
                     Today
                 </a>
 
                 {{-- Week range + prev/next arrows --}}
                 <div class="flex items-center gap-3">
                     <a href="{{ route('schedule.index', ['week' => $prevWeek]) }}"
-                        class="flex items-center justify-center w-8 h-8 text-gray-600 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition">
-                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                        class="flex items-center justify-center w-8 h-8 text-gray-600 transition rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                        <i class="text-xs fa-solid fa-chevron-left"></i>
                     </a>
                     <div class="text-base font-semibold text-gray-800 dark:text-white text-center min-w-[200px]">
                         {{ $startOfWeek->format('F Y') }}
@@ -29,8 +30,8 @@
                         </span>
                     </div>
                     <a href="{{ route('schedule.index', ['week' => $nextWeek]) }}"
-                        class="flex items-center justify-center w-8 h-8 text-gray-600 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 transition">
-                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                        class="flex items-center justify-center w-8 h-8 text-gray-600 transition rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
+                        <i class="text-xs fa-solid fa-chevron-right"></i>
                     </a>
                 </div>
 
@@ -58,10 +59,10 @@
                 <div class="flex" style="min-width: 640px;">
 
                     {{-- ── Time-label column ──────────────────────────────────── --}}
-                    <div class="w-16 shrink-0 border-r border-gray-200 dark:border-gray-700">
+                    <div class="w-16 border-r border-gray-200 shrink-0 dark:border-gray-700">
 
                         {{-- Sticky day-header spacer --}}
-                        <div class="sticky top-0 z-20 h-14 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"></div>
+                        <div class="sticky top-0 z-20 border-b border-gray-200 h-14 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"></div>
 
                         {{--
                             FIX 1 — first-label overlap:
@@ -72,7 +73,7 @@
                         --}}
                         <div class="relative" style="height: {{ $totalHeight }}px;">
                             @foreach ($timeLabels as $label)
-                                <div class="absolute right-0 left-0 flex justify-end pr-2"
+                                <div class="absolute left-0 right-0 flex justify-end pr-2"
                                      style="top: {{ $label['topPx'] }}px;
                                             {{ $loop->first ? '' : 'transform: translateY(-50%);' }}">
                                     @if ($label['isHour'])
@@ -172,9 +173,9 @@
                                 @endforeach
 
                                 {{-- Current-time indicator (JS positions + shows this) --}}
-                                <div class="current-time-line hidden absolute left-0 right-0 z-20 pointer-events-none">
+                                <div class="absolute left-0 right-0 z-20 hidden pointer-events-none current-time-line">
                                     <div class="flex items-center">
-                                        <div class="w-2 h-2 rounded-full bg-red-500 shrink-0 -ml-1"></div>
+                                        <div class="w-2 h-2 -ml-1 bg-red-500 rounded-full shrink-0"></div>
                                         <div class="flex-1 border-t-[2px] border-red-500"></div>
                                     </div>
                                 </div>
@@ -268,9 +269,9 @@
 
                                             {{-- Pending reschedule pulse dot --}}
                                             @if ($hasPendingResched)
-                                                <span class="absolute top-1 right-1 flex h-2 w-2">
+                                                <span class="absolute flex w-2 h-2 top-1 right-1">
                                                     <span class="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
-                                                    <span class="relative inline-flex w-2 h-2 rounded-full bg-orange-500"></span>
+                                                    <span class="relative inline-flex w-2 h-2 bg-orange-500 rounded-full"></span>
                                                 </span>
                                             @endif
 
