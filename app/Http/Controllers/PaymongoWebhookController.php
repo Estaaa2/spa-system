@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\SubscriptionPaid;
 use App\Models\Booking;
+use App\Models\LeaveRequest;
 use App\Models\OnlineReservationPayment;
 use App\Models\Spa;
 use App\Models\Subscription;
@@ -131,8 +132,18 @@ class PaymongoWebhookController extends Controller
                             ->pluck('therapist_id')
                             ->unique();
 
+                        // ON-LEAVE: exclude therapists with approved leave covering
+                        // the reservation's date — a slot held for 15 minutes could
+                        // otherwise still confirm into a therapist who went on leave
+                        // in the meantime.
+                        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate(
+                            (int) $reservation->spa_id,
+                            (int) $reservation->branch_id,
+                            (string) $reservation->appointment_date
+                        );
+
                         $recommendedTherapist = $therapists
-                            ->reject(fn ($therapist) => $busyIds->contains($therapist->id))
+                            ->reject(fn ($therapist) => $busyIds->contains($therapist->id) || in_array($therapist->id, $onLeaveIds))
                             ->first();
 
                         if (! $recommendedTherapist) {

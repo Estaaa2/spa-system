@@ -322,7 +322,6 @@ class RolePermissionSeeder extends Seeder
             'view schedule',
             'request appointment reassignment',
 
-            'view attendance',
             'view leave requests',
             'create leave requests',
 
@@ -348,6 +347,8 @@ class RolePermissionSeeder extends Seeder
             'view staff',
             'view services',
 
+            'view attendance',
+            'edit attendance',
             'view leave requests',
             'create leave requests',
 

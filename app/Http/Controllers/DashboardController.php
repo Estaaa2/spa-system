@@ -178,8 +178,20 @@ class DashboardController extends Controller
         $myTodayAppointments = collect();
         $myStats             = null;
         $myNextAppointment   = null;
+        $myAttendanceToday   = null;
 
         if ($user->hasBranchPermission('view dashboard my today')) {
+            $myStaffRecordForNudge = \App\Models\Staff::where('user_id', $user->id)
+                ->where('spa_id', $spaId)
+                ->where('employment_status', 'active')
+                ->first();
+
+            $myAttendanceToday = $myStaffRecordForNudge
+                ? \App\Models\StaffAttendance::where('staff_id', $myStaffRecordForNudge->id)
+                    ->whereDate('date', $today)
+                    ->first()
+                : null;
+            
             $myBase = fn() => Booking::query()
                 ->where('spa_id', $spaId)
                 ->where('therapist_id', $user->id);
@@ -222,6 +234,7 @@ class DashboardController extends Controller
             'todayAppointments', 'nextAppointment',
             'therapists',
             'myTodayAppointments', 'myStats', 'myNextAppointment',
+            'myAttendanceToday',
             'pendingDeploymentResponse',
         ));
     }
@@ -386,6 +399,17 @@ class DashboardController extends Controller
 
         // ── My Today (therapist personal view) ────────────────────────────
         if ($user->hasBranchPermission('view dashboard my today')) {
+            $myStaffRecordForNudge = \App\Models\Staff::where('user_id', $user->id)
+                ->where('spa_id', $spaId)
+                ->where('employment_status', 'active')
+                ->first();
+
+            $myAttendanceToday = $myStaffRecordForNudge
+                ? \App\Models\StaffAttendance::where('staff_id', $myStaffRecordForNudge->id)
+                    ->whereDate('date', $today)
+                    ->first()
+                : null;
+            
             $myBase = fn() => Booking::query()
                 ->where('spa_id', $spaId)
                 ->where('therapist_id', $user->id);

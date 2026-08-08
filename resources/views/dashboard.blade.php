@@ -215,6 +215,35 @@
                 <p class="mt-1 text-xs text-blue-700 dark:text-blue-400">Still queued</p>
             </div>
 
+            <div class="p-4 border rounded-2xl {{ $myAttendanceToday && $myAttendanceToday->time_in && !$myAttendanceToday->time_out ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        @if(!$myAttendanceToday || !$myAttendanceToday->time_in)
+                            <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">You haven't clocked in yet today</p>
+                            <p class="text-xs text-amber-700 dark:text-amber-300">Clock in when you arrive so your attendance is recorded.</p>
+                        @elseif(!$myAttendanceToday->time_out)
+                            <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Clocked in at {{ \Carbon\Carbon::parse($myAttendanceToday->time_in)->format('h:i A') }}</p>
+                            <p class="text-xs text-emerald-700 dark:text-emerald-300">Don't forget to clock out before you leave.</p>
+                        @else
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                Clocked {{ \Carbon\Carbon::parse($myAttendanceToday->time_in)->format('h:i A') }} – {{ \Carbon\Carbon::parse($myAttendanceToday->time_out)->format('h:i A') }}
+                            </p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Today's attendance is complete.</p>
+                        @endif
+                    </div>
+                    @if(!$myAttendanceToday || !$myAttendanceToday->time_in)
+                        <form method="POST" action="{{ route('attendance.clock-in') }}">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">Clock In</button>
+                        </form>
+                    @elseif(!$myAttendanceToday->time_out)
+                        <form method="POST" action="{{ route('attendance.clock-out') }}">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700">Clock Out</button>
+                        </form>
+                    @endif
+                </div>
+            </div>
         </div>
 
         {{-- Personal schedule timeline --}}
