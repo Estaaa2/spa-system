@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\DB;
 
 class UserManagementController extends Controller
 {
@@ -21,16 +22,19 @@ class UserManagementController extends Controller
             })
             ->when($q, function ($query) use ($q) {
                 $query->where(function ($q2) use ($q) {
-                    $q2->where('name', 'like', "%{$q}%")
-                        ->orWhere('email', 'like', "%{$q}%");
+                    // Update search to use first_name and last_name instead of 'name'
+                    $q2->where('first_name', 'like', "%{$q}%")
+                        ->orWhere('last_name', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%")
+                        ->orWhere(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$q}%");
                 });
             })
 
             ->with('roles')
-            ->orderBy('name')
+            ->orderBy('last_name')  // Changed from 'name' to 'last_name'
+            ->orderBy('first_name') // Then order by first_name
             ->paginate(15)
             ->withQueryString();
-
 
         $roles = Role::orderBy('name')->get();
 
@@ -43,9 +47,6 @@ class UserManagementController extends Controller
             'role' => ['required', 'string', 'exists:roles,name'],
         ]);
 
-        // Prevent removing admin from itself if you want (optional)
-        // if ($user->id === auth()->id() && $validated['role'] !== 'admin') { ... }
-
         $user->syncRoles([$validated['role']]);
 
         return back()->with('success', "Role updated for {$user->email}.");
@@ -53,12 +54,10 @@ class UserManagementController extends Controller
 
     public function destroy(User $user)
     {
-        // Extra protection: do not allow deleting admin users
         if ($user->hasRole('admin')) {
             return back()->with('error', 'Admin users cannot be deleted.');
         }
 
-        // Optional: do not allow deleting your own account
         if (auth()->id() === $user->id) {
             return back()->with('error', 'You cannot delete your own account.');
         }
@@ -79,4 +78,3 @@ class UserManagementController extends Controller
         return back()->with('success', "User {$user->email} restored successfully.");
     }
 }
-

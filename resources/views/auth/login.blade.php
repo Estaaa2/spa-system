@@ -1,5 +1,4 @@
-<x-guest-layout>
-    <x-auth-session-status class="mb-10" :status="session('status')" />
+<x-guest-layout title="Login">
 
     <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2 rounded-2xl ">
 
@@ -95,13 +94,20 @@
                             </div>
                             <x-text-input
                                 id="password"
-                                class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
+                                class="block w-full pl-10 pr-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
                                 type="password"
                                 name="password"
                                 required
                                 autocomplete="current-password"
                                 placeholder="Enter your password"
                             />
+                            <button type="button"
+                                    class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
+                                    data-target="password"
+                                    aria-label="Show password"
+                                    tabindex="-1">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
                         </div>
                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
                     </div>
@@ -160,4 +166,99 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.querySelectorAll('.toggle-password').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const target = document.getElementById(btn.dataset.target);
+                const icon = btn.querySelector('i');
+                if (!target) return;
+
+                if (target.type === 'password') {
+                    target.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                    btn.setAttribute('aria-label', 'Hide password');
+                } else {
+                    target.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                    btn.setAttribute('aria-label', 'Show password');
+                }
+            });
+        });
+    </script>
+
+    @if (session('status'))
+        @push('toasts')
+            {{-- guest.blade.php doesn't currently load Toastify, so pull it in here --}}
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+            <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+            <script>
+                // Same showSpaToast used across the authenticated app
+                // (layouts/app.blade.php), duplicated here so the guest/login
+                // page doesn't depend on that layout's script being loaded.
+                if (typeof showSpaToast !== 'function') {
+                    window.showSpaToast = function (message, type = 'success') {
+                        const isSuccess = type === 'success';
+                        Toastify({
+                            text: `
+                                <div style="display:flex; align-items:center; gap:12px; padding: 2px 0;">
+                                    <div style="
+                                        width: 36px;
+                                        height: 36px;
+                                        border-radius: 50%;
+                                        background: ${isSuccess ? '#f0fdf4' : '#fef2f2'};
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        flex-shrink: 0;
+                                    ">
+                                        <i class="${isSuccess ? 'fa-solid fa-spa' : 'fa-solid fa-circle-xmark'}"
+                                           style="color: ${isSuccess ? '#16a34a' : '#dc2626'}; font-size: 15px;">
+                                        </i>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:2px;">
+                                        <span style="
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                            letter-spacing: 0.08em;
+                                            text-transform: uppercase;
+                                            color: ${isSuccess ? '#15803d' : '#b91c1c'};
+                                        ">${isSuccess ? 'Success' : 'Error'}</span>
+                                        <span style="
+                                            font-size: 13px;
+                                            color: #374151;
+                                            font-weight: 400;
+                                            line-height: 1.4;
+                                        ">${message}</span>
+                                    </div>
+                                </div>
+                            `,
+                            duration: 3500,
+                            gravity: "top",
+                            position: "right",
+                            close: false,
+                            escapeMarkup: false,
+                            style: {
+                                background: "#ffffff",
+                                border: isSuccess ? "1px solid #bbf7d0" : "1px solid #fecaca",
+                                borderLeft: isSuccess ? "4px solid #16a34a" : "4px solid #dc2626",
+                                borderRadius: "10px",
+                                minWidth: "300px",
+                                maxWidth: "360px",
+                                padding: "14px 18px",
+                                boxShadow: "0 10px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)",
+                            }
+                        }).showToast();
+                    };
+                }
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    showSpaToast(@json(session('status')), 'success');
+                });
+            </script>
+        @endpush
+    @endif
 </x-guest-layout>

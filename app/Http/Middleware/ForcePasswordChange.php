@@ -15,8 +15,7 @@ class ForcePasswordChange
         if ($user && $user->password_reset_required) {
             // Allow profile routes only
             if (!$request->routeIs('profile.*') && !$request->routeIs('logout')) {
-                return redirect()->route('profile.edit')
-                    ->with('warning', 'You must change your password before continuing.');
+                return redirect(route('profile.edit') . '#password');
             }
         }
 

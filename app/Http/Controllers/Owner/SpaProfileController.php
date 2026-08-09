@@ -42,6 +42,12 @@ class SpaProfileController extends Controller
 
     public function uploadDocument(Request $request)
     {
+        \Log::info('Upload debug', [
+            'all_files' => $request->allFiles(),
+            'has_documents' => $request->hasFile('documents'),
+            'all_input' => $request->except(['_token']),
+        ]);
+
         $spa = Auth::user()->spa;
 
         if ($spa->verification_status === 'verified') {
