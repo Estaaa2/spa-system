@@ -21,12 +21,16 @@ class BranchProfile extends Model
         'latitude',
         'longitude',
         'amenities',
+        'is_hiring',
+        'hiring_note',
     ];
 
     protected $casts = [
         'gallery_images' => 'array',
         'amenities' => 'array',
         'is_listed' => 'boolean',
+        'is_hiring' => 'boolean',
+        'hiring_note' => 'string',
     ];
 
     public function branch()

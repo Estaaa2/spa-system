@@ -19,7 +19,10 @@ class Treatment extends Model
         'price',
         'service_type',
         'description',
+        'image_path',
     ];
+
+    protected $appends = ['image_url'];
 
     public function spa()
     {
@@ -45,6 +48,11 @@ class Treatment extends Model
             'in_branch_and_home' => 'In Branch & Home',
             default => ucfirst(str_replace('_', ' ', $this->service_type)),
         };
+    }
+
+    public function getImageUrlAttribute()
+    {
+        return $this->image_path ? asset('storage/' . $this->image_path) : null;
     }
 
     protected static function booted()

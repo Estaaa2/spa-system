@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Inventory Logs')
 @section('content')
 <div class="p-6">
     <x-page-header

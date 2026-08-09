@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,11 +10,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, SoftDeletes;
+    use HasFactory, Notifiable, HasRoles, SoftDeletes,HasApiTokens;
 
     /**
      * The attributes that are mass assignable.
@@ -23,7 +23,9 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'middle_name',
+        'last_name',
         'email',
         'password',
         'spa_id',
@@ -31,6 +33,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'is_owner',
         'temp_password',
         'password_reset_required',
+        'address',   // For customers only
+        'latitude',  // For customers only
+        'longitude', // For customers only
     ];
 
     /**
@@ -56,6 +61,25 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_owner' => 'boolean',
             'password_reset_required' => 'boolean',
         ];
+    }
+
+    /**
+     * Virtual "name" accessor so all existing code using $user->name
+     * continues to work without any changes.
+     */
+    public function getNameAttribute(): string
+    {
+        return collect([$this->first_name, $this->middle_name, $this->last_name])
+            ->filter()
+            ->implode(' ');
+    }
+
+    /**
+     * Full name — same as name but explicit for readability when needed.
+     */
+    public function getFullNameAttribute(): string
+    {
+        return $this->name;
     }
 
     public function spa(): BelongsTo
@@ -96,7 +120,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasOne(\App\Models\Staff::class, 'user_id');
     }
-    
+
     public function currentBranchId(): ?int
     {
         if ($this->hasRole('owner')) {

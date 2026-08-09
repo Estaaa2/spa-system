@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\SubscriptionPaid;
 use App\Models\Booking;
+use App\Models\LeaveRequest;
 use App\Models\OnlineReservationPayment;
 use App\Models\Spa;
 use App\Models\Subscription;
@@ -62,10 +63,6 @@ class PaymongoWebhookController extends Controller
                 if ($spa) {
                     $spa->update(['business_tier' => 'professional']);
 
-                    foreach ($spa->branches as $branch) {
-                        $branch->profile?->update(['is_listed' => 1]);
-                    }
-
                     $ownerEmail = $spa->owner->email ?? null;
                     if ($ownerEmail) {
                         try {
@@ -102,27 +99,27 @@ class PaymongoWebhookController extends Controller
                         $durationMinutes = 60;
 
                         if ($reservation->bookable_type === 'treatment') {
-                            $treatment = \App\Models\Treatment::withoutGlobalScopes()->find($reservation->bookable_id);
+                            $treatment = Treatment::withoutGlobalScopes()->find($reservation->bookable_id);
                             $durationMinutes = $treatment?->duration ?? 60;
                         } elseif ($reservation->bookable_type === 'package') {
-                            $package = \App\Models\Package::withoutGlobalScopes()->find($reservation->bookable_id);
+                            $package = Package::withoutGlobalScopes()->find($reservation->bookable_id);
                             $durationMinutes = $package?->duration ?? $package?->total_duration ?? 60;
                         }
 
-                        $endTime = \Carbon\Carbon::parse($reservation->start_time)
+                        $endTime = Carbon::parse($reservation->start_time)
                             ->addMinutes($durationMinutes)
                             ->format('H:i:s');
 
-                        $therapists = \App\Models\User::role('therapist')
-                            ->whereHas('staff', function ($q) use ($reservation) {
-                                $q->where('spa_id', $reservation->spa_id)
-                                    ->where('branch_id', $reservation->branch_id)
-                                    ->where('employment_status', 'active');
-                            })
-                            ->orderBy('name')
-                            ->get();
+                        $therapists = User::role('therapist')
+                        ->whereHas('staff', function ($q) use ($reservation) {
+                            $q->where('spa_id', $reservation->spa_id)
+                                ->where('branch_id', $reservation->branch_id)
+                                ->where('employment_status', 'active');
+                        })
+                        ->orderBy('first_name')  // ← use your actual column name
+                        ->get();
 
-                        $busyIds = \App\Models\Booking::query()
+                        $busyIds = Booking::query()
                             ->where('spa_id', $reservation->spa_id)
                             ->where('branch_id', $reservation->branch_id)
                             ->where('appointment_date', $reservation->appointment_date)
@@ -135,8 +132,18 @@ class PaymongoWebhookController extends Controller
                             ->pluck('therapist_id')
                             ->unique();
 
+                        // ON-LEAVE: exclude therapists with approved leave covering
+                        // the reservation's date — a slot held for 15 minutes could
+                        // otherwise still confirm into a therapist who went on leave
+                        // in the meantime.
+                        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate(
+                            (int) $reservation->spa_id,
+                            (int) $reservation->branch_id,
+                            (string) $reservation->appointment_date
+                        );
+
                         $recommendedTherapist = $therapists
-                            ->reject(fn ($therapist) => $busyIds->contains($therapist->id))
+                            ->reject(fn ($therapist) => $busyIds->contains($therapist->id) || in_array($therapist->id, $onLeaveIds))
                             ->first();
 
                         if (! $recommendedTherapist) {

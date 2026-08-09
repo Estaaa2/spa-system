@@ -14,39 +14,55 @@ class RolePermissionSeeder extends Seeder
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         $permissions = [
-            // Dashboard
+            // ── Dashboard ─────────────────────────────────────────────────────
+            // view owner dashboard: kept in DB for backwards compat with any existing
+            // @can checks, but is NOT assigned to any role. Superseded by
+            // view business dashboard.
             'view owner dashboard',
             'view admin dashboard',
+            'view business dashboard',     // all business roles
 
-            // Bookings / Appointments / Schedule
-            'create booking',
+            // Dashboard widgets (controls what each role sees on the dashboard)
+            'view dashboard kpis',             // today/ongoing/pending/reserved stat cards
+            'view dashboard revenue',          // collected revenue, online vs walk-in, top service
+            'view dashboard timeline',         // full branch appointment timeline
+            'view dashboard therapist status', // therapist workload panel
+            'view dashboard alerts',           // late check-ins, cancellations, overloaded warnings
+            'view dashboard booking button',   // New Booking shortcut in dashboard header
+            'view dashboard my today',         // therapist's own personal schedule widget
+
+            // ── Appointments ──────────────────────────────────────────────────
+            'book appointments',
             'view appointments',
             'edit appointments',
             'delete appointments',
+            'request appointment reassignment',
+
+            // ── Schedule ──────────────────────────────────────────────────────
             'view schedule',
-            'manage schedule',
 
-            // Staff availability
-            'view staff availability',
-            'manage staff availability',
+            // ── Attendance & Leave ────────────────────────────────────────────
+            'view attendance',
+            'edit attendance',
+            'view leave requests',
+            'create leave requests',
+            'edit leave requests',
+            'delete leave requests',
 
-            // Branches
+            // ── Branches ──────────────────────────────────────────────────────
             'view branches',
-            'manage branches',
             'create branches',
             'edit branches',
             'delete branches',
 
-            // Staff
+            // ── Staff ─────────────────────────────────────────────────────────
             'view staff',
-            'manage staff',
             'create staff',
             'edit staff',
             'delete staff',
 
-            // Services
+            // ── Services ──────────────────────────────────────────────────────
             'view services',
-            'manage services',
             'create treatments',
             'edit treatments',
             'delete treatments',
@@ -54,132 +70,359 @@ class RolePermissionSeeder extends Seeder
             'edit packages',
             'delete packages',
 
-            // Reports / Decision support
+            // ── Insights & Reports ────────────────────────────────────────────
             'view reports',
+            'export reports',
             'view decision support',
 
-            // Inventory
+            // ── Inventory ─────────────────────────────────────────────────────
             'view inventory',
             'view inventory logs',
-            'manage inventory',
+            'create inventory items',
+            'edit inventory items',
+            'delete inventory items',
+            'view product inventory',
+            'create product inventory',
+            'edit product inventory',
+            'delete product inventory',
+            'view product logs',
 
-            // System administration
-            'manage spas',
-            'manage users',
-            'manage roles',
-            'manage settings',
+            // ── Staff-side Settings ───────────────────────────────────────────
+            'edit own profile',
+            'view spa profile',
+            'edit spa profile',
 
-            //  HR permissions
-            'view hr dashboard',
-            'manage hiring',
+            // ── Admin-side System Management ──────────────────────────────────
+            'view registered users',
+            'edit registered users',
+            'delete registered users',
+            'view registered spas',
+            'edit registered spas',
+            'verify registered spas',
+            'change spa subscriptions',
+            'view system roles',
+            'edit system roles',
+            'edit admin profile',
+            'manage system settings',
+
+            // ── HR (Workforce Suite) ──────────────────────────────────────────
             'view hiring',
-            'manage applications',
+            'create hiring',
+            'edit hiring',
+            'delete hiring',
             'view applications',
-            'manage interviews',
+            'edit applications',
+            'delete applications',
             'view interviews',
-            'manage attendance',
-            'view attendance',
-            'manage payroll',
+            'create interviews',
+            'edit interviews',
+            'delete interviews',
             'view payroll',
+            'edit payroll',
+            'view deployments',
+            'create deployments',
+            'approve deployments',
+            'delete deployments',
 
-            //  Finance permissions
-            'view finance dashboard',
+            // ── Finance (Finance Suite) ───────────────────────────────────────
             'view revenue',
-            'manage revenue',
             'view billing',
-            'manage billing',
+            'create billing',
+            'edit billing',
+            'delete billing',
             'view finance inventory',
-            'manage finance inventory',
+            'edit finance inventory',
         ];
+
+        // Optional: uncomment to clean up stale permissions after all code has been updated
+        Permission::whereNotIn('name', $permissions)->delete();
 
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['name' => $perm]);
         }
 
-        // Roles
+        // ── Roles ─────────────────────────────────────────────────────────────
         $admin        = Role::firstOrCreate(['name' => 'admin']);
         $owner        = Role::firstOrCreate(['name' => 'owner']);
         $manager      = Role::firstOrCreate(['name' => 'manager']);
         $therapist    = Role::firstOrCreate(['name' => 'therapist']);
         $receptionist = Role::firstOrCreate(['name' => 'receptionist']);
         $customer     = Role::firstOrCreate(['name' => 'customer']);
-        $hr           = Role::firstOrCreate(['name' => 'hr']);           // ✅ NEW
-        $finance      = Role::firstOrCreate(['name' => 'finance']);      // ✅ NEW
+        $hr           = Role::firstOrCreate(['name' => 'hr']);
+        $finance      = Role::firstOrCreate(['name' => 'finance']);
 
-        // Admin
+        // ── Admin ─────────────────────────────────────────────────────────────
         $admin->syncPermissions([
             'view admin dashboard',
-            'manage spas', 'manage users', 'manage roles', 'manage settings',
-            'view reports', 'view decision support',
-            'manage inventory',
+            'view registered users',
+            'edit registered users',
+            'delete registered users',
+            'view registered spas',
+            'edit registered spas',
+            'verify registered spas',
+            'change spa subscriptions',
+            'view system roles',
+            'edit system roles',
+            'edit admin profile',
+            'manage system settings',
         ]);
 
-        // Owner
+        // ── Owner ─────────────────────────────────────────────────────────────
+        // Full visibility across all dashboard widgets, operations, HR, and finance.
+        // Note: view owner dashboard is intentionally excluded — view business dashboard
+        // is the correct permission going forward.
         $owner->syncPermissions([
-            'view owner dashboard',
-            'create booking', 'view appointments', 'edit appointments', 'delete appointments',
-            'view schedule', 'manage schedule',
-            'view inventory', 'view inventory logs', 'manage inventory',
-            'view staff availability', 'manage staff availability',
-            'view staff', 'manage staff', 'create staff', 'edit staff', 'delete staff',
-            'view branches', 'manage branches', 'create branches', 'edit branches', 'delete branches',
-            'view services', 'manage services',
-            'create treatments', 'edit treatments', 'delete treatments',
-            'create packages', 'edit packages', 'delete packages',
-            'view reports', 'view decision support',
+            'view business dashboard',
+            'view dashboard kpis',
+            'view dashboard revenue',
+            'view dashboard timeline',
+            'view dashboard therapist status',
+            'view dashboard alerts',
+            'view dashboard booking button',
 
-            // HR & Finance visibility for owner
-            'view hr dashboard', 'view finance dashboard',
-            'view hiring', 'view applications', 'view interviews',
-            'view attendance', 'view payroll',
-            'view revenue', 'view billing', 'view finance inventory',
-        ]);
+            'book appointments',
+            'view appointments',
+            'edit appointments',
+            'delete appointments',
 
-        // Manager
-        $manager->syncPermissions([
-            'create booking', 'view appointments', 'edit appointments',
-            'view schedule', 'manage schedule',
-            'view staff availability', 'manage staff availability',
-            'view branches',
-            'view inventory', 'view inventory logs', 'manage inventory',
-            'view staff', 'manage staff',
-            'view services', 'manage services',
-            'view reports', 'view decision support',
-        ]);
-
-        // Therapist
-        $therapist->syncPermissions([
-            'view schedule', 'view appointments',
-        ]);
-
-        // Receptionist
-        $receptionist->syncPermissions([
-            'create booking', 'view appointments', 'edit appointments',
-            'view schedule', 'view branches', 'view staff',
-        ]);
-
-        // ✅ HR Role
-        $hr->syncPermissions([
-            'view hr dashboard',
-            'view hiring',    'manage hiring',
-            'view applications', 'manage applications',
-            'view interviews',   'manage interviews',
-            'view staff',        'manage staff',
-            'view attendance',   'manage attendance',
-            'view payroll',      'manage payroll',
             'view schedule',
+
+            'view attendance',
+            'edit attendance',
+            'view leave requests',
+            'create leave requests',
+            'edit leave requests',
+            'delete leave requests',
+
+            'view branches',
+            'create branches',
+            'edit branches',
+            'delete branches',
+
+            'view staff',
+            'create staff',
+            'edit staff',
+            'delete staff',
+
+            'view services',
+            'create treatments',
+            'edit treatments',
+            'delete treatments',
+            'create packages',
+            'edit packages',
+            'delete packages',
+
+            'view reports',
+            'export reports',
+            'view decision support',
+
+            'view inventory',
+            'view inventory logs',
+            'create inventory items',
+            'edit inventory items',
+            'delete inventory items',
+            'view product inventory',
+            'create product inventory',
+            'edit product inventory',
+            'delete product inventory',
+            'view product logs',
+
+            'edit own profile',
+            'view spa profile',
+            'edit spa profile',
+
+            'view hiring',
+            'create hiring',
+            'edit hiring',
+            'delete hiring',
+            'view applications',
+            'edit applications',
+            'delete applications',
+            'view interviews',
+            'create interviews',
+            'edit interviews',
+            'delete interviews',
+            'view payroll',
+            'edit payroll',
+            'view deployments',
+            'create deployments',
+            'approve deployments',
+            'delete deployments',
+
+            'view revenue',
+            'view billing',
+            'create billing',
+            'edit billing',
+            'delete billing',
+            'view finance inventory',
+            'edit finance inventory',
         ]);
 
-        // ✅ Finance Role
-        $finance->syncPermissions([
-            'view finance dashboard',
-            'view revenue',          'manage revenue',
-            'view billing',          'manage billing',
-            'view finance inventory','manage finance inventory',
+        // ── Manager ───────────────────────────────────────────────────────────
+        // Operational + financial visibility. No branch/spa settings,
+        // no delete permissions on staff or services.
+        $manager->syncPermissions([
+            'view business dashboard',
+            'view dashboard kpis',
+            'view dashboard revenue',
+            'view dashboard timeline',
+            'view dashboard therapist status',
+            'view dashboard alerts',
+            'view dashboard booking button',
+
+            'book appointments',
+            'view appointments',
+            'edit appointments',
+
+            'view schedule',
+
+            'view attendance',
+            'edit attendance',
+            'view leave requests',
+            'create leave requests',
+            'edit leave requests',
+
+            'view branches',
+
+            'view staff',
+            'create staff',
+            'edit staff',
+
+            'view services',
+            'create treatments',
+            'edit treatments',
+            'create packages',
+            'edit packages',
+
             'view reports',
             'view decision support',
+
+            'view inventory',
+            'view inventory logs',
+            'create inventory items',
+            'edit inventory items',
+            'view product inventory',
+            'edit product inventory',
+            'view product logs',
+
+            'edit own profile',
+            'view spa profile',
+
+            'view deployments',
         ]);
 
+        // ── Therapist ─────────────────────────────────────────────────────────
+        // Personal-only dashboard view: their own schedule widget only.
+        // No branch-wide data, no revenue, no booking creation.
+        $therapist->syncPermissions([
+            'view business dashboard',
+            'view dashboard my today',
+
+            'view appointments',
+            'view schedule',
+            'request appointment reassignment',
+
+            'view leave requests',
+            'create leave requests',
+
+            'edit own profile',
+        ]);
+
+        // ── Receptionist ──────────────────────────────────────────────────────
+        // Operational focus: can book and see the timeline and alerts.
+        // No revenue data, no financial or HR information.
+        $receptionist->syncPermissions([
+            'view business dashboard',
+            'view dashboard kpis',
+            'view dashboard timeline',
+            'view dashboard alerts',
+            'view dashboard booking button',
+
+            'book appointments',
+            'view appointments',
+            'edit appointments',
+
+            'view schedule',
+            'view branches',
+            'view staff',
+            'view services',
+
+            'view attendance',
+            'edit attendance',
+            'view leave requests',
+            'create leave requests',
+
+            'edit own profile',
+        ]);
+
+        // ── HR ────────────────────────────────────────────────────────────────
+        // People-focused. KPI cards for context only; no timeline, revenue, or alerts.
+        $hr->syncPermissions([
+            'view business dashboard',
+            'view dashboard kpis',
+
+            'view staff',
+            'create staff',
+            'edit staff',
+            'delete staff',
+
+            'view branches',
+            'view schedule',
+
+            'view attendance',
+            'edit attendance',
+            'view leave requests',
+            'create leave requests',
+            'edit leave requests',
+            'delete leave requests',
+
+            'view hiring',
+            'create hiring',
+            'edit hiring',
+            'delete hiring',
+
+            'view applications',
+            'edit applications',
+            'delete applications',
+
+            'view interviews',
+            'create interviews',
+            'edit interviews',
+            'delete interviews',
+
+            'view deployments',
+            'create deployments',
+            'delete deployments',
+
+            'view payroll',
+            'edit payroll',
+
+            'edit own profile',
+        ]);
+
+        // ── Finance ───────────────────────────────────────────────────────────
+        // Financial focus: KPIs + revenue data. No operational widgets,
+        // no HR, no appointment management.
+        $finance->syncPermissions([
+            'view business dashboard',
+            'view dashboard kpis',
+            'view dashboard revenue',
+
+            'view revenue',
+            'view billing',
+            'create billing',
+            'edit billing',
+            'delete billing',
+            'view finance inventory',
+            'edit finance inventory',
+
+            'view reports',
+            'view decision support',
+
+            'edit own profile',
+        ]);
+
+        // ── Customer ──────────────────────────────────────────────────────────
         $customer->syncPermissions([]);
     }
 }

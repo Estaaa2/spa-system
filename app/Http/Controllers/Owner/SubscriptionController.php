@@ -22,12 +22,29 @@ class SubscriptionController extends Controller
             ->latest()
             ->first();
 
+        // Auto-downgrade: if the latest paid subscription has passed its
+        // expiry date but the spa's business_tier hasn't caught up yet
+        // (e.g. owner never visited this page since expiry, or cron hasn't
+        // run), correct it here so the badge/tier shown is always accurate.
+        if (
+            $subscription
+            && $subscription->expires_at
+            && $subscription->expires_at->isPast()
+            && $spa->business_tier === 'professional'
+        ) {
+            $spa->update(['business_tier' => 'basic']);
+            $spa->refresh();
+
+            Log::info("Spa {$spa->id} auto-downgraded to basic on page load (subscription #{$subscription->id} expired {$subscription->expires_at})");
+        }
+
         return view('owner.subscription.index', compact('spa', 'subscription'));
     }
 
     public function checkout()
     {
-        $spa = auth()->user()->spa;
+        $owner = auth()->user();
+        $spa = $owner->spa;
 
         $subscription = Subscription::create([
             'spa_id'         => $spa->id,
@@ -35,6 +52,8 @@ class SubscriptionController extends Controller
             'amount'         => 200.00,
             'payment_status' => 'pending',
         ]);
+
+        $ownerName = trim(($owner->first_name ?? '') . ' ' . ($owner->last_name ?? ''));
 
         $response = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
             ->post('https://api.paymongo.com/v1/checkout_sessions', [
@@ -47,6 +66,11 @@ class SubscriptionController extends Controller
                             'quantity' => 1,
                         ]],
                         'payment_method_types' => ['gcash'],
+                        'billing' => [
+                            'name'  => $ownerName ?: null,
+                            'email' => $owner->email ?? null,
+                            'phone' => $owner->phone ?? null,
+                        ],
                         'success_url' => route('owner.subscription.success'),
                         'cancel_url'  => route('owner.subscription.cancel'),
                     ],
@@ -113,11 +137,6 @@ class SubscriptionController extends Controller
                         // Upgrade tier
                         $spa->update(['business_tier' => 'professional']);
 
-                        // Auto-list all branches
-                        foreach ($spa->branches as $branch) {
-                            $branch->profile?->update(['is_listed' => 1]);
-                        }
-
                         // ✅ Send confirmation email to owner
                         $ownerEmail = $spa->owner->email ?? null;
                         if ($ownerEmail) {
@@ -153,11 +172,6 @@ class SubscriptionController extends Controller
             $subscription->update(['expires_at' => now()]);
 
             $spa->update(['business_tier' => 'basic']);
-
-            $spa->load('branches.profile');
-            foreach ($spa->branches as $branch) {
-                $branch->profile?->update(['is_listed' => 0]);
-            }
         }
 
         return redirect()->route('owner.subscription.index')
