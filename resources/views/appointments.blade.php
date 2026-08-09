@@ -7,6 +7,7 @@
 
     $canEdit    = $user?->hasBranchPermission('edit appointments') ?? false;
     $canDelete  = $user?->hasBranchPermission('delete appointments') ?? false;
+    $canBook    = $user?->hasBranchPermission('book appointments') ?? false;
     $showActions = $canEdit || $canDelete;
 
     $statusClasses = [
@@ -41,7 +42,18 @@
     <x-page-header
         title="Appointments"
         subtitle="Monitor bookings, process arrivals, and track payments for today’s operations."
-    />
+    >
+        <x-slot name="right">
+            @if($canBook)
+            <a href="{{ route('booking') }}"
+               class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl
+                      bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5">
+                <i class="text-xs fa-solid fa-plus"></i>
+                New Booking
+            </a>
+            @endif
+        </x-slot>
+    </x-page-header>
 
     {{-- ── Summary cards ── --}}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

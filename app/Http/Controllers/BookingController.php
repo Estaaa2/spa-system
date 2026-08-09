@@ -358,10 +358,17 @@ class BookingController extends Controller
         $branchId = $booking->branch_id;
 
         $this->syncAutomaticStatuses($spaId, $branchId);
+        $booking->refresh();
+
+        if (in_array($booking->status, ['completed', 'cancelled'], true)) {
+            return redirect()
+                ->route('appointments.index')
+                ->with('error', 'This appointment is already ' . $booking->status . ' and can no longer be edited.');
+        }
 
         $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
-            'customer_email' => 'required|email|max:255',
+            'customer_email' => 'nullable|email|max:255',
             'customer_phone' => ['nullable', 'string', 'regex:/^09\d{9}$/'],
             'customer_address' => 'nullable|string|max:255',
             'service_type' => 'required|string|in:in_branch,in_home',
@@ -370,25 +377,6 @@ class BookingController extends Controller
             'appointment_date' => 'required|date|after_or_equal:today',
             'start_time' => 'required',
         ]);
-
-        // Block setting ongoing/completed for future appointments
-        $today = now()->startOfDay();
-        $appointmentDate = Carbon::parse($validated['appointment_date'])->startOfDay();
-
-        if (in_array($booking->status, ['ongoing', 'completed']) && $appointmentDate->gt($today)) {
-            return back()->withErrors([
-                'status' => 'Cannot mark an appointment as "' . $validated['status'] . '" if the appointment date is in the future.'
-            ])->withInput();
-        }
-
-        // Prevent completing appointments that haven't started yet (for today)
-        if ($booking->status === 'completed' &&
-            $booking->status !== 'ongoing' &&
-            $appointmentDate->eq($today)) {
-            return back()->withErrors([
-                'status' => 'Appointment must be marked as "Ongoing" first before it can be completed.'
-            ])->withInput();
-        }
 
         $durationMinutes = $this->resolveDurationMinutes($validated['treatment']);
 
@@ -670,16 +658,6 @@ class BookingController extends Controller
         ]);
 
         return back()->with('success', 'Appointment status updated successfully.');
-    }
-
-    private function getAllowedEditStatuses(Booking $booking): array
-    {
-        return match ($booking->status) {
-            'pending'  => ['ongoing', 'cancelled'],
-            'ongoing'  => ['cancelled'],
-            'reserved' => ['reserved', 'cancelled'],
-            default    => [$booking->status], // completed/cancelled are locked
-        };
     }
 
     private function resolveDurationMinutes(string $selection): int
