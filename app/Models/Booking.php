@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Carbon\Carbon;
 
 class Booking extends Model
@@ -65,6 +66,11 @@ class Booking extends Model
         return $this->belongsTo(Spa::class);
     }
 
+    public function treatments()
+    {
+        return $this->belongsTo(Treatment::class, 'treatment', 'id');
+    }
+
     public function getTherapistNameAttribute()
     {
         return $this->therapist ? $this->therapist->name : 'Not Assigned';
@@ -110,4 +116,35 @@ class Booking extends Model
 
         return Carbon::parse($startTime)->addMinutes($duration)->format('H:i:s');
     }
+
+    public function rescheduleRequests()
+    {
+        return $this->hasMany(RescheduleRequest::class);
+    }
+
+    public function latestRescheduleRequest()
+    {
+        return $this->hasOne(RescheduleRequest::class)->latestOfMany();
+    }
+
+    public function reassignmentRequests()
+    {
+        return $this->hasMany(ReassignmentRequest::class);
+    }
+
+    public function latestReassignmentRequest()
+    {
+        return $this->hasOne(ReassignmentRequest::class)->latestOfMany();
+    }
+
+    public function rating(): HasOne
+    {
+        return $this->hasOne(Rating::class, 'booking_id');
+    }
+
+    public function hasRating(): bool
+    {
+        return $this->rating()->exists();
+    }
+
 }

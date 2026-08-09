@@ -93,13 +93,20 @@
                             </div>
                             <x-text-input
                                 id="password"
-                                class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
+                                class="block w-full pl-10 pr-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
                                 type="password"
                                 name="password"
                                 required
                                 autocomplete="new-password"
                                 placeholder="Enter new password"
                             />
+                            <button type="button"
+                                    class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
+                                    data-target="password"
+                                    aria-label="Show password"
+                                    tabindex="-1">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
                         </div>
                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
                     </div>
@@ -115,13 +122,20 @@
                             </div>
                             <x-text-input
                                 id="password_confirmation"
-                                class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
+                                class="block w-full pl-10 pr-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
                                 type="password"
                                 name="password_confirmation"
                                 required
                                 autocomplete="new-password"
                                 placeholder="Confirm new password"
                             />
+                            <button type="button"
+                                    class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
+                                    data-target="password_confirmation"
+                                    aria-label="Show password"
+                                    tabindex="-1">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
                         </div>
                         <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
                     </div>
@@ -153,4 +167,26 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.querySelectorAll('.toggle-password').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const target = document.getElementById(btn.dataset.target);
+                const icon = btn.querySelector('i');
+                if (!target) return;
+
+                if (target.type === 'password') {
+                    target.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                    btn.setAttribute('aria-label', 'Hide password');
+                } else {
+                    target.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                    btn.setAttribute('aria-label', 'Show password');
+                }
+            });
+        });
+    </script>
 </x-guest-layout>

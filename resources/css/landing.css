@@ -22,3 +22,48 @@
             outline: none;
             box-shadow: 0 0 0 4px rgba(139,115,85,.20);
         }
+        #spaModalAmenities > div > div {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+        #profileDropdownBtn .rounded-full {
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            line-height: 1;
+            color: #ffffff !important;
+        }
+        #profileDropdownBtn > div:first-child {
+            color: #ffffff !important;
+            font-family: ui-sans-serif, system-ui, sans-serif !important;
+            line-height: 1 !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+        #profileModal .rounded-full {
+            -webkit-text-fill-color: #ffffff !important;
+            font-family: ui-sans-serif, system-ui, sans-serif !important;
+        }
+
+        /* ============ Dark mode (prefers-color-scheme) ============
+           No .dark class is ever added in this file — dark mode here is
+           purely OS/browser driven, matching how dashboard.blade.php and
+           appointments.blade.php rely on Tailwind's default `media` dark
+           strategy. These overrides mirror the gray-800/900 palette used
+           throughout those pages. */
+        @media (prefers-color-scheme: dark) {
+            .nav-glass{
+                background: rgba(17, 24, 39, .78); /* gray-900 translucent */
+                border-bottom: 1px solid rgba(255, 255, 255, .08);
+            }
+            .nav-scrolled{
+                background: rgba(17, 24, 39, .94);
+                box-shadow: 0 10px 30px rgba(0,0,0,.35);
+            }
+
+            .booking-btn{
+                background: linear-gradient(135deg, #5A4526 0%, #8B7355 55%, #C4A97D 140%);
+                box-shadow: 0 1px 2px rgba(0,0,0,.4);
+            }
+
+            .soft-ring:focus{
+                box-shadow: 0 0 0 4px rgba(196,169,125,.30);
+            }
+        }

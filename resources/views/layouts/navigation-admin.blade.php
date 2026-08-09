@@ -53,28 +53,28 @@
                 <!-- Administration -->
                 <div class="mb-2">
                     <div class="space-y-1">
-                        @can('manage spas')
+                        @can('view registered spas')
                         <x-nav-link :href="route('admin.registered-spas.index')" :active="request()->routeIs('admin.registered-spas.*')">
                             <i class="fa-solid fa-spa w-4 mr-1 text-[#8B7355]"></i>
                             Registered Spas
                         </x-nav-link>
                         @endcan
 
-                        @can('manage users')
+                        @can('view registered users')
                         <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                             <i class="fa-solid fa-users w-4 mr-1 text-[#8B7355]"></i>
                             Registered Users
                         </x-nav-link>
                         @endcan
 
-                        @can('manage roles')
+                        @can('view system roles')
                         <x-nav-link :href="route('admin.roles-permissions.index')" :active="request()->routeIs('admin.roles-permissions.*')">
                             <i class="fa-solid fa-key w-4 mr-1 text-[#8B7355]"></i>
                             Roles & Permissions
                         </x-nav-link>
                         @endcan
 
-                        {{-- ✅ REPLACE WITH THIS --}}
+                        <!-- Settings -->
                         <div class="mb-1">
                             <button @click="settingsOpen = !settingsOpen"
                                 class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
@@ -190,8 +190,6 @@ function sidebar() {
 </script>
 
 <style>
-[x-cloak] { display: none !important; }
-
 .overflow-y-auto::-webkit-scrollbar { width: 6px; }
 .overflow-y-auto::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
 .overflow-y-auto::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }

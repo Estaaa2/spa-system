@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\LeaveRequest;
 use App\Models\OnlineReservationPayment;
 use App\Models\OperatingHours;
 use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +26,7 @@ class OnlineBookingCheckoutController extends Controller
             'branch_id'        => ['required', 'exists:branches,id'],
             'customer_name'    => ['required', 'string', 'max:255'],
             'customer_email'   => ['required', 'email', 'max:255'],
-            'customer_phone'   => ['required', 'string', 'max:30'],
+            'customer_phone'   => ['required', 'string', 'regex:/^09\d{9}$/'],
             'treatment'        => ['required', 'string'],
             'service_type'     => ['required', 'in:in_branch,in_home'],
             'customer_address' => ['nullable', 'string', 'max:1000'],
@@ -33,9 +35,7 @@ class OnlineBookingCheckoutController extends Controller
         ]);
 
         if ($validated['service_type'] === 'in_home' && blank($validated['customer_address'])) {
-            return back()
-                ->with('booking_error', 'Home address is required for home service bookings.')
-                ->withInput();
+            return $this->fail($request, 'Home address is required for home service bookings.');
         }
 
         // Resolve treatment or package
@@ -56,16 +56,12 @@ class OnlineBookingCheckoutController extends Controller
                 ->firstOrFail();
             $bookableType = 'package';
         } else {
-            return back()
-                ->with('booking_error', 'Invalid service selected.')
-                ->withInput();
+            return $this->fail($request, 'Invalid service selected.');
         }
 
         $fullAmount = (float) $item->price;
         if ($fullAmount <= 0) {
-            return back()
-                ->with('booking_error', 'Selected service has an invalid price.')
-                ->withInput();
+            return $this->fail($request, 'Selected service has an invalid price.');
         }
 
         // =====================================================
@@ -77,9 +73,7 @@ class OnlineBookingCheckoutController extends Controller
             ->first();
 
         if (!$hours || $hours->is_closed) {
-            return back()
-                ->with('booking_error', 'The spa is closed on the selected day. Please choose another date.')
-                ->withInput();
+            return $this->fail($request, 'The spa is closed on the selected day. Please choose another date.');
         }
 
         $start   = Carbon::parse($validated['start_time']);
@@ -87,18 +81,14 @@ class OnlineBookingCheckoutController extends Controller
         $closing = Carbon::parse($hours->closing_time);
 
         if ($start->lt($opening) || $start->gte($closing)) {
-            return back()
-                ->with('booking_error', "Please select a time within spa operating hours: {$hours->opening_time} - {$hours->closing_time}")
-                ->withInput();
+            return $this->fail($request, "Please select a time within spa operating hours: {$hours->opening_time} - {$hours->closing_time}");
         }
 
         $durationMinutes = $item->duration ?? ($item->total_duration ?? 60);
         $endTime         = $start->copy()->addMinutes($durationMinutes)->format('H:i');
 
         if (Carbon::parse($endTime)->gt($closing)) {
-            return back()
-                ->with('booking_error', 'This service would end after closing hours. Please choose an earlier time.')
-                ->withInput();
+            return $this->fail($request, 'This service would end after closing hours. Please choose an earlier time.');
         }
 
         // =====================================================
@@ -113,9 +103,7 @@ class OnlineBookingCheckoutController extends Controller
             ->get();
 
         if ($therapists->isEmpty()) {
-            return back()
-                ->with('booking_error', 'No therapists are available at this branch.')
-                ->withInput();
+            return $this->fail($request, 'No therapists are available at this branch.');
         }
 
         $busyIds = Booking::query()
@@ -131,18 +119,25 @@ class OnlineBookingCheckoutController extends Controller
             ->pluck('therapist_id')
             ->unique();
 
-        $availableTherapists = $therapists->reject(fn($t) => $busyIds->contains($t->id));
+        // ON-LEAVE: exclude therapists with approved leave covering this date.
+        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate(
+            (int) $validated['spa_id'],
+            (int) $validated['branch_id'],
+            $validated['appointment_date']
+        );
+
+        $availableTherapists = $therapists->reject(
+            fn($t) => $busyIds->contains($t->id) || in_array($t->id, $onLeaveIds)
+        );
 
         if ($availableTherapists->isEmpty()) {
-            return back()
-                ->with('booking_error', 'All therapists are fully booked for the selected date and time. Please choose a different time slot.')
-                ->withInput();
+            return $this->fail($request, 'All therapists are fully booked for the selected date and time. Please choose a different time slot.');
         }
 
         // =====================================================
         // CREATE PENDING RESERVATION & PAYMONGO CHECKOUT
         // =====================================================
-        $downpaymentAmount = round($fullAmount * 0.50, 2);
+        $downpaymentAmount = round($fullAmount * 0.20, 2);
 
         $pending = DB::transaction(function () use ($validated, $item, $bookableType, $fullAmount, $downpaymentAmount) {
             return OnlineReservationPayment::create([
@@ -168,42 +163,55 @@ class OnlineBookingCheckoutController extends Controller
 
         $secretKey = env('PAYMONGO_SECRET_KEY');
 
-        $response = Http::withBasicAuth($secretKey, '')
-            ->acceptJson()
-            ->post('https://api.paymongo.com/v1/checkout_sessions', [
-                'data' => [
-                    'attributes' => [
-                        'billing' => [
-                            'name'  => $pending->customer_name,
-                            'email' => $pending->customer_email,
-                            'phone' => $pending->customer_phone,
-                        ],
-                        'send_email_receipt' => true,
-                        'show_description'   => true,
-                        'show_line_items'    => true,
-                        'description'        => '50% reservation fee for spa appointment',
-                        'line_items'         => [
-                            [
-                                'currency'    => 'PHP',
-                                'amount'      => (int) round($downpaymentAmount * 100),
-                                'name'        => $pending->bookable_name . ' Reservation Fee',
-                                'quantity'    => 1,
-                                'description' => '50% downpayment for appointment reservation',
+        //PAYMONGO API CALL
+        try {
+            $response = Http::withBasicAuth($secretKey, '')
+                ->timeout(15) // fail fast instead of hanging for 30s
+                ->acceptJson()
+                ->post('https://api.paymongo.com/v1/checkout_sessions', [
+                    'data' => [
+                        'attributes' => [
+                            'send_email_receipt' => true,
+                            'show_description'   => true,
+                            'show_line_items'    => true,
+                            'description'        => '20% reservation fee for spa appointment',
+                            'line_items'         => [
+                                [
+                                    'currency'    => 'PHP',
+                                    'amount'      => (int) round($downpaymentAmount * 100),
+                                    'name'        => $pending->bookable_name . ' Reservation Fee',
+                                    'quantity'    => 1,
+                                    'description' => '20% downpayment for appointment reservation',
+                                ],
+                            ],
+                            'payment_method_types' => ['gcash', 'paymaya'],
+                            'billing' => [
+                                'name'  => $pending->customer_name,
+                                'email' => $pending->customer_email,
+                                'phone' => $pending->customer_phone,
+                            ],
+                            'success_url' => route('bookings.online.payment.success') . '?reservation=' . $pending->id,
+                            'cancel_url'  => route('bookings.online.payment.cancel') . '?reservation=' . $pending->id,
+                            'metadata'    => [
+                                'reservation_id' => (string) $pending->id,
+                                'spa_id'         => (string) $pending->spa_id,
+                                'branch_id'      => (string) $pending->branch_id,
+                                'bookable_type'  => $pending->bookable_type,
+                                'bookable_id'    => (string) $pending->bookable_id,
                             ],
                         ],
-                        'payment_method_types' => ['gcash', 'paymaya'],
-                        'success_url' => route('bookings.online.payment.success') . '?reservation=' . $pending->id,
-                        'cancel_url'  => route('bookings.online.payment.cancel') . '?reservation=' . $pending->id,
-                        'metadata'    => [
-                            'reservation_id' => (string) $pending->id,
-                            'spa_id'         => (string) $pending->spa_id,
-                            'branch_id'      => (string) $pending->branch_id,
-                            'bookable_type'  => $pending->bookable_type,
-                            'bookable_id'    => (string) $pending->bookable_id,
-                        ],
                     ],
-                ],
+                ]);
+
+        } catch (ConnectionException $e) {
+            // DNS timeout or network failure reaching PayMongo
+            $pending->update([
+                'payment_status'     => 'failed',
+                'reservation_status' => 'failed',
             ]);
+
+            return $this->fail($request, 'Unable to connect to the payment gateway. Please check your connection and try again.');
+        }
 
         if (!$response->successful()) {
             $pending->update([
@@ -212,9 +220,7 @@ class OnlineBookingCheckoutController extends Controller
                 'paymongo_payload'   => $response->json(),
             ]);
 
-            return back()
-                ->with('booking_error', 'Unable to create payment session. Please try again.')
-                ->withInput();
+            return $this->fail($request, 'Unable to create payment session. Please try again.');
         }
 
         $checkoutData = $response->json('data');
@@ -224,7 +230,128 @@ class OnlineBookingCheckoutController extends Controller
             'paymongo_payload'             => $response->json(),
         ]);
 
-        return redirect()->away(data_get($checkoutData, 'attributes.checkout_url'));
+        $checkoutUrl = data_get($checkoutData, 'attributes.checkout_url');
+
+        if ($request->expectsJson()) {
+            return response()->json(['checkout_url' => $checkoutUrl]);
+        }
+
+        return redirect()->away($checkoutUrl);
+    }
+
+    /**
+     * GET /bookings/online/available-slots
+     * Query: spa_id, branch_id, treatment ("treatment_5" / "package_3"), appointment_date
+     *
+     * Read-only. Checks the same `bookings` table and the same
+     * reserved/pending/ongoing statuses store() already checks — nothing new
+     * is written, no schema change is required. This does not yet account for
+     * other customers mid-checkout (that needs the hold/lock mechanism we
+     * discussed separately) — it's the minimum needed to make the picker show
+     * real availability instead of a blind time input.
+     */
+    public function availableSlots(Request $request)
+    {
+        $validated = $request->validate([
+            'spa_id'           => ['required', 'exists:spas,id'],
+            'branch_id'        => ['required', 'exists:branches,id'],
+            'treatment'        => ['required', 'string'],
+            'appointment_date' => ['required', 'date'],
+        ]);
+
+        [$type, $id] = array_pad(explode('_', $validated['treatment'], 2), 2, null);
+
+        $durationMinutes = 60;
+        if ($type === 'treatment') {
+            $durationMinutes = Treatment::withoutGlobalScopes()->find($id)?->duration ?? 60;
+        } elseif ($type === 'package') {
+            $item = Package::withoutGlobalScopes()->find($id);
+            $durationMinutes = $item?->total_duration ?? $item?->duration ?? 60;
+        }
+
+        $dayOfWeek = Carbon::parse($validated['appointment_date'])->format('l');
+        $hours = OperatingHours::where('branch_id', $validated['branch_id'])
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+
+        if (!$hours || $hours->is_closed) {
+            return response()->json(['closed' => true, 'slots' => []]);
+        }
+
+        $opening = Carbon::parse($hours->opening_time);
+        $closing = Carbon::parse($hours->closing_time);
+
+        $therapistCount = User::role('therapist')
+            ->whereHas('staff', fn ($q) => $q->where('spa_id', $validated['spa_id'])
+                ->where('branch_id', $validated['branch_id'])
+                ->where('employment_status', 'active'))
+            ->count();
+
+        // Same table, same statuses store() already checks — every candidate
+        // slot below is evaluated independently against this full list, not
+        // derived relative to the previous booking, so a wide-open block
+        // doesn't get silently truncated to "only the next available slot".
+        $bookingWindows = Booking::query()
+            ->where('spa_id', $validated['spa_id'])
+            ->where('branch_id', $validated['branch_id'])
+            ->where('appointment_date', $validated['appointment_date'])
+            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+            ->get(['start_time', 'end_time'])
+            ->map(fn ($b) => [Carbon::parse($b->start_time), Carbon::parse($b->end_time)]);
+
+        $slots   = [];
+        $cursor  = $opening->copy();
+        $now     = now();
+        $isToday = Carbon::parse($validated['appointment_date'])->isToday();
+
+        while ($cursor->lt($closing)) {
+            $slotStart = $cursor->copy();
+            $slotEnd   = $slotStart->copy()->addMinutes($durationMinutes);
+
+            if ($slotEnd->gt($closing)) {
+                $slots[] = ['time' => $slotStart->format('H:i'), 'available' => false, 'reason' => 'past_closing'];
+            } elseif ($isToday && $slotStart->lte($now)) {
+                $slots[] = ['time' => $slotStart->format('H:i'), 'available' => false, 'reason' => 'past'];
+            } else {
+                // Every active therapist can only be in one non-overlapping
+                // booking at a time (enforced when bookings are created), so
+                // counting overlapping windows is equivalent to counting
+                // distinct busy therapists — the same invariant store()
+                // already relies on via $busyIds->unique().
+                $overlapping = $bookingWindows->filter(
+                    fn ($w) => $slotStart->lt($w[1]) && $slotEnd->gt($w[0])
+                )->count();
+
+                $available = ($therapistCount - $overlapping) > 0;
+                $slots[] = [
+                    'time'      => $slotStart->format('H:i'),
+                    'available' => $available,
+                    'reason'    => $available ? null : 'fully_booked',
+                ];
+            }
+
+            $cursor->addMinutes(30);
+        }
+
+        return response()->json([
+            'closed'       => false,
+            'opening_time' => $hours->opening_time,
+            'closing_time' => $hours->closing_time,
+            'slots'        => $slots,
+        ]);
+    }
+
+    /**
+     * Return a validation-style error response.
+     * JSON (422) for AJAX/fetch requests, classic redirect-back for normal form posts.
+     */
+    private function fail(Request $request, string $message, int $status = 422)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], $status);
+        }
+
+        return back()->with('booking_error', $message)->withInput();
     }
 
     public function success(Request $request)

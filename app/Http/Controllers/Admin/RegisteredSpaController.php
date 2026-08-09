@@ -63,9 +63,9 @@ class RegisteredSpaController extends Controller
     public function update(Request $request, Spa $spa)
     {
         $request->validate([
-            'business_tier' => 'required|in:basic,professional',
-            'verification_status' => 'required|in:unverified,pending,verified,rejected',
-            'verification_remarks' => 'nullable|string',
+            'business_tier' => ['required', 'in:basic,professional'],
+            'verification_status' => ['required', 'in:verified,rejected'],
+            'verification_remarks' => ['nullable', 'string', 'required_if:verification_status,rejected'],
         ]);
 
         $status = $request->verification_status;

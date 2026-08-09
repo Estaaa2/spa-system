@@ -1,9 +1,11 @@
 import './bootstrap';
-import Alpine from 'alpinejs';
 import Toastify from 'toastify-js';
 import "toastify-js/src/toastify.css";
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+window.L = L;
 
-window.Alpine = Alpine;
 window.Toastify = Toastify;
 
 window.showToast = function (message, type = 'success') {
@@ -42,5 +44,3 @@ window.showToast = function (message, type = 'success') {
         }
     }).showToast();
 };
-
-Alpine.start();

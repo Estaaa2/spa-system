@@ -1,589 +1,639 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Branch')
+@section('title', 'Edit Branch — ' . $branch->name)
 
 @section('content')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<div class="max-w-5xl py-3 mx-auto">
+@php
+    // Determine active tab: query param > default 'general'
+    $activeTab = request()->query('tab', 'general');
+    if (!in_array($activeTab, ['general', 'hours', 'profile'])) $activeTab = 'general';
 
-    <form method="POST" action="{{ route('branches.update', $branch->id) }}" enctype="multipart/form-data" class="space-y-6">
-        @csrf
-        @method('PUT')
+    // Helper: slice time to H:i regardless of whether DB stores H:i:s
+    $t = fn($time, $default = '09:00') => $time ? substr($time, 0, 5) : $default;
+@endphp
 
-        {{-- Branch Information --}}
-        <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="px-6 py-4 border-b dark:border-gray-700">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Branch Information</h2>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Manage the basic details of this branch.
-                </p>
-            </div>
+<div class="max-w-3xl py-3 mx-auto" x-data="branchEditPage()" x-init="init()">
 
-            <div class="p-6 space-y-5">
-                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Branch Name <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="name"
-                            id="name"
-                            value="{{ old('name', $branch->name) }}"
-                            required
-                            class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                        >
-                    </div>
-
-                    <div>
-                        <label for="locationSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Location <span class="text-red-500">*</span>
-                        </label>
-                        <div id="locationDropdownWrapper" class="mt-2">
-                            <select
-                                id="locationSelect"
-                                name="location"
-                                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/20 focus:outline-none"
-                            >
-                                <option value="">Select a city in Cavite</option>
-                                <optgroup label="Cities">
-                                    <option value="Bacoor" {{ old('location', $branch->location) == 'Bacoor' ? 'selected' : '' }}>Bacoor</option>
-                                    <option value="Cavite City" {{ old('location', $branch->location) == 'Cavite City' ? 'selected' : '' }}>Cavite City</option>
-                                    <option value="Dasmariñas" {{ old('location', $branch->location) == 'Dasmariñas' ? 'selected' : '' }}>Dasmariñas</option>
-                                    <option value="General Trias" {{ old('location', $branch->location) == 'General Trias' ? 'selected' : '' }}>General Trias</option>
-                                    <option value="Imus" {{ old('location', $branch->location) == 'Imus' ? 'selected' : '' }}>Imus</option>
-                                    <option value="Carmona" {{ old('location', $branch->location) == 'Carmona' ? 'selected' : '' }}>Carmona</option>
-                                    <option value="Tagaytay" {{ old('location', $branch->location) == 'Tagaytay' ? 'selected' : '' }}>Tagaytay</option>
-                                    <option value="Trece Martires" {{ old('location', $branch->location) == 'Trece Martires' ? 'selected' : '' }}>Trece Martires</option>
-                                </optgroup>
-                                <optgroup label="Municipalities">
-                                    <option value="Alfonso" {{ old('location', $branch->location) == 'Alfonso' ? 'selected' : '' }}>Alfonso</option>
-                                    <option value="Amadeo" {{ old('location', $branch->location) == 'Amadeo' ? 'selected' : '' }}>Amadeo</option>
-                                    <option value="Carmen" {{ old('location', $branch->location) == 'Carmen' ? 'selected' : '' }}>Carmen</option>
-                                    <option value="General Emilio Aguinaldo" {{ old('location', $branch->location) == 'General Emilio Aguinaldo' ? 'selected' : '' }}>General Emilio Aguinaldo</option>
-                                    <option value="General Mariano Alvarez" {{ old('location', $branch->location) == 'General Mariano Alvarez' ? 'selected' : '' }}>General Mariano Alvarez</option>
-                                    <option value="Indang" {{ old('location', $branch->location) == 'Indang' ? 'selected' : '' }}>Indang</option>
-                                    <option value="Kawit" {{ old('location', $branch->location) == 'Kawit' ? 'selected' : '' }}>Kawit</option>
-                                    <option value="Magallanes" {{ old('location', $branch->location) == 'Magallanes' ? 'selected' : '' }}>Magallanes</option>
-                                    <option value="Maragondon" {{ old('location', $branch->location) == 'Maragondon' ? 'selected' : '' }}>Maragondon</option>
-                                    <option value="Mendez" {{ old('location', $branch->location) == 'Mendez' ? 'selected' : '' }}>Mendez</option>
-                                    <option value="Naic" {{ old('location', $branch->location) == 'Naic' ? 'selected' : '' }}>Naic</option>
-                                    <option value="Noveleta" {{ old('location', $branch->location) == 'Noveleta' ? 'selected' : '' }}>Noveleta</option>
-                                    <option value="Rosario" {{ old('location', $branch->location) == 'Rosario' ? 'selected' : '' }}>Rosario</option>
-                                    <option value="Silang" {{ old('location', $branch->location) == 'Silang' ? 'selected' : '' }}>Silang</option>
-                                    <option value="Tanza" {{ old('location', $branch->location) == 'Tanza' ? 'selected' : '' }}>Tanza</option>
-                                    <option value="Ternate" {{ old('location', $branch->location) == 'Ternate' ? 'selected' : '' }}>Ternate</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-3 pt-1">
-                    <input
-                        type="checkbox"
-                        name="is_main"
-                        id="is_main"
-                        value="1"
-                        {{ $branch->is_main ? 'checked' : '' }}
-                        class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-600"
-                    >
-                    <label for="is_main" class="text-sm text-gray-700 dark:text-gray-300">
-                        Set as main branch
-                    </label>
-                </div>
-            </div>
+    {{-- ── Page Header ─────────────────────────────────────────────────── --}}
+    <div class="flex items-center gap-4 mb-6">
+        <a href="{{ route('branches.index') }}"
+           class="flex items-center justify-center text-gray-500 transition border border-gray-200 w-9 h-9 rounded-xl hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700">
+            <i class="text-sm fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ $branch->name }}</h1>
+            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                <i class="mr-1 fa-solid fa-location-dot text-[#8B7355] text-xs"></i>{{ $branch->location }}
+            </p>
         </div>
+    </div>
 
-        {{-- Operating Hours --}}
-        @if($branch->operatingHours)
-        <div x-data="{ open: false }"
-            class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+    {{-- ── Tab Navigation ───────────────────────────────────────────────── --}}
+    <div class="flex mb-6 border-b border-gray-200 dark:border-gray-700">
+        <button @click="tab = 'general'"
+            :class="tab === 'general' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
+            <i class="text-xs fa-solid fa-pen"></i>
+            General
+            @if($errors->hasBag('general') && $errors->getBag('general')->any())
+                <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">!</span>
+            @endif
+        </button>
 
-            <button
-                type="button"
-                @click="open = !open"
-                class="flex items-center justify-between w-full px-6 py-4 text-left border-b dark:border-gray-700"
-            >
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Operating Hours</h2>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        Set the opening and closing hours of this branch for each day.
-                    </p>
-                </div>
+        <button @click="tab = 'hours'"
+            :class="tab === 'hours' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
+            <i class="text-xs fa-solid fa-clock"></i>
+            Operating Hours
+            @if($errors->hasBag('hours') && $errors->getBag('hours')->any())
+                <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">!</span>
+            @endif
+        </button>
 
-                <div class="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-full dark:bg-gray-700">
-                    <svg x-show="!open" x-cloak class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
+        <button @click="tab = 'profile'"
+            :class="tab === 'profile' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
+            <i class="text-xs fa-solid fa-image"></i>
+            Public Profile
+            @if(optional($branch->profile)->is_listed)
+                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Live</span>
+            @endif
+            @if($errors->hasBag('profile') && $errors->getBag('profile')->any())
+                <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">!</span>
+            @endif
+        </button>
+    </div>
 
-                    <svg x-show="open" x-cloak class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-                    </svg>
-                </div>
-            </button>
+    {{-- ════════════════════════════════════════════════════════════════════
+         TAB 1 — GENERAL INFO
+    ═════════════════════════════════════════════════════════════════════ --}}
+    <div x-show="tab === 'general'"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 translate-y-1"
+         x-transition:enter-end="opacity-100 translate-y-0">
 
-            <div x-show="open" x-transition class="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
-                @foreach($operatingHours as $hour)
-                <div class="p-4 bg-white border shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
-                    id="card_{{ $hour->id ?? $loop->index }}">
-                    <div class="flex items-center justify-between mb-4">
-                        <h4 class="text-sm font-semibold text-gray-800 dark:text-white">
-                            {{ $hour->day_of_week }}
-                        </h4>
+        <form method="POST" action="{{ route('branches.update.general', $branch->id) }}">
+            @csrf
+            @method('PUT')
 
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="hidden" name="hours[{{ $loop->index }}][is_closed]" value="0"/>
-                            <input
-                                type="checkbox"
-                                name="hours[{{ $loop->index }}][is_closed]"
-                                value="1"
-                                {{ isset($hour->is_closed) && $hour->is_closed ? 'checked' : '' }}
-                                class="w-4 h-4 rounded text-[#8B7355] border-gray-300 focus:ring-[#8B7355]/40"
-                                onchange="toggleTimeInputs(this, 'opening_{{ $hour->id ?? $loop->index }}', 'closing_{{ $hour->id ?? $loop->index }}', 'card_{{ $hour->id ?? $loop->index }}')"
-                            />
-                            <span class="text-xs font-medium text-gray-500 dark:text-gray-300">Closed</span>
-                        </label>
-                    </div>
-
-                    <div
-                        class="grid grid-cols-2 gap-3"
-                        id="times_{{ $hour->id ?? $loop->index }}"
-                        style="{{ isset($hour->is_closed) && $hour->is_closed ? 'opacity:0.4; pointer-events:none;' : '' }}"
-                    >
-                        <div>
-                            <label class="block mb-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                Opens
-                            </label>
-                            <input
-                                type="time"
-                                id="opening_{{ $hour->id ?? $loop->index }}"
-                                name="hours[{{ $loop->index }}][opening_time]"
-                                value="{{ $hour->opening_time ?? '09:00' }}"
-                                class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
-                                {{ isset($hour->is_closed) && $hour->is_closed ? 'disabled' : '' }}
-                            />
-                        </div>
-
-                        <div>
-                            <label class="block mb-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                Closes
-                            </label>
-                            <input
-                                type="time"
-                                id="closing_{{ $hour->id ?? $loop->index }}"
-                                name="hours[{{ $loop->index }}][closing_time]"
-                                value="{{ $hour->closing_time ?? '18:00' }}"
-                                class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
-                                {{ isset($hour->is_closed) && $hour->is_closed ? 'disabled' : '' }}
-                            />
-                        </div>
-                    </div>
-
-                    <input type="hidden" name="hours[{{ $loop->index }}][id]" value="{{ $hour->id ?? '' }}"/>
-                </div>
-                @endforeach
-            </div>
-        </div>
-        @endif
-
-        {{-- Public Listing / Branch Profile --}}
-        @if($spa->verification_status === 'verified')
-        <div x-data="{ listed: {{ ($branch->profile->is_listed ?? false) ? 'true' : 'false' }} }"
-            class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-
-            <div class="px-6 py-4 border-b dark:border-gray-700">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Public Branch Profile</h2>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Since this spa is verified, this branch can now be listed publicly on the landing page.
-                </p>
-            </div>
-
-            <div class="p-6 space-y-6">
-                <div class="p-4 border border-green-200 rounded-xl bg-green-50 dark:bg-green-900/10 dark:border-green-800">
-                    <p class="text-sm font-medium text-green-800 dark:text-green-300">
-                        This spa is verified and eligible for public branch listing.
-                    </p>
-                </div>
+            <div class="p-6 space-y-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
                 <div>
-                    <label class="inline-flex items-center gap-3">
-                        <input
-                            type="checkbox"
-                            name="is_listed"
-                            x-model="listed"
-                            value="1"
-                            class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-600"
-                        >
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            List this branch publicly
-                        </span>
-                    </label>
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        When enabled, customers will be able to see this branch on the landing page.
-                    </p>
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Branch Information</h2>
+                    <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Update the display name and main branch status.</p>
                 </div>
 
-                <div x-show="listed" x-transition class="space-y-6">
-                    @php
-                        $city = explode(',', $branch->location)[0] ?? $branch->location;
-                    @endphp
+                {{-- Errors for this tab only --}}
+                @if($errors->hasBag('general') && $errors->getBag('general')->any())
+                    <div class="p-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
+                        <ul class="space-y-0.5 list-disc list-inside">
+                            @foreach($errors->getBag('general')->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
+                {{-- Success flash --}}
+                @if(session('tab_success') === 'general')
+                    <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
+                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
+                        Branch information updated successfully.
+                    </div>
+                @endif
+
+                {{-- Name --}}
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Branch Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="name" id="name"
+                           value="{{ old('name', $branch->name) }}"
+                           required
+                           class="block w-full mt-2  rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm
+                           @error('name', 'general') border-red-400 @enderror">
+                </div>
+
+                {{-- Location (read-only) --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
+                    <div class="flex items-center gap-2 mt-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600">
+                        <i class="fa-solid fa-location-dot text-[#8B7355] text-sm flex-shrink-0"></i>
+                        <p class="flex-1 text-sm text-gray-600 dark:text-gray-300">{{ $branch->location }}</p>
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500">Cannot be changed</span>
+                    </div>
+                </div>
+
+                {{-- Main branch --}}
+                <div class="flex items-start gap-3 p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50">
+                    <input type="hidden" name="is_main" value="0">
+                    <input type="checkbox" id="is_main" name="is_main" value="1"
+                           {{ $branch->is_main ? 'checked' : '' }}
+                           class="mt-0.5 w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-600 dark:border-gray-500">
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Public Listing Title
-                        </label>
-                        <input
-                            type="text"
-                            value="{{ $branch->spa->name }} - {{ $city }}"
-                            readonly
-                            class="block w-full bg-gray-100 border-gray-300 shadow-sm rounded-xl dark:bg-gray-700 dark:text-gray-300 sm:text-sm"
-                        >
-                    </div>
-
-                    <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Description
-                        </label>
-                        <textarea
-                            name="description"
-                            id="description"
-                            rows="4"
-                            class="block w-full mt-1 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                            placeholder="Write a short description about this branch, ambiance, and services."
-                        >{{ old('description', $branch->profile->description ?? '') }}</textarea>
-                    </div>
-
-                    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                        <div>
-                            <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Phone
-                            </label>
-                            <input
-                                type="text"
-                                name="phone"
-                                id="phone"
-                                value="{{ old('phone', $branch->profile->phone ?? '') }}"
-                                class="block w-full mt-1 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                                placeholder="Enter branch contact number"
-                            >
-                        </div>
-
-                        <div>
-                            <label for="address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Address
-                            </label>
-                            <input
-                                type="text"
-                                name="address"
-                                id="address"
-                                value="{{ old('address', $branch->profile->address ?? '') }}"
-                                placeholder="Street, Barangay, City"
-                                class="block w-full mt-1 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                            >
-                        </div>
-                    </div>
-
-                    <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude', $branch->profile->latitude ?? '') }}">
-                    <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', $branch->profile->longitude ?? '') }}">
-
-                    <div class="p-4 border rounded-xl dark:border-gray-700">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Pin Branch Location</h3>
-                        <p class="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400">
-                            Click the map or drag the marker to set the exact location of this branch.
+                        <label for="is_main" class="text-sm font-medium text-gray-700 dark:text-gray-300">Set as main branch</label>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            The main branch is the spa's primary location. Only one branch can be main at a time.
                         </p>
-                        <div id="map" class="w-full h-64 rounded-lg" x-cloak></div>
                     </div>
-
-                    @php
-                        $existingCover = $branch->profile->cover_image ?? null;
-                        $existingGallery = $branch->profile->gallery_images ?? [];
-                        $maxGallerySlots = 4;
-                    @endphp
-
-                    <div class="space-y-6">
-                        {{-- Cover Image --}}
-                        <div class="p-5 border rounded-2xl dark:border-gray-700">
-                            <div class="mb-4">
-                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Cover Image</h3>
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    Upload one main image that will represent this branch on the public listing.
-                                </p>
-                            </div>
-
-                            <input type="hidden" name="remove_cover_image" id="remove_cover_image" value="0">
-
-                            <div class="flex flex-col gap-4 md:flex-row md:items-start">
-                                <div class="w-full md:w-64">
-                                    <div id="coverPreviewWrapper"
-                                        class="relative flex items-center justify-center overflow-hidden bg-gray-100 border border-dashed rounded-2xl aspect-[4/3] dark:bg-gray-700 dark:border-gray-600">
-
-                                        <img
-                                            id="coverPreview"
-                                            src="{{ $existingCover ? asset('storage/' . $existingCover) : '' }}"
-                                            alt="Cover Image"
-                                            class="{{ $existingCover ? '' : 'hidden' }} object-cover w-full h-full"
-                                        >
-
-                                        <div id="coverPlaceholder" class="{{ $existingCover ? 'hidden' : 'text-center' }}">
-                                            <i class="text-2xl text-gray-400 fa-solid fa-image"></i>
-                                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">No cover image selected</p>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            id="removeCoverBtn"
-                                            onclick="removeCoverImage()"
-                                            class="absolute flex items-center justify-center w-8 h-8 text-white bg-red-500 rounded-full top-2 right-2 hover:bg-red-600 {{ $existingCover ? '' : 'hidden' }}"
-                                        >
-                                            <i class="text-xs fa-solid fa-xmark"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="flex-1 space-y-3">
-                                    <div>
-                                        <label for="cover_image" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Upload Cover Image
-                                        </label>
-                                        <input
-                                            type="file"
-                                            name="cover_image"
-                                            id="cover_image"
-                                            accept="image/*"
-                                            onchange="previewCoverImage(event)"
-                                            class="block w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-gray-700 dark:file:text-white"
-                                        >
-                                    </div>
-
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        Accepted image formats only. Upload a clear landscape photo for best results.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Gallery Images --}}
-                        <div class="p-5 border rounded-2xl dark:border-gray-700">
-                            <div class="mb-4">
-                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Gallery Images</h3>
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    Add up to 4 gallery images. You can replace or remove each image individually before saving.
-                                </p>
-                            </div>
-
-                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                @for ($i = 0; $i < $maxGallerySlots; $i++)
-                                    @php
-                                        $existingImage = $existingGallery[$i] ?? null;
-                                    @endphp
-
-                                    <div class="p-3 border rounded-2xl dark:border-gray-700">
-                                        <input type="hidden" name="existing_gallery_images[{{ $i }}]" value="{{ $existingImage }}">
-                                        <input type="hidden" name="remove_gallery_images[{{ $i }}]" id="remove_gallery_image_{{ $i }}" value="0">
-
-                                        <div class="relative overflow-hidden bg-gray-100 border border-dashed rounded-2xl aspect-square dark:bg-gray-700 dark:border-gray-600">
-                                            <img
-                                                id="galleryPreview_{{ $i }}"
-                                                src="{{ $existingImage ? asset('storage/' . $existingImage) : '' }}"
-                                                alt="Gallery Image {{ $i + 1 }}"
-                                                class="{{ $existingImage ? '' : 'hidden' }} object-cover w-full h-full"
-                                            >
-
-                                            <div
-                                                id="galleryPlaceholder_{{ $i }}"
-                                                class="absolute inset-0 flex flex-col items-center justify-center text-center {{ $existingImage ? 'hidden' : '' }}"
-                                            >
-                                                <i class="text-2xl text-gray-400 fa-solid fa-image"></i>
-                                                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Empty slot</p>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                id="removeGalleryBtn_{{ $i }}"
-                                                onclick="removeGalleryImage({{ $i }})"
-                                                class="absolute flex items-center justify-center w-8 h-8 text-white bg-red-500 rounded-full top-2 right-2 hover:bg-red-600 {{ $existingImage ? '' : 'hidden' }}"
-                                            >
-                                                <i class="text-xs fa-solid fa-xmark"></i>
-                                            </button>
-                                        </div>
-
-                                        <div class="mt-3">
-                                            <label for="gallery_image_{{ $i }}"
-                                                class="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 transition bg-gray-100 cursor-pointer rounded-xl hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                                                <i class="mr-2 fa-solid fa-plus"></i>
-                                                {{ $existingImage ? 'Replace Image' : 'Upload Image' }}
-                                            </label>
-                                            <input
-                                                type="file"
-                                                name="gallery_images[{{ $i }}]"
-                                                id="gallery_image_{{ $i }}"
-                                                accept="image/*"
-                                                onchange="previewGalleryImage(event, {{ $i }})"
-                                                class="hidden"
-                                            >
-                                        </div>
-                                    </div>
-                                @endfor
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Amenities --}}
-                    <div x-data="amenitiesManager()" class="p-4 border rounded-xl dark:border-gray-700">
-                        <div class="flex items-center justify-between mb-3">
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Amenities
-                            </label>
-                            <button
-                                type="button"
-                                @click="openModal = true"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-colors"
-                                style="background-color: #8B7355;"
-                                onmouseover="this.style.backgroundColor='#7a6449'"
-                                onmouseout="this.style.backgroundColor='#8B7355'"
-                            >
-                                <i class="fa-solid fa-plus text-[10px]"></i>
-                                Add Amenity
-                            </button>
-                        </div>
-
-                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <template x-for="(amenity, index) in amenities" :key="amenity.value">
-                                <label class="flex items-center gap-3 p-3 transition bg-white border border-gray-200 cursor-pointer dark:bg-gray-700 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600">
-                                    <input
-                                        type="checkbox"
-                                        :name="'amenities[]'"
-                                        :value="amenity.value"
-                                        x-model="amenity.checked"
-                                        class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700 dark:border-gray-500"
-                                    >
-                                    <span class="text-sm text-gray-700 dark:text-gray-200" x-text="amenity.label"></span>
-                                    <button
-                                        x-show="amenity.custom"
-                                        type="button"
-                                        @click.prevent="removeCustomAmenity(index)"
-                                        class="ml-auto text-gray-400 transition-colors hover:text-red-500"
-                                        title="Remove"
-                                    >
-                                        <i class="text-xs fa-solid fa-xmark"></i>
-                                    </button>
-                                </label>
-                            </template>
-                        </div>
-
-                        {{-- Add Amenity Modal --}}
-                        <div
-                            x-show="openModal"
-                            x-transition.opacity
-                            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-                            @click.self="openModal = false"
-                        >
-                            <div class="w-full max-w-sm p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800" @click.stop>
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Add Custom Amenity</h3>
-                                    <button type="button" @click="openModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </button>
-                                </div>
-
-                                <input
-                                    type="text"
-                                    x-model="newAmenityLabel"
-                                    @keydown.enter.prevent="addCustomAmenity()"
-                                    placeholder="e.g. Steam Room, Jacuzzi, Foot Bath..."
-                                    class="block w-full border-gray-300 rounded-xl shadow-sm text-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                >
-
-                                <p x-show="errorMsg" x-text="errorMsg" class="mt-2 text-xs text-red-500"></p>
-
-                                <div class="flex justify-end gap-2 mt-4">
-                                    <button
-                                        type="button"
-                                        @click="openModal = false"
-                                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        @click="addCustomAmenity()"
-                                        class="px-4 py-2 text-sm font-medium text-white transition-colors rounded-lg"
-                                        style="background-color: #8B7355;"
-                                        onmouseover="this.style.backgroundColor='#7a6449'"
-                                        onmouseout="this.style.backgroundColor='#8B7355'"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
+
             </div>
 
-            {{-- ✅ Submit Buttons moved inside card --}}
-            <div class="flex justify-end gap-3 px-6 py-4 border-t dark:border-gray-700">
-                <a href="{{ route('branches.index') }}"
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500">
-                    Cancel
-                </a>
+            <div class="flex items-center justify-between mt-4">
                 <button type="submit"
-                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-[#8B7355]/30">
-                    Update Branch
+                    class="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
+                    Save General Info
                 </button>
             </div>
-        </div>
+
+        </form>
+    </div>
+
+    {{-- ════════════════════════════════════════════════════════════════════
+         TAB 2 — OPERATING HOURS
+    ═════════════════════════════════════════════════════════════════════ --}}
+    <div x-show="tab === 'hours'"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 translate-y-1"
+         x-transition:enter-end="opacity-100 translate-y-0">
+
+        <form method="POST" action="{{ route('branches.update.hours', $branch->id) }}" id="hoursForm">
+            @csrf
+            @method('PUT')
+
+            <div class="p-6 space-y-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+
+                <div>
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Operating Hours</h2>
+                    <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                        Set opening and closing times per day. These are enforced during booking validation.
+                        At least one day must be open.
+                    </p>
+                </div>
+
+                {{-- Errors for this tab only --}}
+                @if($errors->hasBag('hours') && $errors->getBag('hours')->any())
+                    <div class="p-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
+                        <ul class="space-y-0.5 list-disc list-inside">
+                            @foreach($errors->getBag('hours')->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if(session('tab_success') === 'hours')
+                    <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
+                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
+                        Operating hours updated successfully.
+                    </div>
+                @endif
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    @foreach($operatingHours as $hour)
+                    @php $suffix = $hour->id ?? $loop->index; @endphp
+
+                    <div class="p-4 bg-white shadow-sm dark:bg-gray-800 rounded-2xl ring-1 ring-black/5 dark:ring-white/10"
+                         id="hours_card_{{ $suffix }}">
+
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ $hour->day_of_week }}</h4>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="hidden" name="hours[{{ $loop->index }}][is_closed]" value="0" />
+                                <input type="checkbox"
+                                    name="hours[{{ $loop->index }}][is_closed]"
+                                    value="1"
+                                    {{ isset($hour->is_closed) && $hour->is_closed ? 'checked' : '' }}
+                                    class="w-4 h-4 rounded text-[#8B7355] border-gray-300 focus:ring-[#8B7355]/40"
+                                    onchange="toggleHoursCard(this, '{{ $suffix }}')" />
+                                <span class="text-xs font-semibold text-gray-500 dark:text-gray-300">Closed</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3"
+                             id="hours_times_{{ $suffix }}"
+                             style="{{ isset($hour->is_closed) && $hour->is_closed ? 'opacity:0.4;pointer-events:none;' : '' }}">
+                            <div>
+                                <label class="block mb-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Opens</label>
+                                {{-- $t() slices HH:MM:SS → HH:MM so the date_format:H:i validation always passes --}}
+                                <input type="time"
+                                    id="opening_{{ $suffix }}"
+                                    name="hours[{{ $loop->index }}][opening_time]"
+                                    value="{{ $t($hour->opening_time, '09:00') }}"
+                                    {{ isset($hour->is_closed) && $hour->is_closed ? 'disabled' : '' }}
+                                    class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    onchange="validateTimeRange('opening_{{ $suffix }}', 'closing_{{ $suffix }}', 'time_error_{{ $suffix }}', 'hours_card_{{ $suffix }}')">
+                                <input type="hidden" name="hours[{{ $loop->index }}][day_of_week]" value="{{ $hour->day_of_week }}">
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Closes</label>
+                                <input type="time"
+                                    id="closing_{{ $suffix }}"
+                                    name="hours[{{ $loop->index }}][closing_time]"
+                                    value="{{ $t($hour->closing_time, '18:00') }}"
+                                    {{ isset($hour->is_closed) && $hour->is_closed ? 'disabled' : '' }}
+                                    class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    onchange="validateTimeRange('opening_{{ $suffix }}', 'closing_{{ $suffix }}', 'time_error_{{ $suffix }}', 'hours_card_{{ $suffix }}')">
+                            </div>
+                        </div>
+
+                        {{-- Inline time-range error (mirrors operating-hours.blade.php) --}}
+                        <p id="time_error_{{ $suffix }}"
+                           class="flex items-center hidden gap-1 mt-2 text-xs text-red-600">
+                            <i class="flex-shrink-0 fa-solid fa-circle-exclamation"></i>
+                            Closing time must be after opening time.
+                        </p>
+
+                        @if(isset($hour->is_closed) && $hour->is_closed)
+                            <p class="mt-2 text-xs italic text-center text-gray-400" id="closed_label_{{ $suffix }}">Closed all day</p>
+                        @else
+                            <p class="hidden mt-2 text-xs italic text-center text-gray-400" id="closed_label_{{ $suffix }}">Closed all day</p>
+                        @endif
+
+                        <input type="hidden" name="hours[{{ $loop->index }}][id]" value="{{ $hour->id ?? '' }}">
+                    </div>
+                    @endforeach
+                </div>
+
+                {{-- "All closed" warning — mirrors operating-hours.blade.php --}}
+                <div id="allClosedWarning" class="flex items-center gap-3 p-3 border border-amber-200 bg-amber-50 rounded-xl dark:bg-amber-900/10 dark:border-amber-800">
+                    <i class="flex-shrink-0 fa-solid fa-triangle-exclamation text-amber-600"></i>
+                    <p class="text-sm text-amber-800 dark:text-amber-300">
+                        <span class="font-semibold">Note:</span> At least one day must be open for online bookings to work.
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <button type="submit" id="hoursSubmitBtn"
+                    class="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
+                    Save Operating Hours
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+    {{-- ════════════════════════════════════════════════════════════════════
+         TAB 3 — PUBLIC PROFILE
+    ═════════════════════════════════════════════════════════════════════ --}}
+    <div x-show="tab === 'profile'"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 translate-y-1"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         @tab-profile-shown.window="initProfileMap()">
+
+        @if($spa->verification_status !== 'verified')
+
+            <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex flex-col items-center py-8 text-center">
+                    <div class="flex items-center justify-center mb-4 w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20">
+                        <i class="text-xl fa-solid fa-lock text-amber-500"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white">Spa Verification Required</h3>
+                    <p class="max-w-sm mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Your spa must be verified before this branch can be listed publicly or have a profile page.
+                    </p>
+                    @if(Route::has('owner.spa-profile.edit'))
+                        <a href="{{ route('owner.spa-profile.edit') }}"
+                           class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90">
+                            <i class="text-xs fa-solid fa-arrow-right"></i>
+                            Go to Spa Profile
+                        </a>
+                    @endif
+                </div>
+            </div>
 
         @else
 
-        {{-- Unverified spa card --}}
-        <div class="bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="px-6 py-4 border-b dark:border-gray-700">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Public Branch Profile</h2>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Public listing is only available for verified spas.
-                </p>
-            </div>
+            <form method="POST"
+                  action="{{ route('branches.update.profile', $branch->id) }}"
+                  enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
 
-            <div class="p-6">
-                <div class="p-4 border border-yellow-200 rounded-xl bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-800">
-                    <p class="text-sm text-yellow-800 dark:text-yellow-300">
-                        This spa is not yet verified, so this branch cannot be listed publicly yet.
-                    </p>
-                </div>
-
-                @if(Route::has('owner.spa-profile.edit'))
-                    <div class="mt-4">
-                        <a href="{{ route('owner.spa-profile.edit') }}"
-                           class="inline-flex px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg">
-                            Go to Spa Profile
-                        </a>
+                {{-- Profile tab errors only --}}
+                @if($errors->hasBag('profile') && $errors->getBag('profile')->any())
+                    <div class="p-4 mb-5 text-sm text-red-600 bg-red-50 rounded-2xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
+                        <p class="mb-1 font-semibold">Please fix the following:</p>
+                        <ul class="list-disc list-inside space-y-0.5">
+                            @foreach($errors->getBag('profile')->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
                     </div>
                 @endif
-            </div>
 
-            {{-- ✅ Submit Buttons inside unverified card too --}}
-            <div class="flex justify-end gap-3 px-6 py-4 border-t dark:border-gray-700">
-                <a href="{{ route('branches.index') }}"
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500">
-                    Cancel
-                </a>
-                <button type="submit"
-                    class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-lg focus:ring-4 focus:ring-[#8B7355]/30">
-                    Update Branch
-                </button>
-            </div>
-        </div>
+                {{-- @if(session('tab_success') === 'profile')
+                    <div class="flex items-center gap-2 p-3 mb-5 text-sm text-green-700 bg-green-50 rounded-2xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
+                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
+                        Public profile updated successfully.
+                    </div>
+                @endif --}}
+
+                {{-- ── Listing Toggle ─────────────────────────────────────── --}}
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+                     x-data="{ listed: {{ optional($branch->profile)->is_listed ? 'true' : 'false' }} }">
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold text-gray-900 dark:text-white">Public Listing</h2>
+                            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                When enabled, customers will see this branch on the landing page.
+                            </p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="hidden" name="is_listed" value="0">
+                            <input type="checkbox" name="is_listed" value="1"
+                                   x-model="listed"
+                                   {{ optional($branch->profile)->is_listed ? 'checked' : '' }}
+                                   class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
+                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
+                                        peer-checked:after:translate-x-5"></div>
+                        </label>
+                    </div>
+
+                    <div x-show="listed" x-transition class="flex items-center gap-2 px-3 py-2 mt-3 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
+                        <i class="text-xs text-green-500 fa-solid fa-circle-check"></i>
+                        <p class="text-xs font-medium text-green-700 dark:text-green-300">This branch is visible on the public landing page.</p>
+                    </div>
+                </div>
+
+                {{-- ── Hiring Toggle ──────────────────────────────────────── --}}
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+                    x-data="{ hiring: {{ optional($branch->profile)->is_hiring ? 'true' : 'false' }} }">
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold text-gray-900 dark:text-white">Job Posting</h2>
+                            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                When enabled, a "We're Hiring" badge shows on this branch's public card.
+                            </p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="hidden" name="is_hiring" value="0">
+                            <input type="checkbox" name="is_hiring" value="1"
+                                x-model="hiring"
+                                {{ optional($branch->profile)->is_hiring ? 'checked' : '' }}
+                                class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
+                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
+                                        peer-checked:after:translate-x-5"></div>
+                        </label>
+                    </div>
+
+                    <div x-show="hiring" x-transition class="mt-3 space-y-3">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
+                            <i class="text-xs text-green-500 fa-solid fa-briefcase"></i>
+                            <p class="text-xs font-medium text-green-700 dark:text-green-300">This branch will show a "We're Hiring" badge publicly.</p>
+                        </div>
+
+                        <div>
+                            <label for="hiring_note" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Hiring Note <span class="font-normal text-gray-400">(optional)</span>
+                            </label>
+                            <input type="text" name="hiring_note" id="hiring_note" maxlength="150"
+                                value="{{ old('hiring_note', optional($branch->profile)->hiring_note) }}"
+                                placeholder="e.g. Now hiring: Massage Therapists, Receptionists"
+                                class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-400">Shown when applicants hover or open the branch details.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ── Branch Details ─────────────────────────────────────── --}}
+                <div class="p-6 mb-4 space-y-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-900 dark:text-white">Branch Details</h2>
+                        <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Info shown to customers on the listing page.</p>
+                    </div>
+
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                        <textarea name="description" id="description" rows="3"
+                            placeholder="Describe this branch — ambiance, services, what makes it special."
+                            class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm resize-none">{{ old('description', optional($branch->profile)->description) }}</textarea>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
+                            <input type="text" name="phone" id="phone"
+                                   maxlength="11" pattern="^09\d{9}$"
+                                   value="{{ old('phone', optional($branch->profile)->phone) }}"
+                                   placeholder="09xxxxxxxxx"
+                                   class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                        </div>
+                        <div class="relative">
+                            <label for="address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
+                            <input type="text" name="address" id="address" autocomplete="off"
+                                value="{{ old('address', optional($branch->profile)->address) }}"
+                                placeholder="e.g. Camella Homes, Bacoor, Cavite"
+                                class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-400">
+                                Tip: search by subdivision/village, barangay, or city name block & lot numbers alone won't be found. You can drag the pin afterward for the exact spot.
+                            </p>
+
+                            {{-- Autocomplete suggestions dropdown --}}
+                            <div id="addressSuggestions"
+                                class="absolute z-20 hidden w-full mt-1 overflow-hidden bg-white border border-gray-200 shadow-lg rounded-xl dark:bg-gray-700 dark:border-gray-600">
+                                {{-- populated by JS --}}
+                            </div>
+
+                            <p id="addressSearching" class="hidden mt-1 text-xs text-gray-400">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Searching...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ── Map Pin ─────────────────────────────────────────────── --}}
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                    <div class="mb-3">
+                        <h2 class="text-base font-semibold text-gray-900 dark:text-white">Branch Location Pin</h2>
+                        <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Click the map or drag the marker to set the exact location. Cavite area only.</p>
+                    </div>
+                    <input type="hidden" name="latitude"  id="latitude"  value="{{ old('latitude',  optional($branch->profile)->latitude) }}">
+                    <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', optional($branch->profile)->longitude) }}">
+                    <div id="profileMap" class="w-full h-64 overflow-hidden border border-gray-200 rounded-xl dark:border-gray-600"></div>
+                    <div id="caviteToast" class="flex items-center hidden gap-2 p-3 mt-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
+                        <i class="flex-shrink-0 fa-solid fa-location-crosshairs"></i>
+                        <span id="caviteToastMsg">Please pin a location within Cavite only.</span>
+                    </div>
+                </div>
+
+                {{-- ── Cover Image ─────────────────────────────────────────── --}}
+                @php
+                    $existingCover   = optional($branch->profile)->cover_image;
+                    $existingGallery = optional($branch->profile)->gallery_images ?? [];
+                @endphp
+
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                    <div class="mb-4">
+                        <h2 class="text-base font-semibold text-gray-900 dark:text-white">Cover Image</h2>
+                        <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">The main photo shown on the listing card.</p>
+                    </div>
+                    <input type="hidden" name="remove_cover_image" id="remove_cover_image" value="0">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        <div class="flex-shrink-0 w-full sm:w-52">
+                            <div class="relative flex items-center justify-center overflow-hidden bg-gray-100 border border-dashed border-gray-300 rounded-2xl aspect-[4/3] dark:bg-gray-700 dark:border-gray-600">
+                                <img id="coverPreview" src="{{ $existingCover ? asset('storage/' . $existingCover) : '' }}"
+                                     class="{{ $existingCover ? '' : 'hidden' }} object-cover w-full h-full">
+                                <div id="coverPlaceholder" class="{{ $existingCover ? 'hidden' : '' }} flex flex-col items-center gap-1">
+                                    <i class="text-2xl text-gray-300 fa-solid fa-image"></i>
+                                    <p class="text-xs text-gray-400">No image</p>
+                                </div>
+                                <button type="button" id="removeCoverBtn" onclick="removeCoverImage()"
+                                    class="{{ $existingCover ? '' : 'hidden' }} absolute top-2 right-2 flex items-center justify-center w-7 h-7 text-white bg-red-500 rounded-full hover:bg-red-600">
+                                    <i class="text-xs fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <label for="cover_image" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Upload New Cover</label>
+                            <input type="file" name="cover_image" id="cover_image" accept="image/*" onchange="previewCoverImage(event)"
+                                   class="block w-full mt-2 text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-gray-700 dark:file:text-white">
+                            <p class="mt-2 text-xs text-gray-400">JPG, PNG, WebP. Max 2MB. Landscape ratio recommended.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ── Gallery ─────────────────────────────────────────────── --}}
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                    <div class="mb-4">
+                        <h2 class="text-base font-semibold text-gray-900 dark:text-white">Gallery Images</h2>
+                        <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Up to 4 additional photos shown in the branch detail view.</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        @for($i = 0; $i < 4; $i++)
+                        @php $existingImage = $existingGallery[$i] ?? null; @endphp
+                        <div class="space-y-2">
+                            <input type="hidden" name="existing_gallery_images[{{ $i }}]" value="{{ $existingImage }}">
+                            <input type="hidden" name="remove_gallery_images[{{ $i }}]" id="remove_gallery_image_{{ $i }}" value="0">
+                            <div class="relative overflow-hidden bg-gray-100 border border-gray-300 border-dashed rounded-2xl aspect-square dark:bg-gray-700 dark:border-gray-600">
+                                <img id="galleryPreview_{{ $i }}" src="{{ $existingImage ? asset('storage/' . $existingImage) : '' }}"
+                                     class="{{ $existingImage ? '' : 'hidden' }} object-cover w-full h-full">
+                                <div id="galleryPlaceholder_{{ $i }}"
+                                     class="{{ $existingImage ? 'hidden' : '' }} absolute inset-0 flex flex-col items-center justify-center">
+                                    <i class="text-xl text-gray-300 fa-solid fa-image"></i>
+                                    <p class="mt-1 text-[10px] text-gray-400">Empty</p>
+                                </div>
+                                <button type="button" id="removeGalleryBtn_{{ $i }}" onclick="removeGalleryImage({{ $i }})"
+                                    class="{{ $existingImage ? '' : 'hidden' }} absolute top-1.5 right-1.5 flex items-center justify-center w-6 h-6 text-white bg-red-500 rounded-full hover:bg-red-600">
+                                    <i class="text-[10px] fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <label for="gallery_image_{{ $i }}"
+                                class="flex items-center justify-center w-full py-1.5 text-xs font-medium text-gray-600 transition bg-gray-50 border border-gray-200 cursor-pointer rounded-xl hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
+                                <i class="mr-1 fa-solid fa-plus text-[10px]"></i>
+                                {{ $existingImage ? 'Replace' : 'Upload' }}
+                            </label>
+                            <input type="file" id="gallery_image_{{ $i }}" name="gallery_images[{{ $i }}]"
+                                   accept="image/*" class="hidden" onchange="previewGalleryImage(event, {{ $i }})">
+                        </div>
+                        @endfor
+                    </div>
+                </div>
+
+                {{-- ── Amenities ───────────────────────────────────────────── --}}
+                <div class="p-6 mb-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+                     x-data="amenitiesManager()">
+
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-base font-semibold text-gray-900 dark:text-white">Amenities</h2>
+                            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Features offered at this branch.</p>
+                        </div>
+                        <button type="button" @click="openModal = true"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white rounded-lg bg-[#8B7355] hover:bg-[#7a6449] transition">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                            Add Custom
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <template x-for="(amenity, index) in amenities" :key="amenity.value">
+                            <label class="flex items-center gap-3 p-3 transition border border-gray-200 cursor-pointer dark:bg-gray-700 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <input type="checkbox" :name="'amenities[]'" :value="amenity.value"
+                                       x-model="amenity.checked"
+                                       class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355] dark:bg-gray-700">
+                                <span class="flex-1 text-sm text-gray-700 dark:text-gray-200" x-text="amenity.label"></span>
+                                <button x-show="amenity.custom" type="button" @click.prevent="removeCustomAmenity(index)"
+                                    class="text-gray-300 transition hover:text-red-500">
+                                    <i class="text-xs fa-solid fa-xmark"></i>
+                                </button>
+                            </label>
+                        </template>
+                    </div>
+
+                    {{-- Custom amenity modal --}}
+                    <div x-show="openModal" x-transition.opacity
+                         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+                         @click.self="openModal = false">
+                        <div class="w-full max-w-sm p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800" @click.stop>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Add Custom Amenity</h3>
+                                <button type="button" @click="openModal = false" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <input type="text" x-model="newAmenityLabel"
+                                   @keydown.enter.prevent="addCustomAmenity()"
+                                   placeholder="e.g. Steam Room, Jacuzzi, Foot Bath..."
+                                   class="block w-full text-sm border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <p x-show="errorMsg" x-text="errorMsg" class="mt-2 text-xs text-red-500"></p>
+                            <div class="flex justify-end gap-2 mt-4">
+                                <button type="button" @click="openModal = false" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg dark:bg-gray-700 dark:text-gray-300">Cancel</button>
+                                <button type="button" @click="addCustomAmenity()" class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-lg hover:bg-[#7a6449]">Add</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="flex items-center justify-between mt-4">
+                    <button type="submit"
+                        class="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
+                        Save Public Profile
+                    </button>
+                </div>
+
+            </form>
         @endif
 
-    </form>
-</div>
+    </div>{{-- end profile tab --}}
 
+</div>{{-- end x-data --}}
+
+{{-- ════════════════════════════════════════════════════════════════════════
+     SCRIPTS
+═════════════════════════════════════════════════════════════════════════ --}}
 <script>
+// ── Alpine: tab state + URL sync + lazy map init
+function branchEditPage() {
+    return {
+        tab: '{{ $activeTab }}',
+
+        init() {
+            this.$watch('tab', (value) => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', value);
+                window.history.replaceState({}, '', url.toString());
+                if (value === 'profile') this.$nextTick(() => this.$dispatch('tab-profile-shown'));
+            });
+            if (this.tab === 'profile') this.$nextTick(() => this.$dispatch('tab-profile-shown'));
+        },
+
+        initProfileMap() { initLeafletMap(); }
+    };
+}
+
+// ── Amenities manager (unchanged from original edit page)
 function amenitiesManager() {
     return {
         openModal: false,
@@ -592,237 +642,439 @@ function amenitiesManager() {
 
         amenities: [
             @php
-                $selectedAmenities = $branch->profile->amenities ?? [];
-                $defaultAmenities = [
-                    'aircon'          => 'Air Conditioning',
-                    'private_rooms'   => 'Private Rooms',
-                    'shower'          => 'Shower',
-                    'parking'         => 'Parking',
-                    'wifi'            => 'WiFi',
-                    'locker'          => 'Locker',
-                    'pet_friendly'    => 'Pet Friendly',
-                    'sauna'           => 'Sauna',
+                $selectedAmenities = optional($branch->profile)->amenities ?? [];
+                $defaultAmenities  = [
+                    'aircon'        => 'Air Conditioning',
+                    'private_rooms' => 'Private Rooms',
+                    'shower'        => 'Shower',
+                    'parking'       => 'Parking',
+                    'wifi'          => 'WiFi',
+                    'locker'        => 'Locker',
+                    'pet_friendly'  => 'Pet Friendly',
+                    'sauna'         => 'Sauna',
                 ];
-                // Detect custom amenities saved previously (not in default list)
                 $customAmenities = array_diff($selectedAmenities, array_keys($defaultAmenities));
             @endphp
-
             @foreach($defaultAmenities as $value => $label)
                 { value: '{{ $value }}', label: '{{ $label }}', checked: {{ in_array($value, $selectedAmenities) ? 'true' : 'false' }}, custom: false },
             @endforeach
-
             @foreach($customAmenities as $customValue)
-                { value: '{{ $customValue }}', label: '{{ ucwords(str_replace('_', ' ', $customValue)) }}', checked: true, custom: true },
+                { value: '{{ $customValue }}', label: '{{ ucwords(str_replace("_", " ", $customValue)) }}', checked: true, custom: true },
             @endforeach
         ],
 
         addCustomAmenity() {
             this.errorMsg = '';
-            const label = this.newAmenityLabel.trim();
-
-            if (!label) {
-                this.errorMsg = 'Please enter an amenity name.';
-                return;
-            }
-
-            const value = label.toLowerCase().replace(/\s+/g, '_');
-            const exists = this.amenities.some(a => a.value === value);
-
-            if (exists) {
-                this.errorMsg = 'This amenity already exists.';
-                return;
-            }
-
+            const label   = this.newAmenityLabel.trim();
+            if (!label) { this.errorMsg = 'Please enter an amenity name.'; return; }
+            const value   = label.toLowerCase().replace(/\s+/g, '_');
+            if (this.amenities.some(a => a.value === value)) { this.errorMsg = 'Already exists.'; return; }
             this.amenities.push({ value, label, checked: true, custom: true });
             this.newAmenityLabel = '';
-            this.openModal = false;
+            this.openModal       = false;
         },
 
-        removeCustomAmenity(index) {
-            this.amenities.splice(index, 1);
-        }
+        removeCustomAmenity(index) { this.amenities.splice(index, 1); }
     };
 }
-</script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const addressInput = document.getElementById('address');
-    const latInput = document.getElementById('latitude');
-    const lngInput = document.getElementById('longitude');
-    const mapContainer = document.getElementById('map');
+// ────────────────────────────────────────────────────────────
+// OPERATING HOURS — time range validation
+// Ported from operating-hours.blade.php to keep behaviour consistent
+// ────────────────────────────────────────────────────────────
 
-    if (!mapContainer || !addressInput || !latInput || !lngInput) return;
+function validateTimeRange(openingId, closingId, errorId, cardId) {
+    const opening = document.getElementById(openingId);
+    const closing = document.getElementById(closingId);
+    const errorEl = document.getElementById(errorId);
+    const card    = document.getElementById(cardId);
 
-    const caviteBounds = [
-        [13.983, 120.850],
-        [14.600, 121.200]
-    ];
-
-    const defaultLat = parseFloat(latInput.value) || 14.4323;
-    const defaultLng = parseFloat(lngInput.value) || 120.9269;
-
-    let mapInitialized = false;
-
-    function initMap() {
-        if (mapInitialized) return;
-        mapInitialized = true;
-
-        const map = L.map('map', {
-            maxBounds: caviteBounds,
-            maxBoundsViscosity: 0.8,
-            zoomControl: true
-        }).setView([defaultLat, defaultLng], 12);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-
-        const marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
-
-        function updateInputs(lat, lng) {
-            latInput.value = lat.toFixed(7);
-            lngInput.value = lng.toFixed(7);
-        }
-
-        map.on('click', e => {
-            marker.setLatLng(e.latlng);
-            updateInputs(e.latlng.lat, e.latlng.lng);
-            reverseGeocode(e.latlng.lat, e.latlng.lng);
-        });
-
-        marker.on('dragend', () => {
-            const pos = marker.getLatLng();
-            updateInputs(pos.lat, pos.lng);
-            reverseGeocode(pos.lat, pos.lng);
-        });
-
-        function reverseGeocode(lat, lng) {
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
-                headers: { 'User-Agent': 'SpaManagementSystem/1.0 (student-project)' }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data?.display_name) addressInput.value = data.display_name;
-            })
-            .catch(err => console.log(err));
-        }
-
-        setTimeout(() => map.invalidateSize(), 300);
+    if (!opening || !closing || !errorEl || !card) return true;
+    if (!opening.value || !closing.value) {
+        clearTimeError(opening, closing, errorEl, card);
+        checkAllClosed();
+        return true;
     }
 
-    // ✅ Poll until map container is visible — works with Alpine x-show
-    const checkVisible = setInterval(() => {
-        if (mapContainer.offsetParent !== null && mapContainer.offsetHeight > 0) {
-            clearInterval(checkVisible);
-            initMap();
-        }
-    }, 100);
+    const isReversed = closing.value <= opening.value;
+
+    if (isReversed) {
+        errorEl.classList.remove('hidden');
+        closing.classList.add('border-red-400', 'bg-red-50', 'focus:border-red-400');
+        closing.classList.remove('border-gray-200');
+        card.classList.add('ring-red-300');
+        card.classList.remove('ring-black/5');
+    } else {
+        clearTimeError(opening, closing, errorEl, card);
+    }
+
+    checkAllClosed();
+    return !isReversed;
+}
+
+function clearTimeError(opening, closing, errorEl, card) {
+    errorEl.classList.add('hidden');
+    closing.classList.remove('border-red-400', 'bg-red-50', 'focus:border-red-400');
+    closing.classList.add('border-gray-200');
+    card.classList.remove('ring-red-300');
+    card.classList.add('ring-black/5');
+}
+
+function checkAllClosed() {
+    const checkboxes = document.querySelectorAll('#hoursForm input[type="checkbox"][name*="is_closed"]');
+    const saveBtn    = document.getElementById('hoursSubmitBtn');
+    const warning    = document.getElementById('allClosedWarning');
+    if (!saveBtn) return;
+
+    const allClosed = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+
+    saveBtn.disabled = allClosed;
+    saveBtn.classList.toggle('opacity-50', allClosed);
+    saveBtn.classList.toggle('cursor-not-allowed', allClosed);
+    warning?.classList.toggle('hidden', !allClosed);
+}
+
+function toggleHoursCard(checkbox, suffix) {
+    const timesDiv    = document.getElementById(`hours_times_${suffix}`);
+    const closedLabel = document.getElementById(`closed_label_${suffix}`);
+    const inputs      = timesDiv?.querySelectorAll('input[type="time"]');
+    const isClosed    = checkbox.checked;
+
+    if (timesDiv) {
+        timesDiv.style.opacity      = isClosed ? '0.4' : '1';
+        timesDiv.style.pointerEvents = isClosed ? 'none' : '';
+    }
+
+    inputs?.forEach(input => { input.disabled = isClosed; });
+    closedLabel?.classList.toggle('hidden', !isClosed);
+
+    // Clear any time error on the card when toggling closed
+    if (isClosed) {
+        const errorEl = document.getElementById(`time_error_${suffix}`);
+        const card    = document.getElementById(`hours_card_${suffix}`);
+        const opening = document.getElementById(`opening_${suffix}`);
+        const closing = document.getElementById(`closing_${suffix}`);
+        if (errorEl && card && opening && closing) clearTimeError(opening, closing, errorEl, card);
+    }
+
+    checkAllClosed();
+}
+
+// Block form submission if any time-range errors exist
+document.getElementById('hoursForm')?.addEventListener('submit', function (e) {
+    const errors = document.querySelectorAll('[id^="time_error_"]:not(.hidden)');
+    if (errors.length > 0) {
+        e.preventDefault();
+        errors[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 });
 
+// ── Cover image
 function previewCoverImage(event) {
     const file = event.target.files[0];
-    const preview = document.getElementById('coverPreview');
-    const removeBtn = document.getElementById('removeCoverBtn');
-    const removeInput = document.getElementById('remove_cover_image');
-    const placeholder = document.getElementById('coverPlaceholder');
-
     if (!file) return;
-
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = (e) => {
+        const preview = document.getElementById('coverPreview');
         preview.src = e.target.result;
         preview.classList.remove('hidden');
-        removeBtn.classList.remove('hidden');
-        removeInput.value = '0';
-        if (placeholder) placeholder.classList.add('hidden');
+        document.getElementById('coverPlaceholder')?.classList.add('hidden');
+        document.getElementById('removeCoverBtn')?.classList.remove('hidden');
+        document.getElementById('remove_cover_image').value = '0';
     };
     reader.readAsDataURL(file);
 }
 
 function removeCoverImage() {
-    const preview = document.getElementById('coverPreview');
-    const input = document.getElementById('cover_image');
-    const removeBtn = document.getElementById('removeCoverBtn');
-    const removeInput = document.getElementById('remove_cover_image');
-    const placeholder = document.getElementById('coverPlaceholder');
-
-    preview.src = '';
-    preview.classList.add('hidden');
-    input.value = '';
-    removeBtn.classList.add('hidden');
-    removeInput.value = '1';
-    if (placeholder) placeholder.classList.remove('hidden');
+    document.getElementById('coverPreview').src = '';
+    document.getElementById('coverPreview').classList.add('hidden');
+    document.getElementById('coverPlaceholder')?.classList.remove('hidden');
+    document.getElementById('removeCoverBtn')?.classList.add('hidden');
+    document.getElementById('cover_image').value = '';
+    document.getElementById('remove_cover_image').value = '1';
 }
 
+// ── Gallery images
 function previewGalleryImage(event, index) {
     const file = event.target.files[0];
     if (!file) return;
-
-    const preview = document.getElementById(`galleryPreview_${index}`);
-    const placeholder = document.getElementById(`galleryPlaceholder_${index}`);
-    const removeBtn = document.getElementById(`removeGalleryBtn_${index}`);
-    const removeInput = document.getElementById(`remove_gallery_image_${index}`);
-
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = (e) => {
+        const preview = document.getElementById(`galleryPreview_${index}`);
         preview.src = e.target.result;
         preview.classList.remove('hidden');
-        removeBtn.classList.remove('hidden');
-        removeInput.value = '0';
-        if (placeholder) placeholder.classList.add('hidden');
+        document.getElementById(`galleryPlaceholder_${index}`)?.classList.add('hidden');
+        document.getElementById(`removeGalleryBtn_${index}`)?.classList.remove('hidden');
+        document.getElementById(`remove_gallery_image_${index}`).value = '0';
     };
     reader.readAsDataURL(file);
 }
 
 function removeGalleryImage(index) {
-    const preview = document.getElementById(`galleryPreview_${index}`);
-    const placeholder = document.getElementById(`galleryPlaceholder_${index}`);
-    const removeBtn = document.getElementById(`removeGalleryBtn_${index}`);
-    const input = document.getElementById(`gallery_image_${index}`);
-    const removeInput = document.getElementById(`remove_gallery_image_${index}`);
-
-    preview.src = '';
-    preview.classList.add('hidden');
-    input.value = '';
-    removeBtn.classList.add('hidden');
-    removeInput.value = '1';
-    if (placeholder) placeholder.classList.remove('hidden');
+    document.getElementById(`galleryPreview_${index}`).src = '';
+    document.getElementById(`galleryPreview_${index}`).classList.add('hidden');
+    document.getElementById(`galleryPlaceholder_${index}`)?.classList.remove('hidden');
+    document.getElementById(`removeGalleryBtn_${index}`)?.classList.add('hidden');
+    document.getElementById(`gallery_image_${index}`).value = '';
+    document.getElementById(`remove_gallery_image_${index}`).value = '1';
 }
 
-function toggleTimeInputs(checkbox, openingId, closingId, cardId) {
-    const openingInput = document.getElementById(openingId);
-    const closingInput = document.getElementById(closingId);
-    const card = document.getElementById(cardId);
+// ── Leaflet map (lazy, only on profile tab open)
+let leafletMapInstance = null;
 
-    if (!openingInput || !closingInput || !card) return;
+function initLeafletMap() {
+    const mapContainer = document.getElementById('profileMap');
+    if (!mapContainer || leafletMapInstance) return;
 
-    const isClosed = checkbox.checked;
-    openingInput.disabled = isClosed;
-    closingInput.disabled = isClosed;
-    card.style.opacity = isClosed ? '0.6' : '1';
+    const caviteBounds = L.latLngBounds([14.020, 120.620], [14.520, 121.100]);
+    const caviteCenter = [14.2456, 120.8786];
 
-    let closedLabel = card.querySelector('.closed-label');
-    if (!closedLabel) {
-        closedLabel = document.createElement('p');
-        closedLabel.classList.add('closed-label', 'mt-3', 'text-xs', 'italic', 'text-center', 'text-gray-400', 'dark:text-gray-300');
-        closedLabel.textContent = 'Closed all day';
-        card.appendChild(closedLabel);
+    let defaultLat = parseFloat(document.getElementById('latitude').value);
+    let defaultLng = parseFloat(document.getElementById('longitude').value);
+
+    if (isNaN(defaultLat) || isNaN(defaultLng) || !caviteBounds.contains([defaultLat, defaultLng])) {
+        defaultLat = caviteCenter[0];
+        defaultLng = caviteCenter[1];
     }
-    closedLabel.style.display = isClosed ? 'block' : 'none';
+
+    const map    = L.map('profileMap', { maxBounds: caviteBounds, maxBoundsViscosity: 1.0 }).setView([defaultLat, defaultLng], 13);
+    const marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    document.getElementById('latitude').value  = defaultLat;
+    document.getElementById('longitude').value = defaultLng;
+
+    function updatePin(latlng) {
+        if (!caviteBounds.contains(latlng)) { showCaviteToast('You can only pin locations within Cavite.'); return; }
+        marker.setLatLng(latlng);
+        document.getElementById('latitude').value  = latlng.lat.toFixed(7);
+        document.getElementById('longitude').value = latlng.lng.toFixed(7);
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json`)
+            .then(r => r.json())
+            .then(data => { const a = document.getElementById('address'); if (a && data.display_name) a.value = data.display_name; })
+            .catch(() => {});
+    }
+
+    map.on('click', (e) => updatePin(e.latlng));
+    marker.on('dragend', () => updatePin(marker.getLatLng()));
+    setTimeout(() => map.invalidateSize(), 200);
+    leafletMapInstance = map;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const checkboxes = document.querySelectorAll('input[type="checkbox"][name*="[is_closed]"]');
-    checkboxes.forEach(cb => {
-        const index = cb.name.match(/\[(\d+)\]/)[1];
-        const cardId = 'card_' + (cb.closest('div[id^="card_"]')?.id.replace('card_', '') || index);
-        const openingId = 'opening_' + (cb.closest('div[id^="card_"]')?.id.replace('card_', '') || index);
-        const closingId = 'closing_' + (cb.closest('div[id^="card_"]')?.id.replace('card_', '') || index);
+function showCaviteToast(message) {
+    const toast = document.getElementById('caviteToast');
+    const msg   = document.getElementById('caviteToastMsg');
+    if (!toast) return;
+    if (msg) msg.textContent = message;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 4000);
+}
 
-        toggleTimeInputs(cb, openingId, closingId, cardId);
-        cb.addEventListener('change', () => toggleTimeInputs(cb, openingId, closingId, cardId));
+// ── Forward geocoding: address text → autocomplete dropdown → pin
+let addressGeocodeTimeout = null;
+let currentSuggestions = [];
+let activeSuggestionIndex = -1;
+
+const CAVITE_BOUNDS_VIEWBOX = '120.620,14.520,121.100,14.020'; // left,top,right,bottom
+const CAVITE_BOUNDS_LATLNG  = L.latLngBounds([14.020, 120.620], [14.520, 121.100]);
+
+function fetchAddressSuggestions(query) {
+    const searchingEl = document.getElementById('addressSearching');
+    const dropdown    = document.getElementById('addressSuggestions');
+
+    if (query.length < 4) {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        return;
+    }
+
+    searchingEl?.classList.remove('hidden');
+    performGeocodeSearch(query, true);
+
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Cavite, Philippines')}&format=json&limit=5&viewbox=${CAVITE_BOUNDS_VIEWBOX}&bounded=1&addressdetails=1`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            searchingEl?.classList.add('hidden');
+            currentSuggestions = (data || []).filter(item => {
+                const latlng = L.latLng(parseFloat(item.lat), parseFloat(item.lon));
+                return CAVITE_BOUNDS_LATLNG.contains(latlng);
+            });
+            renderAddressSuggestions();
+        })
+        .catch(() => {
+            searchingEl?.classList.add('hidden');
+            dropdown.classList.add('hidden');
+        });
+}
+
+function performGeocodeSearch(query, allowFallback) {
+    const searchingEl = document.getElementById('addressSearching');
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Cavite, Philippines')}&format=json&limit=5&viewbox=${CAVITE_BOUNDS_VIEWBOX}&bounded=1&addressdetails=1`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            let results = (data || []).filter(item => {
+                const latlng = L.latLng(parseFloat(item.lat), parseFloat(item.lon));
+                return CAVITE_BOUNDS_LATLNG.contains(latlng);
+            });
+
+            if (results.length === 0 && allowFallback) {
+                // Strip block/lot/unit-style tokens and retry once with the remainder
+                const stripped = query
+                    .replace(/\b(blk|block|lot|unit|phase|ph)\.?\s*\d+\w*/gi, '')
+                    .replace(/\s{2,}/g, ' ')
+                    .trim();
+
+                if (stripped.length >= 4 && stripped !== query) {
+                    performGeocodeSearch(stripped, false);
+                    return;
+                }
+            }
+
+            searchingEl?.classList.add('hidden');
+            currentSuggestions = results;
+            renderAddressSuggestions();
+        })
+        .catch(() => {
+            searchingEl?.classList.add('hidden');
+            document.getElementById('addressSuggestions').classList.add('hidden');
+        });
+}
+
+function renderAddressSuggestions() {
+    const dropdown = document.getElementById('addressSuggestions');
+    activeSuggestionIndex = -1;
+
+    if (currentSuggestions.length === 0) {
+        dropdown.innerHTML = `
+            <div class="px-4 py-3 text-sm text-gray-400">
+                No matching locations found in Cavite.
+            </div>`;
+        dropdown.classList.remove('hidden');
+        return;
+    }
+
+    dropdown.innerHTML = currentSuggestions.map((item, index) => `
+        <button type="button"
+                data-index="${index}"
+                class="address-suggestion-item flex items-start w-full gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-0">
+            <i class="fa-solid fa-location-dot text-[#8B7355] text-xs mt-1 flex-shrink-0"></i>
+            <span class="text-gray-700 dark:text-gray-200">${escapeHtml(item.display_name)}</span>
+        </button>
+    `).join('');
+
+    dropdown.classList.remove('hidden');
+
+    dropdown.querySelectorAll('.address-suggestion-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = parseInt(btn.dataset.index, 10);
+            selectAddressSuggestion(index);
+        });
     });
+}
+
+function selectAddressSuggestion(index) {
+    const item = currentSuggestions[index];
+    if (!item) return;
+
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
+    const latlng = L.latLng(lat, lng);
+
+    document.getElementById('address').value = item.display_name;
+    document.getElementById('latitude').value  = lat.toFixed(7);
+    document.getElementById('longitude').value = lng.toFixed(7);
+
+    if (leafletMapInstance) {
+        leafletMapInstance.setView(latlng, 16);
+        leafletMapInstance.eachLayer(layer => {
+            if (layer instanceof L.Marker) layer.setLatLng(latlng);
+        });
+    }
+
+    document.getElementById('addressSuggestions').classList.add('hidden');
+    currentSuggestions = [];
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function setupAddressAutocomplete() {
+    const addressInput = document.getElementById('address');
+    const dropdown      = document.getElementById('addressSuggestions');
+    if (!addressInput || !dropdown) return;
+
+    addressInput.addEventListener('input', function () {
+        clearTimeout(addressGeocodeTimeout);
+        const query = this.value.trim();
+        addressGeocodeTimeout = setTimeout(() => fetchAddressSuggestions(query), 500);
+    });
+
+    // Keyboard navigation (up/down/enter)
+    addressInput.addEventListener('keydown', function (e) {
+        const items = dropdown.querySelectorAll('.address-suggestion-item');
+        if (items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeSuggestionIndex = Math.min(activeSuggestionIndex + 1, items.length - 1);
+            highlightSuggestion(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeSuggestionIndex = Math.max(activeSuggestionIndex - 1, 0);
+            highlightSuggestion(items);
+        } else if (e.key === 'Enter') {
+            if (activeSuggestionIndex >= 0) {
+                e.preventDefault();
+                selectAddressSuggestion(activeSuggestionIndex);
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        if (!addressInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+}
+
+function highlightSuggestion(items) {
+    items.forEach((item, i) => {
+        item.classList.toggle('bg-gray-100', i === activeSuggestionIndex);
+        item.classList.toggle('dark:bg-gray-600', i === activeSuggestionIndex);
+    });
+    items[activeSuggestionIndex]?.scrollIntoView({ block: 'nearest' });
+}
+
+// ── On page load: restore operating hours card states
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('#hoursForm input[type="checkbox"][name*="is_closed"]').forEach(cb => {
+        const card = cb.closest('[id^="hours_card_"]');
+        if (!card) return;
+        const suffix = card.id.replace('hours_card_', '');
+        toggleHoursCard(cb, suffix);
+        cb.addEventListener('change', () => toggleHoursCard(cb, suffix));
+    });
+    checkAllClosed();
+    setupAddressAutocomplete();
 });
 </script>
+
+<style>
+    #profileMap { z-index: 1 !important; }
+    .leaflet-container { z-index: 1 !important; }
+    .leaflet-pane, .leaflet-top, .leaflet-bottom, .leaflet-control { z-index: 1 !important; }
+</style>
 @endsection

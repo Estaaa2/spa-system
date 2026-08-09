@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Package;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class PackageController extends Controller
 {
@@ -16,7 +17,13 @@ class PackageController extends Controller
             'included_treatments'   => 'nullable|array',
             'included_treatments.*' => 'exists:treatments,id',
             'description'           => 'nullable|string',
+            'image'                 => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('packages', 'public');
+        }
 
         $package = Package::create([
             'spa_id'         => auth()->user()->spa_id,
@@ -25,6 +32,7 @@ class PackageController extends Controller
             'total_duration' => $validated['duration'] ?? null,
             'price'          => $validated['price'],
             'description'    => $validated['description'] ?? null,
+            'image_path'     => $imagePath,
         ]);
 
         if (!empty($validated['included_treatments'])) {
@@ -45,6 +53,7 @@ class PackageController extends Controller
             'price'                => $package->price,
             'description'          => $package->description,
             'included_treatments'  => $package->treatments->pluck('id'),
+            'image_url'            => $package->image_url,
         ]);
     }
 
@@ -57,13 +66,23 @@ class PackageController extends Controller
             'description'           => 'nullable|string',
             'included_treatments'   => 'nullable|array',
             'included_treatments.*' => 'exists:treatments,id',
+            'image'                 => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
+
+        $imagePath = $package->image_path;
+        if ($request->hasFile('image')) {
+            if ($package->image_path) {
+                Storage::disk('public')->delete($package->image_path);
+            }
+            $imagePath = $request->file('image')->store('packages', 'public');
+        }
 
         $package->update([
             'name'           => $validated['name'],
             'total_duration' => $validated['duration'],
             'price'          => $validated['price'],
             'description'    => $validated['description'] ?? null,
+            'image_path'     => $imagePath,
         ]);
 
         $package->treatments()->sync($validated['included_treatments'] ?? []);
@@ -75,6 +94,10 @@ class PackageController extends Controller
 
     public function destroy(Package $package)
     {
+        if ($package->image_path) {
+            Storage::disk('public')->delete($package->image_path);
+        }
+
         $package->delete();
 
         return redirect()
