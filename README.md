@@ -1,59 +1,154 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Levictas — Spa Management Platform
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Levictas is a web-based integrated management platform for spa businesses in Cavite,
+Philippines. It handles spa discovery and online booking for customers, day-to-day
+operations (scheduling, attendance, staff, finance, HR) for spa staff, and platform-wide
+oversight for administrators — with a Decision Support System layered on top for
+descriptive analytics.
 
-## About Laravel
+This is a 4th-year IT capstone project (Thesis A/B). Thesis A covered design and initial
+build; Thesis B focuses on completing remaining features, stabilizing the codebase, and
+deploying for real spa businesses rather than a defense demo only.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Tech Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Backend:** Laravel (PHP), MySQL
+- **Frontend:** Blade templates, Tailwind CSS, Alpine.js, vanilla JavaScript, Vite
+- **Payments:** PayMongo (checkout sessions + webhooks)
+- **Authorization:** Spatie Laravel Permission (role-based access control, branch-scoped)
+- **Charts:** Chart.js (DSS, Reports)
+- **Deployment:** Custom `sftp-git-deploy` Node.js tool (`deploy-tool/`), VPS with nginx +
+  PHP-FPM
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Features
 
-## Learning Laravel
+**Customer side**
+- Browse verified spas and public branch listings
+- Online booking with PayMongo checkout (20% reservation fee)
+- Appointment management, reschedule requests, ratings
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+**Staff side**
+- Dashboard with live-polling KPIs, revenue, and appointment timeline
+- Appointment booking, scheduling, and reassignment workflow
+- Attendance & leave management
+- Services, staff, and branch management
+- Workforce & Finance suite: hiring, interviews, payroll, revenue, billing & expenses
+- Decision Support System (descriptive analytics) and operational reports
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+**Admin side**
+- Platform-wide oversight of registered spas, users, and default role permissions
 
-## Laravel Sponsors
+Role-based access is enforced at both route middleware and Blade template layers
+(Spatie Permissions), with branch-level permission overrides on top of role defaults.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Getting Started
 
-### Premium Partners
+### Prerequisites
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- PHP 8.2+ (production runs 8.4-fpm)
+- Composer
+- Node.js & npm
+- MySQL
 
-## Contributing
+### Installation
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+git clone <repo-url>
+cd <project-folder>
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+```
 
-## Code of Conduct
+### Environment Configuration
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Set the following in `.env` at minimum:
 
-## Security Vulnerabilities
+```
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=
+DB_USERNAME=
+DB_PASSWORD=
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+PAYMONGO_SECRET_KEY=       # sk_test_... for local/dev, sk_live_... for production
+PAYMONGO_WEBHOOK_SECRET=
+
+MAIL_MAILER=
+MAIL_HOST=
+MAIL_PORT=
+MAIL_USERNAME=
+MAIL_PASSWORD=
+```
+
+PayMongo mode (test vs live) is determined entirely by the `sk_test_` / `sk_live_` prefix
+on `PAYMONGO_SECRET_KEY` — there's no separate mode flag.
+
+### Database
+
+```bash
+php artisan migrate
+php artisan db:seed --class=RolePermissionSeeder
+```
+
+> **Important:** `migrate:fresh` wipes Spatie's permission tables — always re-run
+> `RolePermissionSeeder` after a fresh migration, or every role/permission check will
+> silently fail. Do **not** re-run this seeder on top of a database with live imported
+> data; it's meant for fresh databases only.
+
+### Build Assets
+
+```bash
+npm run dev     # local development
+npm run build   # production build
+```
+
+### Storage
+
+```bash
+php artisan storage:link
+```
+
+Uploaded files under `storage/app/public/` are not in version control — if you're moving
+between environments, rsync this directory separately.
+
+### File Permissions
+
+`storage/` and `bootstrap/cache/` need `775` permissions for Laravel to write to them at
+runtime. A blanket `755` chmod will silently break uploads and caching.
+
+### Local Scheduler Testing
+
+```bash
+php artisan schedule:work
+```
+
+## Deployment
+
+Production deploys go through a custom `sftp-git-deploy` Node.js tool in `deploy-tool/`
+(kept in its own subfolder with its own `package.json` to avoid ES module conflicts with
+the main Vite `package.json`). Server-side steps — `composer install`, `npm run build`,
+`php artisan migrate`, cache clears — are still run manually over SSH; the deploy tool
+does not automate those.
+
+Production server: VPS with nginx, PHP 8.4-fpm, and a cron entry running Laravel's
+scheduler (`php artisan schedule:run` every minute).
+
+The PayMongo webhook route requires an nginx `allow all` exact-match `location` block
+placed **before** the IP-restricted `location /` block, or webhook calls will be blocked.
+
+## Notes for Contributors
+
+- This project uses branch-scoped RBAC: Spatie role permissions are the coarse gate,
+  but several controllers layer additional row-level ownership filters on top (e.g.
+  branch/spa scoping). Don't assume a passing `@can` check means the query is already
+  scoped correctly — check the controller.
+- Live dashboard/appointment data uses polling (not WebSockets/Reverb) on a ~30–60s
+  interval, by design, to avoid running a supervised long-lived process in production.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Academic capstone project — not licensed for public or commercial redistribution unless
+stated otherwise by the project team.

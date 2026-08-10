@@ -96,7 +96,7 @@
     $brandHref = route('dashboard');
 @endphp
 
-<div x-data="sidebar()" class="flex h-screen bg-gray-100 dark:bg-gray-900">
+<div x-data="sidebar" class="flex h-screen bg-gray-100 dark:bg-gray-900">
 
     <!-- MOBILE TOPBAR -->
     <div
@@ -353,17 +353,17 @@
                 <!-- Operations -->
                 @if ($showOperations)
                     <div class="mb-1">
-                        <button @click="operationsOpen = !operationsOpen"
+                        <button @click="toggleSection('operations')"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                             <span class="flex items-center gap-2">
                                 <i class="fa-solid fa-calendar-check w-4 text-[#8B7355]"></i>
                                 Operations
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                :class="operationsOpen ? 'transform rotate-180' : ''"></i>
+                                :class="isOpen('operations') ? 'transform rotate-180' : ''"></i>
                         </button>
 
-                        <div x-show="operationsOpen" x-collapse class="ml-4 space-y-1">
+                        <div x-show="isOpen('operations')" x-collapse class="ml-4 space-y-1">
                             @if ($canBooking)
                                 <x-nav-link :href="route('booking')" :active="request()->routeIs('booking')">
                                     Book an Appointment
@@ -401,17 +401,17 @@
                 <!-- Manpower -->
                 @if ($showPeople)
                     <div class="mb-1">
-                        <button @click="peopleOpen = !peopleOpen"
+                        <button @click="toggleSection('people')"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                             <span class="flex items-center gap-2">
                                 <i class="fa-solid fa-users w-4 text-[#8B7355]"></i>
                                 Manpower
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                :class="peopleOpen ? 'transform rotate-180' : ''"></i>
+                                :class="isOpen('people') ? 'transform rotate-180' : ''"></i>
                         </button>
 
-                        <div x-show="peopleOpen" x-collapse class="ml-4 space-y-1">
+                        <div x-show="isOpen('people')" x-collapse class="ml-4 space-y-1">
                             @if ($canHiring)
                                 <x-nav-link :href="route('hiring.index')" :active="request()->routeIs('hiring.*')">
                                     Application Form
@@ -460,17 +460,17 @@
                 <!-- Management -->
                 @if ($showManagement)
                     <div class="mb-1">
-                        <button @click="managementOpen = !managementOpen"
+                        <button @click="toggleSection('management')"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                             <span class="flex items-center gap-2">
                                 <i class="fa-solid fa-briefcase w-4 text-[#8B7355]"></i>
                                 Management
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                :class="managementOpen ? 'transform rotate-180' : ''"></i>
+                                :class="isOpen('management') ? 'transform rotate-180' : ''"></i>
                         </button>
 
-                        <div x-show="managementOpen" x-collapse class="ml-4 space-y-1">
+                        <div x-show="isOpen('management')" x-collapse class="ml-4 space-y-1">
                             @if ($canServices)
                                 <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')">
                                     Services
@@ -495,17 +495,17 @@
                 <!-- Finance -->
                 @if ($showFinance)
                     <div class="mb-1">
-                        <button @click="financeOpen = !financeOpen"
+                        <button @click="toggleSection('finance')"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                             <span class="flex items-center gap-2">
                                 <i class="fa-solid fa-wallet w-4 text-[#8B7355]"></i>
                                 Finance
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                :class="financeOpen ? 'transform rotate-180' : ''"></i>
+                                :class="isOpen('finance') ? 'transform rotate-180' : ''"></i>
                         </button>
 
-                        <div x-show="financeOpen" x-collapse class="ml-4 space-y-1">
+                        <div x-show="isOpen('finance')" x-collapse class="ml-4 space-y-1">
                             @if ($canRevenue)
                                 <x-nav-link :href="route('revenue.index')" :active="request()->routeIs('revenue.*')">
                                     Revenue
@@ -524,17 +524,17 @@
                 <!-- Insights -->
                 @if ($showInsights)
                     <div class="mb-1">
-                        <button @click="insightsOpen = !insightsOpen"
+                        <button @click="toggleSection('insights')"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                             <span class="flex items-center gap-2">
                                 <i class="fa-solid fa-chart-line w-4 text-[#8B7355]"></i>
                                 Insights
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                :class="insightsOpen ? 'transform rotate-180' : ''"></i>
+                                :class="isOpen('insights') ? 'transform rotate-180' : ''"></i>
                         </button>
 
-                        <div x-show="insightsOpen" x-collapse class="ml-4 space-y-1">
+                        <div x-show="isOpen('insights')" x-collapse class="ml-4 space-y-1">
                             @if ($canDecisionSupport)
                                 <x-nav-link :href="route('decision-support.index')" :active="request()->routeIs('decision-support.*')">
                                     Decision Support
@@ -553,17 +553,17 @@
                 <!-- Inventory -->
                 @if ($showInventory)
                     <div class="mb-1">
-                        <button @click="inventoryOpen = !inventoryOpen"
+                        <button @click="toggleSection('inventory')"
                             class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                             <span class="flex items-center gap-2">
                                 <i class="fa-solid fa-boxes-stacked w-4 text-[#8B7355]"></i>
                                 Inventory
                             </span>
                             <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                :class="inventoryOpen ? 'transform rotate-180' : ''"></i>
+                                :class="isOpen('inventory') ? 'transform rotate-180' : ''"></i>
                         </button>
 
-                        <div x-show="inventoryOpen" x-collapse class="ml-4 space-y-1">
+                        <div x-show="isOpen('inventory')" x-collapse class="ml-4 space-y-1">
                             @if ($canProductInventory)
                                 <x-nav-link :href="route('inventory.products')" :active="request()->routeIs('inventory.products')">
                                     Product Inventory
@@ -581,17 +581,17 @@
 
                 <!-- Settings -->
                 <div class="mb-1">
-                    <button @click="settingsOpen = !settingsOpen"
+                    <button @click="toggleSection('settings')"
                         class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
                         <span class="flex items-center gap-2">
                             <i class="fa-solid fa-gear w-4 text-[#8B7355]"></i>
                             Settings
                         </span>
                         <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                            :class="settingsOpen ? 'transform rotate-180' : ''"></i>
+                            :class="isOpen('settings') ? 'transform rotate-180' : ''"></i>
                     </button>
 
-                    <div x-show="settingsOpen" x-collapse class="ml-4 space-y-1">
+                    <div x-show="isOpen('settings')" x-collapse class="ml-4 space-y-1">
                         <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
                             User Profile
                         </x-nav-link>
@@ -696,7 +696,8 @@
                         class="px-4 py-2 text-sm font-medium text-gray-700 transition-colors bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500">
                         Cancel
                     </button>
-                    <form method="POST" action="{{ route('logout') }}" id="logoutForm">
+                    <form method="POST" action="{{ route('logout') }}" id="logoutForm"
+                          x-on:submit="clearSidebarState()">
                         @csrf
                         <button type="submit"
                             class="px-4 py-2 text-sm font-medium text-white transition-colors bg-red-600 rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-300 dark:focus:ring-red-900">
@@ -753,90 +754,94 @@
 </style>
 
 <script>
-function sidebar() {
-    const STORAGE_KEY = 'levictas_sidebar_state';
+document.addEventListener('alpine:init', () => {
+    Alpine.data('sidebar', () => {
+        const STORAGE_KEY = 'levictas_sidebar_open_section_{{ auth()->id() ?? "guest" }}';
 
-    // These mirror the exact route checks your nav links already use —
-    // so "the section you're currently inside" is the source of truth
-    // for what should be open on a fresh page load.
-    const routeIsOperations = {{ (request()->routeIs('booking') || request()->routeIs('appointments.*') || request()->routeIs('schedule.*') || request()->routeIs('therapist.performance') || (!$suiteEnabled && request()->routeIs('attendance.*'))) ? 'true' : 'false' }};
-    const routeIsPeople     = {{ (request()->routeIs('hiring.*') || request()->routeIs('applications.*') || request()->routeIs('interviews.*') || request()->routeIs('staff.*') || request()->routeIs('depolyment.*') || request()->routeIs('payroll.*') || ($suiteEnabled && request()->routeIs('attendance.*'))) ? 'true' : 'false' }};
-    const routeIsManagement = {{ (request()->routeIs('services.*') || request()->routeIs('branches.*') || (!$suiteEnabled && request()->routeIs('staff.*'))) ? 'true' : 'false' }};
-    const routeIsFinance    = {{ (request()->routeIs('revenue.*') || request()->routeIs('billing.*')) ? 'true' : 'false' }};
-    const routeIsInsights   = {{ (request()->routeIs('decision-support.*') || request()->routeIs('reports.*')) ? 'true' : 'false' }};
-    const routeIsInventory  = {{ (request()->routeIs('inventory.*')) ? 'true' : 'false' }};
-    const routeIsSettings   = {{ (request()->routeIs('profile.*') || request()->routeIs('owner.spa-profile.*') || request()->routeIs('owner.workforce-finance-suite.*') || request()->routeIs('owner.subscription.*') || request()->routeIs('owner.roles-permissions.*')) ? 'true' : 'false' }};
+        const routeSectionMap = {
+            operations: {{ (request()->routeIs('booking') || request()->routeIs('appointments.*') || request()->routeIs('schedule.*') || request()->routeIs('therapist.performance') || (!$suiteEnabled && request()->routeIs('attendance.*'))) ? 'true' : 'false' }},
+            people:     {{ (request()->routeIs('hiring.*') || request()->routeIs('applications.*') || request()->routeIs('interviews.*') || request()->routeIs('staff.*') || request()->routeIs('depolyment.*') || request()->routeIs('payroll.*') || ($suiteEnabled && request()->routeIs('attendance.*'))) ? 'true' : 'false' }},
+            management: {{ (request()->routeIs('services.*') || request()->routeIs('branches.*') || (!$suiteEnabled && request()->routeIs('staff.*'))) ? 'true' : 'false' }},
+            finance:    {{ (request()->routeIs('revenue.*') || request()->routeIs('billing.*')) ? 'true' : 'false' }},
+            insights:   {{ (request()->routeIs('decision-support.*') || request()->routeIs('reports.*')) ? 'true' : 'false' }},
+            inventory:  {{ request()->routeIs('inventory.*') ? 'true' : 'false' }},
+            settings:   {{ (request()->routeIs('profile.*') || request()->routeIs('owner.spa-profile.*') || request()->routeIs('owner.workforce-finance-suite.*') || request()->routeIs('owner.subscription.*') || request()->routeIs('owner.roles-permissions.*')) ? 'true' : 'false' }},
+        };
+        const routeSection = Object.keys(routeSectionMap).find(k => routeSectionMap[k]) || null;
 
-    let saved = {};
-    try {
-        saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-    } catch (e) {
-        saved = {};
-    }
+        let saved = null;
+        try { saved = localStorage.getItem(STORAGE_KEY) || null; } catch (e) { saved = null; }
 
-    return {
-        open: false,
-        mobileBranchesOpen: false,
-        branchesDropdown: false,
-        showLogoutModal: false,
+        return {
+            open: false,
+            mobileBranchesOpen: false,
+            branchesDropdown: false,
+            showLogoutModal: false,
 
-        selectedBranch: {{ Js::from($currentBranch?->name ?? 'Select Branch') }},
-        selectedBranchId: {{ $currentBranch?->id ?? 'null' }},
+            selectedBranch: {{ Js::from($currentBranch?->name ?? 'Select Branch') }},
+            selectedBranchId: {{ $currentBranch?->id ?? 'null' }},
 
-        operationsOpen: saved.operationsOpen ?? routeIsOperations,
-        peopleOpen:     saved.peopleOpen     ?? routeIsPeople,
-        managementOpen: saved.managementOpen ?? routeIsManagement,
-        financeOpen:    saved.financeOpen    ?? routeIsFinance,
-        insightsOpen:   saved.insightsOpen   ?? routeIsInsights,
-        inventoryOpen:  saved.inventoryOpen  ?? routeIsInventory,
-        settingsOpen:   saved.settingsOpen   ?? routeIsSettings,
+            openSection: routeSection || saved,
 
-        init() {
-            // Whatever section you're currently viewing stays open even if
-            // it was previously collapsed — no reason to hide the page
-            // you're already looking at.
-            if (routeIsOperations) this.operationsOpen = true;
-            if (routeIsPeople)     this.peopleOpen     = true;
-            if (routeIsManagement) this.managementOpen = true;
-            if (routeIsFinance)    this.financeOpen    = true;
-            if (routeIsInsights)   this.insightsOpen   = true;
-            if (routeIsInventory)  this.inventoryOpen  = true;
-            if (routeIsSettings)   this.settingsOpen   = true;
+            init() {
+                if (routeSection) {
+                    this.openSection = routeSection;
+                    this.persist();
+                }
+            },
 
-            this.persist();
+            isOpen(name) {
+                return this.openSection === name;
+            },
 
-            this.$watch('operationsOpen', () => this.persist());
-            this.$watch('peopleOpen',     () => this.persist());
-            this.$watch('managementOpen', () => this.persist());
-            this.$watch('financeOpen',    () => this.persist());
-            this.$watch('insightsOpen',   () => this.persist());
-            this.$watch('inventoryOpen',  () => this.persist());
-            this.$watch('settingsOpen',   () => this.persist());
-        },
+            toggleSection(name) {
+                this.openSection = (this.openSection === name) ? null : name;
+                this.persist();
+            },
 
-        persist() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                operationsOpen: this.operationsOpen,
-                peopleOpen:     this.peopleOpen,
-                managementOpen: this.managementOpen,
-                financeOpen:    this.financeOpen,
-                insightsOpen:   this.insightsOpen,
-                inventoryOpen:  this.inventoryOpen,
-                settingsOpen:   this.settingsOpen,
-            }));
-        },
+            persist() {
+                try {
+                    if (this.openSection) {
+                        localStorage.setItem(STORAGE_KEY, this.openSection);
+                    } else {
+                        localStorage.removeItem(STORAGE_KEY);
+                    }
+                } catch (e) {}
+            },
 
-        // TODO: replace this URL with your actual branch-switch endpoint —
-        // I don't have it, so this is a placeholder that will 404 as-is.
-        switchBranch(branchId) {
-            fetch('/branches/switch/' + branchId, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
-                    'Accept': 'application/json',
-                },
-            }).then(() => window.location.reload());
-        }
-    }
-}
+            clearSidebarState() {
+                try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+            },
+
+            switchBranch(branchId) {
+                fetch('/branch/switch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ branch_id: branchId }),
+                })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            showSpaToast('Branch switched successfully', 'success');
+                            setTimeout(() => window.location.reload(), 1000);
+                        } else {
+                            showSpaToast(data.message || 'Failed to switch branch', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showSpaToast('An error occurred. Please try again.', 'error');
+                    });
+            }
+        };
+    });
+});
 </script>
