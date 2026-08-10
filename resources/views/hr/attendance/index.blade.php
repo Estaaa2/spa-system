@@ -72,27 +72,52 @@
                     @endif
                 </div>
 
-        <div class="p-5 border border-green-200 shadow-sm bg-green-50 rounded-2xl dark:bg-green-900/10 dark:border-green-800">
-            <p class="text-xs font-semibold tracking-wide text-green-700 uppercase dark:text-green-300">Present</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-green-900 dark:text-green-200">{{ $summary['present'] }}</h3>
-                <span class="text-sm text-green-700 dark:text-green-300">Marked present</span>
+                <div class="flex gap-2">
+                    @if(!$myToday || !$myToday->time_in)
+                        <form method="POST" action="{{ route('attendance.clock-in') }}">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">
+                                Clock In
+                            </button>
+                        </form>
+                    @elseif(!$myToday->time_out)
+                        <form method="POST" action="{{ route('attendance.clock-out') }}">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-gray-700 rounded-xl hover:bg-gray-800">
+                                Clock Out
+                            </button>
+                        </form>
+                    @endif
+                </div>
             </div>
         </div>
+        @endif
 
-        <div class="p-5 border border-red-200 shadow-sm bg-red-50 rounded-2xl dark:bg-red-900/10 dark:border-red-800">
-            <p class="text-xs font-semibold tracking-wide text-red-700 uppercase dark:text-red-300">Absent</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-red-900 dark:text-red-200">{{ $summary['absent'] }}</h3>
-                <span class="text-sm text-red-700 dark:text-red-300">Marked absent</span>
+        {{-- ── Attendance Summary (Present / Absent / Late) ── --}}
+        @if($canViewRoster)
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="p-5 border border-green-200 shadow-sm bg-green-50 rounded-2xl dark:bg-green-900/10 dark:border-green-800">
+                <p class="text-xs font-semibold tracking-wide text-green-700 uppercase dark:text-green-300">Present</p>
+                <div class="flex items-end justify-between mt-3">
+                    <h3 class="text-3xl font-semibold text-green-900 dark:text-green-200">{{ $summary['present'] }}</h3>
+                    <span class="text-sm text-green-700 dark:text-green-300">Marked present</span>
+                </div>
             </div>
-        </div>
 
-        <div class="p-5 border border-yellow-200 shadow-sm bg-yellow-50 rounded-2xl dark:bg-yellow-900/10 dark:border-yellow-800">
-            <p class="text-xs font-semibold tracking-wide text-yellow-700 uppercase dark:text-yellow-300">Late</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-yellow-900 dark:text-yellow-200">{{ $summary['late'] }}</h3>
-                <span class="text-sm text-yellow-700 dark:text-yellow-300">Marked late</span>
+            <div class="p-5 border border-red-200 shadow-sm bg-red-50 rounded-2xl dark:bg-red-900/10 dark:border-red-800">
+                <p class="text-xs font-semibold tracking-wide text-red-700 uppercase dark:text-red-300">Absent</p>
+                <div class="flex items-end justify-between mt-3">
+                    <h3 class="text-3xl font-semibold text-red-900 dark:text-red-200">{{ $summary['absent'] }}</h3>
+                    <span class="text-sm text-red-700 dark:text-red-300">Marked absent</span>
+                </div>
+            </div>
+
+            <div class="p-5 border border-yellow-200 shadow-sm bg-yellow-50 rounded-2xl dark:bg-yellow-900/10 dark:border-yellow-800">
+                <p class="text-xs font-semibold tracking-wide text-yellow-700 uppercase dark:text-yellow-300">Late</p>
+                <div class="flex items-end justify-between mt-3">
+                    <h3 class="text-3xl font-semibold text-yellow-900 dark:text-yellow-200">{{ $summary['late'] }}</h3>
+                    <span class="text-sm text-yellow-700 dark:text-yellow-300">Marked late</span>
+                </div>
             </div>
         </div>
         @endif
