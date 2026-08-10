@@ -55,21 +55,6 @@ class AttendanceController extends Controller
                 ->get();
         }
 
-        // ── Attendance summary for the selected date (present/absent/late) ─
-        $summary = [
-            'present' => 0,
-            'absent'  => 0,
-            'late'    => 0,
-        ];
-
-        foreach ($staffList as $staff) {
-            $record = $staff->attendance->first();
-
-            if ($record && isset($summary[$record->status])) {
-                $summary[$record->status]++;
-            }
-        }
-
         // ── My own attendance — every staff member, regardless of role ─────
         $myStaff   = $this->myStaffRecord();
         $myToday   = null;
@@ -93,7 +78,7 @@ class AttendanceController extends Controller
             ->get();
 
         return view('hr.attendance.index', compact(
-            'staffList', 'date', 'summary', 'canViewRoster', 'canEditRoster', 'canApproveLeave',
+            'staffList', 'date', 'canViewRoster', 'canEditRoster', 'canApproveLeave',
             'myStaff', 'myToday', 'myHistory', 'myLeaveRequests'
         ));
     }
