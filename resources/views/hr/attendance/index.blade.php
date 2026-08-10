@@ -72,27 +72,63 @@
                     @endif
                 </div>
 
-        <div class="p-5 border border-green-200 shadow-sm bg-green-50 rounded-2xl dark:bg-green-900/10 dark:border-green-800">
-            <p class="text-xs font-semibold tracking-wide text-green-700 uppercase dark:text-green-300">Present</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-green-900 dark:text-green-200">{{ $summary['present'] }}</h3>
-                <span class="text-sm text-green-700 dark:text-green-300">Marked present</span>
+                <div class="flex gap-2">
+                    @if(!$myToday || !$myToday->time_in)
+                        <form method="POST" action="{{ route('attendance.clock-in') }}">
+                            @csrf
+                            <button type="submit" class="px-5 py-2.5 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348] transition">
+                                <i class="mr-1.5 fa-solid fa-right-to-bracket"></i> Clock In
+                            </button>
+                        </form>
+                    @elseif(!$myToday->time_out)
+                        <form method="POST" action="{{ route('attendance.clock-out') }}">
+                            @csrf
+                            <button type="submit" class="px-5 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 transition">
+                                <i class="mr-1.5 fa-solid fa-right-from-bracket"></i> Clock Out
+                            </button>
+                        </form>
+                    @else
+                        <span class="px-4 py-2.5 text-sm font-medium text-gray-400 dark:text-gray-500">Day complete</span>
+                    @endif
+                </div>
             </div>
         </div>
 
-        <div class="p-5 border border-red-200 shadow-sm bg-red-50 rounded-2xl dark:bg-red-900/10 dark:border-red-800">
-            <p class="text-xs font-semibold tracking-wide text-red-700 uppercase dark:text-red-300">Absent</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-red-900 dark:text-red-200">{{ $summary['absent'] }}</h3>
-                <span class="text-sm text-red-700 dark:text-red-300">Marked absent</span>
+        {{-- My recent history --}}
+        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">My Last 14 Days</h2>
             </div>
-        </div>
-
-        <div class="p-5 border border-yellow-200 shadow-sm bg-yellow-50 rounded-2xl dark:bg-yellow-900/10 dark:border-yellow-800">
-            <p class="text-xs font-semibold tracking-wide text-yellow-700 uppercase dark:text-yellow-300">Late</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-yellow-900 dark:text-yellow-200">{{ $summary['late'] }}</h3>
-                <span class="text-sm text-yellow-700 dark:text-yellow-300">Marked late</span>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Date</th>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Time In</th>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Time Out</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
+                        @forelse($myHistory as $row)
+                            <tr>
+                                <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{{ \Carbon\Carbon::parse($row->date)->format('D, M j') }}</td>
+                                <td class="px-6 py-3">
+                                    <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full {{ $statusClasses[$row->status] ?? '' }}">
+                                        {{ ucfirst(str_replace('_', ' ', $row->status)) }}
+                                    </span>
+                                    @if($row->auto_closed)
+                                        <span class="ml-1 text-[10px] text-gray-400" title="Clock-out was auto-recorded — you may have forgotten to clock out.">(auto)</span>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $row->time_in ? \Carbon\Carbon::parse($row->time_in)->format('h:i A') : '—' }}</td>
+                                <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $row->time_out ? \Carbon\Carbon::parse($row->time_out)->format('h:i A') : '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="px-6 py-8 text-sm text-center text-gray-400">No attendance history yet.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
         @endif
@@ -155,7 +191,7 @@
                                             {{ ucfirst(str_replace('_', ' ', $record->status)) }}
                                         </span>
                                     @else
-                                        <span class="text-xs italic text-gray-400">No record</span>
+                                        <span class="text-xs text-gray-400 italic">No record</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -209,7 +245,7 @@
         <div id="pendingLeaveSection" class="hidden overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
             <div class="flex items-center justify-between px-6 py-4 border-b border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
                 <h2 class="text-base font-semibold text-amber-900 dark:text-amber-200">Pending Leave Approvals</h2>
-                <span id="pendingLeaveBadge" class="px-3 py-1 text-xs font-semibold rounded-full text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300">0 Pending</span>
+                <span id="pendingLeaveBadge" class="px-3 py-1 text-xs font-semibold text-amber-800 bg-amber-100 rounded-full dark:bg-amber-900/40 dark:text-amber-300">0 Pending</span>
             </div>
             <div id="pendingLeaveList" class="p-6 space-y-4"></div>
         </div>
@@ -329,7 +365,7 @@
             <div>
                 <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Reason <span class="text-red-500">*</span></label>
                 <textarea id="leave_reason" rows="3" minlength="10" maxlength="1000"
-                    class="w-full px-3 py-2 text-sm border border-gray-300 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white resize-none"
                     placeholder="Minimum 10 characters"></textarea>
             </div>
             <div id="requestLeaveError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200 dark:bg-red-900/20 dark:ring-red-800"></div>
@@ -374,7 +410,7 @@
         <div class="px-6 py-4">
             <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Reason <span class="text-red-500">*</span></label>
             <textarea id="leave_reject_reason" rows="3" minlength="5" maxlength="500"
-                class="w-full px-3 py-2 text-sm border border-gray-300 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white resize-none"></textarea>
         </div>
         <div class="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-gray-900/40 rounded-b-2xl">
             <button type="button" onclick="closeLeaveRejectReason()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
@@ -522,7 +558,7 @@ async function loadPendingLeave() {
                         </div>
                     </div>
                     <button type="button" onclick='openLeaveReviewModal(${JSON.stringify(r)})'
-                        class="flex-shrink-0 px-4 py-2 text-sm font-medium text-white rounded-xl bg-amber-600 hover:bg-amber-700">Review</button>
+                        class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-amber-600 hover:bg-amber-700 flex-shrink-0">Review</button>
                 </div>
             </div>`).join('');
     } catch (err) { console.warn('Pending leave poll failed:', err); }
