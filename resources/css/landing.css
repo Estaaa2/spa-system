@@ -67,3 +67,52 @@
                 box-shadow: 0 0 0 4px rgba(196,169,125,.30);
             }
         }
+
+    /* ============ Median.co / native wrapper safe-area support ============
+   env() resolves to 0px on regular browsers and in-browser mobile, so this
+   has zero effect on desktop or normal Chrome/Safari. It only activates
+   inside Median's native WebView shell, where the OS reports real notch,
+   status bar, and gesture-nav sizes. */
+:root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Fixed nav would otherwise sit under the status bar / notch */
+#topNav {
+    padding-top: var(--safe-top);
+}
+#topNav .h-20 {
+    height: calc(5rem + var(--safe-top));
+}
+
+/* Push page content down to match the taller nav */
+main.pt-20 {
+    padding-top: calc(5rem + var(--safe-top));
+}
+
+/* Fixed full-screen modals (inset-0) need bottom/side padding so action
+   buttons aren't hidden behind Android gesture bars or the iOS home
+   indicator, and aren't clipped under a notch in landscape. */
+#appointmentsModal, #scheduleModal, #logoutModal, #bookingDetailsModal,
+#rescheduleModal, #spaModal, #bookingModal, #applicationModal,
+#businessInfoModal, #termsModal, #ratingModal, #rateReminderModal,
+#profileModal {
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+}
+
+#processModal, #editModal, #deleteModal {
+    padding-bottom: var(--safe-bottom, 0px);
+    padding-left: var(--safe-left, 0px);
+    padding-right: var(--safe-right, 0px);
+}
+
+/* nav-glass already uses backdrop-filter; make sure it paints edge-to-edge
+   behind the status bar rather than showing a hard color seam above it */
+.nav-glass {
+    background-clip: padding-box;
+}

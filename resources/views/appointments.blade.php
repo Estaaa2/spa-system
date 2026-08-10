@@ -480,16 +480,16 @@
      PROCESS MODAL (unchanged from original)
      ═══════════════════════════════════════════════════ --}}
 @if($canEdit)
-<div id="processModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
-    <div class="w-full max-w-lg mx-auto mt-16 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+<div id="processModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto bg-black/50">
+    <div class="w-full max-w-lg mx-auto my-8 sm:mt-16 sm:my-0 bg-white shadow-xl rounded-2xl dark:bg-gray-800 max-h-[85vh] sm:max-h-none flex flex-col">
+        <div class="flex items-center justify-between flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Process Appointment</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Record customer payment and continue the appointment flow.</p>
             </div>
             <button type="button" onclick="closeProcessModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
         </div>
-        <form id="processForm" method="POST" class="px-6 py-6 space-y-4">
+        <form id="processForm" method="POST" class="px-6 py-6 space-y-4 overflow-y-auto">
             @csrf
             @method('PUT')
             <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
@@ -547,16 +547,16 @@
     $allTreatments = \App\Models\Treatment::orderBy('name')->get();
     $allPackages   = \App\Models\Package::orderBy('name')->get();
 @endphp
-<div id="editModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
-    <div class="w-full max-w-2xl mx-auto mt-12 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+<div id="editModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto bg-black/50">
+    <div class="w-full max-w-2xl mx-auto my-8 sm:mt-12 sm:my-0 bg-white shadow-xl rounded-2xl dark:bg-gray-800 max-h-[85vh] sm:max-h-none flex flex-col">
+        <div class="flex items-center justify-between flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Edit Appointment</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Update appointment details, therapist assignment, and schedule.</p>
             </div>
             <button type="button" onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
         </div>
-        <form id="editForm" method="POST" class="px-6 py-6 space-y-4">
+        <form id="editForm" method="POST" class="px-6 py-6 space-y-4 overflow-y-auto">
             @csrf
             @method('PUT')
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -662,8 +662,8 @@
      DELETE MODAL (unchanged from original)
      ═══════════════════════════════════════════════════ --}}
 @if($canDelete)
-<div id="deleteModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
-    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+<div id="deleteModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto bg-black/50">
+    <div class="w-full max-w-md p-6 mx-auto my-8 bg-white shadow-xl sm:mt-24 sm:my-0 rounded-2xl dark:bg-gray-800">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Remove Appointment</h2>
         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">This will remove the selected appointment record.</p>
         <div class="flex justify-end gap-2 mt-6">
