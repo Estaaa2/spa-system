@@ -462,9 +462,14 @@ class BookingController extends Controller
     public function destroy($id)
     {
         $booking = Booking::findOrFail($id);
-        $booking->delete();
 
-        return redirect()->back()->with('success', 'Appointment deleted successfully!');
+        if (in_array($booking->status, ['completed', 'cancelled'], true)) {
+            return redirect()->back()->with('error', 'This appointment is already ' . $booking->status . '.');
+        }
+
+        $booking->update(['status' => 'cancelled']);
+
+        return redirect()->back()->with('success', 'Appointment cancelled successfully!');
     }
 
     public function history()

@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Roles & Permissions')
 @section('content')
 <div class="p-6 space-y-6">
     <x-page-header
@@ -33,7 +34,7 @@
 
         <div class="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
             @foreach($roles as $role)
-                <div class="border rounded-2xl p-5 bg-gray-50/70 dark:bg-gray-900/20 dark:border-gray-700">
+                <div class="p-5 border rounded-2xl bg-gray-50/70 dark:bg-gray-900/20 dark:border-gray-700">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <div class="inline-flex items-center gap-2 text-gray-800 dark:text-gray-100">

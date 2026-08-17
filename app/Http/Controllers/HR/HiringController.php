@@ -7,6 +7,7 @@ use App\Models\Applicant;
 use App\Models\JobPosting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class HiringController extends Controller
 {
@@ -47,8 +48,10 @@ class HiringController extends Controller
             'civil_status' => 'nullable|string|max:255',
             'address' => 'required|string|max:255',
             'education' => 'nullable|string|max:255',
-            'work_experience' => 'nullable|string',
-            'skills' => 'nullable|string',
+
+            // Walk-in / manually encoded applicants may not have a resume on
+            // hand yet, so this stays optional here (unlike the public flow).
+            'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
 
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_relation' => 'nullable|string|max:255',
@@ -59,6 +62,10 @@ class HiringController extends Controller
         ]);
 
         [$spa, $branchId] = $this->getSpaAndBranch();
+
+        if ($request->hasFile('resume')) {
+            $validated['resume_path'] = $request->file('resume')->store('resumes', 'public');
+        }
 
         Applicant::create([
             ...$validated,

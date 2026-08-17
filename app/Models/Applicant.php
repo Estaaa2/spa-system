@@ -26,6 +26,7 @@ class Applicant extends Model
         'education',
         'work_experience',
         'skills',
+        'resume_path',
         'emergency_contact_name',
         'emergency_contact_relation',
         'emergency_contact_phone',

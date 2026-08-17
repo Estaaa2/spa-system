@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@section('title', 'Registered Users')
 @section('content')
 <div class="p-6">
     <x-page-header

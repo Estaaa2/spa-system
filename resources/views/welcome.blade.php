@@ -1558,7 +1558,7 @@
                 </div>
 
                 <div class="p-6 overflow-y-auto">
-                    <form id="applicationForm" method="POST" class="space-y-6">
+                    <form id="applicationForm" method="POST" enctype="multipart/form-data" class="space-y-6">
                         @csrf
                         <input type="hidden" name="spa_id" id="applicationSpaId">
                         <input type="hidden" name="branch_id" id="applicationBranchId">
@@ -1665,14 +1665,14 @@
                                     </select>
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Skills / Certifications</label>
-                                    <input type="text" name="skills" placeholder="e.g. Swedish Massage, NC II..."
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Work Experience</label>
-                                    <textarea name="work_experience" rows="3" placeholder="Previous work experience..."
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 resize-none"></textarea>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                        Resume / CV <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="file" name="resume" id="applicationResumeInput" required
+                                        accept=".pdf,.doc,.docx"
+                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#F6EFE6] file:text-[#8B7355] hover:file:bg-[#efe0cd]">
+                                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">PDF or Word document, max 5MB.</p>
+                                    <p id="applicationResumeError" class="hidden mt-1 text-[11px] text-red-500 dark:text-red-400"></p>
                                 </div>
                             </div>
                         </div>

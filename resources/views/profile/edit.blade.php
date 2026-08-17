@@ -26,13 +26,6 @@
         </div>
     @endif
 
-    @if (session('success'))
-        <div class="flex items-center gap-3 p-4 border border-green-200 bg-green-50 rounded-xl dark:bg-green-900/10 dark:border-green-800">
-            <i class="flex-shrink-0 text-green-600 fa-solid fa-circle-check"></i>
-            <p class="text-sm text-green-800 dark:text-green-300">{{ session('success') }}</p>
-        </div>
-    @endif
-
     {{-- ================= ACCOUNT INFORMATION ================= --}}
     <div class="p-6 mb-5 bg-white border shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
         @include('profile.partials.update-profile-information-form')
