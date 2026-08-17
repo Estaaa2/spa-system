@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BranchProfile;
 use App\Models\Spa;
 use App\Models\Treatment;
 use App\Models\Package;
@@ -209,6 +210,11 @@ class LandingController extends Controller
                     'price_note'      => $lowestPrice ? number_format($lowestPrice, 2) : null,
                     'photos'          => $photos,
                     'address'         => $profile->address ?? $branch->location ?? 'Location unavailable',
+                    'location_summary'=> BranchProfile::resolveCitySummary(
+                        $profile->city ?? null,
+                        $profile->address ?? null,
+                        $branch->location ?? null
+                    ) ?? 'Location unavailable',
                     'phone'           => $profile->phone ?? '',
                     'lat'             => $profile->latitude,
                     'lng'             => $profile->longitude,
@@ -314,6 +320,11 @@ class LandingController extends Controller
                     'price_note'      => $lowestPrice ? number_format($lowestPrice, 2) : null,
                     'photos'          => $photos,
                     'address'         => $profile->address ?? $branch->location ?? 'Location unavailable',
+                    'location_summary'=> BranchProfile::resolveCitySummary(
+                        $profile->city ?? null,
+                        $profile->address ?? null,
+                        $branch->location ?? null
+                    ) ?? 'Location unavailable',
                     'phone'           => $profile->phone ?? '',
                     'lat'             => $profile->latitude,
                     'lng'             => $profile->longitude,

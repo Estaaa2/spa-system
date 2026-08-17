@@ -268,6 +268,7 @@ class BranchController extends Controller
             'description'      => 'nullable|string',
             'phone'            => 'nullable|string|max:50',
             'address'          => 'nullable|string|max:255',
+            'city'             => 'nullable|string|max:100',
             'latitude'         => 'nullable|numeric|between:-90,90',
             'longitude'        => 'nullable|numeric|between:-180,180',
             'amenities'        => 'nullable|array',
