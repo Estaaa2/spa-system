@@ -119,6 +119,9 @@
                                     @if($row->auto_closed)
                                         <span class="ml-1 text-[10px] text-gray-400" title="Clock-out was auto-recorded — you may have forgotten to clock out.">(auto)</span>
                                     @endif
+                                    @if($row->remarks && str_contains($row->remarks, 'Auto-flag'))
+                                        <span class="ml-1 text-[10px] text-amber-500" title="{{ $row->remarks }}"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $row->time_in ? \Carbon\Carbon::parse($row->time_in)->format('h:i A') : '—' }}</td>
                                 <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $row->time_out ? \Carbon\Carbon::parse($row->time_out)->format('h:i A') : '—' }}</td>
@@ -189,6 +192,9 @@
                                         <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full {{ $statusClasses[$record->status] ?? '' }}">
                                             {{ ucfirst(str_replace('_', ' ', $record->status)) }}
                                         </span>
+                                        @if($record->remarks && str_contains($record->remarks, 'Auto-flag'))
+                                            <span class="ml-1 text-[10px] text-amber-500" title="{{ $record->remarks }}"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                                        @endif
                                     @else
                                         <span class="text-xs text-gray-400 italic">No record</span>
                                     @endif
