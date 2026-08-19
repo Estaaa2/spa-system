@@ -271,13 +271,16 @@ class BookingController extends Controller
             ->whereIn('status', ['reserved', 'pending']);
 
         $upcomingAppointments = (clone $upcomingBase)
+            ->with('latestReassignmentRequest')
             ->orderBy('appointment_date', 'asc')
             ->orderBy('start_time', 'asc')
             ->paginate(5, ['*'], 'upcoming_page');
 
-        $upcomingAppointments->getCollection()->transform(
-            fn ($booking) => $this->decorateBooking($booking)
-        );
+        $upcomingAppointments->getCollection()->transform(function ($booking) {
+            $booking = $this->decorateBooking($booking);
+            $booking->has_pending_reassignment = $booking->latestReassignmentRequest?->isPending() ?? false;
+            return $booking;
+        });
 
         $historyAppointments = (clone $baseQuery)
             ->where(function ($query) use ($today) {
@@ -924,11 +927,15 @@ class BookingController extends Controller
             ->map(fn ($b) => $this->formatForLive($b));
 
         $upcomingAppointments = (clone $upcomingBase)
+            ->with('latestReassignmentRequest')
             ->orderBy('appointment_date')
             ->orderBy('start_time')
             ->limit(25)
             ->get()
-            ->map(fn ($b) => $this->formatForLive($b));
+            ->map(function ($b) {
+                $b->has_pending_reassignment = $b->latestReassignmentRequest?->isPending() ?? false;
+                return $this->formatForLive($b);
+            });
 
         return response()->json([
             'summary' => [
@@ -1002,6 +1009,7 @@ class BookingController extends Controller
             'resolved_total_amount'   => $b->resolved_total_amount   ?? 0,
             'resolved_amount_paid'    => $b->resolved_amount_paid    ?? 0,
             'resolved_balance_amount' => $b->resolved_balance_amount ?? 0,
+            'has_pending_reassignment' => $b->has_pending_reassignment ?? false,
         ];
     }
 }

@@ -374,7 +374,7 @@
 
         </div>
 
-        @include('dashboard.partials.reassignment-flag-modal')
+        @include('partials.reassignment-flag-modal')
 
     @endif {{-- end my today --}}
 
@@ -735,7 +735,7 @@
 
         {{-- ── Alerts ── --}}
         @if($canAlerts)
-        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+        <div id="alertsWidget" class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Alerts</h2>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Operational issues right now</p>
@@ -743,7 +743,7 @@
             <div id="alerts-body" class="p-5 space-y-3">
 
                 @php $late = $lateAppointments ?? 0; @endphp
-                <div id="alert-late" class="flex items-center gap-3 p-3 rounded-xl
+                <a href="{{ route('appointments.index') }}" id="alert-late" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
                     {{ $late > 0 ? 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:ring-amber-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
                     <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
                         {{ $late > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
@@ -757,10 +757,10 @@
                             {{ $late > 0 ? 'Pending past their start time' : 'All on time' }}
                         </p>
                     </div>
-                </div>
+                </a>
 
                 @php $cancelled = $noShows ?? 0; @endphp
-                <div id="alert-noshow" class="flex items-center gap-3 p-3 rounded-xl
+                <a href="{{ route('appointments.index') }}" id="alert-noshow" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
                     {{ $cancelled > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
                     <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
                         {{ $cancelled > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
@@ -774,10 +774,10 @@
                             {{ $cancelled > 0 ? 'Slots freed up today' : 'No cancellations' }}
                         </p>
                     </div>
-                </div>
+                </a>
 
                 @php $overloaded = $overbookedTherapists ?? 0; @endphp
-                <div id="alert-overloaded" class="flex items-center gap-3 p-3 rounded-xl
+                <a href="{{ route('schedule.index') }}" id="alert-overloaded" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
                     {{ $overloaded > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
                     <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
                         {{ $overloaded > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
@@ -791,12 +791,47 @@
                             {{ $overloaded > 0 ? 'Therapist(s) over 8 bookings' : 'All loads normal' }}
                         </p>
                     </div>
-                </div>
+                </a>
 
-                <div id="alert-all-good" class="{{ ($late === 0 && $cancelled === 0 && $overloaded === 0) ? '' : 'hidden' }} flex items-center justify-center gap-2 pt-1">
+                @php $pendingLeave = $pendingLeaveRequests ?? 0; @endphp
+                <a href="{{ route('attendance.index') }}?tab=leave" id="alert-pending-leave" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
+                    {{ $pendingLeave > 0 ? 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:ring-amber-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
+                    <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
+                        {{ $pendingLeave > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
+                        <i class="fa-solid fa-calendar-days text-sm {{ $pendingLeave > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400' }}"></i>
+                    </div>
+                    <div>
+                        <p id="alert-pending-leave-title" class="text-sm font-semibold {{ $pendingLeave > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-500 dark:text-gray-400' }}">
+                            {{ $pendingLeave }} Leave Request{{ $pendingLeave !== 1 ? 's' : '' }}
+                        </p>
+                        <p id="alert-pending-leave-sub" class="text-xs {{ $pendingLeave > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400' }}">
+                            {{ $pendingLeave > 0 ? 'Awaiting your review' : 'None pending' }}
+                        </p>
+                    </div>
+                </a>
+
+                @php $pendingReassign = $pendingReassignments ?? 0; @endphp
+                <a href="{{ route('appointments.index') }}#reassignmentSection" id="alert-pending-reassign" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
+                    {{ $pendingReassign > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
+                    <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
+                        {{ $pendingReassign > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
+                        <i class="fa-solid fa-triangle-exclamation text-sm {{ $pendingReassign > 0 ? 'text-red-500' : 'text-gray-400' }}"></i>
+                    </div>
+                    <div>
+                        <p id="alert-pending-reassign-title" class="text-sm font-semibold {{ $pendingReassign > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400' }}">
+                            {{ $pendingReassign }} Reassignment Request{{ $pendingReassign !== 1 ? 's' : '' }}
+                        </p>
+                        <p id="alert-pending-reassign-sub" class="text-xs {{ $pendingReassign > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400' }}">
+                            {{ $pendingReassign > 0 ? 'Needs a replacement therapist' : 'None pending' }}
+                        </p>
+                    </div>
+                </a>
+
+                <div id="alert-all-good" class="{{ ($late === 0 && $cancelled === 0 && $overloaded === 0 && $pendingLeave === 0 && $pendingReassign === 0) ? '' : 'hidden' }} flex items-center justify-center gap-2 pt-1">
                     <i class="text-sm fa-solid fa-circle-check text-emerald-500"></i>
                     <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Everything looks good!</span>
                 </div>
+
 
             </div>
         </div>
@@ -1127,9 +1162,37 @@
         const overSubEl = document.getElementById('alert-overloaded-sub');
         if (overSubEl) overSubEl.className = 'text-xs ' + (overloaded > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400');
 
+        // Pending leave requests
+        const pendingLeave = alerts.pending_leave_requests ?? 0;
+        const leaveEl = document.getElementById('alert-pending-leave');
+        if (leaveEl) {
+            leaveEl.className = 'flex items-center gap-3 p-3 rounded-xl ' +
+                (pendingLeave > 0 ? 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:ring-amber-800' : 'bg-gray-50 dark:bg-gray-700/30');
+        }
+        set('alert-pending-leave-title', pendingLeave + ' Leave Request' + (pendingLeave !== 1 ? 's' : ''));
+        const leaveTitleEl = document.getElementById('alert-pending-leave-title');
+        if (leaveTitleEl) leaveTitleEl.className = 'text-sm font-semibold ' + (pendingLeave > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-500 dark:text-gray-400');
+        set('alert-pending-leave-sub', pendingLeave > 0 ? 'Awaiting your review' : 'None pending');
+        const leaveSubEl = document.getElementById('alert-pending-leave-sub');
+        if (leaveSubEl) leaveSubEl.className = 'text-xs ' + (pendingLeave > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400');
+
+        // Pending reassignment requests
+        const pendingReassign = alerts.pending_reassignments ?? 0;
+        const reassignEl = document.getElementById('alert-pending-reassign');
+        if (reassignEl) {
+            reassignEl.className = 'flex items-center gap-3 p-3 rounded-xl ' +
+                (pendingReassign > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30');
+        }
+        set('alert-pending-reassign-title', pendingReassign + ' Reassignment Request' + (pendingReassign !== 1 ? 's' : ''));
+        const reassignTitleEl = document.getElementById('alert-pending-reassign-title');
+        if (reassignTitleEl) reassignTitleEl.className = 'text-sm font-semibold ' + (pendingReassign > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400');
+        set('alert-pending-reassign-sub', pendingReassign > 0 ? 'Needs a replacement therapist' : 'None pending');
+        const reassignSubEl = document.getElementById('alert-pending-reassign-sub');
+        if (reassignSubEl) reassignSubEl.className = 'text-xs ' + (pendingReassign > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400');
+
         // "All good" row
         const allGood = document.getElementById('alert-all-good');
-        if (allGood) allGood.classList.toggle('hidden', late > 0 || cancelled > 0 || overloaded > 0);
+        if (allGood) allGood.classList.toggle('hidden', late > 0 || cancelled > 0 || overloaded > 0 || pendingLeave > 0 || pendingReassign > 0);
     }
 
     // ── Timeline row HTML builder ─────────────────────────────────────────────
@@ -1408,6 +1471,26 @@
     poll(); // immediate first run
     setInterval(poll, POLL_MS);
     startTickTimer();
+
+    // One-time attention-grab: if there's something actually actionable
+    // (leave or reassignment requests — not the purely informational
+    // late/cancelled/overloaded counts), smoothly bring the Alerts widget
+    // into view shortly after load and give it a brief pulse. Runs once,
+    // never on the 60s poll refresh — re-scrolling the viewport every
+    // minute would be disruptive, not helpful.
+    @if(($pendingLeaveRequests ?? 0) > 0 || ($pendingReassignments ?? 0) > 0)
+    setTimeout(function () {
+        const widget = document.getElementById('alertsWidget');
+        if (!widget) return;
+        const rect = widget.getBoundingClientRect();
+        const alreadyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        if (!alreadyVisible) {
+            widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        widget.classList.add('animate-pulse');
+        setTimeout(() => widget.classList.remove('animate-pulse'), 1500);
+    }, 500);
+    @endif
 
 }());
 </script>

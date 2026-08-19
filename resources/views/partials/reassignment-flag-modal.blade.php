@@ -143,9 +143,12 @@
 
             const flagBtn = document.querySelector(`[data-reassign-flag-btn="${reassignFlagBookingId}"]`);
             if (flagBtn) {
+                const badgeClass = flagBtn.dataset.badgeClass
+                    || 'mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300';
+                const badgeLabel = flagBtn.dataset.badgeLabel || 'Reassignment Pending';
                 const badge = document.createElement('span');
-                badge.className = 'mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300';
-                badge.innerHTML = '<i class="fa-solid fa-clock"></i> Reassignment Pending';
+                badge.className = badgeClass;
+                badge.innerHTML = `<i class="fa-solid fa-clock"></i> ${badgeLabel}`;
                 flagBtn.replaceWith(badge);
             }
 

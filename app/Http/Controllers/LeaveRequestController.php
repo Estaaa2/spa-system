@@ -9,6 +9,7 @@ use App\Models\LeaveRequest;
 use App\Models\ReassignmentRequest;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -52,8 +53,14 @@ class LeaveRequestController extends Controller
             'status'     => 'pending',
         ]);
 
+        $message = 'Leave request submitted. Please wait for approval.';
+
+        if ($user->hasRole('therapist')) {
+            $message .= ' Any of your appointments that fall within these dates will be automatically flagged for reassignment once this leave is approved — the front desk will handle finding a replacement.';
+        }
+
         return response()->json([
-            'message' => 'Leave request submitted. Please wait for approval.',
+            'message' => $message,
             'data'    => $leave,
         ]);
     }
@@ -92,7 +99,75 @@ class LeaveRequestController extends Controller
     }
 
     // =====================================================
-    // OWNER/MANAGER/HR: Approve
+    // OWNER/MANAGER/HR: Get all bookings affected by a leave request.
+    // =====================================================
+    public function affectedBookings(LeaveRequest $leaveRequest)
+    {
+        $user        = Auth::user();
+        $canReassign = $user->hasBranchPermission('edit leave requests');
+
+        abort_unless($leaveRequest->user_id === $user->id || $canReassign, 403);
+
+        if (!$leaveRequest->user?->hasRole('therapist')) {
+            return response()->json([]);
+        }
+
+        $bookings = Booking::where('spa_id', $leaveRequest->spa_id)
+            ->where('branch_id', $leaveRequest->branch_id)
+            ->where('therapist_id', $leaveRequest->user_id)
+            ->whereIn('appointment_date', $leaveRequest->dateRange())
+            ->whereIn('status', ['reserved', 'pending'])
+            ->orderBy('appointment_date')
+            ->orderBy('start_time')
+            ->get();
+
+        return response()->json($bookings->map(function ($b) use ($canReassign) {
+            $data = [
+                'id'               => $b->id,
+                'customer_name'    => $b->customer_name ?? 'Walk-in Customer',
+                'appointment_date' => $b->appointment_date->format('M j, Y'),
+                'start_time_fmt'   => \Carbon\Carbon::parse($b->start_time)->format('g:i A'),
+            ];
+
+            if (!$canReassign) {
+                return $data;
+            }
+
+            $therapists = User::role('therapist')
+                ->whereHas('staff', fn ($q) => $q
+                    ->where('spa_id', $b->spa_id)
+                    ->where('branch_id', $b->branch_id)
+                    ->where('employment_status', 'active'))
+                ->where('id', '!=', $b->therapist_id)
+                ->orderBy('first_name')
+                ->get();
+
+            $busyIds = Booking::where('id', '!=', $b->id)
+                ->where('branch_id', $b->branch_id)
+                ->where('appointment_date', $b->appointment_date)
+                ->whereIn('therapist_id', $therapists->pluck('id'))
+                ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+                ->where(fn ($q) => $q->where('start_time', '<', $b->end_time)->where('end_time', '>', $b->start_time))
+                ->pluck('therapist_id');
+
+            $onLeaveIds = LeaveRequest::approvedUserIdsOnDate($b->spa_id, $b->branch_id, $b->appointment_date->format('Y-m-d'));
+
+            $available = $therapists
+                ->reject(fn ($t) => $busyIds->contains($t->id) || in_array($t->id, $onLeaveIds))
+                ->values();
+
+            $data['available_therapists'] = $available->map(fn ($t) => [
+                'id'   => $t->id,
+                'name' => trim($t->first_name . ' ' . $t->last_name),
+            ]);
+            $data['recommended_id'] = $available->first()?->id;
+
+            return $data;
+        }));
+    }
+
+    // =====================================================
+    // OWNER/MANAGER/HR: Approve and optionally reassign affected bookings.
     // =====================================================
     public function approve(Request $request, LeaveRequest $leaveRequest)
     {
@@ -100,7 +175,15 @@ class LeaveRequestController extends Controller
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
         }
 
-        DB::transaction(function () use ($leaveRequest) {
+        $validated = $request->validate([
+            'reassignments'                    => ['nullable', 'array'],
+            'reassignments.*.booking_id'       => ['required_with:reassignments', 'integer'],
+            'reassignments.*.new_therapist_id' => ['required_with:reassignments', 'integer'],
+        ]);
+
+        $resolvedCount = 0;
+
+        DB::transaction(function () use ($leaveRequest, $validated, &$resolvedCount) {
             $leaveRequest->update([
                 'status'      => 'approved',
                 'reviewed_by' => Auth::id(),
@@ -109,6 +192,40 @@ class LeaveRequestController extends Controller
 
             $this->syncAttendanceForLeave($leaveRequest);
             $this->autoFlagAffectedBookings($leaveRequest);
+
+            foreach ($validated['reassignments'] ?? [] as $pick) {
+                $reassignment = ReassignmentRequest::where('booking_id', $pick['booking_id'])
+                    ->where('status', 'pending')
+                    ->first();
+
+                if (!$reassignment) {
+                    continue; // already resolved another way, or not actually flagged
+                }
+
+                $booking        = $reassignment->booking;
+                $newTherapistId = (int) $pick['new_therapist_id'];
+
+                $conflict = Booking::where('id', '!=', $booking->id)
+                    ->where('branch_id', $booking->branch_id)
+                    ->where('appointment_date', $booking->appointment_date)
+                    ->where('therapist_id', $newTherapistId)
+                    ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+                    ->where(fn ($q) => $q->where('start_time', '<', $booking->end_time)->where('end_time', '>', $booking->start_time))
+                    ->exists();
+
+                if ($conflict) {
+                    continue; // leave it pending — approver resolves manually on Appointments
+                }
+
+                $booking->update(['therapist_id' => $newTherapistId]);
+                $reassignment->update([
+                    'new_therapist_id' => $newTherapistId,
+                    'status'           => 'approved',
+                    'reviewed_by'      => Auth::id(),
+                    'reviewed_at'      => now(),
+                ]);
+                $resolvedCount++;
+            }
         });
 
         $leaveUser = $leaveRequest->user;
@@ -120,11 +237,16 @@ class LeaveRequestController extends Controller
             }
         }
 
-        return response()->json(['message' => 'Leave request approved.']);
+        $message = 'Leave request approved.';
+        if ($resolvedCount > 0) {
+            $message .= " {$resolvedCount} affected appointment(s) reassigned automatically.";
+        }
+
+        return response()->json(['message' => $message]);
     }
 
     // =====================================================
-    // OWNER/MANAGER/HR: Reject
+    // OWNER/MANAGER/HR: Reject.
     // =====================================================
     public function reject(Request $request, LeaveRequest $leaveRequest)
     {
@@ -156,8 +278,7 @@ class LeaveRequestController extends Controller
     }
 
     // =====================================================
-    // Side effect 1: mark the covered dates on_leave in attendance so
-    // nobody has to double-enter the same absence twice.
+    // OWNER/MANAGER/HR: Sync attendance records for approved leave.
     // =====================================================
     private function syncAttendanceForLeave(LeaveRequest $leave): void
     {
@@ -185,19 +306,7 @@ class LeaveRequestController extends Controller
     }
 
     // =====================================================
-    // Side effect 2: if the person is a therapist, auto-create a pending
-    // ReassignmentRequest for every upcoming booking of theirs inside the
-    // leave window, so it appears in the EXISTING "Reassignment Requested"
-    // panel on Appointments — no separate leave-side reassignment UI.
-    //
-    // NOTE ON UNCERTAINTY: I have not seen ReassignmentRequest.php or its
-    // migration, so I'm inferring its fillable fields (booking_id,
-    // requested_by, old_therapist_id, reason, status) purely from how
-    // ReassignmentRequestController::store() already uses them. That part
-    // matches an existing, working code path, so it should be safe. The
-    // leave_request_id assignment below is done via direct property + save()
-    // specifically so it works even if you haven't added it to $fillable yet
-    // (see setup step 5 in the apply plan).
+    // OWNER/MANAGER/HR: Auto-flag affected bookings for reassignment.
     // =====================================================
     private function autoFlagAffectedBookings(LeaveRequest $leave): void
     {
@@ -221,16 +330,14 @@ class LeaveRequestController extends Controller
                 continue;
             }
 
-            $rr = ReassignmentRequest::create([
+            ReassignmentRequest::create([
                 'booking_id'       => $booking->id,
                 'requested_by'     => $leave->user_id,
                 'old_therapist_id' => $booking->therapist_id,
                 'reason'           => 'Auto-generated from approved leave (' . $leave->leave_type . '): ' . $leave->reason,
                 'status'           => 'pending',
+                'leave_request_id' => $leave->id,
             ]);
-
-            $rr->leave_request_id = $leave->id;
-            $rr->save();
         }
     }
 

@@ -51,6 +51,11 @@
                 <p class="mt-2 text-sm italic text-gray-600 dark:text-gray-300" id="reassign_review_reason"></p>
             </div>
 
+            <div id="reassign_leave_warning" class="hidden p-3 text-sm rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                This was triggered by an <strong>already-approved</strong> leave request — the therapist will not be available regardless. Rejecting leaves this appointment assigned to a therapist who won't be there.
+            </div>
+
             <div>
                 <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Replacement Therapist</label>
                 <select id="reassign_review_therapist" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
@@ -168,6 +173,7 @@
                             data-old-therapist-id="${r.old_therapist_id}"
                             data-old-therapist="${esc(r.old_therapist)}"
                             data-reason="${esc(r.reason)}"
+                            data-leave-approved="${r.leave_is_approved ? '1' : '0'}"
                             class="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-xl bg-red-600 hover:bg-red-700 flex-shrink-0">
                         Review
                     </button>
@@ -175,13 +181,32 @@
             </div>`).join('');
     }
 
+    let hashScrollDone = false;
+
     async function loadReassignments() {
         try {
             const res = await fetch('{{ route('reassignment.index') }}', {
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             });
             if (!res.ok) return;
-            renderReassignmentList(await res.json());
+            const requests = await res.json();
+            renderReassignmentList(requests);
+
+            // Native anchor scroll can't reach this section on initial page
+            // load — it starts hidden (display:none) until this fetch
+            // populates and unhides it, so the browser has nothing to
+            // measure yet. Do it manually, once, after the first real render.
+            if (!hashScrollDone && window.location.hash === '#reassignmentSection' && requests.length) {
+                hashScrollDone = true;
+                const section = document.getElementById('reassignmentSection');
+                if (section) {
+                    setTimeout(() => {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        section.classList.add('animate-pulse');
+                        setTimeout(() => section.classList.remove('animate-pulse'), 1500);
+                    }, 300);
+                }
+            }
         } catch (err) {
             console.warn('Reassignment list poll failed:', err);
         }
@@ -201,6 +226,7 @@
             old_therapist_id: d.oldTherapistId,
             old_therapist: d.oldTherapist,
             reason: d.reason,
+            leave_approved: d.leaveApproved === '1',
         };
 
         document.getElementById('reassign_review_customer').textContent      = currentReassignment.customer_name;
@@ -209,6 +235,7 @@
         document.getElementById('reassign_review_old_therapist').textContent = currentReassignment.old_therapist;
         document.getElementById('reassign_review_reason').textContent        = `"${currentReassignment.reason}"`;
         document.getElementById('reassignReviewError').classList.add('hidden');
+        document.getElementById('reassign_leave_warning').classList.toggle('hidden', !currentReassignment.leave_approved);
 
         const select = document.getElementById('reassign_review_therapist');
         select.innerHTML = '<option value="">Loading available therapists…</option>';

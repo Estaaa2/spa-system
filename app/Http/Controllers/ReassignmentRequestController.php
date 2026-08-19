@@ -17,6 +17,9 @@ class ReassignmentRequestController extends Controller
 {
     // =====================================================
     // THERAPIST: Submit reassignment request ("I can't make this")
+    // Optionally files a same-day leave request in the same submission
+    // (request_leave_too checkbox) so attendance reflects the absence
+    // without a second form — linked via leave_request_id.
     // =====================================================
     public function store(Request $request, Booking $booking)
     {
@@ -48,16 +51,8 @@ class ReassignmentRequestController extends Controller
         }
 
         $reassignment = DB::transaction(function () use ($booking, $validated) {
-            $reassignment = ReassignmentRequest::create([
-                'booking_id'       => $booking->id,
-                'requested_by'     => Auth::id(),
-                'old_therapist_id' => $booking->therapist_id,
-                'reason'           => $validated['reason'],
-                'status'           => 'pending',
-            ]);
+            $leaveRequestId = null;
 
-            // Optional: file a same-day leave request in the same submission,
-            // so attendance reflects the absence without a second form.
             if (!empty($validated['request_leave_too'])) {
                 $alreadyPendingLeave = LeaveRequest::where('user_id', Auth::id())
                     ->where('status', 'pending')
@@ -76,12 +71,18 @@ class ReassignmentRequestController extends Controller
                         'status'     => 'pending',
                     ]);
 
-                    $reassignment->leave_request_id = $leave->id;
-                    $reassignment->save();
+                    $leaveRequestId = $leave->id;
                 }
             }
 
-            return $reassignment;
+            return ReassignmentRequest::create([
+                'booking_id'       => $booking->id,
+                'requested_by'     => Auth::id(),
+                'old_therapist_id' => $booking->therapist_id,
+                'reason'           => $validated['reason'],
+                'status'           => 'pending',
+                'leave_request_id' => $leaveRequestId,
+            ]);
         });
 
         return response()->json([
@@ -98,7 +99,7 @@ class ReassignmentRequestController extends Controller
         $user     = Auth::user();
         $branchId = $user->currentBranchId() ?? $user->branch_id;
 
-        $requests = ReassignmentRequest::with(['booking.spa', 'booking.branch', 'requestedBy', 'oldTherapist'])
+        $requests = ReassignmentRequest::with(['booking.spa', 'booking.branch', 'requestedBy', 'oldTherapist', 'leaveRequest'])
             ->whereHas('booking', function ($q) use ($user, $branchId) {
                 $q->where('spa_id', $user->spa_id);
                 if ($branchId) {
@@ -224,6 +225,8 @@ class ReassignmentRequestController extends Controller
             'old_therapist'         => trim(($r->oldTherapist->first_name ?? '') . ' ' . ($r->oldTherapist->last_name ?? '')),
             'reason'                => $r->reason,
             'submitted_at'          => $r->created_at->format('F j, Y g:i A'),
+            'leave_request_id'      => $r->leave_request_id,
+            'leave_is_approved'     => $r->leaveRequest?->isApproved() ?? false,
         ];
     }
 }

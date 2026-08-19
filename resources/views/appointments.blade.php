@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Appointments')
 @section('content')
 @php
     $user = auth()->user();
 
     $canEdit    = $user?->hasBranchPermission('edit appointments') ?? false;
     $canDelete  = $user?->hasBranchPermission('delete appointments') ?? false;
-    $canBook    = $user?->hasBranchPermission('book appointments') ?? false;
+    $canRequestReassignment = $user?->hasBranchPermission('request appointment reassignment') ?? false;
     $showActions = $canEdit || $canDelete;
+    $showUpcomingActions = $showActions || $canRequestReassignment;
 
     $statusClasses = [
         'reserved'  => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
@@ -42,18 +42,7 @@
     <x-page-header
         title="Appointments"
         subtitle="Monitor bookings, process arrivals, and track payments for today’s operations."
-    >
-        <x-slot name="right">
-            @if($canBook)
-            <a href="{{ route('booking') }}"
-               class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl
-                      bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5">
-                <i class="text-xs fa-solid fa-plus"></i>
-                New Booking
-            </a>
-            @endif
-        </x-slot>
-    </x-page-header>
+    />
 
     {{-- ── Summary cards ── --}}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -177,6 +166,10 @@
     </div>
 
     @include('appointments.partials.reassignment-requests-modal')
+
+    @if($canRequestReassignment)
+        @include('partials.reassignment-flag-modal')
+    @endif
 
     {{-- ── Today's Appointments ── --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
@@ -336,7 +329,7 @@
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Date</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Therapist</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
-                        @if($showActions)
+                        @if($showUpcomingActions)
                             <th class="px-6 py-3 text-xs font-medium text-center text-gray-500 uppercase">Actions</th>
                         @endif
                     </tr>
@@ -367,7 +360,7 @@
                                     {{ ucfirst($booking->status) }}
                                 </span>
                             </td>
-                            @if($showActions)
+                            @if($showUpcomingActions)
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex flex-wrap justify-center gap-2">
                                         @if($canEdit)
@@ -392,8 +385,28 @@
                                         @if($canDelete)
                                             <button onclick="openDeleteModal({{ $booking->id }})"
                                                     class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">
-                                                Cancel
+                                                Remove
                                             </button>
+                                        @endif
+                                        @if($canRequestReassignment && in_array($booking->status, ['reserved', 'pending']))
+                                            @if($booking->has_pending_reassignment)
+                                                <span class="px-3 py-1.5 text-sm text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
+                                                    <i class="fa-solid fa-clock"></i> Pending
+                                                </span>
+                                            @else
+                                                <button type="button" onclick="openReassignFlagModal(this)"
+                                                        data-reassign-flag-btn="{{ $booking->id }}"
+                                                        data-id="{{ $booking->id }}"
+                                                        data-customer="{{ $booking->customer_name ?? 'Walk-in Customer' }}"
+                                                        data-treatment="{{ $booking->treatment_label }}"
+                                                        data-date="{{ $booking->appointment_date?->format('M d, Y') }}"
+                                                        data-time="{{ \Carbon\Carbon::parse($booking->start_time)->format('h:i A') }}"
+                                                        data-badge-class="px-3 py-1.5 text-sm text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300"
+                                                        data-badge-label="Pending"
+                                                        class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">
+                                                    <i class="fa-solid fa-triangle-exclamation"></i> Can't Make It?
+                                                </button>
+                                            @endif
                                         @endif
                                     </div>
                                 </td>
@@ -401,7 +414,7 @@
                         </tr>
                     @empty
                         <tr id="upcomingEmptyRow">
-                            <td colspan="{{ $showActions ? 6 : 5 }}"
+                            <td colspan="{{ $showUpcomingActions ? 6 : 5 }}"
                                 class="px-6 py-10 text-sm text-center text-gray-500 dark:text-gray-400">
                                 No upcoming reservations found.
                             </td>
@@ -480,16 +493,16 @@
      PROCESS MODAL (unchanged from original)
      ═══════════════════════════════════════════════════ --}}
 @if($canEdit)
-<div id="processModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto bg-black/50">
-    <div class="w-full max-w-lg mx-auto my-8 sm:mt-16 sm:my-0 bg-white shadow-xl rounded-2xl dark:bg-gray-800 max-h-[85vh] sm:max-h-none flex flex-col">
-        <div class="flex items-center justify-between flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+<div id="processModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+    <div class="w-full max-w-lg mx-auto mt-16 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Process Appointment</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Record customer payment and continue the appointment flow.</p>
             </div>
             <button type="button" onclick="closeProcessModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
         </div>
-        <form id="processForm" method="POST" class="px-6 py-6 space-y-4 overflow-y-auto">
+        <form id="processForm" method="POST" class="px-6 py-6 space-y-4">
             @csrf
             @method('PUT')
             <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
@@ -547,16 +560,16 @@
     $allTreatments = \App\Models\Treatment::orderBy('name')->get();
     $allPackages   = \App\Models\Package::orderBy('name')->get();
 @endphp
-<div id="editModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto bg-black/50">
-    <div class="w-full max-w-2xl mx-auto my-8 sm:mt-12 sm:my-0 bg-white shadow-xl rounded-2xl dark:bg-gray-800 max-h-[85vh] sm:max-h-none flex flex-col">
-        <div class="flex items-center justify-between flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+<div id="editModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+    <div class="w-full max-w-2xl mx-auto mt-12 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Edit Appointment</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Update appointment details, therapist assignment, and schedule.</p>
             </div>
             <button type="button" onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
         </div>
-        <form id="editForm" method="POST" class="px-6 py-6 space-y-4 overflow-y-auto">
+        <form id="editForm" method="POST" class="px-6 py-6 space-y-4">
             @csrf
             @method('PUT')
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -662,10 +675,10 @@
      DELETE MODAL (unchanged from original)
      ═══════════════════════════════════════════════════ --}}
 @if($canDelete)
-<div id="deleteModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto bg-black/50">
-    <div class="w-full max-w-md p-6 mx-auto my-8 bg-white shadow-xl sm:mt-24 sm:my-0 rounded-2xl dark:bg-gray-800">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Cancel Appointment</h2>
-        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">This will cancel the selected appointment record.</p>
+<div id="deleteModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Remove Appointment</h2>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">This will remove the selected appointment record.</p>
         <div class="flex justify-end gap-2 mt-6">
             <button type="button" onclick="closeDeleteModal()"
                     class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
@@ -675,7 +688,7 @@
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700">
-                    Yes, Cancel
+                    Yes, Remove
                 </button>
             </form>
         </div>
@@ -692,9 +705,11 @@
 // ── Permission flags passed from Blade to JS ──────────────────────────────
 const CAN_EDIT   = {{ $canEdit   ? 'true' : 'false' }};
 const CAN_DELETE = {{ $canDelete ? 'true' : 'false' }};
+const CAN_REQUEST_REASSIGNMENT = {{ $canRequestReassignment ? 'true' : 'false' }};
 const SHOW_ACTIONS = CAN_EDIT || CAN_DELETE;
+const SHOW_UPCOMING_ACTIONS = SHOW_ACTIONS || CAN_REQUEST_REASSIGNMENT;
 const TODAY_COLS  = SHOW_ACTIONS ? 7 : 6;
-const UPCOMING_COLS = SHOW_ACTIONS ? 6 : 5;
+const UPCOMING_COLS = SHOW_UPCOMING_ACTIONS ? 6 : 5;
 
 // ── Status / source class maps (mirrors PHP $statusClasses) ───────────────
 const STATUS_CLASSES = {
@@ -1044,11 +1059,30 @@ document.addEventListener('DOMContentLoaded', function () {
         </button>`;
     }
 
-    function deleteBtn(id, label = 'Remove') {
+    function deleteBtn(id) {
         if (!CAN_DELETE) return '';
         return `<button onclick="openDeleteModal(${id})"
             class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-            ${label}
+            Remove
+        </button>`;
+    }
+
+    function reassignBtn(b) {
+        if (!CAN_REQUEST_REASSIGNMENT) return '';
+        if (!['reserved', 'pending'].includes(b.status)) return '';
+        if (b.has_pending_reassignment) {
+            return `<span class="px-3 py-1.5 text-sm text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
+                <i class="fa-solid fa-clock"></i> Pending
+            </span>`;
+        }
+        return `<button type="button" onclick="openReassignFlagModal(this)"
+            data-reassign-flag-btn="${b.id}" data-id="${b.id}"
+            data-customer="${esc(b.customer_name)}" data-treatment="${esc(b.treatment_label)}"
+            data-date="${esc(b.appointment_date)}" data-time="${esc(b.start_time_fmt)}"
+            data-badge-class="px-3 py-1.5 text-sm text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300"
+            data-badge-label="Pending"
+            class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700">
+            <i class="fa-solid fa-triangle-exclamation"></i> Can't Make It?
         </button>`;
     }
 
@@ -1142,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 Cancel
                             </button>` : ''}
                         ${editBtn(b)}
-                        ${deleteBtn(b.id,)}
+                        ${deleteBtn(b.id)}
                     </div>
                 </td>` : '';
 
@@ -1195,11 +1229,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         tbody.innerHTML = appointments.map(b => {
-            const actionButtons = SHOW_ACTIONS ? `
+            const actionButtons = SHOW_UPCOMING_ACTIONS ? `
                 <td class="px-6 py-4 text-center">
                     <div class="flex flex-wrap justify-center gap-2">
                         ${editBtn(b)}
-                        ${deleteBtn(b.id, 'Cancel')}
+                        ${deleteBtn(b.id)}
+                        ${reassignBtn(b)}
                     </div>
                 </td>` : '';
 
