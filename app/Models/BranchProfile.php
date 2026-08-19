@@ -18,6 +18,7 @@ class BranchProfile extends Model
         'description',
         'phone',
         'address',
+        'city',
         'latitude',
         'longitude',
         'amenities',
@@ -40,17 +41,35 @@ class BranchProfile extends Model
 
     public function getTitleAttribute()
     {
-        $spaName = $this->branch->spa->name ?? 'Spa';
-        $address = $this->address ?? $this->branch->location ?? '';
-
-        // Extract city from address
-        $cityName = '';
-        if ($address) {
-            $parts = explode(',', $address);
-            // Use second to last part for city if available
-            $cityName = trim(count($parts) >= 2 ? $parts[count($parts)-2] : end($parts));
-        }
+        $spaName  = $this->branch->spa->name ?? 'Spa';
+        $cityName = self::resolveCitySummary($this->city, $this->address, $this->branch->location ?? null);
 
         return $spaName . ($cityName ? ' — ' . $cityName : '');
+    }
+
+    public static function resolveCitySummary(?string $city, ?string $address, ?string $branchLocation = null): ?string
+    {
+        $resolvedCity = $city ?: null;
+
+        if (!$resolvedCity && $address) {
+            $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', $address);
+            $parts   = array_values(array_filter(array_map('trim', explode(',', $cleaned))));
+
+            $resolvedCity = match (true) {
+                count($parts) >= 2  => $parts[count($parts) - 2],
+                count($parts) === 1 => $parts[0],
+                default             => null,
+            };
+        }
+
+        $resolvedCity = $resolvedCity ?: $branchLocation;
+
+        if (!$resolvedCity) {
+            return null;
+        }
+
+        return str_contains(strtolower($resolvedCity), 'cavite')
+            ? $resolvedCity
+            : "{$resolvedCity}, Cavite";
     }
 }

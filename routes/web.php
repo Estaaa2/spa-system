@@ -544,6 +544,11 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
     });
     Route::get('/leave-requests/mine', [LeaveRequestController::class, 'mine'])->name('leave-requests.mine');
+    // Not permission-gated at the route level — reachable by the leave's own
+    // submitter (for their post-submit preview) or an approver (for the
+    // review modal's inline picker). affectedBookings() enforces the real
+    // ownership-or-approver check itself.
+    Route::get('/leave-requests/{leaveRequest}/affected-bookings', [LeaveRequestController::class, 'affectedBookings'])->name('leave-requests.affected-bookings');
     Route::middleware('branch.permission:edit leave requests')->group(function () {
         Route::get('/leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
         Route::post('/leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])->name('leave-requests.approve');
@@ -599,8 +604,6 @@ Route::middleware(['auth', 'role:admin'])
             Route::get('/registered-spas', [RegisteredSpaController::class, 'index'])->name('registered-spas.index');
         });
 
-        // No separate "delete registered spas" permission exists in your current seeder,
-        // so edit permission is currently the closest match for edit/update/destroy.
         Route::middleware('permission:edit registered spas')->group(function () {
             Route::get('/registered-spas/{spa}/edit', [RegisteredSpaController::class, 'edit'])->name('registered-spas.edit');
             Route::put('/registered-spas/{spa}', [RegisteredSpaController::class, 'update'])->name('registered-spas.update');

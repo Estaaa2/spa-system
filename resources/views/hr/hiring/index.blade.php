@@ -41,7 +41,7 @@
                     </div>
                 </div>
 
-                <form action="{{ route('hiring.store') }}" method="POST">
+                <form action="{{ route('hiring.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
 
                     {{-- PERSONAL INFORMATION --}}
@@ -214,29 +214,6 @@
 
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                                        Source
-                                    </label>
-                                    <select name="source"
-                                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        <option value="">Select</option>
-                                        <option value="walk_in" {{ old('source') == 'walk_in' ? 'selected' : '' }}>Walk-in
-                                        </option>
-                                        <option value="referral" {{ old('source') == 'referral' ? 'selected' : '' }}>
-                                            Referral</option>
-                                        <option value="facebook" {{ old('source') == 'facebook' ? 'selected' : '' }}>
-                                            Facebook</option>
-                                        <option value="website" {{ old('source') == 'website' ? 'selected' : '' }}>Website
-                                        </option>
-                                        <option value="other" {{ old('source') == 'other' ? 'selected' : '' }}>Other
-                                        </option>
-                                    </select>
-                                    @error('source', 'application')
-                                        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <div>
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                         Expected Start Date
                                     </label>
                                     <input type="date" name="expected_start_date"
@@ -273,23 +250,11 @@
 
                                 <div class="md:col-span-2">
                                     <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                                        Skills / Certifications
+                                        Resume / CV <span class="text-xs font-normal text-gray-400">(optional for walk-ins)</span>
                                     </label>
-                                    <input type="text" name="skills" value="{{ old('skills') }}"
-                                        placeholder="e.g. Swedish Massage, NC II..."
+                                    <input type="file" name="resume" accept=".pdf,.doc,.docx"
                                         class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                    @error('skills', 'application')
-                                        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <div class="md:col-span-2">
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                                        Work Experience
-                                    </label>
-                                    <textarea name="work_experience" rows="3" placeholder="Previous work experience..."
-                                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('work_experience') }}</textarea>
-                                    @error('work_experience', 'application')
+                                    @error('resume', 'application')
                                         <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -473,10 +438,16 @@
                                         </div>
                                     @endif
 
-                                    @if ($applicant->skills)
-                                        <div class="col-span-2 truncate">
-                                            <i class="mr-1 fa-solid fa-star text-[#8B7355]"></i>
-                                            {{ $applicant->skills }}
+                                    @if ($applicant->resume_path)
+                                        <div class="col-span-2">
+                                            <a href="{{ asset('storage/' . $applicant->resume_path) }}" target="_blank"
+                                            class="inline-flex items-center gap-1 text-[#8B7355] hover:text-[#6F5430] font-medium">
+                                                <i class="fa-solid fa-file-arrow-down"></i> View Resume
+                                            </a>
+                                        </div>
+                                    @else
+                                        <div class="col-span-2 italic text-gray-400">
+                                            <i class="mr-1 fa-solid fa-file-circle-xmark"></i> No resume uploaded
                                         </div>
                                     @endif
                                 </div>

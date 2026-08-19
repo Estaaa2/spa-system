@@ -452,6 +452,17 @@
                             </p>
                         </div>
                     </div>
+
+                    <div>
+                        <label for="city" class="block text-sm font-medium text-gray-700 dark:text-gray-300">City / Municipality</label>
+                        <input type="text" name="city" id="city"
+                            value="{{ old('city', optional($branch->profile)->city) }}"
+                            placeholder="e.g. Trece Martires City"
+                            class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-400">
+                            Auto-filled when you search or pin the address below. This is what's used for landing page search and listing cards — correct it if it looks wrong.
+                        </p>
+                    </div>
                 </div>
 
                 {{-- ── Map Pin ─────────────────────────────────────────────── --}}
@@ -679,8 +690,8 @@ function amenitiesManager() {
 }
 
 // ────────────────────────────────────────────────────────────
-// OPERATING HOURS — time range validation
-// Ported from operating-hours.blade.php to keep behaviour consistent
+// OPERATING HOURS — time range validation.
+// Ported from operating-hours.blade.php to keep behaviour consistent.
 // ────────────────────────────────────────────────────────────
 
 function validateTimeRange(openingId, closingId, errorId, cardId) {
@@ -852,9 +863,13 @@ function initLeafletMap() {
         marker.setLatLng(latlng);
         document.getElementById('latitude').value  = latlng.lat.toFixed(7);
         document.getElementById('longitude').value = latlng.lng.toFixed(7);
-        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json`)
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json&addressdetails=1`)
             .then(r => r.json())
-            .then(data => { const a = document.getElementById('address'); if (a && data.display_name) a.value = data.display_name; })
+            .then(data => {
+                const a = document.getElementById('address');
+                if (a && data.display_name) a.value = data.display_name;
+                fillCityFromNominatimAddress(data.address);
+            })
             .catch(() => {});
     }
 
@@ -979,6 +994,14 @@ function renderAddressSuggestions() {
     });
 }
 
+function fillCityFromNominatimAddress(address) {
+    const cityField = document.getElementById('city');
+    if (!cityField || !address) return;
+
+    const detected = address.city || address.town || address.municipality || address.village || '';
+    if (detected) cityField.value = detected;
+}
+
 function selectAddressSuggestion(index) {
     const item = currentSuggestions[index];
     if (!item) return;
@@ -990,6 +1013,7 @@ function selectAddressSuggestion(index) {
     document.getElementById('address').value = item.display_name;
     document.getElementById('latitude').value  = lat.toFixed(7);
     document.getElementById('longitude').value = lng.toFixed(7);
+    fillCityFromNominatimAddress(item.address);
 
     if (leafletMapInstance) {
         leafletMapInstance.setView(latlng, 16);

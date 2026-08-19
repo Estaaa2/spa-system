@@ -1,4 +1,3 @@
-{{-- DESTINATION: resources/views/hr/attendance/index.blade.php (replace entirely) --}}
 @extends('layouts.app')
 
 @section('title', 'Attendance & Leave')
@@ -21,7 +20,7 @@
     ];
 @endphp
 
-<div class="p-6 mx-auto space-y-6 max-w-7xl" x-data="{ tab: 'attendance' }">
+<div class="p-6 mx-auto space-y-6 max-w-7xl" x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'attendance' }">
 
     <x-page-header
         title="Attendance & Leave"
@@ -368,12 +367,48 @@
                     class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white resize-none"
                     placeholder="Minimum 10 characters"></textarea>
             </div>
+            <p class="text-xs text-gray-400">
+                <i class="fa-solid fa-circle-info"></i>
+                If any of your appointments fall within these dates, they'll be automatically flagged for reassignment once your manager approves this.
+            </p>
             <div id="requestLeaveError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200 dark:bg-red-900/20 dark:ring-red-800"></div>
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeRequestLeaveModal()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
                 <button type="submit" id="requestLeaveSubmitBtn" class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">Submit Request</button>
             </div>
         </form>
+
+        <div id="requestLeaveConfirmation" class="hidden px-6 py-6 space-y-4">
+            <div class="flex flex-col items-center text-center">
+                <div class="flex items-center justify-center w-12 h-12 mb-3 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+                    <i class="text-xl fa-solid fa-check text-emerald-600 dark:text-emerald-400"></i>
+                </div>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Leave Request Submitted</h3>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" id="requestLeaveConfirmDates"></p>
+            </div>
+
+            <div class="p-3 text-sm rounded-xl bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+                Your manager will review this request. You'll be notified once it's approved or rejected.
+            </div>
+
+            <div id="requestLeaveConfirmAffectedLoading" class="text-xs text-center text-gray-400">Checking your appointments in this window…</div>
+            <div id="requestLeaveConfirmAffectedNone" class="hidden text-xs text-center text-gray-400">None of your appointments fall within these dates.</div>
+            <div id="requestLeaveConfirmAffectedWrapper" class="hidden p-3 border rounded-xl border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10">
+                <p class="text-xs font-semibold text-red-800 dark:text-red-300">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="requestLeaveConfirmAffectedCount">0</span> of your appointment(s) fall in this window
+                </p>
+                <div id="requestLeaveConfirmAffectedList" class="mt-2 space-y-1 text-xs text-red-700 dark:text-red-400"></div>
+                <p class="mt-2 text-[11px] text-red-600 dark:text-red-400">
+                    These will be automatically flagged for reassignment once your leave is approved — no action needed from you.
+                </p>
+            </div>
+
+            <button type="button" onclick="closeRequestLeaveModal()"
+                    class="w-full px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">
+                Got it
+            </button>
+        </div>
     </div>
 </div>
 
@@ -393,10 +428,22 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400" id="leave_review_dates"></p>
                 <p class="mt-2 text-sm italic text-gray-600 dark:text-gray-300" id="leave_review_reason"></p>
             </div>
+            <div id="leave_affected_loading" class="text-xs text-gray-400 hidden">Checking affected appointments…</div>
+            <div id="leave_affected_none" class="text-xs text-gray-400 hidden">No appointments fall within this leave window.</div>
+            <div id="leave_affected_wrapper" class="hidden p-3 border rounded-xl border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10">
+                <p class="text-xs font-semibold text-red-800 dark:text-red-300">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="leave_affected_count">0</span> appointment(s) will need reassignment
+                </p>
+                <div id="leave_affected_list" class="mt-2 space-y-2"></div>
+                <p class="mt-2 text-[11px] text-red-600 dark:text-red-400">
+                    Pick a replacement for any of these now, or leave blank to resolve later from the Appointments page.
+                </p>
+            </div>
             <div id="leaveReviewError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200 dark:bg-red-900/20 dark:ring-red-800"></div>
             <div class="flex justify-between gap-2 pt-2">
                 <button type="button" onclick="openLeaveRejectReason()" class="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700">Reject</button>
-                <button type="button" onclick="approveLeave()" class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">Approve</button>
+                <button type="button" id="leaveApproveBtn" onclick="approveLeave()" class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348] disabled:opacity-50 disabled:cursor-not-allowed">Approve</button>
             </div>
         </div>
     </div>
@@ -444,9 +491,15 @@ function closeRecordModal() { document.getElementById('recordAttendanceModal').c
 function openRequestLeaveModal() {
     document.getElementById('requestLeaveForm').reset();
     document.getElementById('requestLeaveError').classList.add('hidden');
+    document.getElementById('requestLeaveForm').classList.remove('hidden');
+    document.getElementById('requestLeaveConfirmation').classList.add('hidden');
     document.getElementById('requestLeaveModal').classList.remove('hidden');
 }
-function closeRequestLeaveModal() { document.getElementById('requestLeaveModal').classList.add('hidden'); }
+function closeRequestLeaveModal() {
+    document.getElementById('requestLeaveModal').classList.add('hidden');
+    document.getElementById('requestLeaveForm').classList.remove('hidden');
+    document.getElementById('requestLeaveConfirmation').classList.add('hidden');
+}
 
 document.getElementById('requestLeaveForm')?.addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -482,9 +535,43 @@ document.getElementById('requestLeaveForm')?.addEventListener('submit', async fu
             return;
         }
 
-        closeRequestLeaveModal();
-        if (typeof showSpaToast === 'function') showSpaToast(data.message, 'success');
+        // Swap the form for an explicit confirmation panel instead of a
+        // toast — a toast disappears in a few seconds and this message
+        // (your appointments in this window will be auto-flagged) is
+        // easy to miss that way, especially for a first-time user.
+        document.getElementById('requestLeaveForm').classList.add('hidden');
+        document.getElementById('requestLeaveConfirmation').classList.remove('hidden');
+        document.getElementById('requestLeaveConfirmDates').textContent =
+            document.getElementById('leave_start_date').value + ' to ' + document.getElementById('leave_end_date').value;
+
+        document.getElementById('requestLeaveConfirmAffectedWrapper').classList.add('hidden');
+        document.getElementById('requestLeaveConfirmAffectedNone').classList.add('hidden');
+        document.getElementById('requestLeaveConfirmAffectedLoading').classList.remove('hidden');
+
         loadMyLeaveRequests();
+
+        const leaveId = data.data?.id;
+        if (leaveId) {
+            try {
+                const previewRes = await fetch(`/leave-requests/${leaveId}/affected-bookings`, { headers: { 'Accept': 'application/json' } });
+                const bookings = previewRes.ok ? await previewRes.json() : [];
+                document.getElementById('requestLeaveConfirmAffectedLoading').classList.add('hidden');
+
+                if (bookings.length) {
+                    document.getElementById('requestLeaveConfirmAffectedCount').textContent = bookings.length;
+                    document.getElementById('requestLeaveConfirmAffectedList').innerHTML = bookings.map(b =>
+                        `<div>• ${esc(b.customer_name)} — ${esc(b.appointment_date)} at ${esc(b.start_time_fmt)}</div>`
+                    ).join('');
+                    document.getElementById('requestLeaveConfirmAffectedWrapper').classList.remove('hidden');
+                } else {
+                    document.getElementById('requestLeaveConfirmAffectedNone').classList.remove('hidden');
+                }
+            } catch (err) {
+                document.getElementById('requestLeaveConfirmAffectedLoading').classList.add('hidden');
+            }
+        } else {
+            document.getElementById('requestLeaveConfirmAffectedLoading').classList.add('hidden');
+        }
 
     } catch (err) {
         errorBox.textContent = 'Network error. Please try again.';
@@ -564,30 +651,78 @@ async function loadPendingLeave() {
     } catch (err) { console.warn('Pending leave poll failed:', err); }
 }
 
-function openLeaveReviewModal(r) {
+async function openLeaveReviewModal(r) {
     currentLeaveReview = r;
     document.getElementById('leave_review_name').textContent = r.user_name + ' — ' + r.leave_type;
     document.getElementById('leave_review_dates').textContent = r.start_date + ' to ' + r.end_date + ' (' + r.days + ' day(s))';
     document.getElementById('leave_review_reason').textContent = '"' + r.reason + '"';
     document.getElementById('leaveReviewError').classList.add('hidden');
     document.getElementById('leaveReviewModal').classList.remove('hidden');
+
+    document.getElementById('leave_affected_wrapper').classList.add('hidden');
+    document.getElementById('leave_affected_none').classList.add('hidden');
+    document.getElementById('leave_affected_loading').classList.remove('hidden');
+
+    try {
+        const res = await fetch(`/leave-requests/${r.id}/affected-bookings`, { headers: { 'Accept': 'application/json' } });
+        const bookings = res.ok ? await res.json() : [];
+        document.getElementById('leave_affected_loading').classList.add('hidden');
+
+        if (bookings.length) {
+            document.getElementById('leave_affected_count').textContent = bookings.length;
+            document.getElementById('leave_affected_list').innerHTML = bookings.map(b => {
+                const options = (b.available_therapists || []).map(t =>
+                    `<option value="${t.id}" ${Number(b.recommended_id) === Number(t.id) ? 'selected' : ''}>${esc(t.name)}</option>`
+                ).join('');
+                const hasPicker = Array.isArray(b.available_therapists);
+                return `
+                <div class="p-2 text-xs bg-white border border-red-100 rounded-lg dark:bg-gray-800 dark:border-red-900/40">
+                    <div class="font-medium text-gray-800 dark:text-gray-200">${esc(b.customer_name)} — ${esc(b.appointment_date)} at ${esc(b.start_time_fmt)}</div>
+                    ${hasPicker ? `
+                    <select data-affected-booking-id="${b.id}" class="w-full mt-1 px-2 py-1 text-xs border border-gray-300 rounded-lg dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <option value="">— Leave unassigned, resolve later —</option>
+                        ${options}
+                    </select>` : ''}
+                </div>`;
+            }).join('');
+            document.getElementById('leave_affected_wrapper').classList.remove('hidden');
+        } else {
+            document.getElementById('leave_affected_none').classList.remove('hidden');
+        }
+    } catch (err) {
+        document.getElementById('leave_affected_loading').classList.add('hidden');
+        console.warn('Affected bookings fetch failed:', err);
+    }
 }
 function closeLeaveReviewModal() { document.getElementById('leaveReviewModal').classList.add('hidden'); currentLeaveReview = null; }
 
 async function approveLeave() {
     if (!currentLeaveReview) return;
     const errorBox = document.getElementById('leaveReviewError');
+    const btn = document.getElementById('leaveApproveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+
+    const reassignments = Array.from(document.querySelectorAll('[data-affected-booking-id]'))
+        .filter(sel => sel.value)
+        .map(sel => ({ booking_id: Number(sel.dataset.affectedBookingId), new_therapist_id: Number(sel.value) }));
+
     try {
         const res = await fetch(`/leave-requests/${currentLeaveReview.id}/approve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf(), 'Accept': 'application/json' },
+            body: JSON.stringify({ reassignments }),
         });
         const data = await res.json();
         if (!res.ok) { errorBox.textContent = data.message ?? 'Something went wrong.'; errorBox.classList.remove('hidden'); return; }
         closeLeaveReviewModal();
         if (typeof showSpaToast === 'function') showSpaToast(data.message, 'success');
         loadPendingLeave();
-    } catch (err) { errorBox.textContent = 'Network error.'; errorBox.classList.remove('hidden'); }
+    } catch (err) {
+        errorBox.textContent = 'Network error.';
+        errorBox.classList.remove('hidden');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Approve'; }
+    }
 }
 
 function openLeaveRejectReason() { document.getElementById('leave_reject_reason').value = ''; document.getElementById('leaveRejectReasonModal').classList.remove('hidden'); }

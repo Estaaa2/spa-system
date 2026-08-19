@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\LeaveRequest;
+use App\Models\ReassignmentRequest;
 use App\Models\Treatment;
 use App\Models\Package;
 use App\Models\User;
@@ -91,7 +93,7 @@ class DashboardController extends Controller
         }
 
         // ── Alert metrics ─────────────────────────────────────────────────
-        $lateAppointments = $noShows = $overbookedTherapists = null;
+        $lateAppointments = $noShows = $overbookedTherapists = $pendingLeaveRequests = $pendingReassignments = null;
 
         if ($user->hasBranchPermission('view dashboard alerts')) {
             $lateAppointments = $todayBase()
@@ -115,6 +117,17 @@ class DashboardController extends Controller
                 ->groupBy('therapist_id')
                 ->havingRaw('cnt > 8')
                 ->get()
+                ->count();
+
+            $pendingLeaveRequests = LeaveRequest::where('spa_id', $spaId)
+                ->where('branch_id', $currentBranchId)
+                ->where('status', 'pending')
+                ->count();
+
+            $pendingReassignments = ReassignmentRequest::whereHas('booking', function ($q) use ($spaId, $currentBranchId) {
+                    $q->where('spa_id', $spaId)->where('branch_id', $currentBranchId);
+                })
+                ->where('status', 'pending')
                 ->count();
         }
 
@@ -231,6 +244,7 @@ class DashboardController extends Controller
             'completedToday', 'cancelledToday', 'upcomingWeek',
             'collectedToday', 'onlineToday', 'walkInToday', 'topServiceLabel',
             'lateAppointments', 'noShows', 'overbookedTherapists',
+            'pendingLeaveRequests', 'pendingReassignments',
             'todayAppointments', 'nextAppointment',
             'therapists',
             'myTodayAppointments', 'myStats', 'myNextAppointment',
@@ -333,6 +347,15 @@ class DashboardController extends Controller
                     ->groupBy('therapist_id')
                     ->havingRaw('cnt > 8')
                     ->get()
+                    ->count(),
+                'pending_leave_requests' => LeaveRequest::where('spa_id', $spaId)
+                    ->where('branch_id', $currentBranchId)
+                    ->where('status', 'pending')
+                    ->count(),
+                'pending_reassignments' => ReassignmentRequest::whereHas('booking', function ($q) use ($spaId, $currentBranchId) {
+                        $q->where('spa_id', $spaId)->where('branch_id', $currentBranchId);
+                    })
+                    ->where('status', 'pending')
                     ->count(),
             ];
         }

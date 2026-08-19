@@ -29,19 +29,21 @@ class PublicApplicationController extends Controller
             'availability'               => 'nullable|in:full_time,part_time,weekdays,weekends,shifting,flexible',
             'expected_start_date'        => 'nullable|date',
             'education'                  => 'nullable|in:high_school,vocational,undergraduate,college,postgrad',
-            'skills'                     => 'nullable|string|max:500',
-            'work_experience'            => 'nullable|string',
+            'resume'                     => 'required|file|mimes:pdf,doc,docx|max:5120',
             'emergency_contact_name'     => 'nullable|string|max:255',
             'emergency_contact_relation' => 'nullable|string|max:100',
             'emergency_contact_phone'    => 'nullable|string|max:20',
         ]);
 
+        $resumePath = $request->file('resume')->store('resumes', 'public');
+
         Applicant::create([
             ...$validated,
-            'spa_id'    => $branch->spa_id,
-            'branch_id' => $branch->id,
-            'source'    => 'website',
-            'status'    => 'pending',
+            'resume_path' => $resumePath,
+            'spa_id'      => $branch->spa_id,
+            'branch_id'   => $branch->id,
+            'source'      => 'website',
+            'status'      => 'pending',
         ]);
 
         return back()->with('success', 'Your application has been submitted! We will contact you soon.');
