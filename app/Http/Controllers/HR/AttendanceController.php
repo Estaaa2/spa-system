@@ -104,7 +104,13 @@ class AttendanceController extends Controller
             return back()->with('error', 'You are already clocked in for today.');
         }
 
-        $now    = now()->format('H:i:s');
+        $now = now()->format('H:i:s');
+
+        $window = StaffAttendance::evaluateClockInWindow($staff->branch_id, $today, $now);
+        if (!$window['allowed']) {
+            return back()->with('error', $window['reason']);
+        }
+
         $status = StaffAttendance::resolveStatusForClockIn($staff->branch_id, $today, $now);
 
         StaffAttendance::updateOrCreate(
@@ -142,7 +148,15 @@ class AttendanceController extends Controller
             return back()->with('error', 'You are already clocked out for today.');
         }
 
-        $record->update(['time_out' => now()->format('H:i:s')]);
+        $now  = now()->format('H:i:s');
+        $flag = StaffAttendance::flagIfOutsideOperatingHours($staff->branch_id, $today, $now);
+
+        $update = ['time_out' => $now];
+        if ($flag) {
+            $update['remarks'] = trim(($record->remarks ? $record->remarks . ' | ' : '') . $flag);
+        }
+
+        $record->update($update);
 
         return back()->with('success', 'Clocked out. See you next shift!');
     }

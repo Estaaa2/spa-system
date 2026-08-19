@@ -11,6 +11,25 @@ window.addEventListener('scroll', () => {
 let selectedSpa = null;
 let spaMap      = null;
 
+// ── Customer profile: shared Leaflet marker + last-saved snapshot ──────────
+// (`marker` used to only be declared with `let` inside the map-init
+// DOMContentLoaded callback further down, so openProfileModal() reading it
+// from a different function threw "marker is not defined" the first time a
+// customer with an already-saved pin opened their profile.)
+let profileMapMarker     = null;
+let profileSavedLocation = { address: '', lat: null, lng: null };
+
+// Cavite bounding box — plain numbers here (Leaflet's L.latLngBounds is only
+// constructed later, inside the map-init block, so this doesn't depend on
+// Leaflet having parsed yet). Must match ProfileController's server-side
+// CAVITE_LAT_MIN/MAX etc., and the box used on the branch-profile map, so
+// client and server always agree on what counts as "in Cavite."
+const PROFILE_CAVITE_LAT_MIN = 14.020;
+const PROFILE_CAVITE_LAT_MAX = 14.520;
+const PROFILE_CAVITE_LNG_MIN = 120.620;
+const PROFILE_CAVITE_LNG_MAX = 121.100;
+const PROFILE_CAVITE_VIEWBOX = `${PROFILE_CAVITE_LNG_MIN},${PROFILE_CAVITE_LAT_MAX},${PROFILE_CAVITE_LNG_MAX},${PROFILE_CAVITE_LAT_MIN}`; // left,top,right,bottom — for Nominatim
+
 const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
 const profileDropdownMenu = document.getElementById('profileDropdownMenu');
 const profileChevron      = document.getElementById('profileChevron');
@@ -58,22 +77,36 @@ function openProfileModal() {
     profileModalEl.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
 
+    // Snapshot the DB-saved location now, before anything on the map or in
+    // the autocomplete can touch the inputs — this is what "Reset to saved
+    // location" restores, regardless of what happens while the modal is open.
+    const addressField = document.getElementById('address');
+    const latInput      = document.getElementById('latitude');
+    const lngInput       = document.getElementById('longitude');
+    profileSavedLocation = {
+        address: addressField ? addressField.value : '',
+        lat: latInput && latInput.value ? parseFloat(latInput.value) : null,
+        lng: lngInput && lngInput.value ? parseFloat(lngInput.value) : null,
+    };
+
+    const suggestions = document.getElementById('addressSuggestions');
+    if (suggestions) suggestions.classList.add('hidden');
+
     setTimeout(() => {
         if (window.profileMap) {
             window.profileMap.invalidateSize();
         }
 
         // If user already has a pinned location, show it
-        const latInput = document.getElementById('latitude');
-        const lngInput = document.getElementById('longitude');
         if (!latInput || !lngInput) return;
 
-        const savedLat = parseFloat(latInput.value);
-        const savedLng = parseFloat(lngInput.value);
+        const savedLat = profileSavedLocation.lat;
+        const savedLng = profileSavedLocation.lng;
         if (savedLat && savedLng && window.profileMap) {
             window.profileMap.setView([savedLat, savedLng], 15);
-            if (marker) window.profileMap.removeLayer(marker);
-            marker = L.marker([savedLat, savedLng]).addTo(window.profileMap);
+            if (profileMapMarker) window.profileMap.removeLayer(profileMapMarker);
+            profileMapMarker = L.marker([savedLat, savedLng], { draggable: true }).addTo(window.profileMap);
+            profileMapMarker.on('dragend', () => updateProfilePin(profileMapMarker.getLatLng()));
         }
     }, 300);
 }
@@ -1020,7 +1053,7 @@ function clearBookingSelections() {
         addressInput.required = false;
     }
     if (addressWrapper) addressWrapper.classList.add('hidden');
-    if (bookingCustomerPhone) bookingCustomerPhone.value = '';
+    if (bookingCustomerPhone) bookingCustomerPhone.value = bookingCustomerPhone.dataset.defaultPhone || '';
     const termsCheckbox = document.getElementById('bookingTermsCheckbox');
     if (termsCheckbox) termsCheckbox.checked = false;
 
@@ -1956,52 +1989,265 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // =====================================================
-// MAP (For Profile Modal) - FIXED with container check
+// MAP (For Profile Modal) — Cavite-bounded, draggable pin, with feedback so
+// a stray/accidental tap is visible and undoable instead of silently
+// overwriting whatever address the customer had typed.
 // =====================================================
+
+// Places/moves the pin + syncs the hidden lat/lng inputs. Pure mechanical
+// placement — doesn't touch the address text field and doesn't toast.
+// Returns false (leaving everything untouched) if the point falls outside
+// Cavite.
+function placeProfilePin(lat, lng) {
+    if (!window.profileMap) return false;
+
+    const withinCavite = lat >= PROFILE_CAVITE_LAT_MIN && lat <= PROFILE_CAVITE_LAT_MAX
+        && lng >= PROFILE_CAVITE_LNG_MIN && lng <= PROFILE_CAVITE_LNG_MAX;
+    if (!withinCavite) return false;
+
+    if (profileMapMarker) {
+        window.profileMap.removeLayer(profileMapMarker);
+    }
+    profileMapMarker = L.marker([lat, lng], { draggable: true }).addTo(window.profileMap);
+    profileMapMarker.on('dragend', () => updateProfilePin(profileMapMarker.getLatLng()));
+
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+    if (latInput) latInput.value = lat;
+    if (lngInput) lngInput.value = lng;
+
+    return true;
+}
+
+// Click/drag path: place the pin, then reverse-geocode to fill the address
+// field, with a toast so the change is visible rather than silent. On an
+// out-of-bounds tap, nothing is overwritten and an existing marker snaps
+// back to its last valid position.
+function updateProfilePin(latlng) {
+    const placed = placeProfilePin(latlng.lat, latlng.lng);
+
+    if (!placed) {
+        showSpaToast('That spot is outside Cavite — pin somewhere within the province.', 'error');
+        if (profileMapMarker) {
+            const latInput = document.getElementById('latitude');
+            const lngInput = document.getElementById('longitude');
+            const revertLat = latInput && latInput.value ? parseFloat(latInput.value) : null;
+            const revertLng = lngInput && lngInput.value ? parseFloat(lngInput.value) : null;
+            if (revertLat && revertLng) profileMapMarker.setLatLng([revertLat, revertLng]);
+        }
+        return;
+    }
+
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json&addressdetails=1`)
+        .then(res => res.json())
+        .then(data => {
+            const addressField = document.getElementById('address');
+            if (addressField && data.display_name) addressField.value = data.display_name;
+        })
+        .catch(err => console.warn('Reverse geocoding failed:', err))
+        .finally(() => {
+            showSpaToast('Pin updated — hit "Save Changes" below to keep it.', 'success');
+        });
+}
+
+// Restores the address + pin to what was on file when the modal opened —
+// a one-tap undo for a stray tap or an experiment that didn't work out.
+function resetProfileLocation() {
+    const addressField = document.getElementById('address');
+    const latInput      = document.getElementById('latitude');
+    const lngInput       = document.getElementById('longitude');
+
+    if (addressField) addressField.value = profileSavedLocation.address || '';
+    if (latInput)      latInput.value    = profileSavedLocation.lat ?? '';
+    if (lngInput)       lngInput.value    = profileSavedLocation.lng ?? '';
+
+    const suggestions = document.getElementById('addressSuggestions');
+    if (suggestions) suggestions.classList.add('hidden');
+
+    if (!window.profileMap) return;
+
+    if (profileMapMarker) {
+        window.profileMap.removeLayer(profileMapMarker);
+        profileMapMarker = null;
+    }
+
+    if (profileSavedLocation.lat && profileSavedLocation.lng) {
+        window.profileMap.setView([profileSavedLocation.lat, profileSavedLocation.lng], 15);
+        profileMapMarker = L.marker([profileSavedLocation.lat, profileSavedLocation.lng], { draggable: true }).addTo(window.profileMap);
+        profileMapMarker.on('dragend', () => updateProfilePin(profileMapMarker.getLatLng()));
+    }
+
+    showSpaToast('Location reset to your saved address.', 'success');
+}
 
 // Wait for DOM to be fully loaded before initializing map
 document.addEventListener('DOMContentLoaded', function() {
     const mapContainer = document.getElementById('map');
 
     if (mapContainer) {
+        const caviteBounds = L.latLngBounds(
+            [PROFILE_CAVITE_LAT_MIN, PROFILE_CAVITE_LNG_MIN],
+            [PROFILE_CAVITE_LAT_MAX, PROFILE_CAVITE_LNG_MAX]
+        );
+
         // Initialize map only if container exists
-        window.profileMap = L.map('map').setView([14.3715407, 120.9388733], 11);
+        window.profileMap = L.map('map', {
+            maxBounds: caviteBounds,
+            maxBoundsViscosity: 1.0,
+        }).setView([14.2456, 120.8786], 11); // Cavite center — matches the branch-profile map default
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(window.profileMap);
 
-        let marker;
+        window.profileMap.on('click', (e) => updateProfilePin(e.latlng));
 
-        window.profileMap.on('click', function (e) {
-            let lat = e.latlng.lat;
-            let lng = e.latlng.lng;
-
-            if (marker) {
-                window.profileMap.removeLayer(marker);
-            }
-
-            marker = L.marker([lat, lng]).addTo(window.profileMap);
-
-            const latInput = document.getElementById('latitude');
-            const lngInput = document.getElementById('longitude');
-            if (latInput) latInput.value = lat;
-            if (lngInput) lngInput.value = lng;
-
-            // reverse geocoding (optional)
-            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
-                .then(res => res.json())
-                .then(data => {
-                    const addressField = document.getElementById('address');
-                    if (addressField) addressField.value = data.display_name;
-                })
-                .catch(err => console.warn('Reverse geocoding failed:', err));
-        });
+        setupProfileAddressAutocomplete();
     } else {
         console.log('Map container not found on this page - skipping map initialization');
     }
 });
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('profileLocationReset')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        resetProfileLocation();
+    });
+});
+
+// =====================================================
+// PROFILE ADDRESS AUTOCOMPLETE — search-first path, so most customers never
+// need to touch the map directly; the map becomes a fine-tune/confirm step
+// rather than the primary way to set a location.
+// =====================================================
+let profileAddressGeocodeTimeout = null;
+let profileAddressSuggestions    = [];
+let profileActiveSuggestionIndex = -1;
+
+function fetchProfileAddressSuggestions(query) {
+    const dropdown = document.getElementById('addressSuggestions');
+    if (!dropdown) return;
+
+    if (!query || query.length < 3) {
+        dropdown.classList.add('hidden');
+        profileAddressSuggestions = [];
+        return;
+    }
+
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Cavite, Philippines')}&format=json&limit=5&viewbox=${PROFILE_CAVITE_VIEWBOX}&bounded=1&addressdetails=1`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            profileAddressSuggestions = data || [];
+            renderProfileAddressSuggestions();
+        })
+        .catch(err => {
+            console.warn('Address search failed:', err);
+            dropdown.classList.add('hidden');
+        });
+}
+
+function renderProfileAddressSuggestions() {
+    const dropdown = document.getElementById('addressSuggestions');
+    if (!dropdown) return;
+
+    profileActiveSuggestionIndex = -1;
+
+    if (profileAddressSuggestions.length === 0) {
+        dropdown.innerHTML = `<div class="px-4 py-2.5 text-sm text-gray-400">No matches in Cavite — try a broader search, or pin it on the map below.</div>`;
+        dropdown.classList.remove('hidden');
+        return;
+    }
+
+    dropdown.innerHTML = profileAddressSuggestions.map((item, index) => `
+        <button type="button"
+                data-index="${index}"
+                class="profile-address-suggestion-item flex items-start w-full gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-0">
+            <i class="fa-solid fa-location-dot text-[#8B7355] text-xs mt-1 flex-shrink-0"></i>
+            <span class="text-gray-700 dark:text-gray-200">${escapeHtml(item.display_name)}</span>
+        </button>
+    `).join('');
+
+    dropdown.classList.remove('hidden');
+
+    dropdown.querySelectorAll('.profile-address-suggestion-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectProfileAddressSuggestion(parseInt(btn.dataset.index, 10));
+        });
+    });
+}
+
+function selectProfileAddressSuggestion(index) {
+    const item = profileAddressSuggestions[index];
+    if (!item) return;
+
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
+
+    const addressField = document.getElementById('address');
+    if (addressField) addressField.value = item.display_name;
+
+    const placed = placeProfilePin(lat, lng);
+    if (placed && window.profileMap) {
+        window.profileMap.setView([lat, lng], 16);
+    } else {
+        showSpaToast('That result is outside Cavite — try a more specific search or pin it manually.', 'error');
+    }
+
+    const dropdown = document.getElementById('addressSuggestions');
+    if (dropdown) dropdown.classList.add('hidden');
+    profileAddressSuggestions = [];
+}
+
+function highlightProfileSuggestion(items) {
+    items.forEach((item, i) => {
+        item.classList.toggle('bg-gray-100', i === profileActiveSuggestionIndex);
+        item.classList.toggle('dark:bg-gray-600', i === profileActiveSuggestionIndex);
+    });
+    items[profileActiveSuggestionIndex]?.scrollIntoView({ block: 'nearest' });
+}
+
+function setupProfileAddressAutocomplete() {
+    const addressInput = document.getElementById('address');
+    const dropdown      = document.getElementById('addressSuggestions');
+    if (!addressInput || !dropdown) return;
+
+    addressInput.addEventListener('input', function () {
+        clearTimeout(profileAddressGeocodeTimeout);
+        const query = this.value.trim();
+        profileAddressGeocodeTimeout = setTimeout(() => fetchProfileAddressSuggestions(query), 500);
+    });
+
+    addressInput.addEventListener('keydown', function (e) {
+        const items = dropdown.querySelectorAll('.profile-address-suggestion-item');
+        if (items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            profileActiveSuggestionIndex = Math.min(profileActiveSuggestionIndex + 1, items.length - 1);
+            highlightProfileSuggestion(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            profileActiveSuggestionIndex = Math.max(profileActiveSuggestionIndex - 1, 0);
+            highlightProfileSuggestion(items);
+        } else if (e.key === 'Enter') {
+            if (profileActiveSuggestionIndex >= 0) {
+                e.preventDefault();
+                selectProfileAddressSuggestion(profileActiveSuggestionIndex);
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!addressInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+}
 
 // =====================================================
 // KEYBOARD: Escape closes all modals

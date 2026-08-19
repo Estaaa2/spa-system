@@ -33,9 +33,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'is_owner',
         'temp_password',
         'password_reset_required',
-        'address',
-        'latitude',
-        'longitude',
+        'address',   // For customers lang.
+        'latitude',  // For customers lang.
+        'longitude', // For customers lang.
+        'phone',     // For customers lang.
     ];
 
     /**

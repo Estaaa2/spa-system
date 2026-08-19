@@ -120,8 +120,9 @@
 
     <!-- Logout Confirmation Modal -->
     <div x-show="showLogoutModal" x-cloak
+        @keydown.escape.window="showLogoutModal = false"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 dark:bg-opacity-70">
-        <div class="w-full max-w-md overflow-hidden bg-white rounded-lg shadow-xl dark:bg-gray-800"
+        <div class="w-[80%] max-w-sm overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 transform scale-95"
             x-transition:enter-end="opacity-100 transform scale-100"
@@ -129,43 +130,42 @@
             x-transition:leave-start="opacity-100 transform scale-100"
             x-transition:leave-end="opacity-0 transform scale-95">
 
-            <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                     Confirm Logout
                 </h3>
-                <button @click="showLogoutModal = false" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
-                    <i class="text-xl fa-solid fa-times"></i>
+                <button @click="showLogoutModal = false"
+                    class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                    <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <div class="px-6 py-6">
-                <div class="flex items-start">
-                    <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 rounded-full dark:bg-red-900/30">
-                        <i class="text-xl text-red-600 fa-solid fa-right-from-bracket dark:text-red-400"></i>
+            <div class="p-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full">
+                        <i class="text-xl text-red-600 dark:text-red-400 fa-solid fa-right-from-bracket"></i>
                     </div>
-                    <div class="ml-4">
-                        <h4 class="text-lg font-medium text-gray-900 dark:text-white">Are you sure?</h4>
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    <div>
+                        <h4 class="font-semibold text-gray-900 dark:text-white">Are you sure?</h4>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             You will be logged out of your account and redirected to the home page.
                         </p>
                     </div>
                 </div>
             </div>
 
-            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50">
-                <div class="flex justify-end space-x-3">
-                    <button @click="showLogoutModal = false"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 transition-colors bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white dark:hover:bg-gray-500">
-                        Cancel
+            <div class="flex gap-2 px-6 pb-6">
+                <button @click="showLogoutModal = false"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                    Cancel
+                </button>
+                <form method="POST" action="{{ route('logout') }}" id="logoutForm" class="flex-1">
+                    @csrf
+                    <button type="submit"
+                        class="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:ring-red-300 dark:focus:ring-red-900 transition">
+                        Yes, Logout
                     </button>
-                    <form method="POST" action="{{ route('logout') }}" id="logoutForm">
-                        @csrf
-                        <button type="submit"
-                            class="px-4 py-2 text-sm font-medium text-white transition-colors bg-red-600 rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-300 dark:focus:ring-red-900">
-                            Yes, Logout
-                        </button>
-                    </form>
-                </div>
+                </form>
             </div>
         </div>
     </div>
