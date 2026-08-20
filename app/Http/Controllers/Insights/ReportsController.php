@@ -25,7 +25,10 @@ class ReportsController extends Controller
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->whereBetween('appointment_date', [$from, $to]);
 
-        // ── 1. Booking Status Breakdown ────────────────────────────────────
+        $revenueBase = fn() => $base()->where('status', 'completed');
+
+        // ── 1. Booking Summary ─────────────────────────────────────────────
+        // Counts, all statuses — unchanged.
         $statusCounts = $base()
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
@@ -35,10 +38,9 @@ class ReportsController extends Controller
         $statusSummary = collect($allStatuses)->mapWithKeys(fn($s) => [$s => (int) ($statusCounts[$s] ?? 0)]);
         $totalBookings = $statusSummary->sum();
 
-        // ── 2. Revenue (use actual booking.total_amount — NOT Treatment::price)
-        // total_amount = what was charged; amount_paid = what was collected
-        // This correctly reflects real transactions including any custom pricing.
-        $revenueData = $base()
+        // ── 2. Revenue ─────────────────────────────────────────────────────
+        // Sums, completed-only — changed from all-statuses to match Finance\RevenueController's revenue figures, which are explicitly ->where('status', 'completed').
+        $revenueData = $revenueBase()
             ->selectRaw('
                 SUM(total_amount) as gross,
                 SUM(amount_paid)  as collected,
@@ -50,11 +52,13 @@ class ReportsController extends Controller
         $collected      = (float) ($revenueData->collected ?? 0);
         $outstanding    = (float) ($revenueData->outstanding ?? 0);
 
-        // Revenue split by treatment vs package
         $allBookings = $base()->get(['treatment', 'total_amount']);
-        [$treatRevenue, $pkgRevenue] = $this->splitRevenue($allBookings);
 
-        // ── 3. Service Usage ───────────────────────────────────────────────
+        $revenueBookings = $revenueBase()->get(['treatment', 'total_amount']);
+        [$treatRevenue, $pkgRevenue] = $this->splitRevenue($revenueBookings);
+
+        // ── 3. Service Breakdown ─────────────────────────────────────────────
+        // Counts, all statuses — not a revenue figure, unchanged.
         [$treatmentCounts, $packageCounts] = $this->parseCounts($allBookings);
 
         $treatmentIds = array_keys($treatmentCounts);
@@ -80,17 +84,21 @@ class ReportsController extends Controller
         )->sortByDesc('count')->values();
 
         // ── 4. Booking Source Breakdown ────────────────────────────────────
+        // Counts, all statuses — not a revenue figure, unchanged.
         $sourceCounts = $base()
             ->selectRaw("COALESCE(NULLIF(booking_source,''), 'staff') as source, COUNT(*) as total")
             ->groupBy('source')
             ->pluck('total', 'source');
 
         // ── 5. Staff Assignment Stats ──────────────────────────────────────
+        // Assignment coverage — counts, all statuses, unchanged.
         $assignedCount   = $base()->whereNotNull('therapist_id')->count();
         $unassignedCount = $base()->whereNull('therapist_id')->count();
 
-        // Per-therapist stats
-        $therapistStats = $base()
+        // ── 6. Therapist Stats ─────────────────────────────────────────────
+        // Counts and revenue, completed-only — changed from all-statuses to match Finance\RevenueController's revenue figures, 
+        // which are explicitly ->where('status', 'completed').
+        $therapistStats = $revenueBase()
             ->selectRaw('therapist_id, COUNT(*) as bookings, SUM(total_amount) as revenue')
             ->whereNotNull('therapist_id')
             ->groupBy('therapist_id')
@@ -112,7 +120,8 @@ class ReportsController extends Controller
             'revenue'  => (float) $r->revenue,
         ])->sortByDesc('bookings')->values();
 
-        // ── 6. Daily Bookings Chart ────────────────────────────────────────
+        // ── 7. Charts ───────────────────────────────────────────────────────
+        // Bookings per day and revenue per day — counts and sums, completed-only for revenue, unchanged.
         $bookingsPerDay = $base()
             ->selectRaw('appointment_date as d, COUNT(*) as total')
             ->groupBy('d')
@@ -120,8 +129,8 @@ class ReportsController extends Controller
             ->get()
             ->map(fn($r) => ['label' => (string) $r->d, 'value' => (int) $r->total]);
 
-        // ── 7. Daily Revenue Chart ─────────────────────────────────────────
-        $revenuePerDay = $base()
+        // Revenue per day — counts and sums, completed-only for revenue, unchanged.
+        $revenuePerDay = $revenueBase()
             ->selectRaw('appointment_date as d, SUM(total_amount) as total')
             ->groupBy('d')
             ->orderBy('d')
