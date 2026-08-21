@@ -9,7 +9,7 @@ class Product extends Model
 {
     use SoftDeletes;
     protected $fillable = [
-        'spa_id','name','brand','stock_quantity','unit','expiration_date'
+        'spa_id','name','brand','stock_quantity','unit','unit_value','expiration_date'
     ];
 
     protected $casts = [

@@ -103,7 +103,7 @@
                             </button>
 
                             <div id="profileDropdownMenu"
-                                class="absolute right-0 z-50 hidden w-48 mt-2 overflow-hidden bg-white dark:bg-gray-800 shadow-xl rounded-2xl ring-1 ring-black/10 dark:ring-white/10">
+                                class="absolute right-0 z-50 hidden w-48 mt-2 overflow-hidden bg-white shadow-xl dark:bg-gray-800 rounded-2xl ring-1 ring-black/10 dark:ring-white/10">
                                 <div class="px-4 py-3 border-b border-black/5 dark:border-white/10 bg-[#F6EFE6]/60 dark:bg-gray-900/40">
                                     <p class="text-xs font-semibold text-[#3C2F23] dark:text-white truncate">{{ auth()->user()?->name ?? 'Guest' }}</p>
                                     <p class="text-[11px] text-gray-400 truncate">{{ auth()->user()?->email ?? '' }}</p>
@@ -130,7 +130,7 @@
 
             <div class="md:hidden">
                 <button type="button" id="mobile-menu-button"
-                        class="relative p-2 text-gray-700 dark:text-gray-300 transition-colors duration-200 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10">
+                        class="relative p-2 text-gray-700 transition-colors duration-200 dark:text-gray-300 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10">
                     <i class="text-xl fas fa-bars"></i>
                 </button>
             </div>
@@ -186,19 +186,19 @@
                             </h4>
                             <div class="grid grid-cols-3 gap-3">
                                 <div class="space-y-1">
-                                    <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">First</label>
+                                    <label class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">First</label>
                                     <input type="text" name="first_name"
                                         value="{{ old('first_name', auth()->user()->first_name) }}"
                                         class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
                                 </div>
                                 <div class="space-y-1">
-                                    <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Middle</label>
+                                    <label class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Middle</label>
                                     <input type="text" name="middle_name"
                                         value="{{ old('middle_name', auth()->user()->middle_name) }}"
                                         class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
                                 </div>
                                 <div class="space-y-1">
-                                    <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Last</label>
+                                    <label class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Last</label>
                                     <input type="text" name="last_name"
                                         value="{{ old('last_name', auth()->user()->last_name) }}"
                                         class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
@@ -217,7 +217,7 @@
                             <div class="space-y-4">
                                 {{-- Email --}}
                                 <div class="space-y-1">
-                                    <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Email Address</label>
+                                    <label class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Email Address</label>
                                     @php
                                         $email = auth()->user()?->email ?? '';
                                         $parts = explode('@', $email);
@@ -239,7 +239,7 @@
 
                                 {{-- Phone --}}
                                 <div class="space-y-1">
-                                    <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Phone Number</label>
+                                    <label class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Phone Number</label>
                                     <input type="text" name="phone" id="phone"
                                         maxlength="11" pattern="^09\d{9}$"
                                         value="{{ old('phone', auth()->user()->phone) }}"
@@ -250,7 +250,7 @@
 
                                 {{-- Address --}}
                                 <div class="space-y-1">
-                                    <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Location / Address</label>
+                                    <label class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Location / Address</label>
                                     <div class="relative">
                                         <input type="text" name="address" id="address" autocomplete="off"
                                             value="{{ old('address', auth()->user()->address) }}"
@@ -268,7 +268,7 @@
                                          modal. pointer-events-none keeps the map fully clickable. --}}
                                     <div class="relative">
                                         <div id="map" class="w-full h-52 rounded-xl border border-[#E8DDD0] dark:border-gray-600 overflow-hidden"></div>
-                                        <div class="absolute inset-0 hidden dark:block rounded-xl pointer-events-none bg-gray-900/30 mix-blend-multiply"></div>
+                                        <div class="absolute inset-0 hidden pointer-events-none dark:block rounded-xl bg-gray-900/30 mix-blend-multiply"></div>
                                     </div>
                                     <div class="flex justify-end">
                                         <button type="button" id="profileLocationReset"
@@ -297,7 +297,7 @@
                     </div>{{-- end scrollable body --}}
 
                     {{-- FOOTER: always visible --}}
-                    <div class="flex flex-shrink-0 gap-2 px-5 py-4 bg-white dark:bg-gray-800 border-t border-black/5 dark:border-white/10">
+                    <div class="flex flex-shrink-0 gap-2 px-5 py-4 bg-white border-t dark:bg-gray-800 border-black/5 dark:border-white/10">
                         <button type="submit"
                             class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
                             Save Changes
@@ -368,12 +368,12 @@
             </div>
 
             <form action="{{ url('/') }}" method="GET" id="spaSearchForm"
-                  class="flex items-stretch max-w-2xl gap-1 p-2 mx-auto mt-10 bg-white dark:bg-gray-800 shadow-2xl rounded-full ring-1 ring-black/5 dark:ring-white/10">
+                  class="flex items-stretch max-w-2xl gap-1 p-2 mx-auto mt-10 bg-white rounded-full shadow-2xl dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
                 <div class="relative flex-1 px-5 py-2 text-left search-segment" id="placeSegment">
                     <label class="block text-[10px] font-bold uppercase tracking-wide text-[#8B7355] dark:text-[#C4A97D]">Place</label>
                     <input type="text" id="placeInput" name="place" value="{{ $place ?? '' }}"
                            placeholder="Anywhere in Cavite" autocomplete="off"
-                           class="w-full text-sm bg-transparent border-0 focus:ring-0 text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500">
+                           class="w-full text-sm text-gray-800 bg-transparent border-0 focus:ring-0 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500">
                     <div id="placeDropdown" class="search-dropdown">
                         <p class="search-dropdown-label">Cities &amp; municipalities</p>
                         <div id="placeChips" class="flex flex-wrap gap-2"></div>
@@ -386,7 +386,7 @@
                     <label class="block text-[10px] font-bold uppercase tracking-wide text-[#8B7355] dark:text-[#C4A97D]">Treatment</label>
                     <input type="text" id="treatmentInput" name="treatment" value="{{ $treatment ?? '' }}"
                            placeholder="Any treatment" autocomplete="off"
-                           class="w-full text-sm bg-transparent border-0 focus:ring-0 text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500">
+                           class="w-full text-sm text-gray-800 bg-transparent border-0 focus:ring-0 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500">
                     <div id="treatmentDropdown" class="search-dropdown">
                         <p class="search-dropdown-label">Suggested treatments</p>
                         <div id="treatmentSuggestionList"></div>
@@ -394,7 +394,7 @@
                 </div>
 
                 <button type="submit" title="Search"
-                        class="booking-btn flex-shrink-0 flex items-center justify-center w-11 h-11 my-1 text-white rounded-full shadow-lg hover:opacity-95 transition active:translate-y-0.5">
+                        class="booking-btn flex-shrink-0 flex items-center justify-center w-11 h-11 self-center text-white rounded-full shadow-lg hover:opacity-95 transition active:translate-y-0.5">
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
             </form>
@@ -411,7 +411,7 @@
     <div id="appointmentsModal" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeAppointmentsModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">My Appointments</h3>
                     <button onclick="closeAppointmentsModal()"
@@ -445,16 +445,16 @@
     <div id="scheduleModal" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeScheduleModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div class="flex items-center gap-3">
                         <button onclick="changeMonth(-1)"
-                            class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300">
+                            class="flex items-center justify-center w-8 h-8 text-gray-700 transition rounded-lg hover:bg-black/5 dark:hover:bg-white/10 dark:text-gray-300">
                             <i class="text-sm fa-solid fa-chevron-left"></i>
                         </button>
                         <h3 id="calendarTitle" class="text-lg font-semibold text-[#3C2F23] dark:text-white">March 2026</h3>
                         <button onclick="changeMonth(1)"
-                            class="flex items-center justify-center w-8 h-8 transition rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300">
+                            class="flex items-center justify-center w-8 h-8 text-gray-700 transition rounded-lg hover:bg-black/5 dark:hover:bg-white/10 dark:text-gray-300">
                             <i class="text-sm fa-solid fa-chevron-right"></i>
                         </button>
                         <button type="button" onclick="toggleScheduleView()" id="scheduleViewToggleBtn"
@@ -497,7 +497,7 @@
     <div id="logoutModal" class="fixed inset-0 z-[145] hidden flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeLogoutModal()"></div>
         <div class="relative w-[80%] max-w-sm">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Confirm Logout</h3>
                     <button type="button" onclick="closeLogoutModal()"
@@ -508,7 +508,7 @@
 
                 <div class="p-6">
                     <div class="flex items-start gap-4">
-                        <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full">
+                        <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 rounded-full dark:bg-red-900/30">
                             <i class="text-xl text-red-600 dark:text-red-400 fa-solid fa-right-from-bracket"></i>
                         </div>
                         <div>
@@ -541,7 +541,7 @@
     <div id="bookingDetailsModal" class="fixed inset-0 z-[125] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeBookingDetailsModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Booking Details</h3>
                     <button type="button" onclick="closeBookingDetailsModal()"
@@ -552,7 +552,7 @@
                 <div class="p-6 space-y-4">
                     <!-- Spa Info -->
                     <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
                             <i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <div>
@@ -562,7 +562,7 @@
                     </div>
                     <!-- Treatment -->
                     <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
                             <i class="fa-solid fa-list-check text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <div>
@@ -573,7 +573,7 @@
                     <!-- Date & Time -->
                     <div class="grid grid-cols-2 gap-3">
                         <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
                                 <i class="fa-solid fa-calendar text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                             </div>
                             <div>
@@ -582,7 +582,7 @@
                             </div>
                         </div>
                         <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
                                 <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                             </div>
                             <div>
@@ -593,7 +593,7 @@
                     </div>
                     <!-- Therapist -->
                     <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
                             <i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <div>
@@ -603,7 +603,7 @@
                     </div>
                     <!-- Status -->
                     <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white dark:bg-gray-800 rounded-lg ring-1 ring-black/5 dark:ring-white/10">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
                             <i class="fa-solid fa-circle-info text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <div>
@@ -638,7 +638,7 @@
     <div id="rescheduleModal" class="fixed inset-0 z-[130] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeRescheduleModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div>
                         <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Request Reschedule</h3>
@@ -785,14 +785,22 @@
 
                                 $thumb = $coverPhoto;
 
+                                $activePromo = \App\Models\Promo::withoutGlobalScopes()
+                                    ->where('spa_id', $spa->id)
+                                    ->where('branch_id', $branch->id)
+                                    ->activeToday()
+                                    ->first();
+
                                 $branchTreatments = \App\Models\Treatment::withoutGlobalScope('spa_branch')
                                     ->where('branch_id', $branch->id)
                                     ->where('spa_id', $spa->id)
+                                    ->with(['promos' => fn($q) => $q->withoutGlobalScope('spa_branch')->activeToday()])
                                     ->get();
 
                                 $branchPackages = \App\Models\Package::withoutGlobalScope('spa_branch')
                                     ->where('branch_id', $branch->id)
                                     ->where('spa_id', $spa->id)
+                                    ->with(['promos' => fn($q) => $q->withoutGlobalScope('spa_branch')->activeToday()])
                                     ->get();
 
                                 $spaPayload = [
@@ -811,6 +819,8 @@
                                     'lng'             => $profile->longitude,
                                     'treatments'      => $branchTreatments,
                                     'packages'        => $branchPackages,
+                                    'has_promo'    => (bool) $activePromo,
+                                    'promo_label'  => $activePromo?->name,
                                     'amenities'       => $profile->amenities ?? [],
                                     'is_hiring'   => $profile->is_hiring ?? false,
                                     'hiring_note' => $profile->hiring_note ?? null,
@@ -818,7 +828,7 @@
                             @endphp
 
                             <button type="button"
-                                class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
+                                class="w-full overflow-hidden text-left transition bg-white shadow-sm dark:bg-gray-800 group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
                                 data-open-spa-modal
                                 data-spa='@json($spaPayload)'>
                                 <div class="relative overflow-hidden">
@@ -834,6 +844,12 @@
                                             <i class="fa-solid fa-briefcase text-[10px]"></i>
                                             We're Hiring · <span class="underline underline-offset-2">Apply Now</span>
                                         </span>
+                                    @endif
+                                    @if($activePromo)
+                                        <div class="absolute {{ ($profile->is_hiring ?? false) ? 'top-12' : 'top-3' }} right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-semibold backdrop-blur-sm">
+                                            <i class="fa-solid fa-tag text-[10px]"></i>
+                                            {{ $activePromo->name }}
+                                        </div>
                                     @endif
                                 </div>
                                 <div class="p-5">
@@ -934,12 +950,20 @@
                                         $branchTreatments = \App\Models\Treatment::withoutGlobalScope('spa_branch')
                                             ->where('branch_id', $branch->id)
                                             ->where('spa_id', $spa->id)
+                                            ->with(['promos' => fn($q) => $q->withoutGlobalScope('spa_branch')->activeToday()])
                                             ->get();
 
                                         $branchPackages = \App\Models\Package::withoutGlobalScope('spa_branch')
                                             ->where('branch_id', $branch->id)
                                             ->where('spa_id', $spa->id)
+                                            ->with(['promos' => fn($q) => $q->withoutGlobalScope('spa_branch')->activeToday()])
                                             ->get();
+
+                                        $activePromo = \App\Models\Promo::withoutGlobalScopes()
+                                            ->where('spa_id', $spa->id)
+                                            ->where('branch_id', $branch->id)
+                                            ->activeToday()
+                                            ->first();
 
                                         $spaPayload = [
                                             'id'              => $spa->id,
@@ -957,6 +981,8 @@
                                             'lng'             => $profile->longitude,
                                             'treatments'      => $branchTreatments,
                                             'packages'        => $branchPackages,
+                                            'has_promo'    => (bool) $activePromo,
+                                            'promo_label'  => $activePromo?->name,
                                             'amenities'       => $profile->amenities ?? [],
                                             'is_hiring'   => $profile->is_hiring ?? false,
                                             'hiring_note' => $profile->hiring_note ?? null,
@@ -964,7 +990,7 @@
                                     @endphp
 
                                     <button type="button"
-                                        class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl"
+                                        class="w-full overflow-hidden text-left transition bg-white shadow-sm dark:bg-gray-800 group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl"
                                         data-open-spa-modal
                                         data-spa='@json($spaPayload)'>
                                         <div class="relative overflow-hidden">
@@ -980,6 +1006,12 @@
                                                     <i class="fa-solid fa-briefcase text-[10px]"></i>
                                                     We're Hiring · <span class="underline underline-offset-2">Apply Now</span>
                                                 </span>
+                                            @endif
+                                            @if($activePromo)
+                                                <div class="absolute {{ ($profile->is_hiring ?? false) ? 'top-12' : 'top-3' }} right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-semibold backdrop-blur-sm">
+                                                    <i class="fa-solid fa-tag text-[10px]"></i>
+                                                    {{ $activePromo->name }}
+                                                </div>
                                             @endif
                                         </div>
                                         <div class="p-4">
@@ -1089,7 +1121,7 @@
                             : (implode(', ', $parts) ?: 'Location unavailable');
                     @endphp
                     <button type="button"
-                        class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
+                        class="w-full overflow-hidden text-left transition bg-white shadow-sm dark:bg-gray-800 group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
                         data-open-spa-modal
                         data-spa='@json($item)'>
                         <div class="relative overflow-hidden">
@@ -1158,7 +1190,7 @@
                 <div class="overflow-y-auto">
                     <div class="p-6">
                         <div class="grid grid-cols-4 grid-rows-2 gap-2 h-[380px] rounded-2xl overflow-hidden">
-                            <div class="relative col-span-2 row-span-2 bg-gray-100 dark:bg-gray-700 cursor-pointer group">
+                            <div class="relative col-span-2 row-span-2 bg-gray-100 cursor-pointer dark:bg-gray-700 group">
                                 <img id="spaModalMainPhoto" src="" class="object-cover w-full h-full transition duration-500 group-hover:scale-[1.02]">
                                 <div class="absolute inset-0 transition opacity-0 bg-gradient-to-t from-black/20 to-transparent group-hover:opacity-100"></div>
                             </div>
@@ -1171,7 +1203,7 @@
                             <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700">
                                 <img id="gallery_3" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
                             </div>
-                            <div class="relative col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700 cursor-pointer group">
+                            <div class="relative col-span-1 row-span-1 overflow-hidden bg-gray-100 cursor-pointer dark:bg-gray-700 group">
                                 <img id="gallery_4" class="object-cover w-full h-full transition duration-300 group-hover:scale-105">
                                 <div id="spaModalGalleryCount"
                                     class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white bg-black/40 backdrop-blur-[1px] transition group-hover:bg-black/50">
@@ -1238,7 +1270,7 @@
                                      blocking interaction (pointer-events-none). --}}
                                 <div class="relative">
                                     <div id="spaModalMap" class="w-full h-[170px] rounded-xl border border-[#E8DDD0] dark:border-gray-700 bg-[#F6EFE6] dark:bg-gray-700 overflow-hidden shadow-inner"></div>
-                                    <div class="absolute inset-0 hidden dark:block rounded-xl pointer-events-none bg-gray-900/30 mix-blend-multiply"></div>
+                                    <div class="absolute inset-0 hidden pointer-events-none dark:block rounded-xl bg-gray-900/30 mix-blend-multiply"></div>
                                 </div>
                                 <button type="button" id="openBookingModalBtn"
                                     class="flex items-center justify-center w-full gap-2 py-3 mt-1 text-sm font-semibold text-white transition rounded-xl booking-btn shadow-md hover:shadow-lg active:translate-y-0.5">
@@ -1371,7 +1403,7 @@
     <div id="bookingModal" class="fixed inset-0 z-[110] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-booking-modal></div>
         <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div>
                         <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Make a Reservation</h3>
@@ -1421,19 +1453,19 @@
                                 <div>
                                     <div class="flex items-center justify-between gap-2">
                                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Treatment / Package</label>
-                                        <div class="inline-flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg" id="bookingServiceFilterTabs">
+                                        <div class="inline-flex gap-1 p-1 bg-gray-100 rounded-lg dark:bg-gray-700" id="bookingServiceFilterTabs">
                                             <button type="button" class="svc-filter-tab is-active" data-service-filter="all">All</button>
                                             <button type="button" class="svc-filter-tab" data-service-filter="treatment">Treatments</button>
                                             <button type="button" class="svc-filter-tab" data-service-filter="package">Packages</button>
                                         </div>
                                     </div>
                                     <div class="relative mt-2">
-                                        <i class="absolute text-xs text-gray-300 dark:text-gray-500 -translate-y-1/2 pointer-events-none fa-solid fa-magnifying-glass left-3 top-1/2"></i>
+                                        <i class="absolute text-xs text-gray-300 -translate-y-1/2 pointer-events-none dark:text-gray-500 fa-solid fa-magnifying-glass left-3 top-1/2"></i>
                                         <input type="text" id="bookingServiceSearch" placeholder="Search services…" autocomplete="off"
                                             class="w-full py-2 pl-9 pr-3 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-400 ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                     </div>
                                     <div id="bookingServiceList"
-                                         class="mt-2 overflow-y-auto bg-white dark:bg-gray-800 border divide-y max-h-60 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10 divide-black/5 dark:divide-white/10">
+                                         class="mt-2 overflow-y-auto bg-white border divide-y dark:bg-gray-800 max-h-60 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10 divide-black/5 dark:divide-white/10">
                                         <p class="px-4 py-6 text-sm text-center text-gray-400 dark:text-gray-500">Select a spa to see its services.</p>
                                     </div>
                                     <p id="bookingTreatmentError" class="hidden mt-1 text-[11px] text-red-500 dark:text-red-400">
@@ -1500,13 +1532,13 @@
                                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Full Name</label>
                                         <input type="text" name="customer_name" id="bookingCustomerName"
                                             value="{{ auth()->user()->name }}" readonly
-                                            class="w-full mt-1 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10">
+                                            class="w-full mt-1 text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-700 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Email</label>
                                         <input type="email" name="customer_email" id="bookingCustomerEmail"
                                             value="{{ auth()->user()->email }}" readonly
-                                            class="w-full mt-1 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10">
+                                            class="w-full mt-1 text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-700 rounded-xl border-black/10 dark:border-white/10 ring-1 ring-black/5 dark:ring-white/10">
                                     </div>
                                 </div>
 
@@ -1779,7 +1811,7 @@
     <div id="businessInfoModal" class="fixed inset-0 z-[150] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeBusinessInfo()"></div>
         <div class="relative mx-auto w-[92%] max-w-md mt-24 sm:mt-32">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="p-6 text-center">
                     <div class="flex items-center justify-center w-14 h-14 mx-auto rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
                         <i class="fa-solid fa-store text-2xl text-[#8B7355] dark:text-[#C4A97D]"></i>
@@ -1813,7 +1845,7 @@
     <div id="termsModal" class="fixed inset-0 z-[120] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeTermsModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Terms & Conditions</h3>
                     <button type="button" onclick="closeTermsModal()"
@@ -1860,7 +1892,7 @@
     <div id="ratingModal" class="fixed inset-0 z-[140] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeRatingModal()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div>
                         <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Rate Your Experience</h3>
@@ -1941,7 +1973,7 @@
     <div id="rateReminderModal" class="fixed inset-0 z-[135] hidden">
         <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="dismissRateReminder()"></div>
         <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-            <div class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
                     <div class="flex items-center gap-3">
                         <div class="flex items-center justify-center w-10 h-10 bg-[#F6EFE6] dark:bg-gray-700 rounded-2xl ring-1 ring-black/5 dark:ring-white/10">
@@ -2023,28 +2055,28 @@
                 <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">Built for convenience and trust.</p>
             </div>
             <div class="grid gap-6 mt-12 md:grid-cols-4">
-                <div class="transition bg-white dark:bg-gray-800 shadow-sm p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
+                <div class="transition bg-white shadow-sm dark:bg-gray-800 p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
                     <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
                         <i class="fa-solid fa-check text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
                     <h4 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Verified Spas</h4>
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Only trusted listings appear on the platform.</p>
                 </div>
-                <div class="transition bg-white dark:bg-gray-800 shadow-sm p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
+                <div class="transition bg-white shadow-sm dark:bg-gray-800 p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
                     <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
                         <i class="fa-solid fa-calendar-check text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
                     <h4 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Easy Booking</h4>
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Reserve quickly with clear scheduling.</p>
                 </div>
-                <div class="transition bg-white dark:bg-gray-800 shadow-sm p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
+                <div class="transition bg-white shadow-sm dark:bg-gray-800 p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
                     <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
                         <i class="fa-solid fa-user-nurse text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>
                     <h4 class="mt-5 font-semibold text-[#3C2F23] dark:text-white">Expert Therapists</h4>
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Quality care from professional practitioners.</p>
                 </div>
-                <div class="transition bg-white dark:bg-gray-800 shadow-sm p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
+                <div class="transition bg-white shadow-sm dark:bg-gray-800 p-7 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-xl">
                     <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-[#F6EFE6] dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
                         <i class="fa-solid fa-lock text-xl text-[#8B7355] dark:text-[#C4A97D]"></i>
                     </div>

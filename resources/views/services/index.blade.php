@@ -7,6 +7,7 @@
     $user = auth()->user();
 
     $canViewServices      = $user?->hasBranchPermission('view services') ?? false;
+    $canViewPromos        = $user?->hasBranchPermission('view promos') ?? false;
 
     $canCreateTreatments  = $user?->hasBranchPermission('create treatments') ?? false;
     $canEditTreatments    = $user?->hasBranchPermission('edit treatments') ?? false;
@@ -85,6 +86,13 @@
                                 <span>Import CSV</span>
                             </button>
                         </form>
+                        @if($canViewPromos)
+                            <a href="{{ route('promos.index') }}"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                                <i class="text-xs fa-solid fa-tag"></i>
+                                <span>Manage Promos</span>
+                            </a>
+                        @endif
                     @endif
                 </div>
             </div>
@@ -240,6 +248,13 @@
                                 <span>Import CSV</span>
                             </button>
                         </form>
+                        @if($canViewPromos)
+                            <a href="{{ route('promos.index') }}"
+                                class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                                <i class="text-xs fa-solid fa-tag"></i>
+                                <span>Manage Promos</span>
+                            </a>
+                        @endif
                     @endif
                 </div>
             </div>

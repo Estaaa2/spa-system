@@ -172,8 +172,8 @@ function openSpaModal(spaData) {
     document.getElementById('spaModalPhone').textContent   = spaData.phone   ?? 'No contact info';
     document.getElementById('spaModalAddress').textContent = spaData.address ?? 'Address unavailable';
     document.getElementById('spaModalPrice').textContent   = spaData.price_note
-        ? `Starts at ₱${spaData.price_note}`
-        : 'Prices vary per treatment';
+    ? (spaData.has_promo ? `Starts at ₱${spaData.price_note} — ${spaData.promo_label} running` : `Starts at ₱${spaData.price_note}`)
+    : 'Prices vary per treatment';
     const hiringBlock = document.getElementById('spaModalHiring');
     const hiringNote   = document.getElementById('spaModalHiringNote');
     if (hiringBlock) {
@@ -677,6 +677,23 @@ function buildServiceCard(item, kind) {
     label.dataset.kind = kind;
     label.dataset.searchText = (item.name ?? '').toString().toLowerCase();
 
+    // ── Resolve active promo (if any) and compute the discounted price ──
+    const activePromo = Array.isArray(item.promos) && item.promos.length ? item.promos[0] : null;
+    const basePrice = (item.price !== null && item.price !== undefined) ? parseFloat(item.price) : null;
+    let finalPrice = basePrice;
+    let discountPct = null;
+
+    if (activePromo && basePrice !== null) {
+        if (activePromo.discount_type === 'percent') {
+            discountPct = parseFloat(activePromo.discount_value);
+            finalPrice = basePrice * (1 - discountPct / 100);
+        } else {
+            finalPrice = basePrice - parseFloat(activePromo.discount_value);
+            discountPct = basePrice > 0 ? Math.round((1 - finalPrice / basePrice) * 100) : 0;
+        }
+        finalPrice = Math.max(0, Math.round(finalPrice * 100) / 100);
+    }
+
     const input = document.createElement('input');
     input.type = 'radio';
     input.name = 'treatment';
@@ -684,7 +701,10 @@ function buildServiceCard(item, kind) {
     input.className = 'sr-only';
     input.dataset.serviceType = item.service_type ?? 'in_branch_only';
     input.dataset.itemType    = kind;
-    input.dataset.price       = item.price ?? '';
+    input.dataset.price       = finalPrice !== null ? finalPrice : '';       // discounted price drives recap + downpayment
+    input.dataset.basePrice   = basePrice !== null ? basePrice : '';         // original price, for the recap breakdown
+    input.dataset.promoName  = activePromo ? activePromo.name : '';
+    input.dataset.promoPct   = discountPct !== null ? discountPct : '';
     input.dataset.name        = item.name ?? '';
 
     // Thumbnail
@@ -716,9 +736,30 @@ function buildServiceCard(item, kind) {
         nameEl.appendChild(badge);
     }
 
+    if (activePromo) {
+        const promoBadge = document.createElement('span');
+        promoBadge.className = 'svc-card-badge';
+        promoBadge.style.color = '#dc2626';
+        promoBadge.style.background = '#fef2f2';
+        promoBadge.style.borderColor = 'rgba(220,38,38,0.15)';
+        promoBadge.textContent = discountPct !== null ? `${discountPct}% OFF` : activePromo.name;
+        promoBadge.title = activePromo.name;
+        nameEl.appendChild(promoBadge);
+    }
+
     const priceEl = document.createElement('span');
     priceEl.className = 'svc-card-price';
-    priceEl.textContent = (item.price !== null && item.price !== undefined) ? formatPeso(item.price) : 'Price varies';
+    if (basePrice === null) {
+        priceEl.textContent = 'Price varies';
+    } else if (activePromo) {
+        priceEl.innerHTML = `
+            <span style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.2;">
+                <span style="text-decoration:line-through;color:#9ca3af;font-weight:400;font-size:11px;">${formatPeso(basePrice)}</span>
+                <span style="color:#dc2626;">${formatPeso(finalPrice)}</span>
+            </span>`;
+    } else {
+        priceEl.textContent = formatPeso(basePrice);
+    }
 
     topRow.appendChild(nameEl);
     topRow.appendChild(priceEl);
@@ -730,6 +771,14 @@ function buildServiceCard(item, kind) {
 
     content.appendChild(topRow);
     content.appendChild(descEl);
+
+    if (activePromo) {
+        const promoNote = document.createElement('div');
+        promoNote.className = 'svc-card-meta';
+        promoNote.style.color = '#dc2626';
+        promoNote.innerHTML = `<i class="fa-solid fa-tag"></i> ${escapeHtml(activePromo.name)} — save ${formatPeso(basePrice - finalPrice)}`;
+        content.appendChild(promoNote);
+    }
 
     const duration = kind === 'package' ? (item.total_duration ?? item.duration) : item.duration;
     if (duration) {

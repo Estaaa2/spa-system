@@ -64,6 +64,11 @@ class OnlineBookingCheckoutController extends Controller
             return $this->fail($request, 'Selected service has an invalid price.');
         }
 
+        $promo = $item->promos()->withoutGlobalScopes()->activeToday()->first();
+        if ($promo) {
+            $fullAmount = $promo->discountedPrice($fullAmount);
+        }
+
         // =====================================================
         // OPERATING HOURS VALIDATION
         // =====================================================
