@@ -4,32 +4,33 @@
 @section('content')
 <div class="p-6"
      x-data="{
-    addOpen: false,
-    editOpen: false,
-    deleteOpen: false,
-    edit: { id: null, name: '', brand: '', stock_quantity: 0, unit: 0, expiration_date: '' },
-    deleteProduct: { id: null, name: '' },
+        addOpen: false,
+        editOpen: false,
+        deleteOpen: false,
+        edit: { id: null, name: '', brand: '', stock_quantity: 0, unit_value: 0, unit: 'ml', expiration_date: '' },
+        deleteProduct: { id: null, name: '' },
 
-    openEdit(p) {
-        this.edit = {
-            id: p.id,
-            name: p.name ?? '',
-            brand: p.brand ?? '',
-            stock_quantity: p.stock_quantity ?? 0,
-            unit: p.unit ?? 0,
-            expiration_date: p.expiration_date ?? ''
-        };
-        this.editOpen = true;
-    },
+        openEdit(p) {
+            this.edit = {
+                id: p.id,
+                name: p.name ?? '',
+                brand: p.brand ?? '',
+                stock_quantity: p.stock_quantity ?? 0,
+                unit_value: p.unit_value ?? 0,
+                unit: p.unit ?? 'ml',
+                expiration_date: p.expiration_date ?? ''
+            };
+            this.editOpen = true;
+        },
 
-    openDelete(p) {
-        this.deleteProduct = {
-            id: p.id,
-            name: p.name
-        };
-        this.deleteOpen = true;
-    }
-}">
+        openDelete(p) {
+            this.deleteProduct = {
+                id: p.id,
+                name: p.name
+            };
+            this.deleteOpen = true;
+        }
+    }">
 
     <x-page-header
         title="Inventory Products"
@@ -112,29 +113,25 @@
                                     @endif
                                 </div>
                             </td>
-                            <td class="px-6 py-3 text-gray-700 dark:text-gray-200">{{ $product->unit ?? 0}}ml</td>
+                            <td class="px-6 py-3 text-gray-700 dark:text-gray-200">{{ $product->unit_value ?? 0 }}{{ $product->unit ?? 'ml' }}</td>
                             <td class="px-6 py-3 text-gray-700 dark:text-gray-200">
                                 {{ $product->expiration_date?->format('M d, Y') ?? '—' }}
                             </td>
                             <td class="px-6 py-3">
                                 <div class="flex items-center gap-2">
-                                    <form method="POST"
-                                        action="{{ route('inventory.products.deduct', $product) }}"
-                                        class="inline-block">
-                                        @csrf
-                                        <button type="button"
-                                            @click="openEdit({
-                                                id: {{ $product->id }},
-                                                name: @js($product->name),
-                                                brand: @js($product->brand),
-                                                stock_quantity: {{ (int) $product->stock_quantity }},
-                                                unit: @js($product->unit ?? 'ml'),
-                                                expiration_date: @js(optional($product->expiration_date)->format('Y-m-d'))
-                                            })"
-                                            class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600 whitespace-nowrap">
-                                            Edit
-                                        </button>
-                                    </form>
+                                    <button type="button"
+                                        @click="openEdit({
+                                            id: {{ $product->id }},
+                                            name: @js($product->name),
+                                            brand: @js($product->brand),
+                                            stock_quantity: {{ (int) $product->stock_quantity }},
+                                            unit_value: {{ (int) ($product->unit_value ?? 0) }},
+                                            unit: @js($product->unit ?? 'ml'),
+                                            expiration_date: @js(optional($product->expiration_date)->format('Y-m-d'))
+                                        })"
+                                        class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600 whitespace-nowrap">
+                                        Edit
+                                    </button>
 
                                     <button type="button"
                                         @click="openDelete({
@@ -254,17 +251,37 @@
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit Value</label>
+                        <input type="number" name="unit_value" min="0" value="{{ old('unit_value', 0) }}"
+                            class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                        @error('unit_value') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit</label>
+                        <select name="unit"
+                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                            @foreach(['ml','L','g','kg','pcs'] as $unitOption)
+                                <option value="{{ $unitOption }}" @selected(old('unit', 'ml') === $unitOption)>{{ $unitOption }}</option>
+                            @endforeach
+                        </select>
+                        @error('unit') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Stock Quantity</label>
                         <input type="number" name="stock_quantity" min="0" value="{{ old('stock_quantity', 0) }}"
-                               class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                               required>
+                            class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+                            required>
                         @error('stock_quantity') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
                     </div>
 
                     <div>
                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Expiration Date</label>
                         <input type="date" name="expiration_date" value="{{ old('expiration_date') }}"
-                               class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                            class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
                         @error('expiration_date') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -332,11 +349,21 @@
                         </div>
 
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit</label>
-                            <input type="number" name="unit" min="0" x-model="edit.unit"
-                            class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                            placeholder="30">
+                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit Value</label>
+                            <input type="number" name="unit_value" min="0" x-model="edit.unit_value"
+                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+                                placeholder="30">
                         </div>
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit</label>
+                        <select name="unit" x-model="edit.unit"
+                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                            @foreach(['ml','L','g','kg','pcs'] as $unitOption)
+                                <option value="{{ $unitOption }}">{{ $unitOption }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
                     <div>

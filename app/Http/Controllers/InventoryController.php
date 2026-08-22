@@ -39,7 +39,9 @@ class InventoryController extends Controller
             $p = Product::whereKey($product->id)->lockForUpdate()->first();
 
             if ($p->stock_quantity < $amount) {
-                abort(422, 'Not enough stock to deduct.');
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'amount' => 'Not enough stock to deduct.',
+                ]);
             }
 
             $p->decrement('stock_quantity', $amount);
@@ -48,7 +50,7 @@ class InventoryController extends Controller
                 'spa_id'     => $spaId,
                 'product_id' => $p->id,
                 'user_id'    => $user->id,
-                'description'=> "{$p->name} has been deduc ({$amount} stock)",
+                'description'=> "{$p->name} has been deducted ({$amount} stock)",
                 'logged_at'  => now(),
             ]);
         });
@@ -59,13 +61,14 @@ class InventoryController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
-        $spaId = $user->spa_id; // adjust if you use $user->spa->id
+        $spaId = $user->spa_id;
 
         $data = $request->validate([
             'name'            => ['required','string','max:255'],
             'brand'           => ['nullable','string','max:255'],
             'stock_quantity'  => ['required','integer','min:0'],
-            'unit' => ['nullable','integer','min:0'],
+            'unit_value'      => ['nullable','integer','min:0'],
+            'unit'            => ['nullable','string','max:20'],
             'expiration_date' => ['nullable','date'],
         ]);
 
@@ -74,6 +77,8 @@ class InventoryController extends Controller
             'name'             => $data['name'],
             'brand'            => $data['brand'] ?? null,
             'stock_quantity'   => $data['stock_quantity'],
+            'unit_value'       => $data['unit_value'] ?? 0,
+            'unit'             => $data['unit'] ?? 'ml',
             'expiration_date'  => $data['expiration_date'] ?? null,
         ]);
 
@@ -91,7 +96,8 @@ class InventoryController extends Controller
             'name'            => ['required','string','max:255'],
             'brand'           => ['nullable','string','max:255'],
             'stock_quantity'  => ['required','integer','min:0'],
-            'unit'            => ['nullable','integer','min:0'],
+            'unit_value'      => ['nullable','integer','min:0'],
+            'unit'            => ['nullable','string','max:20'],
             'expiration_date' => ['nullable','date'],
         ]);
 
@@ -99,7 +105,8 @@ class InventoryController extends Controller
             'name'            => $data['name'],
             'brand'           => $data['brand'] ?? null,
             'stock_quantity'  => $data['stock_quantity'],
-            'unit'            => $data['unit'] ?? 0,
+            'unit_value'      => $data['unit_value'] ?? 0,
+            'unit'            => $data['unit'] ?? 'ml',
             'expiration_date' => $data['expiration_date'] ?? null,
         ]);
 

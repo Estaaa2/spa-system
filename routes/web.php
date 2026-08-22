@@ -36,6 +36,7 @@ use App\Http\Controllers\RescheduleRequestController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceImportExportController;
+use App\Http\Controllers\PromoController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TherapistPerformanceController;
@@ -366,6 +367,22 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
         Route::post('/services/packages/import', [ServiceImportExportController::class, 'importPackages'])
             ->name('packages.import');
+    });
+
+    Route::middleware('branch.permission:view promos')->group(function () {
+        Route::get('/services/promos', [PromoController::class, 'index'])->name('promos.index');
+    });
+
+    Route::middleware('branch.permission:create promos')->group(function () {
+        Route::post('/services/promos', [PromoController::class, 'store'])->name('promos.store');
+    });
+
+    Route::middleware('branch.permission:edit promos')->group(function () {
+        Route::put('/services/promos/{promo}', [PromoController::class, 'update'])->name('promos.update');
+    });
+
+    Route::middleware('branch.permission:delete promos')->group(function () {
+        Route::delete('/services/promos/{promo}', [PromoController::class, 'destroy'])->name('promos.destroy');
     });
 
     /*

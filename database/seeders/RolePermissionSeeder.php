@@ -69,6 +69,10 @@ class RolePermissionSeeder extends Seeder
             'create packages',
             'edit packages',
             'delete packages',
+            'view promos',
+            'create promos',
+            'edit promos',
+            'delete promos',
 
             // ── Insights & Reports ────────────────────────────────────────────
             'view reports',
@@ -211,6 +215,10 @@ class RolePermissionSeeder extends Seeder
             'create packages',
             'edit packages',
             'delete packages',
+            'view promos',
+            'create promos',
+            'edit promos',
+            'delete promos',
 
             'view reports',
             'export reports',
@@ -293,6 +301,9 @@ class RolePermissionSeeder extends Seeder
             'edit treatments',
             'create packages',
             'edit packages',
+            'view promos',
+            'create promos',
+            'edit promos',
 
             'view reports',
             'view decision support',
@@ -346,6 +357,7 @@ class RolePermissionSeeder extends Seeder
             'view branches',
             'view staff',
             'view services',
+            'view promos',
 
             'view attendance',
             'edit attendance',

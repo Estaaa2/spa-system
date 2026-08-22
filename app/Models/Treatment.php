@@ -29,6 +29,11 @@ class Treatment extends Model
         return $this->belongsTo(Spa::class);
     }
 
+    public function promos()
+    {
+        return $this->belongsToMany(Promo::class, 'promo_treatment'); // use 'promo_package' in Package.php
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class);
