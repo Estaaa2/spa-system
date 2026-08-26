@@ -15,13 +15,13 @@ class MarkPastBookingsCompleted extends Command
     {
         $now = Carbon::now();
 
-        $updated = Booking::whereIn('status', ['reserved', 'confirmed'])
+        $updated = Booking::whereIn('status', ['reserved', 'pending', 'ongoing'])
             ->where(function ($q) use ($now) {
                 $q->where('appointment_date', '<', $now->toDateString())
-                  ->orWhere(function ($q2) use ($now) {
-                      $q2->where('appointment_date', $now->toDateString())
-                         ->where('end_time', '<=', $now->toTimeString());
-                  });
+                ->orWhere(function ($q2) use ($now) {
+                    $q2->where('appointment_date', $now->toDateString())
+                        ->where('end_time', '<=', $now->toTimeString());
+                });
             })
             ->update(['status' => 'completed']);
 

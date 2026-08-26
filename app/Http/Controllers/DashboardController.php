@@ -45,6 +45,23 @@ class DashboardController extends Controller
                 ->first();
         }
 
+        // ── Self-request transfer widget data ───────────────────────────────
+        $myStaff          = $user->staff;
+        $myOpenDeployment = null;
+        $transferBranches = collect();
+
+        if ($myStaff) {
+            $myOpenDeployment = StaffBranchDeployment::with('toBranch')
+                ->where('staff_id', $myStaff->id)
+                ->whereIn('status', ['pending', 'approved', 'active'])
+                ->latest()
+                ->first();
+
+            $transferBranches = \App\Models\Branch::where('spa_id', $spaId)
+                ->where('id', '!=', $myStaff->branch_id)
+                ->get();
+        }
+
         // ── Decide which data blocks to load based on branch permissions ──
         // Uses hasBranchPermission() so branch-level overrides are respected.
         $needsKpis = $user->hasBranchPermission('view dashboard kpis')
@@ -204,7 +221,7 @@ class DashboardController extends Controller
                     ->whereDate('date', $today)
                     ->first()
                 : null;
-            
+
             $myBase = fn() => Booking::query()
                 ->where('spa_id', $spaId)
                 ->where('therapist_id', $user->id);
@@ -250,6 +267,7 @@ class DashboardController extends Controller
             'myTodayAppointments', 'myStats', 'myNextAppointment',
             'myAttendanceToday',
             'pendingDeploymentResponse',
+            'myStaff', 'myOpenDeployment', 'transferBranches',
         ));
     }
 
@@ -432,7 +450,7 @@ class DashboardController extends Controller
                     ->whereDate('date', $today)
                     ->first()
                 : null;
-            
+
             $myBase = fn() => Booking::query()
                 ->where('spa_id', $spaId)
                 ->where('therapist_id', $user->id);

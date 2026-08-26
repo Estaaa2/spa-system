@@ -147,21 +147,139 @@
             </div>
         </div>
     </div>
+@endif
+
+@if(!$pendingDeploymentResponse && $myStaff)
+    @if($myOpenDeployment)
+        {{-- They already have an open request in flight — just show status --}}
+        <div class="flex items-center gap-3 px-6 py-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10 shrink-0">
+                <i class="text-sm fa-solid fa-right-left text-[#8B7355]"></i>
+            </div>
+            <div>
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                    Transfer request {{ $myOpenDeployment->status === 'approved' ? 'approved' : 'pending' }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    To {{ $myOpenDeployment->toBranch->name ?? '—' }} · starts {{ \Carbon\Carbon::parse($myOpenDeployment->start_date)->format('M d, Y') }}
+                    @if($myOpenDeployment->status === 'pending') — awaiting HR/Owner approval @endif
+                </p>
+            </div>
+        </div>
+    @else
+        {{-- No open request — offer to file one --}}
+        <div class="flex items-center justify-between gap-4 px-6 py-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div>
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">Want to work at another branch?</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Submit a transfer request for HR/Owner to review.</p>
+            </div>
+            <button type="button" onclick="openSelfRequestModal()"
+                class="shrink-0 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348]">
+                <i class="mr-1.5 fa-solid fa-paper-plane"></i>Request Transfer
+            </button>
+        </div>
+    @endif
+@endif
+
+@if($myStaff)
+    <div id="selfRequestModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black bg-opacity-50">
+        <div class="flex items-center justify-center min-h-screen px-4 py-8">
+            <div class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+                <form action="{{ route('branch-deployments.self-request') }}" method="POST">
+                    @csrf
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Request Branch Transfer</h3>
+                            <button type="button" onclick="closeSelfRequestModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <i class="text-lg fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                Target Branch <span class="text-red-500">*</span>
+                            </label>
+                            <select name="to_branch_id" required
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <option value="">Select target branch</option>
+                                @foreach($transferBranches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }} — {{ $branch->location }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                Start Date <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" name="start_date" required min="{{ now()->toDateString() }}"
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        </div>
+
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl dark:bg-gray-700">
+                            <input type="checkbox" id="selfIsPermanent" name="is_permanent" value="1"
+                                class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355]"
+                                onchange="document.getElementById('selfEndDateWrapper').classList.toggle('hidden', this.checked)">
+                            <label for="selfIsPermanent" class="text-sm font-medium text-gray-900 cursor-pointer dark:text-white">
+                                Permanent transfer
+                            </label>
+                        </div>
+
+                        <div id="selfEndDateWrapper">
+                            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                End Date <span class="font-normal text-gray-400">(optional)</span>
+                            </label>
+                            <input type="date" name="end_date"
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        </div>
+
+                        <div>
+                            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                Reason <span class="text-red-500">*</span>
+                            </label>
+                            <textarea name="notes" rows="3" required
+                                placeholder="Why are you requesting this transfer?"
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"></textarea>
+                            <p class="mt-1 text-xs text-gray-400">Required for self-requested transfers.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl dark:bg-gray-900 dark:border-gray-700">
+                        <button type="button" onclick="closeSelfRequestModal()"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="px-5 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348]">
+                            <i class="mr-1.5 fa-solid fa-paper-plane"></i>Submit Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <script>
-        (function () {
-            const toggleBtn = document.getElementById('deployment-decline-toggle');
-            const cancelBtn = document.getElementById('deployment-decline-cancel');
-            const panel     = document.getElementById('deployment-decline-panel');
-            if (toggleBtn && panel) {
-                toggleBtn.addEventListener('click', () => panel.classList.remove('hidden'));
-            }
-            if (cancelBtn && panel) {
-                cancelBtn.addEventListener('click', () => panel.classList.add('hidden'));
-            }
-        }());
+    function openSelfRequestModal()  { document.getElementById('selfRequestModal').classList.remove('hidden'); }
+    function closeSelfRequestModal() { document.getElementById('selfRequestModal').classList.add('hidden'); }
     </script>
-    @endif
+@endif
+
+<script>
+    (function () {
+        const toggleBtn = document.getElementById('deployment-decline-toggle');
+        const cancelBtn = document.getElementById('deployment-decline-cancel');
+        const panel     = document.getElementById('deployment-decline-panel');
+        if (toggleBtn && panel) {
+            toggleBtn.addEventListener('click', () => panel.classList.remove('hidden'));
+        }
+        if (cancelBtn && panel) {
+            cancelBtn.addEventListener('click', () => panel.classList.add('hidden'));
+        }
+    }());
+</script>
 
     {{-- ════════════════════════════════════════════════════════════════════
          THERAPIST PERSONAL VIEW  (view dashboard my today)

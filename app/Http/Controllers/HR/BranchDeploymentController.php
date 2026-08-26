@@ -93,6 +93,7 @@ class BranchDeploymentController extends Controller
                     'staff_response'        => $d->staff_response,
                     'staff_responded_at_fmt' => $d->staff_responded_at?->format('M d, Y h:i A'),
                     'staff_decline_reason'  => $d->staff_decline_reason,
+                    'is_self_requested' => $d->isSelfRequested(),
                 ])->values()->toArray(),
 
                 // Convenience flags used by the JS rendering
@@ -182,6 +183,68 @@ class BranchDeploymentController extends Controller
     }
 
     /**
+ * Staff member requests their own branch transfer.
+ * Skips the separate "staff_response" consent step — submitting the
+ * request IS their consent — but still requires Owner/HR approval
+ * before it can go active, same as an HR-initiated request.
+ */
+    public function storeSelf(Request $request)
+    {
+        $validated = $request->validate([
+            'to_branch_id' => 'required|integer|exists:branches,id',
+            'start_date'   => 'required|date|after_or_equal:today',
+            'is_permanent' => 'nullable|boolean',
+            'end_date'     => 'nullable|date|after:start_date',
+            'notes'        => 'required|string|max:1000', // reason is mandatory for self-requests
+        ]);
+
+        $user  = Auth::user();
+        $staff = Staff::where('user_id', $user->id)->first();
+
+        if (!$staff) {
+            abort(403, 'No staff record found for this account.');
+        }
+
+        if ((int) $validated['to_branch_id'] === $staff->branch_id) {
+            return back()->with('error', 'You are already assigned to that branch.');
+        }
+
+        $hasBlockingRequest = StaffBranchDeployment::where('staff_id', $staff->id)
+            ->whereIn('status', ['pending', 'approved', 'active'])
+            ->exists();
+
+        if ($hasBlockingRequest) {
+            return back()->with('error', 'You already have a pending, approved, or active deployment request. Wait for it to be resolved before requesting again.');
+        }
+
+        $isPermanent = (bool) ($validated['is_permanent'] ?? false);
+
+        $deployment = StaffBranchDeployment::create([
+            'staff_id'       => $staff->id,
+            'spa_id'         => $staff->spa_id,
+            'requested_by'   => $user->id, // == staff's own user_id → self-requested
+            'from_branch_id' => $staff->branch_id,
+            'to_branch_id'   => (int) $validated['to_branch_id'],
+            'start_date'     => $validated['start_date'],
+            'end_date'       => $isPermanent ? null : ($validated['end_date'] ?? null),
+            'is_permanent'   => $isPermanent,
+            'status'         => 'pending',
+            // Staff proposed this themselves — their consent is implicit,
+            // so this track is settled immediately instead of sitting at 'pending'.
+            'staff_response'      => 'accepted',
+            'staff_responded_at'  => now(),
+            'notes'          => $validated['notes'],
+        ]);
+
+        // TODO: notify HR/Owner (whoever holds 'approve deployments') that a
+        // staff-initiated request is awaiting their review — mirrors how
+        // DeploymentAwaitingResponse notifies the staff side for HR-initiated ones.
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Your transfer request has been submitted and is awaiting approval.');
+    }
+
+    /**
      * Owner approves a pending deployment request.
      */
     public function approve(StaffBranchDeployment $deployment)
@@ -231,10 +294,16 @@ class BranchDeploymentController extends Controller
             return back()->with('error', 'This deployment request cannot be rejected in its current state.');
         }
 
-        // Guard: once staff has accepted, HR/Owner can no longer reject or
-        // revoke — the staff member has already committed to the move.
-        if ($deployment->staff_response === 'accepted') {
-            return back()->with('error', 'This deployment has already been accepted by the staff member and can no longer be rejected or revoked.');
+        // Pending requests can only be rejected once staff has accepted.
+        // Approved requests can be rejected/revoked as before.
+        if (
+            $deployment->status === 'pending' &&
+            $deployment->staff_response !== 'accepted'
+        ) {
+            return back()->with(
+                'error',
+                'This deployment cannot be rejected until the staff member accepts the request.'
+            );
         }
 
         $deployment->update([
@@ -244,8 +313,10 @@ class BranchDeploymentController extends Controller
         ]);
 
         $deployment->load(['staff.user', 'fromBranch', 'toBranch']);
+
         if ($deployment->staff?->user?->email) {
-            Mail::to($deployment->staff->user->email)->send(new DeploymentRejected($deployment));
+            Mail::to($deployment->staff->user->email)
+                ->send(new DeploymentRejected($deployment));
         }
 
         return redirect()
@@ -266,6 +337,10 @@ class BranchDeploymentController extends Controller
 
         if ($deployment->status !== 'pending') {
             return back()->with('error', 'Only pending requests can be cancelled.');
+        }
+
+        if ($deployment->staff_response === 'accepted') {
+        return back()->with('error', 'This deployment has already been accepted by the staff member and can no longer be cancelled. Please approve it instead.');
         }
 
         $deployment->update(['status' => 'cancelled']);
