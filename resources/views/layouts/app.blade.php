@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>[x-cloak] { display: none !important; }</style>
 
-    <title>@yield('title', 'Levictas') | Levictas</title>
+    <title>@hasSection('title')@yield('title') |@endif Levictas</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -33,39 +33,17 @@
 
 <body class="font-sans antialiased">
     <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
+
         @if(auth()->check() && auth()->user()->hasRole('admin'))
             @include('layouts.navigation-admin')
-        @elseif(auth()->check() && auth()->user()->hasRole('hr'))
-            @include('layouts.navigation')
-        @elseif(auth()->check() && auth()->user()->hasRole('finance'))
-            @include('layouts.navigation')
         @else
             @include('layouts.navigation')
         @endif
 
-        <!-- Page Heading -->
-        @isset($header)
-            <header class="bg-white shadow dark:bg-gray-800">
-                <div class="px-4 py-6 mx-auto max-w-7xl sm:px-6 lg:px-8">
-                    {{ $header }}
-                </div>
-            </header>
-        @endisset
-
         <x-toast />
     </div>
 
-    {{-- ================= FORCE PASSWORD CHANGE MODAL ================= --}}
-    @auth
-        @if(auth()->user()->password_reset_required)
-        <!-- Your password modal HTML here... -->
-        @endif
-    @endauth
-
-
-    {{-- Toast function (if not already defined elsewhere) --}}
     <script>
-        // Single unified toast function used everywhere
         function showSpaToast(message, type = 'success') {
             const isSuccess = type === 'success';
 
@@ -103,7 +81,7 @@
                         </div>
                     </div>
                 `,
-                duration: 2000,
+                duration: 3500,
                 gravity: "top",
                 position: "right",
                 close: false,

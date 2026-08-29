@@ -539,32 +539,38 @@ function renderDetail(data, panel) {
     let actionCard = '';
 
     if (pending) {
-        // ── PENDING: On Review → Owner can Accept or Reject, HR can Cancel ──
         let ownerBtns = '';
-        if (canApprove) {
-            const rejectBtn = pending.staff_response === 'accepted'
-                ? ''
-                : `<button onclick="openRejectModal(${pending.id})"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700">
-                        <i class="mr-1.5 fa-solid fa-ban"></i>Reject
-                   </button>`;
-            ownerBtns = `
-                <div class="flex flex-wrap gap-2 mt-4">
-                    <button onclick="doApprove(${pending.id})"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700">
-                        <i class="mr-1.5 fa-solid fa-check"></i>Approve
-                    </button>
-                    ${rejectBtn}
-                </div>`;
-        }
         let cancelBtn = '';
-        if (canDelete) {
-            cancelBtn = `
-                <button onclick="doCancel(${pending.id})"
-                    class="inline-flex items-center px-4 py-2 mt-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-                    <i class="mr-1.5 fa-solid fa-xmark"></i>Cancel Request
-                </button>`;
+
+        if (pending.staff_response === 'accepted') {
+            // Staff already committed — Owner/HR reviews and either approves
+            // or rejects (with a reason) in one step.
+            if (canApprove) {
+                ownerBtns = `
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <button onclick="doApprove(${pending.id})"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700">
+                            <i class="mr-1.5 fa-solid fa-check"></i>Approve
+                        </button>
+                        <button onclick="openRejectModal(${pending.id})"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700">
+                            <i class="mr-1.5 fa-solid fa-xmark"></i>Reject
+                        </button>
+                    </div>`;
+            }
+        } else {
+            // Still awaiting the staff's response — nothing to approve or
+            // reject yet. HR can still withdraw a mistaken request while
+            // waiting; once staff accepts, this option disappears.
+            if (canDelete) {
+                cancelBtn = `
+                    <button onclick="doCancel(${pending.id})"
+                        class="inline-flex items-center px-4 py-2 mt-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                        <i class="mr-1.5 fa-solid fa-xmark"></i>Cancel Request
+                    </button>`;
+            }
         }
+
         const notesHtml = pending.notes
             ? `<p class="mt-3 text-xs italic text-yellow-700 dark:text-yellow-400"><i class="mr-1 fa-solid fa-note-sticky"></i>${esc(pending.notes)}</p>`
             : '';
@@ -614,6 +620,10 @@ function renderDetail(data, panel) {
                 <p class="mt-3 text-xs text-blue-700 dark:text-blue-400">
                     Approved by: <strong>${esc(approved.reviewed_by || '—')}</strong>
                 </p>
+                ${approved.is_self_requested ? `
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 mt-2 text-[11px] font-semibold text-indigo-700 bg-indigo-100 rounded-full dark:bg-indigo-900/30 dark:text-indigo-300">
+                    <i class="fa-solid fa-user"></i> Requested by staff
+                </span>` : ''}
                 ${staffResponseBlock(approved)}
                 ${approved.staff_response !== 'accepted' ? `
                     <p class="mt-2 text-xs text-blue-600 dark:text-blue-400">
@@ -691,7 +701,10 @@ function renderDetail(data, panel) {
                         ${responseBadge(d.staff_response)}
                         ${declineNote}
                     </td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">${esc(d.requested_by)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                        ${esc(d.requested_by)}
+                        ${d.is_self_requested ? '<span class="block text-[10px] text-indigo-500 dark:text-indigo-400">(self-requested)</span>' : ''}
+                    </td>
                     <td class="px-4 py-3 text-sm text-gray-400 dark:text-gray-500">${esc(d.created_at_fmt)}</td>
                 </tr>`;
         }).join('');

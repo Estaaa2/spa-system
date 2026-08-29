@@ -42,6 +42,16 @@ function getTodayLocal() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+// Combines date_raw + end_time (falls back to start_time) into a real
+// Date and checks if that moment has already passed. Date-only comparisons
+// (b.date_raw >= today) can't tell 7:06 PM apart from 9:00 AM on the same day.
+function isBookingPastNow(b) {
+    if (!b.date_raw) return false;
+    const timePart = (b.end_time || b.start_time || '23:59:59').slice(0, 8);
+    const appointmentEnd = new Date(`${b.date_raw}T${timePart}`);
+    return appointmentEnd.getTime() <= Date.now();
+}
+
 // =====================================================
 // PROFILE DROPDOWN
 // =====================================================
@@ -1129,6 +1139,10 @@ function openApplicationModal(spaId, branchId, spaName) {
     const errorEl = document.getElementById('applicationError');
     if (errorEl) errorEl.classList.add('hidden');
 
+    hideResumeUploadStatus();
+    const resumeInput = form.querySelector('input[name="resume"]');
+    if (resumeInput) resumeInput.value = '';
+
     modal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
 }
@@ -1139,6 +1153,240 @@ function closeApplicationModal() {
     modal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
 }
+
+// =====================================================
+// APPLICATION FORM SUBMISSION (with resume upload)
+// =====================================================
+
+function setupApplicationForm() {
+    const form = document.getElementById('applicationForm');
+    if (!form) return;
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('applicationSubmitBtn');
+        const originalText = submitBtn.innerHTML;
+        const errorEl = document.getElementById('applicationError');
+        const errorText = document.getElementById('applicationErrorText');
+
+        // Reset error display
+        if (errorEl) errorEl.classList.add('hidden');
+
+        // Validate required fields
+        const fullName = this.querySelector('input[name="full_name"]')?.value.trim();
+        const email = this.querySelector('input[name="email"]')?.value.trim();
+        const phone = this.querySelector('input[name="phone"]')?.value.trim();
+        const address = this.querySelector('input[name="address"]')?.value.trim();
+        const position = this.querySelector('select[name="position_applied"]')?.value;
+        const resume = this.querySelector('input[name="resume"]')?.files[0];
+
+        if (!fullName || !email || !phone || !address || !position) {
+            showSpaToast('Please fill in all required fields.', 'error');
+            return;
+        }
+
+        // Validate phone format
+        if (!/^09\d{9}$/.test(phone)) {
+            showSpaToast('Please enter a valid 11-digit phone number (09xxxxxxxxx).', 'error');
+            return;
+        }
+
+        // Validate email
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showSpaToast('Please enter a valid email address.', 'error');
+            return;
+        }
+
+        // Validate resume is required
+        if (!resume) {
+            showSpaToast('Please upload your resume/CV.', 'error');
+            return;
+        }
+
+        // Validate resume file type and size
+        const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const validExtensions = ['.pdf', '.doc', '.docx'];
+        const fileName = resume.name.toLowerCase();
+        const isValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+
+        if (!validTypes.includes(resume.type) && !isValidExtension) {
+            showSpaToast('Please upload a PDF, DOC, or DOCX file.', 'error');
+            return;
+        }
+
+        if (resume.size > 5 * 1024 * 1024) {
+            showSpaToast('File size exceeds 5MB limit. Please choose a smaller file.', 'error');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const formData = new FormData(this);
+
+            const response = await fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken ?? '',
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const firstError = data.errors
+                    ? Object.values(data.errors)[0][0]
+                    : (data.message ?? 'Please check your application details.');
+                showSpaToast(firstError, 'error');
+                if (errorEl && errorText) {
+                    errorText.textContent = firstError;
+                    errorEl.classList.remove('hidden');
+                }
+                return;
+            }
+
+            // Success - close modal and show success message
+            closeApplicationModal();
+            showSpaToast(data.message || 'Application submitted successfully!', 'success');
+
+            // Reset form
+            this.reset();
+            hideResumeUploadStatus();
+
+        } catch (err) {
+            console.error('Application submission error:', err);
+            showSpaToast('Network error. Please try again.', 'error');
+            if (errorEl && errorText) {
+                errorText.textContent = 'Network error. Please try again.';
+                errorEl.classList.remove('hidden');
+            }
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    });
+}
+
+// Initialize the form handler
+document.addEventListener('DOMContentLoaded', function() {
+    setupApplicationForm();
+});
+
+// =====================================================
+// RESUME UPLOAD FUNCTIONS
+// =====================================================
+
+// Track uploaded resume file
+let uploadedResumeFile = null;
+let uploadedResumeName = '';
+
+// Show resume upload status
+function showResumeUploadStatus(name, size) {
+    const statusDiv = document.getElementById('resumeUploadStatus');
+    const fileNameEl = document.getElementById('resumeFileName');
+    const fileSizeEl = document.getElementById('resumeFileSize');
+
+    if (statusDiv && fileNameEl && fileSizeEl) {
+        fileNameEl.textContent = name;
+        fileSizeEl.textContent = formatFileSize(size);
+        statusDiv.classList.remove('hidden');
+    }
+}
+
+// Hide resume upload status
+function hideResumeUploadStatus() {
+    const statusDiv = document.getElementById('resumeUploadStatus');
+    if (statusDiv) {
+        statusDiv.classList.add('hidden');
+    }
+    uploadedResumeFile = null;
+    uploadedResumeName = '';
+}
+
+// Clear resume upload
+function clearResumeUpload() {
+    const form = document.getElementById('applicationForm');
+    if (form) {
+        const resumeInput = form.querySelector('input[name="resume"]');
+        if (resumeInput) {
+            resumeInput.value = '';
+        }
+    }
+    hideResumeUploadStatus();
+}
+
+// Format file size for display
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Handle resume file selection
+function handleResumeFileSelect(inputElement) {
+    if (!inputElement || !inputElement.files || inputElement.files.length === 0) {
+        hideResumeUploadStatus();
+        return;
+    }
+
+    const file = inputElement.files[0];
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showSpaToast('File size exceeds 5MB limit. Please choose a smaller file.', 'error');
+        inputElement.value = '';
+        hideResumeUploadStatus();
+        return;
+    }
+
+    // Validate file type
+    const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const validExtensions = ['.pdf', '.doc', '.docx'];
+    const fileName = file.name.toLowerCase();
+    const isValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!validTypes.includes(file.type) && !isValidExtension) {
+        showSpaToast('Please upload a PDF, DOC, or DOCX file.', 'error');
+        inputElement.value = '';
+        hideResumeUploadStatus();
+        return;
+    }
+
+    // Show uploaded file info
+    uploadedResumeFile = file;
+    uploadedResumeName = file.name;
+    showResumeUploadStatus(file.name, file.size);
+}
+
+// Setup resume file input listener
+function setupResumeUploadHandler() {
+    const form = document.getElementById('applicationForm');
+    if (!form) return;
+
+    const resumeInput = form.querySelector('input[name="resume"]');
+    if (!resumeInput) return;
+
+    // Remove any existing listener to avoid duplicates
+    resumeInput.removeEventListener('change', resumeInput._resumeHandler);
+
+    // Add change listener
+    resumeInput._resumeHandler = function(e) {
+        handleResumeFileSelect(this);
+    };
+    resumeInput.addEventListener('change', resumeInput._resumeHandler);
+}
+
+// Initialize resume handler when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    setupResumeUploadHandler();
+});
 
 function closeBookingModal() {
     if (!bookingModal) return;
@@ -1284,9 +1532,8 @@ function loadAppointments() {
             updateTabCounts();
             renderTab(currentTab);
 
-            const today = getTodayLocal();
             const upcomingCount = data.filter(b =>
-                ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today
+                ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b)
             ).length;
             updateAppointmentsBadge(upcomingCount);
             checkUnratedBookings(data);
@@ -1309,11 +1556,10 @@ function updateAppointmentsBadge(count) {
 }
 
 function updateTabCounts() {
-    const today = getTodayLocal();
     document.getElementById('tab-count-upcoming').textContent =
-        allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today).length;
+        allAppointments.filter(b => ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b)).length;
     document.getElementById('tab-count-past').textContent =
-        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'completed'].includes(b.status) && b.date_raw < today)).length;
+        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'ongoing'].includes(b.status) && isBookingPastNow(b))).length;
     document.getElementById('tab-count-cancelled').textContent =
         allAppointments.filter(b => b.status === 'cancelled').length;
 }
@@ -1334,12 +1580,11 @@ function switchTab(tab) {
 }
 
 function renderTab(tab) {
-    const today  = getTodayLocal();
     let filtered = [];
     if (tab === 'upcoming') {
-        filtered = allAppointments.filter(b => ['reserved', 'confirmed'].includes(b.status) && b.date_raw >= today);
+        filtered = allAppointments.filter(b => ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b));
     } else if (tab === 'past') {
-        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending'].includes(b.status) && b.date_raw < today));
+        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'ongoing'].includes(b.status) && isBookingPastNow(b)));
     } else {
         filtered = allAppointments.filter(b => b.status === 'cancelled');
     }
@@ -1446,13 +1691,10 @@ function renderStars(rating) {
 }
 
 function statusBadge(status) {
-    // Aligned to the same reserved/pending/ongoing/completed/cancelled hues
-    // used in appointments.blade.php (blue/amber/emerald/slate/red) so the
-    // dark: variants here are guaranteed to already be compiled.
     const map = {
         reserved:  'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
         ongoing:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-        completed: 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+        completed: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
         cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
         pending:   'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
     };
@@ -2344,9 +2586,16 @@ window._dayBookingMap           = _dayBookingMap;
 window._appointmentMap          = _appointmentMap;
 window.openApplicationModal     = openApplicationModal;
 window.closeApplicationModal    = closeApplicationModal;
+window.openApplicationModal     = openApplicationModal;
+window.closeApplicationModal    = closeApplicationModal;
+window.hideResumeUploadStatus   = hideResumeUploadStatus;
+window.clearResumeUpload        = clearResumeUpload;
+window.showResumeUploadStatus   = showResumeUploadStatus;
+window.handleResumeFileSelect   = handleResumeFileSelect;
+window.formatFileSize           = formatFileSize;
 window.openLogoutModal          = openLogoutModal;
 window.closeLogoutModal         = closeLogoutModal;
-window.toggleScheduleView = toggleScheduleView;
+window.toggleScheduleView       = toggleScheduleView;
 
 // =====================================================
 // TOAST

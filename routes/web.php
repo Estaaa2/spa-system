@@ -243,6 +243,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('branch-deployments.staff-respond');
 });
 
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/branch-deployments/self-request', [BranchDeploymentController::class, 'storeSelf'])
+        ->name('branch-deployments.self-request');
+});
+
 
 /*
 |--------------------------------------------------------------------------
@@ -428,6 +433,8 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::middleware('branch.permission:view inventory logs')->group(function () {
             Route::get('/logs', [\App\Http\Controllers\InventoryController::class, 'logs'])
                 ->name('logs');
+            Route::get('/logs/export-pdf', [\App\Http\Controllers\InventoryController::class, 'exportLogsPdf'])
+                ->name('logs.export-pdf');
         });
 
         Route::middleware('branch.permission:create inventory items')->group(function () {

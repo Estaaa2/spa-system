@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\OperatingHours;
+use App\Models\Package;
+use App\Models\Treatment;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -119,6 +121,47 @@ class ScheduleController extends Controller
             ->orderBy('appointment_date')
             ->orderBy('start_time')
             ->get();
+
+        // ── Resolve treatment/package names ─────────────────────────────────
+        $treatmentIds = [];
+        $packageIds   = [];
+
+        foreach ($bookings as $b) {
+            $code = (string) $b->treatment;
+
+            if (str_starts_with($code, 'treatment_')) {
+                $treatmentIds[] = (int) substr($code, 10);
+            } elseif (str_starts_with($code, 'package_')) {
+                $packageIds[] = (int) substr($code, 8);
+            }
+        }
+
+        $treatmentNames = $treatmentIds
+            ? Treatment::withoutGlobalScope('spa_branch')
+                ->withTrashed()
+                ->whereIn('id', array_unique($treatmentIds))
+                ->pluck('name', 'id')
+            : collect();
+
+        $packageNames = $packageIds
+            ? Package::withoutGlobalScope('spa_branch')
+                ->withTrashed()
+                ->whereIn('id', array_unique($packageIds))
+                ->pluck('name', 'id')
+            : collect();
+
+        foreach ($bookings as $b) {
+            $code = (string) $b->treatment;
+
+            if (str_starts_with($code, 'treatment_')) {
+                $b->resolved_treatment = $treatmentNames[(int) substr($code, 10)] ?? 'Unknown Treatment';
+            } elseif (str_starts_with($code, 'package_')) {
+                $name = $packageNames[(int) substr($code, 8)] ?? null;
+                $b->resolved_treatment = $name ? $name . ' (Package)' : 'Unknown Package';
+            } else {
+                $b->resolved_treatment = $code !== '' ? $code : '—';
+            }
+        }
 
         // ── Attach pixel positions to each booking ───────────────────────────
         // Bookings that start before open or end after close are clamped

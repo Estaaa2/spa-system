@@ -17,12 +17,6 @@
         </button>
     </div>
 
-    @if(session('success'))
-        <div class="p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:text-green-400 dark:ring-green-800">
-            {{ session('success') }}
-        </div>
-    @endif
-
     {{-- ── Promo list ─────────────────────────────────────────────────── --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
         @if($promos->isEmpty())

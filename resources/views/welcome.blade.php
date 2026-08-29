@@ -1645,7 +1645,7 @@
                 </div>
 
                 <div class="p-6 overflow-y-auto">
-                    <form id="applicationForm" method="POST" class="space-y-6">
+                    <form id="applicationForm" method="POST" class="space-y-6" enctype="multipart/form-data">
                         @csrf
                         <input type="hidden" name="spa_id" id="applicationSpaId">
                         <input type="hidden" name="branch_id" id="applicationBranchId">
@@ -1752,14 +1752,11 @@
                                     </select>
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Skills / Certifications</label>
-                                    <input type="text" name="skills" placeholder="e.g. Swedish Massage, NC II..."
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Work Experience</label>
-                                    <textarea name="work_experience" rows="3" placeholder="Previous work experience..."
-                                        class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 resize-none"></textarea>
+                                    <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                        Resume / CV <span class="text-xs font-normal text-gray-400">(optional for walk-ins)</span>
+                                    </label>
+                                    <input type="file" name="resume" accept=".pdf,.doc,.docx"
+                                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                                 </div>
                             </div>
                         </div>
@@ -1787,6 +1784,21 @@
                                     <input type="text" name="emergency_contact_phone" placeholder="09xxxxxxxxx"
                                         class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
+                            </div>
+                        </div>
+
+                        {{-- RESUME UPLOAD STATUS --}}
+                        <div id="resumeUploadStatus" class="hidden p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50 ring-1 ring-black/5 dark:ring-white/10">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-file-pdf text-[#8B7355] dark:text-[#C4A97D] text-lg"></i>
+                                <div class="flex-1">
+                                    <p id="resumeFileName" class="text-sm font-medium text-[#3C2F23] dark:text-white"></p>
+                                    <p id="resumeFileSize" class="text-xs text-gray-500 dark:text-gray-400"></p>
+                                </div>
+                                <button type="button" onclick="clearResumeUpload()"
+                                    class="text-red-500 transition hover:text-red-700">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
                             </div>
                         </div>
 

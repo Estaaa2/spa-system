@@ -55,6 +55,11 @@ class StaffBranchDeployment extends Model
         return $this->belongsTo(User::class, 'requested_by');
     }
 
+    public function isSelfRequested(): bool
+    {
+        return $this->requested_by === $this->staff?->user_id;
+    }
+
     public function reviewedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');

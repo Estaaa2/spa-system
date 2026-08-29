@@ -21,6 +21,14 @@
         ''        => 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
     ];
 
+    $statusDotClasses = [
+        'ongoing'   => 'bg-emerald-500 border-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-800',
+        'pending'   => 'bg-amber-400 border-amber-400',
+        'reserved'  => 'bg-blue-400 border-blue-400',
+        'completed' => 'bg-gray-300 border-gray-300',
+        'cancelled' => 'bg-red-300 border-red-300',
+    ];
+
     // Resolve all permission flags once using hasBranchPermission() so that
     // branch-level overrides stored in branch_role_permissions are respected.
     $canKpis            = $user->hasBranchPermission('view dashboard kpis');
@@ -44,20 +52,21 @@
     $canViewHiring        = $user->hasBranchPermission('view hiring');
 @endphp
 
-<div class="p-6 mx-auto space-y-6 max-w-7xl">
+<div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
 
     {{-- ════════════════════════════════════════════════════════════════════
          HEADER
     ═══════════════════════════════════════════════════════════════════════ --}}
-    <div class="flex flex-wrap items-start justify-between gap-3">
-        <div class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full
-                    bg-white border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700
-                    text-gray-500 dark:text-gray-400 select-none">
-            <span id="liveIndicatorDot"
-                class="inline-block w-2 h-2 transition-colors duration-300 bg-gray-300 rounded-full dark:bg-gray-600"></span>
-            <span id="liveIndicatorLabel">Connecting…</span>
+    <div class="space-y-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full
+                        bg-white border border-gray-200 shadow-sm dark:bg-gray-800 dark:border-gray-700
+                        text-gray-500 dark:text-gray-400 select-none">
+                <span id="liveIndicatorDot"
+                    class="inline-block w-2 h-2 transition-colors duration-300 bg-gray-300 rounded-full dark:bg-gray-600"></span>
+                <span id="liveIndicatorLabel" role="status" aria-live="polite">Connecting…</span>
+            </div>
         </div>
-    </div>
 
     <x-page-header
         title="Dashboard"
@@ -74,6 +83,7 @@
             @endif
         </x-slot>
     </x-page-header>
+    </div>
 
     @if($pendingDeploymentResponse)
     <div id="deployment-response-card" class="overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800/40">
@@ -147,45 +157,194 @@
             </div>
         </div>
     </div>
+@endif
+
+@if(!$pendingDeploymentResponse && $myStaff)
+    @if($myOpenDeployment)
+        {{-- They already have an open request in flight — just show status --}}
+        <div class="flex items-center gap-3 px-6 py-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#8B7355]/10 dark:bg-[#C4A97D]/10 shrink-0">
+                <i class="text-sm fa-solid fa-right-left text-[#8B7355] dark:text-[#C4A97D]"></i>
+            </div>
+            <div>
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                    Transfer request {{ $myOpenDeployment->status === 'approved' ? 'approved' : 'pending' }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    To {{ $myOpenDeployment->toBranch->name ?? '—' }} · starts {{ \Carbon\Carbon::parse($myOpenDeployment->start_date)->format('M d, Y') }}
+                    @if($myOpenDeployment->status === 'pending') — awaiting HR/Owner approval @endif
+                </p>
+            </div>
+        </div>
+    @else
+        {{-- No open request — offer to file one --}}
+        <div class="flex items-center justify-between gap-4 px-6 py-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div>
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">Want to work at another branch?</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Submit a transfer request for HR/Owner to review.</p>
+            </div>
+            <button type="button" onclick="openSelfRequestModal()"
+                class="shrink-0 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348]">
+                <i class="mr-1.5 fa-solid fa-paper-plane"></i>Request Transfer
+            </button>
+        </div>
+    @endif
+@endif
+
+@if($myStaff)
+    <div id="selfRequestModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black bg-opacity-50">
+        <div class="flex items-center justify-center min-h-screen px-4 py-8">
+            <div class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+                <form action="{{ route('branch-deployments.self-request') }}" method="POST">
+                    @csrf
+                    <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Request Branch Transfer</h3>
+                            <button type="button" onclick="closeSelfRequestModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <i class="text-lg fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                Target Branch <span class="text-red-500">*</span>
+                            </label>
+                            <select name="to_branch_id" required
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <option value="">Select target branch</option>
+                                @foreach($transferBranches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }} — {{ $branch->location }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                Start Date <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" name="start_date" required min="{{ now()->toDateString() }}"
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        </div>
+
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl dark:bg-gray-700">
+                            <input type="checkbox" id="selfIsPermanent" name="is_permanent" value="1"
+                                class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355]"
+                                onchange="document.getElementById('selfEndDateWrapper').classList.toggle('hidden', this.checked)">
+                            <label for="selfIsPermanent" class="text-sm font-medium text-gray-900 cursor-pointer dark:text-white">
+                                Permanent transfer
+                            </label>
+                        </div>
+
+                        <div id="selfEndDateWrapper">
+                            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                End Date <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span>
+                            </label>
+                            <input type="date" name="end_date"
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        </div>
+
+                        <div>
+                            <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                Reason <span class="text-red-500">*</span>
+                            </label>
+                            <textarea name="notes" rows="3" required
+                                placeholder="Why are you requesting this transfer?"
+                                class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"></textarea>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Required for self-requested transfers.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl dark:bg-gray-900 dark:border-gray-700">
+                        <button type="button" onclick="closeSelfRequestModal()"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="px-5 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348]">
+                            <i class="mr-1.5 fa-solid fa-paper-plane"></i>Submit Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <script>
-        (function () {
-            const toggleBtn = document.getElementById('deployment-decline-toggle');
-            const cancelBtn = document.getElementById('deployment-decline-cancel');
-            const panel     = document.getElementById('deployment-decline-panel');
-            if (toggleBtn && panel) {
-                toggleBtn.addEventListener('click', () => panel.classList.remove('hidden'));
-            }
-            if (cancelBtn && panel) {
-                cancelBtn.addEventListener('click', () => panel.classList.add('hidden'));
-            }
-        }());
+    function openSelfRequestModal()  { document.getElementById('selfRequestModal').classList.remove('hidden'); }
+    function closeSelfRequestModal() { document.getElementById('selfRequestModal').classList.add('hidden'); }
     </script>
-    @endif
+@endif
+
+<script>
+    (function () {
+        const toggleBtn = document.getElementById('deployment-decline-toggle');
+        const cancelBtn = document.getElementById('deployment-decline-cancel');
+        const panel     = document.getElementById('deployment-decline-panel');
+        if (toggleBtn && panel) {
+            toggleBtn.addEventListener('click', () => panel.classList.remove('hidden'));
+        }
+        if (cancelBtn && panel) {
+            cancelBtn.addEventListener('click', () => panel.classList.add('hidden'));
+        }
+    }());
+</script>
 
     {{-- ════════════════════════════════════════════════════════════════════
          THERAPIST PERSONAL VIEW  (view dashboard my today)
     ═══════════════════════════════════════════════════════════════════════ --}}
     @if($canMyToday)
 
-        {{-- Personal stat cards --}}
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {{-- Attendance Status --}}
+        <div class="p-4 border sm:p-5 rounded-2xl {{ $myAttendanceToday && $myAttendanceToday->time_in && !$myAttendanceToday->time_out ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    @if(!$myAttendanceToday || !$myAttendanceToday->time_in)
+                        <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">You haven't clocked in yet today</p>
+                        <p class="text-xs text-amber-700 dark:text-amber-300">Clock in when you arrive so your attendance is recorded.</p>
+                    @elseif(!$myAttendanceToday->time_out)
+                        <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Clocked in at {{ \Carbon\Carbon::parse($myAttendanceToday->time_in)->format('h:i A') }}</p>
+                        <p class="text-xs text-emerald-700 dark:text-emerald-300">Don't forget to clock out before you leave.</p>
+                    @else
+                        <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                            Clocked {{ \Carbon\Carbon::parse($myAttendanceToday->time_in)->format('h:i A') }} – {{ \Carbon\Carbon::parse($myAttendanceToday->time_out)->format('h:i A') }}
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Today's attendance is complete.</p>
+                    @endif
+                </div>
+                @if(!$myAttendanceToday || !$myAttendanceToday->time_in)
+                    <form method="POST" action="{{ route('attendance.clock-in') }}">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">Clock In</button>
+                    </form>
+                @elseif(!$myAttendanceToday->time_out)
+                    <form method="POST" action="{{ route('attendance.clock-out') }}">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700">Clock Out</button>
+                    </form>
+                @endif
+            </div>
+        </div>
 
-            <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">My Today</p>
-                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#8B7355]/10">
-                        <i class="fa-solid fa-calendar-day text-[#8B7355] text-sm"></i>
+        {{-- Personal stat cards --}}
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">My Today</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-[#8B7355]/10 dark:bg-[#C4A97D]/10">
+                        <i class="fa-solid fa-calendar-day text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                     </div>
                 </div>
                 <p id="my-stat-total" class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ $myStats['total'] ?? 0 }}</p>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Appointments assigned</p>
             </div>
 
-            <div class="p-5 border shadow-sm bg-emerald-50 border-emerald-200 rounded-2xl dark:bg-emerald-900/10 dark:border-emerald-800">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide uppercase text-emerald-700 dark:text-emerald-400">Ongoing</p>
-                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+            <div class="p-4 border shadow-sm sm:p-5 bg-emerald-50 border-emerald-200 rounded-2xl dark:bg-emerald-900/10 dark:border-emerald-800">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide uppercase text-emerald-700 dark:text-emerald-400">Ongoing</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
                         <i class="text-sm fa-solid fa-spinner text-emerald-600 dark:text-emerald-400"></i>
                     </div>
                 </div>
@@ -193,10 +352,10 @@
                 <p class="mt-1 text-xs text-emerald-700 dark:text-emerald-400">In session right now</p>
             </div>
 
-            <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Completed</p>
-                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800">
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Completed</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800">
                         <i class="text-sm fa-solid fa-circle-check text-slate-500"></i>
                     </div>
                 </div>
@@ -204,10 +363,10 @@
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Done today</p>
             </div>
 
-            <div class="p-5 border border-blue-200 shadow-sm bg-blue-50 rounded-2xl dark:bg-blue-900/10 dark:border-blue-800">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide text-blue-700 uppercase dark:text-blue-400">Remaining</p>
-                    <div class="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-xl dark:bg-blue-900/30">
+            <div class="p-4 border border-blue-200 shadow-sm sm:p-5 bg-blue-50 rounded-2xl dark:bg-blue-900/10 dark:border-blue-800">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide text-blue-700 uppercase dark:text-blue-400">Remaining</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-blue-100 rounded-xl dark:bg-blue-900/30">
                         <i class="text-sm text-blue-600 fa-regular fa-clock dark:text-blue-400"></i>
                     </div>
                 </div>
@@ -215,87 +374,51 @@
                 <p class="mt-1 text-xs text-blue-700 dark:text-blue-400">Still queued</p>
             </div>
 
-            <div class="p-4 border rounded-2xl {{ $myAttendanceToday && $myAttendanceToday->time_in && !$myAttendanceToday->time_out ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        @if(!$myAttendanceToday || !$myAttendanceToday->time_in)
-                            <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">You haven't clocked in yet today</p>
-                            <p class="text-xs text-amber-700 dark:text-amber-300">Clock in when you arrive so your attendance is recorded.</p>
-                        @elseif(!$myAttendanceToday->time_out)
-                            <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Clocked in at {{ \Carbon\Carbon::parse($myAttendanceToday->time_in)->format('h:i A') }}</p>
-                            <p class="text-xs text-emerald-700 dark:text-emerald-300">Don't forget to clock out before you leave.</p>
-                        @else
-                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                Clocked {{ \Carbon\Carbon::parse($myAttendanceToday->time_in)->format('h:i A') }} – {{ \Carbon\Carbon::parse($myAttendanceToday->time_out)->format('h:i A') }}
-                            </p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Today's attendance is complete.</p>
-                        @endif
-                    </div>
-                    @if(!$myAttendanceToday || !$myAttendanceToday->time_in)
-                        <form method="POST" action="{{ route('attendance.clock-in') }}">
-                            @csrf
-                            <button type="submit" class="px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">Clock In</button>
-                        </form>
-                    @elseif(!$myAttendanceToday->time_out)
-                        <form method="POST" action="{{ route('attendance.clock-out') }}">
-                            @csrf
-                            <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700">Clock Out</button>
-                        </form>
-                    @endif
-                </div>
-            </div>
         </div>
 
         {{-- Personal schedule timeline --}}
         <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <div>
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">My Schedule Today</h2>
                     <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Your appointments for {{ $now->format('M d, Y') }}</p>
                 </div>
                 @if($canViewSchedule)
                 <a href="{{ route('schedule.index') }}"
-                   class="text-xs font-medium text-[#8B7355] hover:text-[#6F5430] transition-colors">
+                   class="text-xs font-medium text-[#8B7355] dark:text-[#C4A97D] hover:text-[#6F5430] dark:hover:text-[#D8C29B] transition-colors">
                     Full schedule →
                 </a>
                 @endif
             </div>
 
-            <div id="my-timeline-body">
+            <div id="my-timeline-body" class="divide-y divide-gray-100 dark:divide-gray-700">
                 @if($myTodayAppointments->isEmpty())
-                    <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
+                    <div class="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
                         <i class="mb-3 text-3xl fa-regular fa-calendar-check"></i>
                         <p class="text-sm font-medium">No appointments assigned to you today.</p>
-                        <p class="mt-1 text-xs text-gray-400">Check your upcoming schedule below.</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Check your upcoming schedule below.</p>
                     </div>
                 @else
-                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
-                        @foreach($myTodayAppointments as $booking)
+                    @foreach($myTodayAppointments as $booking)
                         @php
                             $startC = \Carbon\Carbon::parse($booking->start_time);
                             $endC   = \Carbon\Carbon::parse($booking->end_time);
                             $isNow  = $booking->status === 'ongoing';
                             $isPast = in_array($booking->status, ['completed', 'cancelled']);
                         @endphp
-                        <div class="flex items-start gap-4 px-6 py-4 transition-colors
+                        <div class="flex items-start gap-4 px-4 py-4 sm:px-6 transition-colors
                                     hover:bg-gray-50 dark:hover:bg-gray-900/40
                                     {{ $isNow ? 'bg-emerald-50/60 dark:bg-emerald-900/10' : '' }}
                                     {{ $isPast ? 'opacity-60' : '' }}">
                             <div class="flex-shrink-0 w-16 text-right">
                                 <p class="text-xs font-bold text-gray-800 dark:text-white tabular-nums">{{ $startC->format('h:i') }}</p>
-                                <p class="text-[10px] font-semibold text-gray-400">{{ $startC->format('A') }}</p>
+                                <p class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ $startC->format('A') }}</p>
                                 <div class="w-px h-4 mx-auto mt-1 bg-gray-200 dark:bg-gray-700"></div>
-                                <p class="text-[10px] text-gray-400 tabular-nums">{{ $endC->format('h:i A') }}</p>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">{{ $endC->format('h:i A') }}</p>
                             </div>
                             <div class="flex-shrink-0 mt-1.5">
-                                <div class="w-2.5 h-2.5 rounded-full border-2
-                                    {{ $isNow                               ? 'bg-emerald-500 border-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-800' : '' }}
-                                    {{ $booking->status === 'pending'       ? 'bg-amber-400  border-amber-400'  : '' }}
-                                    {{ $booking->status === 'reserved'      ? 'bg-blue-400   border-blue-400'   : '' }}
-                                    {{ $booking->status === 'completed'     ? 'bg-gray-300   border-gray-300'   : '' }}
-                                    {{ $booking->status === 'cancelled'     ? 'bg-red-300    border-red-300'    : '' }}">
-                                </div>
+                                <div class="w-2.5 h-2.5 rounded-full border-2 {{ $statusDotClasses[$booking->status] ?? '' }}"></div>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between gap-2">
@@ -303,30 +426,30 @@
                                         <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">
                                             {{ $booking->customer_name ?? 'Walk-in Customer' }}
                                         </p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                                             {{ $booking->treatment_display ?? '—' }}
                                         </p>
                                         @if($booking->service_type === 'in_home' && $booking->customer_address)
-                                        <p class="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5 flex items-center gap-1">
+                                        <p class="text-[11px] text-violet-600 dark:text-violet-400 mt-0.5 flex items-center gap-1">
                                             <i class="fa-solid fa-house"></i>
                                             Home service · {{ $booking->customer_address }}
                                         </p>
                                         @endif
                                     </div>
-                                    <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full
+                                    <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full
                                         {{ $statusClasses[$booking->status] ?? 'bg-gray-100 text-gray-600' }}">
                                         {{ ucfirst($booking->status) }}
                                     </span>
                                 </div>
                                 @if($booking->customer_phone)
-                                <p class="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
-                                    <i class="fa-solid fa-phone text-[#8B7355]"></i>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 flex items-center gap-1">
+                                    <i class="fa-solid fa-phone text-[#8B7355] dark:text-[#C4A97D]"></i>
                                     {{ $booking->customer_phone }}
                                 </p>
                                 @endif
                                 @if(in_array($booking->status, ['reserved', 'pending']))
                                     @if($booking->has_pending_reassignment)
-                                    <span class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
+                                    <span class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
                                         <i class="fa-solid fa-clock"></i> Reassignment Pending
                                     </span>
                                     @else
@@ -337,26 +460,25 @@
                                             data-treatment="{{ $booking->treatment_display ?? '—' }}"
                                             data-date="{{ \Carbon\Carbon::parse($booking->appointment_date)->format('M d, Y') }}"
                                             data-time="{{ $startC->format('h:i A') }}"
-                                            class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                                            class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
                                         <i class="fa-solid fa-triangle-exclamation"></i> Can't Make It?
                                     </button>
                                     @endif
                                 @endif
                             </div>
                         </div>
-                        @endforeach
-                    </div>
+                    @endforeach
                 @endif
             </div>
 
             {{-- Next upcoming outside today --}}
-            <div id="my-next-wrapper" class="{{ $myNextAppointment ? '' : 'hidden' }} px-6 py-3 border-t border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/20">
-                <p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Next Upcoming</p>
+            <div id="my-next-wrapper" class="{{ $myNextAppointment ? '' : 'hidden' }} px-4 py-3 sm:px-6 border-t border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/20">
+                <p class="text-[11px] font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">Next Upcoming</p>
                 <div class="flex items-center justify-between mt-1">
                     <div>
                         <p id="my-next-name" class="text-sm font-medium text-gray-800 dark:text-gray-200">
                             {{ ($myNextAppointment->customer_name ?? 'Walk-in Customer') }}
-                            <span class="mx-1 font-normal text-gray-400">·</span>
+                            <span class="mx-1 font-normal text-gray-500 dark:text-gray-400">·</span>
                             {{ $myNextAppointment->treatment_display ?? '—' }}
                         </p>
                         <p id="my-next-date" class="text-xs text-gray-500 dark:text-gray-400">
@@ -384,23 +506,23 @@
     ═══════════════════════════════════════════════════════════════════════ --}}
     @if($canKpis)
 
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
 
-            <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Today</p>
-                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#8B7355]/10">
-                        <i class="fa-solid fa-calendar-day text-[#8B7355] text-sm"></i>
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Today</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-[#8B7355]/10 dark:bg-[#C4A97D]/10">
+                        <i class="fa-solid fa-calendar-day text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                     </div>
                 </div>
                 <p id="kpi-today-count" class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ $todayCount ?? 0 }}</p>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Total appointments</p>
             </div>
 
-            <div class="p-5 border shadow-sm bg-emerald-50 border-emerald-200 rounded-2xl dark:bg-emerald-900/10 dark:border-emerald-800">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide uppercase text-emerald-700 dark:text-emerald-400">Ongoing</p>
-                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+            <div class="p-4 border shadow-sm sm:p-5 bg-emerald-50 border-emerald-200 rounded-2xl dark:bg-emerald-900/10 dark:border-emerald-800">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide uppercase text-emerald-700 dark:text-emerald-400">Ongoing</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
                         <i class="text-sm fa-solid fa-spinner text-emerald-600 dark:text-emerald-400"></i>
                     </div>
                 </div>
@@ -408,10 +530,10 @@
                 <p class="mt-1 text-xs text-emerald-700 dark:text-emerald-400">In service right now</p>
             </div>
 
-            <div class="p-5 border shadow-sm bg-amber-50 border-amber-200 rounded-2xl dark:bg-amber-900/10 dark:border-amber-800">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide uppercase text-amber-700 dark:text-amber-400">Pending</p>
-                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/30">
+            <div class="p-4 border shadow-sm sm:p-5 bg-amber-50 border-amber-200 rounded-2xl dark:bg-amber-900/10 dark:border-amber-800">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide uppercase text-amber-700 dark:text-amber-400">Pending</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/30">
                         <i class="text-sm fa-solid fa-circle-exclamation text-amber-600 dark:text-amber-400"></i>
                     </div>
                 </div>
@@ -420,22 +542,22 @@
             </div>
 
             @if($canRevenue)
-            <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Collected</p>
-                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#8B7355]/10">
-                        <i class="fa-solid fa-peso-sign text-[#8B7355] text-sm"></i>
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Collected</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-[#8B7355]/10 dark:bg-[#C4A97D]/10">
+                        <i class="fa-solid fa-peso-sign text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                     </div>
                 </div>
                 <p id="kpi-collected" class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">₱{{ number_format($collectedToday ?? 0, 0) }}</p>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Revenue today</p>
             </div>
             @else
-            <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Upcoming</p>
-                    <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-[#8B7355]/10">
-                        <i class="fa-solid fa-calendar-week text-[#8B7355] text-sm"></i>
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="min-w-0 truncate text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Upcoming</p>
+                    <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-[#8B7355]/10 dark:bg-[#C4A97D]/10">
+                        <i class="fa-solid fa-calendar-week text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                     </div>
                 </div>
                 <p id="kpi-upcoming-week" class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ $upcomingWeek ?? 0 }}</p>
@@ -446,48 +568,47 @@
         </div>
 
         {{-- Secondary stat row --}}
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
 
-            <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Completed</p>
                 <p id="kpi-completed" class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ $completedToday ?? 0 }}</p>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Done today</p>
             </div>
 
-            <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Reserved</p>
                 <p id="kpi-reserved" class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ $reservedToday ?? 0 }}</p>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Confirmed, not yet started</p>
             </div>
 
             @if($canRevenue)
-            <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Upcoming</p>
                 <p id="kpi-upcoming-week-2" class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ $upcomingWeek ?? 0 }}</p>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Next 7 days</p>
             </div>
 
-            <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Today's Source</p>
-                <div class="flex items-end gap-3 mt-2">
+                <div class="flex items-end gap-2 mt-2">
                     <div>
                         <p id="kpi-online" class="text-2xl font-bold text-violet-700 dark:text-violet-400">{{ $onlineToday ?? 0 }}</p>
-                        <p class="text-[10px] font-semibold text-violet-600 dark:text-violet-400 uppercase">Online</p>
+                        <p class="text-[11px] font-semibold text-violet-600 dark:text-violet-400 uppercase whitespace-nowrap">Online</p>
                     </div>
                     <span class="mb-1 text-lg font-light text-gray-300 dark:text-gray-600">/</span>
                     <div>
                         <p id="kpi-walkin" class="text-2xl font-bold text-gray-700 dark:text-gray-300">{{ $walkInToday ?? 0 }}</p>
-                        <p class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase">Walk-in</p>
+                        <p class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Walk-in</p>
                     </div>
                 </div>
             </div>
             @else
-            <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Cancelled</p>
                 <p id="kpi-cancelled" class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ $cancelledToday ?? 0 }}</p>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Cancelled today</p>
             </div>
-            <div></div>
             @endif
 
         </div>
@@ -505,29 +626,30 @@
         @if($canTimeline)
         <div class="{{ $canTherapistStatus ? 'lg:col-span-3' : '' }} bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
 
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <div>
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Today's Schedule</h2>
                     <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">All branch appointments · {{ $now->format('M d, Y') }}</p>
                 </div>
                 @if($canViewAppointments)
                 <a href="{{ route('appointments.index') }}"
-                   class="text-xs font-medium text-[#8B7355] hover:text-[#6F5430] transition-colors">
+                   class="text-xs font-medium text-[#8B7355] dark:text-[#C4A97D] hover:text-[#6F5430] dark:hover:text-[#D8C29B] transition-colors">
                     Full list →
                 </a>
                 @endif
             </div>
 
+            {{-- Timeline body --}}
             <div id="timeline-body" class="divide-y divide-gray-100 dark:divide-gray-700 max-h-[460px] overflow-y-auto">
                 @if($todayAppointments->isEmpty())
-                    <div id="timeline-empty" class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
+                    <div id="timeline-empty" class="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
                         <i class="mb-3 text-3xl fa-regular fa-calendar-xmark"></i>
                         <p class="text-sm">No appointments scheduled today.</p>
                         @if($canBookingBtn)
                         <a href="{{ route('booking') }}"
                            class="mt-4 inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white rounded-xl
                                   bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:opacity-90 transition">
-                            <i class="fa-solid fa-plus text-[10px]"></i> Add Booking
+                            <i class="fa-solid fa-plus text-[11px]"></i> Add Booking
                         </a>
                         @endif
                     </div>
@@ -539,24 +661,18 @@
                         $isNow  = $booking->status === 'ongoing';
                         $isPast = in_array($booking->status, ['completed', 'cancelled']);
                     @endphp
-                    <div class="flex items-start gap-4 px-6 py-4 transition-colors
+                    <div class="flex items-start gap-4 px-4 py-4 sm:px-6 transition-colors
                                 hover:bg-gray-50 dark:hover:bg-gray-900/40
                                 {{ $isNow ? 'bg-emerald-50/60 dark:bg-emerald-900/10' : '' }}
                                 {{ $isPast ? 'opacity-60' : '' }}">
                         <div class="flex-shrink-0 w-16 text-right">
                             <p class="text-xs font-bold text-gray-800 dark:text-white tabular-nums">{{ $startC->format('h:i') }}</p>
-                            <p class="text-[10px] font-semibold text-gray-400">{{ $startC->format('A') }}</p>
+                            <p class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{{ $startC->format('A') }}</p>
                             <div class="w-px h-4 mx-auto mt-1 bg-gray-200 dark:bg-gray-700"></div>
-                            <p class="text-[10px] text-gray-400 tabular-nums">{{ $endC->format('h:i A') }}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">{{ $endC->format('h:i A') }}</p>
                         </div>
                         <div class="flex-shrink-0 mt-1.5">
-                            <div class="w-2.5 h-2.5 rounded-full border-2
-                                {{ $isNow                               ? 'bg-emerald-500 border-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-800' : '' }}
-                                {{ $booking->status === 'pending'       ? 'bg-amber-400  border-amber-400'  : '' }}
-                                {{ $booking->status === 'reserved'      ? 'bg-blue-400   border-blue-400'   : '' }}
-                                {{ $booking->status === 'completed'     ? 'bg-gray-300   border-gray-300'   : '' }}
-                                {{ $booking->status === 'cancelled'     ? 'bg-red-300    border-red-300'    : '' }}">
-                            </div>
+                            <div class="w-2.5 h-2.5 rounded-full border-2 {{ $statusDotClasses[$booking->status] ?? '' }}"></div>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-start justify-between gap-2">
@@ -568,19 +684,19 @@
                                         {{ $booking->treatment_display ?? '—' }}
                                     </p>
                                 </div>
-                                <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full
+                                <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full
                                     {{ $statusClasses[$booking->status] ?? 'bg-gray-100 text-gray-600' }}">
                                     {{ ucfirst($booking->status) }}
                                 </span>
                             </div>
                             <div class="flex items-center gap-3 mt-1.5">
-                                <span class="text-[10px] text-gray-400 flex items-center gap-1">
-                                    <i class="fa-solid fa-user-nurse text-[#8B7355]"></i>
+                                <span class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    <i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D]"></i>
                                     {{ $booking->therapist
                                         ? trim($booking->therapist->first_name . ' ' . $booking->therapist->last_name)
                                         : 'Unassigned' }}
                                 </span>
-                                <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full
+                                <span class="inline-flex items-center px-1.5 py-0.5 text-[11px] font-medium rounded-full
                                     {{ $sourceClasses[$booking->booking_source ?? ''] ?? $sourceClasses[''] }}">
                                     {{ strtoupper($booking->booking_source ?: 'STAFF') }}
                                 </span>
@@ -591,14 +707,14 @@
                 @endif
             </div>
 
-            <div id="next-appointment-wrapper" class="{{ $nextAppointment ? '' : 'hidden' }} px-6 py-3 border-t border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/20">
-                <p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Next Upcoming</p>
+            <div id="next-appointment-wrapper" class="{{ $nextAppointment ? '' : 'hidden' }} px-4 py-3 sm:px-6 border-t border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/20">
+                <p class="text-[11px] font-semibold tracking-wide text-gray-500 dark:text-gray-400 uppercase">Next Upcoming</p>
                 <div class="flex items-center justify-between mt-1">
                     <div>
                         <p id="next-appointment-name" class="text-sm font-medium text-gray-800 dark:text-gray-200">
                             @if($nextAppointment)
                                 {{ $nextAppointment->customer_name ?? 'Walk-in' }}
-                                <span class="mx-1 font-normal text-gray-400">·</span>
+                                <span class="mx-1 font-normal text-gray-500 dark:text-gray-400">·</span>
                                 {{ $nextAppointment->treatment_display ?? '—' }}
                             @endif
                         </p>
@@ -622,20 +738,19 @@
         @if($canTherapistStatus)
         <div class="{{ $canTimeline ? 'lg:col-span-2' : '' }} bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
 
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Therapist Status</h2>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Today's workload per therapist</p>
             </div>
 
-            <div id="therapist-panel-body">
+            <div id="therapist-panel-body" class="divide-y divide-gray-100 dark:divide-gray-700 max-h-[460px] overflow-y-auto">
                 @if($therapists->isEmpty())
-                    <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
+                    <div class="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
                         <i class="mb-3 text-3xl fa-solid fa-user-nurse"></i>
                         <p class="text-sm">No active therapists assigned.</p>
                     </div>
                 @else
-                    <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-[460px] overflow-y-auto">
-                        @foreach($therapists as $therapist)
+                    @foreach($therapists as $therapist)
                         @php
                             $total     = $therapist->total_today ?? 0;
                             $ongoing   = $therapist->ongoing_count ?? 0;
@@ -662,51 +777,50 @@
                                 default      => 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
                             };
                         @endphp
-                        <div class="px-6 py-4">
+                        <div class="px-4 py-4 sm:px-6">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="flex items-center min-w-0 gap-3">
-                                    <div class="flex items-center justify-center w-9 h-9 rounded-full bg-[#8B7355]/15 text-[#8B7355] flex-shrink-0 text-sm font-bold">
+                                    <div class="flex items-center justify-center w-9 h-9 rounded-full bg-[#8B7355]/15 dark:bg-[#C4A97D]/15 text-[#8B7355] dark:text-[#C4A97D] flex-shrink-0 text-sm font-bold">
                                         {{ strtoupper(substr($therapist->first_name ?? '?', 0, 1)) }}
                                     </div>
                                     <div class="min-w-0">
                                         <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">
                                             {{ trim(($therapist->first_name ?? '') . ' ' . ($therapist->last_name ?? '')) }}
                                         </p>
-                                        <p class="text-[10px] text-gray-400 dark:text-gray-500 truncate">{{ $therapist->email }}</p>
+                                        <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ $therapist->email }}</p>
                                     </div>
                                 </div>
-                                <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full {{ $statusBadge }}">
+                                <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full {{ $statusBadge }}">
                                     {{ $statusLabel }}
                                 </span>
                             </div>
                             <div class="mt-3">
                                 <div class="flex items-center justify-between mb-1">
-                                    <span class="text-[10px] text-gray-400">{{ $total }} / {{ $capacity }} appointments</span>
-                                    <span class="text-[10px] font-semibold text-gray-500">{{ $loadPct }}%</span>
+                                    <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ $total }} / {{ $capacity }} appointments</span>
+                                    <span class="text-[11px] font-semibold text-gray-500">{{ $loadPct }}%</span>
                                 </div>
                                 <div class="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                                     <div class="{{ $loadColor }} h-full rounded-full transition-all duration-500"
                                          style="width: {{ $loadPct }}%"></div>
                                 </div>
                                 <div class="flex items-center gap-3 mt-1.5">
-                                    <span class="text-[10px] text-emerald-600 dark:text-emerald-400">
+                                    <span class="text-[11px] text-emerald-600 dark:text-emerald-400">
                                         <i class="fa-solid fa-circle-check"></i> {{ $done }} done
                                     </span>
                                     @if($ongoing > 0)
-                                    <span class="text-[10px] text-emerald-700 font-semibold dark:text-emerald-400">
+                                    <span class="text-[11px] text-emerald-700 font-semibold dark:text-emerald-400">
                                         <i class="fa-solid fa-spinner"></i> {{ $ongoing }} active
                                     </span>
                                     @endif
                                     @if($remaining > 0)
-                                    <span class="text-[10px] text-blue-600 dark:text-blue-400">
+                                    <span class="text-[11px] text-blue-600 dark:text-blue-400">
                                         <i class="fa-regular fa-clock"></i> {{ $remaining }} queued
                                     </span>
                                     @endif
                                 </div>
                             </div>
                         </div>
-                        @endforeach
-                    </div>
+                    @endforeach
                 @endif
             </div>
 
@@ -721,113 +835,115 @@
          BOTTOM ROW: Alerts · Breakdown · Quick Actions
     ═══════════════════════════════════════════════════════════════════════ --}}
     @php
-        $bottomCount = 1;
-        if ($canAlerts)  $bottomCount++;
-        if ($canRevenue) $bottomCount++;
-        $bottomGrid = match($bottomCount) {
-            1 => '',
-            2 => 'md:grid-cols-2',
+        $late            = $lateAppointments      ?? 0;
+        $cancelled       = $noShows               ?? 0;
+        $overloaded      = $overbookedTherapists  ?? 0;
+        $pendingLeave    = $pendingLeaveRequests  ?? 0;
+        $pendingReassign = $pendingReassignments  ?? 0;
+
+        $alertCardBase     = 'flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity';
+        $alertIconWrapBase = 'flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0';
+
+        $alertTones = [
+            'amber' => [
+                'card'     => 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:ring-amber-800',
+                'iconWrap' => 'bg-amber-100 dark:bg-amber-900/30',
+                'icon'     => 'text-amber-600 dark:text-amber-400',
+                'title'    => 'text-amber-900 dark:text-amber-200',
+                'sub'      => 'text-amber-600 dark:text-amber-400',
+            ],
+            'red' => [
+                'card'     => 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800',
+                'iconWrap' => 'bg-red-100 dark:bg-red-900/30',
+                'icon'     => 'text-red-500',
+                'title'    => 'text-red-700 dark:text-red-400',
+                'sub'      => 'text-red-500 dark:text-red-400',
+            ],
+            'idle' => [
+                'card'     => 'bg-gray-50 dark:bg-gray-700/30',
+                'iconWrap' => 'bg-gray-100 dark:bg-gray-700',
+                'icon'     => 'text-gray-500 dark:text-gray-400',
+                'title'    => 'text-gray-500 dark:text-gray-400',
+                'sub'      => 'text-gray-500 dark:text-gray-400',
+            ],
+        ];
+
+        $alertDefs = [
+            ['key'=>'late','field'=>'late_appointments','tone'=>'amber','icon'=>'fa-clock-rotate-left',
+             'href'=>route('appointments.index'),'count'=>$late,
+             'singular'=>'Late Check-in','plural'=>'Late Check-ins',
+             'activeSub'=>'Pending past their start time','idleSub'=>'All on time'],
+            ['key'=>'noshow','field'=>'no_shows','tone'=>'red','icon'=>'fa-user-xmark',
+             'href'=>route('appointments.index'),'count'=>$cancelled,
+             'singular'=>'Cancellation Today','plural'=>'Cancellations Today',
+             'activeSub'=>'Slots freed up today','idleSub'=>'No cancellations'],
+            ['key'=>'overloaded','field'=>'overbooked_therapists','tone'=>'red','icon'=>'fa-user-nurse',
+             'href'=>route('schedule.index'),'count'=>$overloaded,
+             'singular'=>'Overloaded','plural'=>'Overloaded',
+             'activeSub'=>'Therapist(s) over 8 bookings','idleSub'=>'All loads normal'],
+            ['key'=>'pending-leave','field'=>'pending_leave_requests','tone'=>'amber','icon'=>'fa-calendar-days',
+             'href'=>route('attendance.index').'?tab=leave','count'=>$pendingLeave,
+             'singular'=>'Leave Request','plural'=>'Leave Requests',
+             'activeSub'=>'Awaiting your review','idleSub'=>'None pending'],
+            ['key'=>'pending-reassign','field'=>'pending_reassignments','tone'=>'red','icon'=>'fa-triangle-exclamation',
+             'href'=>route('appointments.index'),'count'=>$pendingReassign,
+             'singular'=>'Reassignment Request','plural'=>'Reassignment Requests',
+             'activeSub'=>'Needs a replacement therapist','idleSub'=>'None pending'],
+        ];
+
+        $anyAlertActive = collect($alertDefs)->contains(fn ($a) => $a['count'] > 0);
+
+        $quickActions = array_values(array_filter([
+            $canBookAppointments ? ['href'=>route('booking'),            'icon'=>'fa-calendar-plus',  'label'=>'New Booking']  : null,
+            $canViewAppointments ? ['href'=>route('appointments.index'), 'icon'=>'fa-calendar-check', 'label'=>'Appointments'] : null,
+            $canViewSchedule     ? ['href'=>route('schedule.index'),     'icon'=>'fa-table-cells',    'label'=>'Schedule']     : null,
+            $canViewAttendance   ? ['href'=>route('attendance.index'),   'icon'=>'fa-clipboard-user', 'label'=>'Attendance']   : null,
+            // $canViewServices ? ['href'=>route('services.index'),         'icon'=>'fa-spa',       'label'=>'Services'] : null,
+            // $canViewStaff    ? ['href'=>route('staff.index'),            'icon'=>'fa-users',     'label'=>'Staff']    : null,
+            // $canViewReports  ? ['href'=>route('reports.index'),          'icon'=>'fa-chart-bar', 'label'=>'Reports']  : null,
+            // $canViewRevenue  ? ['href'=>route('revenue.index'),          'icon'=>'fa-peso-sign', 'label'=>'Revenue']  : null,
+            // $canViewDSS      ? ['href'=>route('decision-support.index'), 'icon'=>'fa-lightbulb', 'label'=>'Insights'] : null,
+            // $canViewHiring   ? ['href'=>route('hiring.index'),           'icon'=>'fa-user-plus', 'label'=>'Hiring']   : null,
+        ]));
+
+        $bottomCount = ($canAlerts ? 1 : 0) + ($canRevenue ? 1 : 0) + (count($quickActions) ? 1 : 0);
+        $bottomGrid  = match($bottomCount) {
+            0, 1    => '',
+            2       => 'md:grid-cols-2',
             default => 'md:grid-cols-3',
         };
     @endphp
 
+    @if($bottomCount > 0)
     <div class="grid gap-6 {{ $bottomGrid }}">
 
         {{-- ── Alerts ── --}}
         @if($canAlerts)
         <div id="alertsWidget" class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Alerts</h2>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Operational issues right now</p>
             </div>
-            <div id="alerts-body" class="p-5 space-y-3">
+            <div id="alerts-body" class="p-4 space-y-3 sm:p-5">
 
-                @php $late = $lateAppointments ?? 0; @endphp
-                <a href="{{ route('appointments.index') }}" id="alert-late" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
-                    {{ $late > 0 ? 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:ring-amber-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
-                    <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
-                        {{ $late > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
-                        <i class="fa-solid fa-clock-rotate-left text-sm {{ $late > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400' }}"></i>
+                @foreach($alertDefs as $a)
+                @php $tone = $alertTones[$a['count'] > 0 ? $a['tone'] : 'idle']; @endphp
+                <a href="{{ $a['href'] }}" id="alert-{{ $a['key'] }}" class="{{ $alertCardBase }} {{ $tone['card'] }}">
+                    <div id="alert-{{ $a['key'] }}-iconwrap" class="{{ $alertIconWrapBase }} {{ $tone['iconWrap'] }}">
+                        <i id="alert-{{ $a['key'] }}-icon" class="fa-solid {{ $a['icon'] }} text-sm {{ $tone['icon'] }}"></i>
                     </div>
-                    <div>
-                        <p id="alert-late-title" class="text-sm font-semibold {{ $late > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-500 dark:text-gray-400' }}">
-                            {{ $late }} Late Check-in{{ $late !== 1 ? 's' : '' }}
+                    <div class="min-w-0">
+                        <p id="alert-{{ $a['key'] }}-title" class="text-sm font-semibold {{ $tone['title'] }}">
+                            {{ $a['count'] }} {{ $a['count'] !== 1 ? $a['plural'] : $a['singular'] }}
                         </p>
-                        <p id="alert-late-sub" class="text-xs {{ $late > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400' }}">
-                            {{ $late > 0 ? 'Pending past their start time' : 'All on time' }}
+                        <p id="alert-{{ $a['key'] }}-sub" class="text-xs {{ $tone['sub'] }}">
+                            {{ $a['count'] > 0 ? $a['activeSub'] : $a['idleSub'] }}
                         </p>
                     </div>
                 </a>
+                @endforeach
 
-                @php $cancelled = $noShows ?? 0; @endphp
-                <a href="{{ route('appointments.index') }}" id="alert-noshow" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
-                    {{ $cancelled > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
-                    <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
-                        {{ $cancelled > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
-                        <i class="fa-solid fa-user-xmark text-sm {{ $cancelled > 0 ? 'text-red-500' : 'text-gray-400' }}"></i>
-                    </div>
-                    <div>
-                        <p id="alert-noshow-title" class="text-sm font-semibold {{ $cancelled > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400' }}">
-                            {{ $cancelled }} Cancellation{{ $cancelled !== 1 ? 's' : '' }} Today
-                        </p>
-                        <p id="alert-noshow-sub" class="text-xs {{ $cancelled > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400' }}">
-                            {{ $cancelled > 0 ? 'Slots freed up today' : 'No cancellations' }}
-                        </p>
-                    </div>
-                </a>
-
-                @php $overloaded = $overbookedTherapists ?? 0; @endphp
-                <a href="{{ route('schedule.index') }}" id="alert-overloaded" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
-                    {{ $overloaded > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
-                    <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
-                        {{ $overloaded > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
-                        <i class="fa-solid fa-user-nurse text-sm {{ $overloaded > 0 ? 'text-red-500' : 'text-gray-400' }}"></i>
-                    </div>
-                    <div>
-                        <p id="alert-overloaded-title" class="text-sm font-semibold {{ $overloaded > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400' }}">
-                            {{ $overloaded }} Overloaded
-                        </p>
-                        <p id="alert-overloaded-sub" class="text-xs {{ $overloaded > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400' }}">
-                            {{ $overloaded > 0 ? 'Therapist(s) over 8 bookings' : 'All loads normal' }}
-                        </p>
-                    </div>
-                </a>
-
-                @php $pendingLeave = $pendingLeaveRequests ?? 0; @endphp
-                <a href="{{ route('attendance.index') }}?tab=leave" id="alert-pending-leave" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
-                    {{ $pendingLeave > 0 ? 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:ring-amber-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
-                    <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
-                        {{ $pendingLeave > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
-                        <i class="fa-solid fa-calendar-days text-sm {{ $pendingLeave > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400' }}"></i>
-                    </div>
-                    <div>
-                        <p id="alert-pending-leave-title" class="text-sm font-semibold {{ $pendingLeave > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-500 dark:text-gray-400' }}">
-                            {{ $pendingLeave }} Leave Request{{ $pendingLeave !== 1 ? 's' : '' }}
-                        </p>
-                        <p id="alert-pending-leave-sub" class="text-xs {{ $pendingLeave > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400' }}">
-                            {{ $pendingLeave > 0 ? 'Awaiting your review' : 'None pending' }}
-                        </p>
-                    </div>
-                </a>
-
-                @php $pendingReassign = $pendingReassignments ?? 0; @endphp
-                <a href="{{ route('appointments.index') }}#reassignmentSection" id="alert-pending-reassign" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity
-                    {{ $pendingReassign > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30' }}">
-                    <div class="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0
-                        {{ $pendingReassign > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
-                        <i class="fa-solid fa-triangle-exclamation text-sm {{ $pendingReassign > 0 ? 'text-red-500' : 'text-gray-400' }}"></i>
-                    </div>
-                    <div>
-                        <p id="alert-pending-reassign-title" class="text-sm font-semibold {{ $pendingReassign > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400' }}">
-                            {{ $pendingReassign }} Reassignment Request{{ $pendingReassign !== 1 ? 's' : '' }}
-                        </p>
-                        <p id="alert-pending-reassign-sub" class="text-xs {{ $pendingReassign > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400' }}">
-                            {{ $pendingReassign > 0 ? 'Needs a replacement therapist' : 'None pending' }}
-                        </p>
-                    </div>
-                </a>
-
-                <div id="alert-all-good" class="{{ ($late === 0 && $cancelled === 0 && $overloaded === 0 && $pendingLeave === 0 && $pendingReassign === 0) ? '' : 'hidden' }} flex items-center justify-center gap-2 pt-1">
+                <div id="alert-all-good" class="{{ $anyAlertActive ? 'hidden' : '' }} flex items-center justify-center gap-2 pt-1">
                     <i class="text-sm fa-solid fa-circle-check text-emerald-500"></i>
                     <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Everything looks good!</span>
                 </div>
@@ -840,17 +956,17 @@
         {{-- ── Today's Breakdown ── --}}
         @if($canRevenue)
         <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Today's Breakdown</h2>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Service + status summary</p>
             </div>
-            <div class="p-5 space-y-4">
+            <div class="p-4 space-y-4 sm:p-5">
 
                 <div>
                     <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Top Service</p>
-                    <div class="flex items-center gap-3 mt-2 p-3 bg-[#8B7355]/5 rounded-xl ring-1 ring-[#8B7355]/20">
-                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-[#8B7355]/15 flex-shrink-0">
-                            <i class="fa-solid fa-spa text-[#8B7355] text-sm"></i>
+                    <div class="flex items-center gap-3 mt-2 p-3 bg-[#8B7355]/5 dark:bg-[#C4A97D]/5 rounded-xl ring-1 ring-[#8B7355]/20 dark:ring-[#C4A97D]/20">
+                        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-[#8B7355]/15 dark:bg-[#C4A97D]/15 flex-shrink-0">
+                            <i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                         </div>
                         <p id="breakdown-top-service" class="text-sm font-semibold text-gray-800 truncate dark:text-gray-200">
                             {{ $topServiceLabel ?? 'No bookings yet' }}
@@ -873,15 +989,15 @@
                         @endphp
                         @foreach($statusBars as $s)
                         <div id="{{ $s['id'] }}-row" class="{{ $s['count'] > 0 ? '' : 'hidden' }} flex items-center gap-3">
-                            <span class="text-[10px] font-medium text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">{{ $s['label'] }}</span>
+                            <span class="text-[11px] font-medium text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">{{ $s['label'] }}</span>
                             <div class="flex-1 h-2 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-700">
                                 <div id="{{ $s['id'] }}-fill" class="{{ $s['color'] }} h-full rounded-full transition-all duration-500"
                                      style="width: {{ $total > 0 ? round(($s['count'] / $total) * 100) : 0 }}%"></div>
                             </div>
-                            <span id="{{ $s['id'] }}-count" class="text-[10px] font-semibold text-gray-600 dark:text-gray-400 w-4 text-right">{{ $s['count'] }}</span>
+                            <span id="{{ $s['id'] }}-count" class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 w-4 text-right">{{ $s['count'] }}</span>
                         </div>
                         @endforeach
-                        <p id="breakdown-empty" class="{{ $total === 0 ? '' : 'hidden' }} text-xs text-gray-400 italic">No appointments yet today.</p>
+                        <p id="breakdown-empty" class="{{ $total === 0 ? '' : 'hidden' }} text-xs text-gray-500 dark:text-gray-400 italic">No appointments yet today.</p>
                     </div>
                 </div>
 
@@ -890,106 +1006,32 @@
         @endif
 
         {{-- ── Quick Actions ── --}}
+        @if(count($quickActions))
         <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
-                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Jump to common pages</p>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Start a common task</p>
             </div>
-            <div class="grid grid-cols-2 gap-2 p-4">
-
-                @if($canBookAppointments)
-                <a href="{{ route('booking') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-calendar-plus text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">New Booking</span>
+            <div class="grid grid-cols-2 gap-2 p-4 sm:p-5">
+                @foreach($quickActions as $qa)
+                <a href="{{ $qa['href'] }}"
+                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 dark:hover:bg-[#C4A97D]/5 hover:border-[#8B7355]/30 dark:hover:border-[#C4A97D]/30 transition-colors group">
+                    <i class="fa-solid {{ $qa['icon'] }} text-[#8B7355] dark:text-[#C4A97D] text-lg group-hover:scale-110 transition-transform"></i>
+                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">{{ $qa['label'] }}</span>
                 </a>
-                @endif
-
-                @if($canViewAppointments)
-                <a href="{{ route('appointments.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-calendar-check text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Appointments</span>
-                </a>
-                @endif
-
-                @if($canViewSchedule)
-                <a href="{{ route('schedule.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-table-cells text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Schedule</span>
-                </a>
-                @endif
-
-                @if($canViewServices)
-                <a href="{{ route('services.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-spa text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Services</span>
-                </a>
-                @endif
-
-                @if($canViewStaff)
-                <a href="{{ route('staff.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-users text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Staff</span>
-                </a>
-                @endif
-
-                @if($canViewAttendance)
-                <a href="{{ route('attendance.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-clipboard-user text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Attendance</span>
-                </a>
-                @endif
-
-                @if($canViewReports)
-                <a href="{{ route('reports.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-chart-bar text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Reports</span>
-                </a>
-                @endif
-
-                @if($canViewRevenue)
-                <a href="{{ route('revenue.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-peso-sign text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Revenue</span>
-                </a>
-                @endif
-
-                @if($canViewDSS)
-                <a href="{{ route('decision-support.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-lightbulb text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Insights</span>
-                </a>
-                @endif
-
-                @if($canViewHiring)
-                <a href="{{ route('hiring.index') }}"
-                   class="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-[#8B7355]/5 hover:border-[#8B7355]/30 transition-colors group">
-                    <i class="fa-solid fa-user-plus text-[#8B7355] text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-400 text-center">Hiring</span>
-                </a>
-                @endif
-
+                @endforeach
             </div>
         </div>
+        @endif
 
     </div>{{-- end bottom row --}}
+    @endif
 
 </div>{{-- end max-w-7xl --}}
 
 
 {{-- ════════════════════════════════════════════════════════════════════════
      LIVE POLLING SCRIPT
-     Polls /dashboard/live-data every 60 seconds and patches the DOM
-     in-place. Only updates elements that exist on the page — sections
-     hidden by permissions are simply skipped.
 ═════════════════════════════════════════════════════════════════════════ --}}
 <script>
 (function () {
@@ -997,37 +1039,40 @@
     const LIVE_URL = '{{ route('dashboard.live-data') }}';
     const dot   = document.getElementById('liveIndicatorDot');
     const label = document.getElementById('liveIndicatorLabel');
+    const STATUS_CLASSES     = @json($statusClasses);
+    const SOURCE_CLASSES     = @json($sourceClasses);
+    const STATUS_DOT_CLASSES = @json($statusDotClasses);
+    const BOOKING_URL = @json($canBookingBtn ? route('booking') : null);
 
     let lastUpdatedAt = null;
     let tickTimer     = null;
+    let pollTimer     = null;
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
     function setLiveStatus(state) {
         const map = {
-            ok:         { dot: 'bg-emerald-400',  label: 'Live'           },
-            error:      { dot: 'bg-red-400',       label: 'Reconnecting…' },
+            ok:         { dot: 'bg-emerald-400', label: 'Live'          },
+            error:      { dot: 'bg-red-400',     label: 'Reconnecting…' },
             connecting: { dot: 'bg-gray-300 dark:bg-gray-600', label: 'Connecting…' },
         };
-        const s = map[state] ?? map.connecting;
-        dot.className   = `inline-block w-2 h-2 rounded-full transition-colors duration-300 ${s.dot}`;
-        label.textContent = s.label;
+        const st = map[state] ?? map.connecting;
+        if (dot)   dot.className = `inline-block w-2 h-2 rounded-full transition-colors duration-300 ${st.dot}`;
+        if (label) label.textContent = st.label;
     }
 
     function timeAgo(date) {
         const sec = Math.round((Date.now() - date.getTime()) / 1000);
-        if (sec < 10)  return 'just now';
-        if (sec < 60)  return `${sec}s ago`;
+        if (sec < 10) return 'just now';
+        if (sec < 60) return `${sec}s ago`;
         return `${Math.round(sec / 60)}m ago`;
     }
 
     function startTickTimer() {
         if (tickTimer) clearInterval(tickTimer);
         tickTimer = setInterval(() => {
-            if (lastUpdatedAt) label.textContent = `Updated ${timeAgo(lastUpdatedAt)}`;
+            if (lastUpdatedAt && label) label.textContent = `Updated ${timeAgo(lastUpdatedAt)}`;
         }, 10000);
     }
 
-    // ── Tiny helpers ─────────────────────────────────────────────────────────
     function set(id, val) {
         const el = document.getElementById(id);
         if (el) el.textContent = val;
@@ -1043,55 +1088,35 @@
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    // ── Status / source CSS class maps (mirrors Blade $statusClasses) ────────
-    const STATUS_CLASSES = {
-        reserved:  'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-        pending:   'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-        ongoing:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-        completed: 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
-        cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-    };
-    const SOURCE_CLASSES = {
-        online:  'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-        walk_in: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-        staff:   'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-        '':      'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-    };
-    function stClass(st)  { return STATUS_CLASSES[st]  ?? 'bg-gray-100 text-gray-600'; }
-    function srcClass(src){ return SOURCE_CLASSES[src] ?? SOURCE_CLASSES['']; }
-
-    // ── Dot color for timeline status dots ───────────────────────────────────
-    function dotClass(status) {
-        return {
-            ongoing:   'bg-emerald-500 border-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-800',
-            pending:   'bg-amber-400 border-amber-400',
-            reserved:  'bg-blue-400 border-blue-400',
-            completed: 'bg-gray-300 border-gray-300',
-            cancelled: 'bg-red-300 border-red-300',
-        }[status] ?? '';
+    // Rewrites a scroll container without throwing the reader back to the top.
+    function replaceKeepingScroll(el, html) {
+        const top = el.scrollTop;
+        el.innerHTML = html;
+        el.scrollTop = top;
     }
 
-    // ── KPI updater ───────────────────────────────────────────────────────────
+    function stClass(st)   { return STATUS_CLASSES[st] ?? 'bg-gray-100 text-gray-600'; }
+    function srcClass(src) { return SOURCE_CLASSES[src] ?? SOURCE_CLASSES['']; }
+    function dotClass(st)  { return STATUS_DOT_CLASSES[st] ?? ''; }
+
     function updateKpis(kpis) {
-        set('kpi-today-count',   kpis.today_count);
-        set('kpi-ongoing',       kpis.ongoing_today);
-        set('kpi-pending',       kpis.pending_today);
-        set('kpi-reserved',      kpis.reserved_today);
-        set('kpi-completed',     kpis.completed_today);
-        set('kpi-cancelled',     kpis.cancelled_today);
-        set('kpi-upcoming-week', kpis.upcoming_week);
+        set('kpi-today-count',     kpis.today_count);
+        set('kpi-ongoing',         kpis.ongoing_today);
+        set('kpi-pending',         kpis.pending_today);
+        set('kpi-reserved',        kpis.reserved_today);
+        set('kpi-completed',       kpis.completed_today);
+        set('kpi-cancelled',       kpis.cancelled_today);
+        set('kpi-upcoming-week',   kpis.upcoming_week);
         set('kpi-upcoming-week-2', kpis.upcoming_week);
     }
 
-    // ── Revenue updater ───────────────────────────────────────────────────────
     function updateRevenue(rev) {
-        set('kpi-collected',      php(rev.collected_today));
-        set('kpi-online',         rev.online_today);
-        set('kpi-walkin',         rev.walk_in_today);
+        set('kpi-collected',         php(rev.collected_today));
+        set('kpi-online',            rev.online_today);
+        set('kpi-walkin',            rev.walk_in_today);
         set('breakdown-top-service', rev.top_service_label ?? 'No bookings yet');
     }
 
-    // ── Breakdown status bars ─────────────────────────────────────────────────
     function updateBreakdownBars(kpis) {
         const total = kpis.today_count;
         const bars = [
@@ -1101,114 +1126,109 @@
             { id: 'bar-reserved',  count: kpis.reserved_today  },
             { id: 'bar-cancelled', count: kpis.cancelled_today },
         ];
-
         bars.forEach(({ id, count }) => {
             const row  = document.getElementById(id + '-row');
             const fill = document.getElementById(id + '-fill');
             const cnt  = document.getElementById(id + '-count');
             if (!row) return;
-
             row.classList.toggle('hidden', count === 0);
-            if (cnt) cnt.textContent = count;
+            if (cnt)  cnt.textContent = count;
             if (fill) fill.style.width = (total > 0 ? Math.round((count / total) * 100) : 0) + '%';
         });
-
         const emptyEl = document.getElementById('breakdown-empty');
         if (emptyEl) emptyEl.classList.toggle('hidden', total > 0);
     }
 
-    // ── Alerts updater ────────────────────────────────────────────────────────
+    const ALERT_DEFS          = @json($alertDefs);
+    const ALERT_TONES         = @json($alertTones);
+    const ALERT_CARD_BASE     = @json($alertCardBase);
+    const ALERT_ICONWRAP_BASE = @json($alertIconWrapBase);
+
     function updateAlerts(alerts) {
-        const late      = alerts.late_appointments;
-        const cancelled = alerts.no_shows;
-        const overloaded= alerts.overbooked_therapists;
+        let anyActive = false;
+        ALERT_DEFS.forEach(def => {
+            const n = alerts[def.field] ?? 0;
+            const active = n > 0;
+            if (active) anyActive = true;
 
-        // Late check-ins
-        const lateEl = document.getElementById('alert-late');
-        if (lateEl) {
-            lateEl.className = 'flex items-center gap-3 p-3 rounded-xl ' +
-                (late > 0 ? 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:ring-amber-800' : 'bg-gray-50 dark:bg-gray-700/30');
-        }
-        set('alert-late-title', late + ' Late Check-in' + (late !== 1 ? 's' : ''));
-        const lateTitleEl = document.getElementById('alert-late-title');
-        if (lateTitleEl) lateTitleEl.className = 'text-sm font-semibold ' + (late > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-500 dark:text-gray-400');
-        set('alert-late-sub', late > 0 ? 'Pending past their start time' : 'All on time');
-        const lateSubEl = document.getElementById('alert-late-sub');
-        if (lateSubEl) lateSubEl.className = 'text-xs ' + (late > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400');
+            const tone = ALERT_TONES[active ? def.tone : 'idle'];
+            const id   = 'alert-' + def.key;
 
-        // No-shows / cancellations
-        const noshowEl = document.getElementById('alert-noshow');
-        if (noshowEl) {
-            noshowEl.className = 'flex items-center gap-3 p-3 rounded-xl ' +
-                (cancelled > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30');
-        }
-        set('alert-noshow-title', cancelled + ' Cancellation' + (cancelled !== 1 ? 's' : '') + ' Today');
-        const noshowTitleEl = document.getElementById('alert-noshow-title');
-        if (noshowTitleEl) noshowTitleEl.className = 'text-sm font-semibold ' + (cancelled > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400');
-        set('alert-noshow-sub', cancelled > 0 ? 'Slots freed up today' : 'No cancellations');
-        const noshowSubEl = document.getElementById('alert-noshow-sub');
-        if (noshowSubEl) noshowSubEl.className = 'text-xs ' + (cancelled > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400');
+            const card = document.getElementById(id);
+            if (card) card.className = ALERT_CARD_BASE + ' ' + tone.card;
 
-        // Overloaded therapists
-        const overEl = document.getElementById('alert-overloaded');
-        if (overEl) {
-            overEl.className = 'flex items-center gap-3 p-3 rounded-xl ' +
-                (overloaded > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30');
-        }
-        set('alert-overloaded-title', overloaded + ' Overloaded');
-        const overTitleEl = document.getElementById('alert-overloaded-title');
-        if (overTitleEl) overTitleEl.className = 'text-sm font-semibold ' + (overloaded > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400');
-        set('alert-overloaded-sub', overloaded > 0 ? 'Therapist(s) over 8 bookings' : 'All loads normal');
-        const overSubEl = document.getElementById('alert-overloaded-sub');
-        if (overSubEl) overSubEl.className = 'text-xs ' + (overloaded > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400');
+            const wrap = document.getElementById(id + '-iconwrap');
+            if (wrap) wrap.className = ALERT_ICONWRAP_BASE + ' ' + tone.iconWrap;
 
-        // Pending leave requests
-        const pendingLeave = alerts.pending_leave_requests ?? 0;
-        const leaveEl = document.getElementById('alert-pending-leave');
-        if (leaveEl) {
-            leaveEl.className = 'flex items-center gap-3 p-3 rounded-xl ' +
-                (pendingLeave > 0 ? 'bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:ring-amber-800' : 'bg-gray-50 dark:bg-gray-700/30');
-        }
-        set('alert-pending-leave-title', pendingLeave + ' Leave Request' + (pendingLeave !== 1 ? 's' : ''));
-        const leaveTitleEl = document.getElementById('alert-pending-leave-title');
-        if (leaveTitleEl) leaveTitleEl.className = 'text-sm font-semibold ' + (pendingLeave > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-500 dark:text-gray-400');
-        set('alert-pending-leave-sub', pendingLeave > 0 ? 'Awaiting your review' : 'None pending');
-        const leaveSubEl = document.getElementById('alert-pending-leave-sub');
-        if (leaveSubEl) leaveSubEl.className = 'text-xs ' + (pendingLeave > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400');
+            const icon = document.getElementById(id + '-icon');
+            if (icon) icon.className = 'fa-solid ' + def.icon + ' text-sm ' + tone.icon;
 
-        // Pending reassignment requests
-        const pendingReassign = alerts.pending_reassignments ?? 0;
-        const reassignEl = document.getElementById('alert-pending-reassign');
-        if (reassignEl) {
-            reassignEl.className = 'flex items-center gap-3 p-3 rounded-xl ' +
-                (pendingReassign > 0 ? 'bg-red-50 ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800' : 'bg-gray-50 dark:bg-gray-700/30');
-        }
-        set('alert-pending-reassign-title', pendingReassign + ' Reassignment Request' + (pendingReassign !== 1 ? 's' : ''));
-        const reassignTitleEl = document.getElementById('alert-pending-reassign-title');
-        if (reassignTitleEl) reassignTitleEl.className = 'text-sm font-semibold ' + (pendingReassign > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400');
-        set('alert-pending-reassign-sub', pendingReassign > 0 ? 'Needs a replacement therapist' : 'None pending');
-        const reassignSubEl = document.getElementById('alert-pending-reassign-sub');
-        if (reassignSubEl) reassignSubEl.className = 'text-xs ' + (pendingReassign > 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-400');
+            const title = document.getElementById(id + '-title');
+            if (title) {
+                title.textContent = n + ' ' + (n !== 1 ? def.plural : def.singular);
+                title.className   = 'text-sm font-semibold ' + tone.title;
+            }
 
-        // "All good" row
+            const sub = document.getElementById(id + '-sub');
+            if (sub) {
+                sub.textContent = active ? def.activeSub : def.idleSub;
+                sub.className   = 'text-xs ' + tone.sub;
+            }
+        });
         const allGood = document.getElementById('alert-all-good');
-        if (allGood) allGood.classList.toggle('hidden', late > 0 || cancelled > 0 || overloaded > 0 || pendingLeave > 0 || pendingReassign > 0);
+        if (allGood) allGood.classList.toggle('hidden', anyActive);
     }
 
-    // ── Timeline row HTML builder ─────────────────────────────────────────────
-    function buildTimelineRow(b) {
-        const isNow  = b.status === 'ongoing';
-        const isPast = b.status === 'completed' || b.status === 'cancelled';
-        const rowBg  = isNow ? 'bg-emerald-50/60 dark:bg-emerald-900/10' : '';
-        const opacity= isPast ? 'opacity-60' : '';
+    function buildTimelineRow(b, opts) {
+        const o       = opts || {};
+        const isNow   = b.status === 'ongoing';
+        const isPast  = b.status === 'completed' || b.status === 'cancelled';
+        const rowBg   = isNow ? 'bg-emerald-50/60 dark:bg-emerald-900/10' : '';
+        const opacity = isPast ? 'opacity-60' : '';
+
+        const homeLine = (b.service_type === 'in_home' && b.customer_address) ? `
+            <p class="text-[11px] text-violet-600 dark:text-violet-400 mt-0.5 flex items-center gap-1">
+                <i class="fa-solid fa-house"></i> Home service · ${esc(b.customer_address)}
+            </p>` : '';
+
+        const metaRow = o.showTherapist ? `
+            <div class="flex items-center gap-3 mt-1.5">
+                <span class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D]"></i>
+                    ${esc(b.therapist_name)}
+                </span>
+                <span class="inline-flex items-center px-1.5 py-0.5 text-[11px] font-medium rounded-full ${srcClass(b.booking_source)}">
+                    ${(b.booking_source || 'STAFF').toUpperCase()}
+                </span>
+            </div>` : '';
+
+        const phoneLine = b.customer_phone ? `
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 flex items-center gap-1">
+                <i class="fa-solid fa-phone text-[#8B7355] dark:text-[#C4A97D]"></i> ${esc(b.customer_phone)}
+            </p>` : '';
+
+        let reassign = '';
+        if (o.showReassign && (b.status === 'reserved' || b.status === 'pending')) {
+            reassign = b.has_pending_reassignment
+                ? `<span class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
+                        <i class="fa-solid fa-clock"></i> Reassignment Pending
+                   </span>`
+                : `<button type="button" onclick="openReassignFlagModal(this)"
+                        data-reassign-flag-btn="${b.id}" data-id="${b.id}"
+                        data-customer="${esc(b.customer_name)}" data-treatment="${esc(b.treatment_display)}"
+                        data-date="${esc(b.appointment_date_fmt)}" data-time="${esc(b.start_time_fmt)}"
+                        class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Can't Make It?
+                   </button>`;
+        }
 
         return `
-        <div class="flex items-start gap-4 px-6 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/40 ${rowBg} ${opacity}">
+        <div class="flex items-start gap-4 px-4 py-4 sm:px-6 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/40 ${rowBg} ${opacity}">
             <div class="flex-shrink-0 w-16 text-right">
                 <p class="text-xs font-bold text-gray-800 dark:text-white tabular-nums">${esc(b.start_time_fmt)}</p>
-                <p class="text-[10px] font-semibold text-gray-400">${esc(b.start_ampm)}</p>
+                <p class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">${esc(b.start_ampm)}</p>
                 <div class="w-px h-4 mx-auto mt-1 bg-gray-200 dark:bg-gray-700"></div>
-                <p class="text-[10px] text-gray-400 tabular-nums">${esc(b.end_time_fmt)}</p>
+                <p class="text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">${esc(b.end_time_fmt)}</p>
             </div>
             <div class="flex-shrink-0 mt-1.5">
                 <div class="w-2.5 h-2.5 rounded-full border-2 ${dotClass(b.status)}"></div>
@@ -1218,73 +1238,63 @@
                     <div class="min-w-0">
                         <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">${esc(b.customer_name)}</p>
                         <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">${esc(b.treatment_display)}</p>
-                        ${b.service_type === 'in_home' && b.customer_address ? `
-                        <p class="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5 flex items-center gap-1">
-                            <i class="fa-solid fa-house"></i> Home service · ${esc(b.customer_address)}
-                        </p>` : ''}
+                        ${homeLine}
                     </div>
-                    <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full ${stClass(b.status)}">
+                    <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${stClass(b.status)}">
                         ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                     </span>
                 </div>
-                <div class="flex items-center gap-3 mt-1.5">
-                    <span class="text-[10px] text-gray-400 flex items-center gap-1">
-                        <i class="fa-solid fa-user-nurse text-[#8B7355]"></i>
-                        ${esc(b.therapist_name)}
-                    </span>
-                    <span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full ${srcClass(b.booking_source)}">
-                        ${(b.booking_source || 'STAFF').toUpperCase()}
-                    </span>
-                </div>
-                ${b.customer_phone ? `
-                <p class="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
-                    <i class="fa-solid fa-phone text-[#8B7355]"></i> ${esc(b.customer_phone)}
-                </p>` : ''}
+                ${metaRow}
+                ${phoneLine}
+                ${reassign}
             </div>
         </div>`;
     }
 
-    // ── Timeline updater ──────────────────────────────────────────────────────
     function updateTimeline(data) {
         const body = document.getElementById('timeline-body');
         if (!body) return;
 
         if (!data.appointments.length) {
-            body.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
+            const cta = BOOKING_URL ? `
+                <a href="${BOOKING_URL}"
+                   class="mt-4 inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white rounded-xl
+                          bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:opacity-90 transition">
+                    <i class="fa-solid fa-plus text-[11px]"></i> Add Booking
+                </a>` : '';
+            replaceKeepingScroll(body, `
+                <div id="timeline-empty" class="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
                     <i class="mb-3 text-3xl fa-regular fa-calendar-xmark"></i>
                     <p class="text-sm">No appointments scheduled today.</p>
-                </div>`;
+                    ${cta}
+                </div>`);
         } else {
-            body.innerHTML = '<div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-[460px] overflow-y-auto">'
-                + data.appointments.map(buildTimelineRow).join('')
-                + '</div>';
+            replaceKeepingScroll(body,
+                data.appointments.map(b => buildTimelineRow(b, { showTherapist: true })).join(''));
         }
 
-        // Next upcoming footer
-        const wrapper  = document.getElementById('next-appointment-wrapper');
-        const nameEl   = document.getElementById('next-appointment-name');
-        const dateEl   = document.getElementById('next-appointment-date');
-        const next     = data.next_appointment;
+        const wrapper = document.getElementById('next-appointment-wrapper');
+        const nameEl  = document.getElementById('next-appointment-name');
+        const dateEl  = document.getElementById('next-appointment-date');
+        const next    = data.next_appointment;
 
         if (wrapper) wrapper.classList.toggle('hidden', !next);
         if (next) {
-            if (nameEl) nameEl.innerHTML = `${esc(next.customer_name)} <span class="mx-1 font-normal text-gray-400">·</span> ${esc(next.treatment_display)}`;
+            if (nameEl) nameEl.innerHTML = `${esc(next.customer_name)} <span class="mx-1 font-normal text-gray-500 dark:text-gray-400">·</span> ${esc(next.treatment_display)}`;
             if (dateEl) dateEl.textContent = `${next.appointment_date_fmt} at ${next.appointment_date_at}`;
         }
     }
 
-    // ── Therapist panel updater ───────────────────────────────────────────────
     function updateTherapistPanel(therapists) {
         const body = document.getElementById('therapist-panel-body');
         if (!body) return;
 
         if (!therapists.length) {
-            body.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
+            replaceKeepingScroll(body, `
+                <div class="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
                     <i class="mb-3 text-3xl fa-solid fa-user-nurse"></i>
                     <p class="text-sm">No active therapists assigned.</p>
-                </div>`;
+                </div>`);
             return;
         }
 
@@ -1313,48 +1323,47 @@
                 'Free':       'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
             }[statusLabel] ?? 'bg-gray-100 text-gray-500';
 
-            const initial = (t.first_name ?? '?').charAt(0).toUpperCase();
+            const initial  = (t.first_name ?? '?').charAt(0).toUpperCase();
             const fullName = ((t.first_name ?? '') + ' ' + (t.last_name ?? '')).trim();
 
             return `
-            <div class="px-6 py-4">
+            <div class="px-4 py-4 sm:px-6">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center min-w-0 gap-3">
-                        <div class="flex items-center justify-center w-9 h-9 rounded-full bg-[#8B7355]/15 text-[#8B7355] flex-shrink-0 text-sm font-bold">
+                        <div class="flex items-center justify-center w-9 h-9 rounded-full bg-[#8B7355]/15 dark:bg-[#C4A97D]/15 text-[#8B7355] dark:text-[#C4A97D] flex-shrink-0 text-sm font-bold">
                             ${initial}
                         </div>
                         <div class="min-w-0">
                             <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">${esc(fullName)}</p>
-                            <p class="text-[10px] text-gray-400 dark:text-gray-500 truncate">${esc(t.email)}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate">${esc(t.email)}</p>
                         </div>
                     </div>
-                    <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge}">
+                    <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${statusBadge}">
                         ${statusLabel}
                     </span>
                 </div>
                 <div class="mt-3">
                     <div class="flex items-center justify-between mb-1">
-                        <span class="text-[10px] text-gray-400">${total} / ${capacity} appointments</span>
-                        <span class="text-[10px] font-semibold text-gray-500">${loadPct}%</span>
+                        <span class="text-[11px] text-gray-500 dark:text-gray-400">${total} / ${capacity} appointments</span>
+                        <span class="text-[11px] font-semibold text-gray-500 dark:text-gray-400">${loadPct}%</span>
                     </div>
                     <div class="w-full h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div class="${loadColor} h-full rounded-full transition-all duration-500" style="width: ${loadPct}%"></div>
                     </div>
                     <div class="flex items-center gap-3 mt-1.5">
-                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400">
+                        <span class="text-[11px] text-emerald-600 dark:text-emerald-400">
                             <i class="fa-solid fa-circle-check"></i> ${done} done
                         </span>
-                        ${ongoing > 0 ? `<span class="text-[10px] text-emerald-700 font-semibold dark:text-emerald-400"><i class="fa-solid fa-spinner"></i> ${ongoing} active</span>` : ''}
-                        ${remaining > 0 ? `<span class="text-[10px] text-blue-600 dark:text-blue-400"><i class="fa-regular fa-clock"></i> ${remaining} queued</span>` : ''}
+                        ${ongoing > 0 ? `<span class="text-[11px] text-emerald-700 font-semibold dark:text-emerald-400"><i class="fa-solid fa-spinner"></i> ${ongoing} active</span>` : ''}
+                        ${remaining > 0 ? `<span class="text-[11px] text-blue-600 dark:text-blue-400"><i class="fa-regular fa-clock"></i> ${remaining} queued</span>` : ''}
                     </div>
                 </div>
             </div>`;
         });
 
-        body.innerHTML = `<div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-[460px] overflow-y-auto">${rows.join('')}</div>`;
+        replaceKeepingScroll(body, rows.join(''));
     }
 
-    // ── My Today updater ──────────────────────────────────────────────────────
     function updateMyToday(data) {
         set('my-stat-total',     data.stats.total);
         set('my-stat-ongoing',   data.stats.ongoing);
@@ -1364,68 +1373,18 @@
         const body = document.getElementById('my-timeline-body');
         if (body) {
             if (!data.appointments.length) {
-                body.innerHTML = `
-                    <div class="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
+                replaceKeepingScroll(body, `
+                    <div class="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
                         <i class="mb-3 text-3xl fa-regular fa-calendar-check"></i>
                         <p class="text-sm font-medium">No appointments assigned to you today.</p>
-                        <p class="mt-1 text-xs text-gray-400">Check your upcoming schedule below.</p>
-                    </div>`;
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Check your upcoming schedule below.</p>
+                    </div>`);
             } else {
-                body.innerHTML = '<div class="divide-y divide-gray-100 dark:divide-gray-700">'
-                    + data.appointments.map(b => {
-                        const isNow  = b.status === 'ongoing';
-                        const isPast = b.status === 'completed' || b.status === 'cancelled';
-                        return `
-                        <div class="flex items-start gap-4 px-6 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/40
-                                    ${isNow ? 'bg-emerald-50/60 dark:bg-emerald-900/10' : ''} ${isPast ? 'opacity-60' : ''}">
-                            <div class="flex-shrink-0 w-16 text-right">
-                                <p class="text-xs font-bold text-gray-800 dark:text-white tabular-nums">${esc(b.start_time_fmt)}</p>
-                                <p class="text-[10px] font-semibold text-gray-400">${esc(b.start_ampm)}</p>
-                                <div class="w-px h-4 mx-auto mt-1 bg-gray-200 dark:bg-gray-700"></div>
-                                <p class="text-[10px] text-gray-400 tabular-nums">${esc(b.end_time_fmt)}</p>
-                            </div>
-                            <div class="flex-shrink-0 mt-1.5">
-                                <div class="w-2.5 h-2.5 rounded-full border-2 ${dotClass(b.status)}"></div>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-start justify-between gap-2">
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-semibold text-gray-900 truncate dark:text-white">${esc(b.customer_name)}</p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${esc(b.treatment_display)}</p>
-                                        ${b.service_type === 'in_home' && b.customer_address ? `
-                                        <p class="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5 flex items-center gap-1">
-                                            <i class="fa-solid fa-house"></i> Home service · ${esc(b.customer_address)}
-                                        </p>` : ''}
-                                    </div>
-                                    <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full ${stClass(b.status)}">
-                                        ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                                    </span>
-                                </div>
-                                ${b.customer_phone ? `
-                                <p class="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
-                                    <i class="fa-solid fa-phone text-[#8B7355]"></i> ${esc(b.customer_phone)}
-                                </p>` : ''}
-                                ${(b.status === 'reserved' || b.status === 'pending') ? (
-                                    b.has_pending_reassignment
-                                        ? `<span class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-lg dark:bg-amber-900/30 dark:text-amber-300">
-                                                <i class="fa-solid fa-clock"></i> Reassignment Pending
-                                           </span>`
-                                        : `<button type="button" onclick="openReassignFlagModal(this)"
-                                                data-reassign-flag-btn="${b.id}" data-id="${b.id}"
-                                                data-customer="${esc(b.customer_name)}" data-treatment="${esc(b.treatment_display)}"
-                                                data-date="${esc(b.appointment_date_fmt)}" data-time="${esc(b.start_time_fmt)}"
-                                                class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-                                                <i class="fa-solid fa-triangle-exclamation"></i> Can't Make It?
-                                           </button>`
-                                ) : ''}
-                            </div>
-                        </div>`;
-                    }).join('')
-                    + '</div>';
+                replaceKeepingScroll(body,
+                    data.appointments.map(b => buildTimelineRow(b, { showReassign: true })).join(''));
             }
         }
 
-        // My next appointment footer
         const wrapper = document.getElementById('my-next-wrapper');
         const nameEl  = document.getElementById('my-next-name');
         const dateEl  = document.getElementById('my-next-date');
@@ -1433,60 +1392,60 @@
 
         if (wrapper) wrapper.classList.toggle('hidden', !next);
         if (next) {
-            if (nameEl) nameEl.innerHTML = `${esc(next.customer_name)} <span class="mx-1 font-normal text-gray-400">·</span> ${esc(next.treatment_display)}`;
+            if (nameEl) nameEl.innerHTML = `${esc(next.customer_name)} <span class="mx-1 font-normal text-gray-500 dark:text-gray-400">·</span> ${esc(next.treatment_display)}`;
             if (dateEl) dateEl.textContent = `${next.appointment_date_fmt} at ${next.appointment_date_at}`;
         }
     }
 
-    // ── Main poll ─────────────────────────────────────────────────────────────
     async function poll() {
+        if (document.hidden) return;
+
         try {
             const res = await fetch(LIVE_URL, {
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             });
-
             if (!res.ok) throw new Error('HTTP ' + res.status);
 
             const data = await res.json();
 
             if (data.kpis)       { updateKpis(data.kpis); updateBreakdownBars(data.kpis); }
-            if (data.revenue)    { updateRevenue(data.revenue); updateBreakdownBars(data.kpis ?? {}); }
+            if (data.revenue)    { updateRevenue(data.revenue); }
             if (data.alerts)     { updateAlerts(data.alerts); }
             if (data.timeline)   { updateTimeline(data.timeline); }
             if (data.therapists) { updateTherapistPanel(data.therapists); }
             if (data.my_today)   { updateMyToday(data.my_today); }
 
-            lastUpdatedAt     = new Date();         // ← add
-            setLiveStatus('ok');                    // ← add
-            label.textContent = 'Live — just now'; // ← add
+            lastUpdatedAt = new Date();
+            setLiveStatus('ok');
+            if (label) label.textContent = 'Live — just now';
 
         } catch (err) {
-            // Silent fail — the page still shows stale server-rendered data.
+            // Silent fail — the page still shows the server-rendered data.
             console.warn('Dashboard poll failed:', err.message);
-            setLiveStatus('error');                 // ← add
+            setLiveStatus('error');
         }
     }
-    // Start polling after an initial delay so the first load isn't double-hit.
-    setLiveStatus('connecting');
-    poll(); // immediate first run
-    setInterval(poll, POLL_MS);
+
+    lastUpdatedAt = new Date();
+    setLiveStatus('ok');
+    if (label) label.textContent = 'Live — just now';
+
+    pollTimer = setInterval(poll, POLL_MS);
     startTickTimer();
 
-    // One-time attention-grab: if there's something actually actionable
-    // (leave or reassignment requests — not the purely informational
-    // late/cancelled/overloaded counts), smoothly bring the Alerts widget
-    // into view shortly after load and give it a brief pulse. Runs once,
-    // never on the 60s poll refresh — re-scrolling the viewport every
-    // minute would be disruptive, not helpful.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+    window.addEventListener('pagehide', () => {
+        if (pollTimer) clearInterval(pollTimer);
+        if (tickTimer) clearInterval(tickTimer);
+    });
+
     @if(($pendingLeaveRequests ?? 0) > 0 || ($pendingReassignments ?? 0) > 0)
     setTimeout(function () {
         const widget = document.getElementById('alertsWidget');
         if (!widget) return;
         const rect = widget.getBoundingClientRect();
         const alreadyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-        if (!alreadyVisible) {
-            widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        if (!alreadyVisible) widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
         widget.classList.add('animate-pulse');
         setTimeout(() => widget.classList.remove('animate-pulse'), 1500);
     }, 500);
@@ -1495,4 +1454,4 @@
 }());
 </script>
 
-@endsection
+@endsection 
