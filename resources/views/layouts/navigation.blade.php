@@ -94,22 +94,88 @@
     $showInventory = $canProductInventory || $canProductLogs;
 
     $brandHref = route('dashboard');
+
+    $mobileContextLabel = $currentBranch?->name ?? $spa?->name ?? 'Levictas';
 @endphp
 
-<div x-data="sidebar" class="flex h-screen bg-gray-100 dark:bg-gray-900">
+<style>
+    @media (max-width: 767.98px) {
+        #app-sidebar {
+            transform: translateX(-100%);
+        }
+
+        #app-sidebar.is-open {
+            transform: translateX(0);
+        }
+    }
+
+    /* Defensive: harmless if app.blade.php already declares this in <head>. */
+    [x-cloak] {
+        display: none !important;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    /* Firefox has no ::-webkit-scrollbar; these two properties are its equivalent. */
+    .overflow-y-auto {
+        scrollbar-width: thin;
+        scrollbar-color: #c1c1c1 #f1f1f1;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .overflow-y-auto::-webkit-scrollbar-track {
+            background: #374151;
+        }
+
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: #6b7280;
+        }
+
+        .overflow-y-auto {
+            scrollbar-color: #6b7280 #374151;
+        }
+    }
+
+    [x-collapse] {
+        overflow: hidden;
+        transition: all 0.3s ease-in-out;
+    }
+
+    .relative .fa-crown {
+        font-size: 0.5rem;
+        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+    }
+</style>
+
+<div x-data="sidebar" @keydown.escape.window="open = false" class="flex h-screen bg-gray-100 dark:bg-gray-900">
 
     <!-- MOBILE TOPBAR -->
     <div
-        class="fixed top-0 z-40 flex items-center justify-between w-full px-4 py-3 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
-        <button @click="open = true" class="text-gray-700 dark:text-gray-200">
+        class="fixed top-0 z-40 flex items-center justify-between w-full h-14 px-2 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
+        <button type="button" @click="open = !open"
+            aria-label="Toggle navigation" aria-controls="app-sidebar"
+            :aria-expanded="open ? 'true' : 'false'"
+            class="inline-flex items-center justify-center flex-shrink-0 text-gray-700 rounded-lg w-11 h-11 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
             <i class="text-xl fa-solid fa-bars"></i>
         </button>
 
         <!-- Mobile Branch Switcher -->
         @role('owner')
-            <div class="relative">
+            <div class="relative pr-2">
                 <button @click="mobileBranchesOpen = !mobileBranchesOpen"
-                    class="flex items-center space-x-2 text-gray-700 dark:text-gray-200">
+                    class="flex items-center px-2 space-x-2 text-gray-700 rounded-lg h-11 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                     <span class="text-sm font-medium truncate max-w-[120px]" x-text="selectedBranch"></span>
                     <i class="text-xs fa-solid fa-chevron-down" :class="mobileBranchesOpen ? 'rotate-180' : ''"></i>
                 </button>
@@ -121,14 +187,14 @@
                     x-transition:leave="transition ease-in duration-75"
                     x-transition:leave-start="transform opacity-100 scale-100"
                     x-transition:leave-end="transform opacity-0 scale-95"
-                    class="absolute right-0 z-50 w-56 mt-2 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
+                    class="absolute right-0 z-50 w-56 mt-2 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800 ring-1 ring-black/5">
                     <div class="py-1" role="menu">
                         <div class="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">SWITCH BRANCH</div>
 
                         @foreach ($branches as $branch)
                             <button
                                 @click="
-                                selectedBranch = '{{ addslashes($branch->name) }}';
+                                selectedBranch = {{ Js::from($branch->name) }};
                                 selectedBranchId = {{ $branch->id }};
                                 mobileBranchesOpen = false;
                                 switchBranch({{ $branch->id }});
@@ -138,7 +204,7 @@
                                 @if ($branch->is_main)
                                     <i class="w-4 mr-2 text-yellow-500 fa-solid fa-crown" title="Main Branch"></i>
                                 @else
-                                    <i class="w-4 mr-2 text-gray-400 fa-solid fa-store"></i>
+                                    <i class="w-4 mr-2 text-gray-500 fa-solid fa-store dark:text-gray-400"></i>
                                 @endif
 
                                 <div class="flex-1 min-w-0">
@@ -175,21 +241,28 @@
                     </div>
                 </div>
             </div>
+        @else
+            {{-- Non-owners have no switcher, so the bar would otherwise be empty. --}}
+            <div class="flex items-center min-w-0 gap-2 pr-3">
+                <i class="text-sm text-gray-500 fa-solid fa-location-dot dark:text-gray-400"></i>
+                <span class="text-sm font-medium text-gray-700 truncate dark:text-gray-200">{{ $mobileContextLabel }}</span>
+            </div>
         @endrole
     </div>
 
     <!-- SIDEBAR -->
-    <aside
-        class="fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 transform bg-white border-r dark:bg-gray-800 dark:border-gray-700 md:translate-x-0"
-        :class="open ? 'translate-x-0' : '-translate-x-full'">
+    {{-- z-50 so the mobile overlay (z-40) can sit above the topbar without covering the drawer. --}}
+    <aside id="app-sidebar"
+        class="fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-200 bg-white border-r dark:bg-gray-800 dark:border-gray-700"
+        :class="open ? 'is-open' : ''">
         <div class="flex flex-col h-full">
 
             <!-- Brand with Branch Switcher -->
             <div class="flex-shrink-0 border-b dark:border-gray-700">
-                <div class="px-6 py-4">
-                    <a href="{{ $brandHref }}" class="flex items-center space-x-3">
+                <div class="flex items-start justify-between gap-2 py-4 pl-6 pr-3 md:pr-6">
+                    <a href="{{ $brandHref }}" class="flex items-center flex-1 min-w-0 space-x-3">
                         <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
-                        <div>
+                        <div class="min-w-0">
                             <span
                                 class="text-2xl font-semibold text-[#8B7355] dark:text-white font-['Playfair_Display']">
                                 {{ $spa?->name ?? 'Spa Management' }}
@@ -197,6 +270,11 @@
                             <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">SPA | WELLNESS</p>
                         </div>
                     </a>
+
+                    <button type="button" @click="open = false" aria-label="Close navigation"
+                        class="inline-flex items-center justify-center flex-shrink-0 -mt-1 text-gray-700 rounded-lg w-11 h-11 md:hidden hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <i class="text-lg fa-solid fa-xmark"></i>
+                    </button>
                 </div>
 
                 <!-- BRANCH SWITCHER -->
@@ -227,13 +305,13 @@
                                 x-transition:leave="transition ease-in duration-75"
                                 x-transition:leave-start="transform opacity-100 scale-100"
                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                class="absolute left-0 right-0 z-50 mx-6 mt-1 overflow-y-auto origin-top bg-white rounded-lg shadow-lg dark:bg-gray-800 ring-1 ring-black ring-opacity-5 max-h-96">
+                                class="absolute left-0 right-0 z-50 mx-6 mt-1 overflow-y-auto origin-top bg-white rounded-lg shadow-lg dark:bg-gray-800 ring-1 ring-black/5 max-h-96">
                                 <div class="py-2">
                                     <div
                                         class="flex items-center justify-between px-4 py-2 border-b dark:border-gray-700">
                                         <span class="text-xs font-medium text-gray-500 dark:text-gray-400">SELECT
                                             BRANCH</span>
-                                        <span class="text-xs text-gray-400 dark:text-gray-500">{{ $branches->count() }}
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $branches->count() }}
                                             total</span>
                                     </div>
 
@@ -241,7 +319,7 @@
                                         @foreach ($branches as $branch)
                                             <button
                                                 @click="
-                                                    selectedBranch = '{{ addslashes($branch->name) }}';
+                                                    selectedBranch = {{ Js::from($branch->name) }};
                                                     selectedBranchId = {{ $branch->id }};
                                                     branchesDropdown = false;
                                                     switchBranch({{ $branch->id }});
@@ -259,7 +337,7 @@
                                                                     class="absolute text-xs -top-1 -right-1 fa-solid fa-crown"></i>
                                                             </div>
                                                         @else
-                                                            <i class="text-gray-400 fa-solid fa-store"></i>
+                                                            <i class="text-gray-500 fa-solid fa-store dark:text-gray-400"></i>
                                                         @endif
                                                     </div>
 
@@ -432,18 +510,18 @@
 
                             @if ($canStaffAccounts)
                                 <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
-                                    Staff Accounts
+                                    Staff
                                 </x-nav-link>
                             @endif
 
                             @if ($canHiring)
-                                <x-nav-link :href="route('deployment.index')" :active="request()->routeIs('depolyment.*')">
+                                <x-nav-link :href="route('deployment.index')" :active="request()->routeIs('deployment.*')">
                                     Staff Deployment
                                 </x-nav-link>
                             @endif
 
                             @if ($canAttendanceLeave)
-                                <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.index*')">
+                                <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.*')">
                                     Attendance &amp; Leave
                                 </x-nav-link>
                             @endif
@@ -654,12 +732,19 @@
     </aside>
 
     <!-- OVERLAY for Mobile -->
-    <div x-show="open" @click="open = false" class="fixed inset-0 z-30 bg-black bg-opacity-40 md:hidden"></div>
+    <div x-show="open" x-cloak @click="open = false" aria-hidden="true"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-40 bg-black/40 md:hidden"></div>
 
     <!-- Logout Confirmation Modal -->
     <div x-show="showLogoutModal" x-cloak
         @keydown.escape.window="showLogoutModal = false"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 dark:bg-opacity-70">
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/70">
         <div class="w-[80%] max-w-sm overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 transform scale-95"
@@ -709,47 +794,12 @@
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 h-screen overflow-y-auto md:ml-64">
-        <div class="p-4 pt-16 md:p-4 md:pt-4">
+        <div class="pt-14 md:pt-0">
             @yield('content')
         </div>
     </main>
 
 </div>
-
-
-<style>
-    .overflow-y-auto::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .overflow-y-auto::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-    }
-
-    .overflow-y-auto::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 3px;
-    }
-
-    .dark .overflow-y-auto::-webkit-scrollbar-track {
-        background: #374151;
-    }
-
-    .dark .overflow-y-auto::-webkit-scrollbar-thumb {
-        background: #6b7280;
-    }
-
-    [x-collapse] {
-        overflow: hidden;
-        transition: all 0.3s ease-in-out;
-    }
-
-    .relative .fa-crown {
-        font-size: 0.5rem;
-        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
-    }
-</style>
 
 <script>
 document.addEventListener('alpine:init', () => {
@@ -758,7 +808,7 @@ document.addEventListener('alpine:init', () => {
 
         const routeSectionMap = {
             operations: {{ (request()->routeIs('booking') || request()->routeIs('appointments.*') || request()->routeIs('schedule.*') || request()->routeIs('therapist.performance') || (!$suiteEnabled && request()->routeIs('attendance.*'))) ? 'true' : 'false' }},
-            people:     {{ (request()->routeIs('hiring.*') || request()->routeIs('applications.*') || request()->routeIs('interviews.*') || request()->routeIs('staff.*') || request()->routeIs('depolyment.*') || request()->routeIs('payroll.*') || ($suiteEnabled && request()->routeIs('attendance.*'))) ? 'true' : 'false' }},
+            people:     {{ ($suiteEnabled && (request()->routeIs('hiring.*') || request()->routeIs('applications.*') || request()->routeIs('interviews.*') || request()->routeIs('staff.*') || request()->routeIs('deployment.*') || request()->routeIs('payroll.*') || request()->routeIs('attendance.*'))) ? 'true' : 'false' }},
             management: {{ (request()->routeIs('services.*') || request()->routeIs('branches.*') || (!$suiteEnabled && request()->routeIs('staff.*'))) ? 'true' : 'false' }},
             finance:    {{ (request()->routeIs('revenue.*') || request()->routeIs('billing.*')) ? 'true' : 'false' }},
             insights:   {{ (request()->routeIs('decision-support.*') || request()->routeIs('reports.*')) ? 'true' : 'false' }},
@@ -822,22 +872,23 @@ document.addEventListener('alpine:init', () => {
                     credentials: 'same-origin',
                     body: JSON.stringify({ branch_id: branchId }),
                 })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Network response was not ok');
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            showSpaToast('Branch switched successfully', 'success');
-                            setTimeout(() => window.location.reload(), 1000);
-                        } else {
-                            showSpaToast(data.message || 'Failed to switch branch', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showSpaToast('An error occurred. Please try again.', 'error');
-                    });
+                
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        showSpaToast('Branch switched successfully', 'success');
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        showSpaToast(data.message || 'Failed to switch branch', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showSpaToast('An error occurred. Please try again.', 'error');
+                });
             }
         };
     });

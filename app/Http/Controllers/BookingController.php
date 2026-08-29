@@ -252,17 +252,17 @@ class BookingController extends Controller
         $todayPending = (clone $todayBase)
             ->where('status', 'pending')
             ->orderBy('start_time', 'asc')
-            ->paginate(5, ['*'], 'pending_page');
+            ->get();
 
-        $todayPending->getCollection()->transform(
+        $todayPending->transform(
             fn ($booking) => $this->decorateBooking($booking)
         );
 
         $todayAppointments = (clone $todayBase)
             ->orderBy('start_time', 'asc')
-            ->paginate(10, ['*'], 'today_page');
+            ->get();
 
-        $todayAppointments->getCollection()->transform(
+        $todayAppointments->transform(
             fn ($booking) => $this->decorateBooking($booking)
         );
 
@@ -274,9 +274,10 @@ class BookingController extends Controller
             ->with('latestReassignmentRequest')
             ->orderBy('appointment_date', 'asc')
             ->orderBy('start_time', 'asc')
-            ->paginate(5, ['*'], 'upcoming_page');
+            ->limit(10)
+            ->get();
 
-        $upcomingAppointments->getCollection()->transform(function ($booking) {
+        $upcomingAppointments->transform(function ($booking) {
             $booking = $this->decorateBooking($booking);
             $booking->has_pending_reassignment = $booking->latestReassignmentRequest?->isPending() ?? false;
             return $booking;
@@ -289,7 +290,7 @@ class BookingController extends Controller
             })
             ->orderBy('appointment_date', 'desc')
             ->orderBy('start_time', 'desc')
-            ->paginate(10, ['*'], 'history_page');
+            ->paginate(5, ['*'], 'history_page');
 
         $historyAppointments->getCollection()->transform(
             fn ($booking) => $this->decorateBooking($booking)
