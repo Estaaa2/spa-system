@@ -791,6 +791,17 @@
                                     ->activeToday()
                                     ->first();
 
+                                // Spa rating aggregate — avg of ratings.spa_rating for this
+                                // spa/branch, joined through bookings since ratings has no
+                                // spa_id/branch_id of its own.
+                                $ratingAgg = \App\Models\Rating::query()
+                                    ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+                                    ->where('bookings.spa_id', $spa->id)
+                                    ->where('bookings.branch_id', $branch->id)
+                                    ->whereNotNull('ratings.spa_rating')
+                                    ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
+                                    ->first();
+
                                 $branchTreatments = \App\Models\Treatment::withoutGlobalScope('spa_branch')
                                     ->where('branch_id', $branch->id)
                                     ->where('spa_id', $spa->id)
@@ -824,6 +835,8 @@
                                     'amenities'       => $profile->amenities ?? [],
                                     'is_hiring'   => $profile->is_hiring ?? false,
                                     'hiring_note' => $profile->hiring_note ?? null,
+                                    'rating_avg'   => $ratingAgg->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
+                                    'rating_count' => (int) ($ratingAgg->rating_count ?? 0),
                                 ];
                             @endphp
 
@@ -854,6 +867,13 @@
                                 </div>
                                 <div class="p-5">
                                     <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">{{ $spa->name }}</h3>
+                                    @if($spaPayload['rating_avg'])
+                                    <div class="flex items-center gap-1 mt-1">
+                                        <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+                                        <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">{{ $spaPayload['rating_avg'] }}</span>
+                                        <span class="text-xs text-gray-400">({{ $spaPayload['rating_count'] }})</span>
+                                    </div>
+                                    @endif
                                     @php
                                         $addr = $spaPayload['address'] ?? '';
                                         $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', $addr);
@@ -965,6 +985,15 @@
                                             ->activeToday()
                                             ->first();
 
+                                        // Spa rating aggregate — same pattern as Featured Spas above.
+                                        $ratingAgg = \App\Models\Rating::query()
+                                            ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+                                            ->where('bookings.spa_id', $spa->id)
+                                            ->where('bookings.branch_id', $branch->id)
+                                            ->whereNotNull('ratings.spa_rating')
+                                            ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
+                                            ->first();
+
                                         $spaPayload = [
                                             'id'              => $spa->id,
                                             'name'            => $spa->name,
@@ -986,6 +1015,8 @@
                                             'amenities'       => $profile->amenities ?? [],
                                             'is_hiring'   => $profile->is_hiring ?? false,
                                             'hiring_note' => $profile->hiring_note ?? null,
+                                            'rating_avg'   => $ratingAgg->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
+                                            'rating_count' => (int) ($ratingAgg->rating_count ?? 0),
                                         ];
                                     @endphp
 
@@ -1016,6 +1047,13 @@
                                         </div>
                                         <div class="p-4">
                                             <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">{{ $spa->name }}</h3>
+                                            @if($spaPayload['rating_avg'])
+                                            <div class="flex items-center gap-1 mt-1">
+                                                <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+                                                <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">{{ $spaPayload['rating_avg'] }}</span>
+                                                <span class="text-xs text-gray-400">({{ $spaPayload['rating_count'] }})</span>
+                                            </div>
+                                            @endif
                                             @php
                                                 $addr = $spaPayload['address'] ?? '';
                                                 $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', $addr);
@@ -1164,6 +1202,35 @@
         </div>
     </section>
 
+    <!-- ================= REVIEWS MODAL ================= -->
+    <div id="reviewsModal" class="fixed inset-0 z-[145] hidden">
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeReviewsModal()"></div>
+        <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
+            <div class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10 flex flex-col max-h-[80vh]">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
+                    <div>
+                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Ratings & Reviews</h3>
+                        <p id="reviewsModalSpaName" class="mt-0.5 text-xs text-gray-500 dark:text-gray-400"></p>
+                    </div>
+                    <button type="button" onclick="closeReviewsModal()"
+                        class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
+                        <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Filter tabs -->
+                <div id="reviewFilterTabs" class="flex items-center gap-2 px-6 py-3 overflow-x-auto border-b border-black/5 dark:border-white/10">
+                    <p class="text-sm text-gray-400">Loading...</p>
+                </div>
+
+                <!-- List -->
+                <div id="reviewsModalList" class="flex-1 p-6 space-y-3 overflow-y-auto">
+                    <p class="text-sm italic text-gray-400 dark:text-gray-500">Loading reviews...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ================= SPA MODAL ================= -->
     <div id="spaModal" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-spa-modal></div>
@@ -1180,6 +1247,13 @@
                             <span class="text-gray-300 dark:text-gray-600">·</span>
                             <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-xs"></i>
                             <span id="spaModalAddressSummary" class="font-medium text-[#6F5430] dark:text-[#C4A97D] underline underline-offset-2 decoration-dotted">Location</span>
+                            <button type="button" id="spaModalRating" onclick="openReviewsModalFromSpa()"
+                                class="items-center hidden gap-1 hover:underline underline-offset-2">
+                                <span class="text-gray-300 dark:text-gray-600">·</span>
+                                <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+                                <span id="spaModalRatingValue" class="font-medium text-[#3C2F23] dark:text-white"></span>
+                                <span id="spaModalRatingCount" class="text-gray-400"></span>
+                            </button>
                         </div>
                     </div>
                     <button data-close-spa-modal
@@ -1231,6 +1305,7 @@
                             <hr class="border-[#E8DDD0] dark:border-gray-700">
                             <div>
                                 <h4 class="mb-4 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23] dark:text-white">What this place offers</h4>
+                                <hr class="border-[#E8DDD0] dark:border-gray-700">
                                 <div id="spaModalAmenities">
                                     <p class="text-sm italic text-gray-400 dark:text-gray-500">No amenities listed yet.</p>
                                 </div>
@@ -1915,53 +1990,91 @@
                         <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div class="p-6 space-y-5">
+                <div class="overflow-y-auto max-h-[65vh] p-6 space-y-6">
                     <input type="hidden" id="ratingBookingId">
                     <input type="hidden" id="selectedRating" value="0">
+                    <input type="hidden" id="selectedSpaRating" value="0">
 
-                    <!-- Therapist Info - Fixed to show branch location instead of duplicate spa name -->
-                    <div class="p-4 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50 ring-1 ring-black/5 dark:ring-white/10">
-                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Therapist</p>
-                        <p id="ratingTherapistName" class="mt-1 text-base font-semibold text-[#3C2F23] dark:text-white"></p>
-                        <div class="flex items-center gap-1 mt-1">
-                            <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>
-                            <p id="ratingBranchLocation" class="text-xs text-gray-500 dark:text-gray-400"></p>
-                        </div>
-                    </div>
-
-                    <!-- Star Rating -->
-                    <div>
-                        <label class="block mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                            Your Rating <span class="text-red-500">*</span>
-                        </label>
-                        <div class="flex items-center gap-2">
-                            <div class="flex gap-1">
-                                {!! implode('', array_map(fn($i) =>
-                                    '<button type="button" onclick="setRating('.$i.')"
-                                        class="transition focus:outline-none hover:scale-110">
-                                        <i id="star-'.$i.'" class="text-2xl text-gray-300 dark:text-gray-600 fa-solid fa-star"></i>
-                                    </button>', range(1, 5))) !!}
+                    <!-- ── SPA SECTION ── -->
+                    <div class="p-4 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50 ring-1 ring-black/5 dark:ring-white/10 space-y-4">
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Spa</p>
+                            <p id="ratingSpaName" class="mt-1 text-base font-semibold text-[#3C2F23] dark:text-white"></p>
+                            <div class="flex items-center gap-1 mt-1">
+                                <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>
+                                <p id="ratingSpaBranchLocation" class="text-xs text-gray-500 dark:text-gray-400"></p>
                             </div>
-                            <span id="ratingLabel" class="ml-2 text-sm text-gray-500 dark:text-gray-400">Select rating</span>
+                        </div>
+
+                        <div>
+                            <label class="block mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                Overall Spa Rating <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <div class="flex gap-1">
+                                    {!! implode('', array_map(fn($i) =>
+                                        '<button type="button" onclick="setSpaRating('.$i.')"
+                                            class="transition focus:outline-none hover:scale-110">
+                                            <i id="spa-star-'.$i.'" class="text-2xl text-gray-300 dark:text-gray-600 fa-solid fa-star"></i>
+                                        </button>', range(1, 5))) !!}
+                                </div>
+                                <span id="spaRatingLabel" class="ml-2 text-sm text-gray-500 dark:text-gray-400">Select rating</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Comment (optional)</label>
+                            <textarea id="spaComment" rows="2" maxlength="500"
+                                placeholder="e.g., Clean facilities, relaxing ambiance..."
+                                class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
+                            <p class="mt-1 text-right text-[10px] text-gray-400 dark:text-gray-500"><span id="spaCommentCount">0</span>/500</p>
                         </div>
                     </div>
 
-                    <!-- Short Comment -->
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">What went well?</label>
-                        <textarea id="ratingComment" rows="2" maxlength="500"
-                            placeholder="e.g., Great massage, very professional..."
-                            class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
-                        <p class="mt-1 text-right text-[10px] text-gray-400 dark:text-gray-500"><span id="ratingCommentCount">0</span>/500</p>
-                    </div>
+                    <hr class="border-[#E8DDD0] dark:border-gray-700">
 
-                    <!-- Detailed Feedback -->
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Suggestions for improvement (optional)</label>
-                        <textarea id="ratingFeedback" rows="2" maxlength="1000"
-                            placeholder="e.g., Could be more attentive, room was cold..."
-                            class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
-                        <p class="mt-1 text-right text-[10px] text-gray-400 dark:text-gray-500"><span id="ratingFeedbackCount">0</span>/1000</p>
+                    <!-- ── THERAPIST SECTION ── -->
+                    <div class="p-4 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50 ring-1 ring-black/5 dark:ring-white/10 space-y-4">
+                        <div>
+                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Therapist</p>
+                            <p id="ratingTherapistName" class="mt-1 text-base font-semibold text-[#3C2F23] dark:text-white"></p>
+                            <div class="flex items-center gap-1 mt-1">
+                                <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>
+                                <p id="ratingBranchLocation" class="text-xs text-gray-500 dark:text-gray-400"></p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                Your Rating <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <div class="flex gap-1">
+                                    {!! implode('', array_map(fn($i) =>
+                                        '<button type="button" onclick="setRating('.$i.')"
+                                            class="transition focus:outline-none hover:scale-110">
+                                            <i id="star-'.$i.'" class="text-2xl text-gray-300 dark:text-gray-600 fa-solid fa-star"></i>
+                                        </button>', range(1, 5))) !!}
+                                </div>
+                                <span id="ratingLabel" class="ml-2 text-sm text-gray-500 dark:text-gray-400">Select rating</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">What went well?</label>
+                            <textarea id="ratingComment" rows="2" maxlength="500"
+                                placeholder="e.g., Great massage, very professional..."
+                                class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
+                            <p class="mt-1 text-right text-[10px] text-gray-400 dark:text-gray-500"><span id="ratingCommentCount">0</span>/500</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Suggestions for improvement (optional)</label>
+                            <textarea id="ratingFeedback" rows="2" maxlength="1000"
+                                placeholder="e.g., Could be more attentive, room was cold..."
+                                class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"></textarea>
+                            <p class="mt-1 text-right text-[10px] text-gray-400 dark:text-gray-500"><span id="ratingFeedbackCount">0</span>/1000</p>
+                        </div>
                     </div>
                 </div>
                 <div class="px-6 pb-6 space-y-2">

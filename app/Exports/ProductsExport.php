@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Product;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 
@@ -10,13 +11,15 @@ class ProductsExport implements FromCollection, WithHeadings
 {
     public function collection()
     {
-        return Product::query()->get([
-            'name',
-            'brand',
-            'stock_quantity',
-            'unit',
-            'expiration_date',
-        ]);
+        return Product::where('spa_id', Auth::user()->spa_id)
+            ->get([
+                'name',
+                'brand',
+                'stock_quantity',
+                'unit_value',
+                'unit',
+                'expiration_date',
+            ]);
     }
 
     public function headings(): array
@@ -25,6 +28,7 @@ class ProductsExport implements FromCollection, WithHeadings
             'name',
             'brand',
             'stock_quantity',
+            'unit_value',
             'unit',
             'expiration_date',
         ];

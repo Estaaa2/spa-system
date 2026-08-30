@@ -345,23 +345,25 @@
                         </td>
                         @if($showActions)
                         <td class="px-6 py-4">
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-col gap-2 sm:flex-row">
                                 @if($canEditStaff)
                                 <button
                                     type="button"
                                     onclick="editStaff({{ $member->id }}, {{ $isProfessional ? 'true' : 'false' }})"
-                                    class="px-3 py-1.5 text-sm text-white bg-yellow-500 rounded-lg hover:bg-yellow-600"
+                                    class="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-sm text-[#6F5430] bg-[#F0E9E1] rounded hover:bg-[#E5D9C9] dark:bg-gray-700 dark:text-[#D2B48C] dark:hover:bg-gray-600"
                                 >
-                                    Edit
+                                    <i class="text-xs fas fa-pen"></i>
+                                    <span>Edit</span>
                                 </button>
                                 @endif
                                 @if($canDeleteStaff)
                                 <button
                                     type="button"
                                     onclick='openDeleteModal({{ $member->id }}, @json(trim($member->user->first_name . " " . $member->user->last_name)))'
-                                    class="px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700"
+                                    class="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700"
                                 >
-                                    Remove
+                                    <i class="text-xs fas fa-trash"></i>
+                                    <span>Remove</span>
                                 </button>
                                 @endif
                             </div>

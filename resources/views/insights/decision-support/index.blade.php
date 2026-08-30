@@ -70,17 +70,19 @@
     </form>
 
     {{-- ── KPI Cards ──────────────────────────────────────────────────────── --}}
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
 
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Total Bookings</p>
-            <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{{ $kpis['total'] }}</p>
-            @if($kpis['growth'] !== null)
-                <p class="mt-1 text-xs {{ $kpis['growth'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500' }}">
-                    {{ $kpis['growth'] >= 0 ? '▲' : '▼' }} {{ abs($kpis['growth']) }}% vs prior period
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Avg. Spa Rating</p>
+            <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                {{ $kpis['avg_spa_rating'] ?? '—' }}<span class="text-base font-normal text-gray-400">/5</span>
+            </p>
+            @if($kpis['spa_rating_growth'] !== null)
+                <p class="mt-1 text-xs {{ $kpis['spa_rating_growth'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500' }}">
+                    {{ $kpis['spa_rating_growth'] >= 0 ? '▲' : '▼' }} {{ abs($kpis['spa_rating_growth']) }} vs prior period
                 </p>
             @else
-                <p class="mt-1 text-xs text-gray-400">No prior data</p>
+                <p class="mt-1 text-xs text-gray-400">{{ $kpis['spa_rating_count'] }} rating{{ $kpis['spa_rating_count'] === 1 ? '' : 's' }} this period</p>
             @endif
         </div>
 

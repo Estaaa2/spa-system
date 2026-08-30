@@ -6,6 +6,7 @@ use App\Models\BranchProfile;
 use App\Models\Spa;
 use App\Models\Treatment;
 use App\Models\Package;
+use App\Models\Rating;
 use Illuminate\Http\Request;
 
 class LandingController extends Controller
@@ -198,6 +199,14 @@ class LandingController extends Controller
                     ->where('spa_id', $spa->id)
                     ->get();
 
+                $ratingAgg = Rating::query()
+                ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+                ->where('bookings.spa_id', $spa->id)
+                ->where('bookings.branch_id', $branch->id)
+                ->whereNotNull('ratings.spa_rating')
+                ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
+                ->first();
+
                 $cards[] = [
                     'id'              => $spa->id,
                     'name'            => $spa->name,
@@ -223,6 +232,8 @@ class LandingController extends Controller
                     'amenities'       => $profile->amenities ?? [],
                     'is_hiring'       => $profile->is_hiring ?? false,
                     'hiring_note'     => $profile->hiring_note ?? null,
+                    'rating_avg'      => $ratingAgg->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
+                    'rating_count'    => (int) ($ratingAgg->rating_count ?? 0),
                 ];
             }
         }
@@ -309,6 +320,14 @@ class LandingController extends Controller
                     ->where('spa_id', $spa->id)
                     ->get();
 
+                $ratingAgg = Rating::query()
+                    ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+                    ->where('bookings.spa_id', $spa->id)
+                    ->where('bookings.branch_id', $branch->id)
+                    ->whereNotNull('ratings.spa_rating')
+                    ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
+                    ->first();
+
                 $result[] = [
                     'id'              => $spa->id,
                     'name'            => $spa->name,
@@ -332,6 +351,8 @@ class LandingController extends Controller
                     'packages'        => $packages,
                     'amenities'       => $profile->amenities ?? [],
                     'distance_km'     => $nearby[$branch->id]->distance_km,
+                    'rating_avg'      => $ratingAgg->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
+                    'rating_count'    => (int) ($ratingAgg->rating_count ?? 0),
                 ];
             }
         }
@@ -340,5 +361,46 @@ class LandingController extends Controller
         usort($result, fn($a, $b) => $a['distance_km'] <=> $b['distance_km']);
 
         return response()->json($result);
+    }
+
+    public function spaReviews(Request $request, $spaId, $branchId)
+    {
+        $base = Rating::query()
+            ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+            ->join('users', 'users.id', '=', 'ratings.customer_id')
+            ->where('bookings.spa_id', $spaId)
+            ->where('bookings.branch_id', $branchId)
+            ->whereNotNull('ratings.spa_rating');
+
+        $countsRaw = (clone $base)
+            ->selectRaw('ratings.spa_rating as rating, COUNT(*) as total')
+            ->groupBy('ratings.spa_rating')
+            ->pluck('total', 'rating');
+
+        $counts = [];
+        for ($i = 5; $i >= 1; $i--) {
+            $counts[$i] = (int) ($countsRaw[$i] ?? 0);
+        }
+
+        $reviews = $base->orderByDesc('ratings.created_at')
+            ->get([
+                'ratings.spa_rating as rating',
+                'ratings.spa_comment as comment',
+                'ratings.created_at',
+                'users.first_name',
+                'users.last_name',
+            ])
+            ->map(fn($r) => [
+                'rating'  => (int) $r->rating,
+                'comment' => $r->comment,
+                'name'    => trim($r->first_name . ' ' . substr($r->last_name ?? '', 0, 1) . '.'),
+                'date'    => $r->created_at?->format('M d, Y'),
+            ]);
+
+        return response()->json([
+            'total'   => $reviews->count(),
+            'counts'  => $counts,
+            'reviews' => $reviews,
+        ]);
     }
 }

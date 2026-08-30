@@ -186,6 +186,20 @@ function openSpaModal(spaData) {
     : 'Prices vary per treatment';
     const hiringBlock = document.getElementById('spaModalHiring');
     const hiringNote   = document.getElementById('spaModalHiringNote');
+    const ratingBlock = document.getElementById('spaModalRating');
+    const ratingValue = document.getElementById('spaModalRatingValue');
+    const ratingCount = document.getElementById('spaModalRatingCount');
+    if (ratingBlock && ratingValue && ratingCount) {
+        if (spaData.rating_avg) {
+            ratingValue.textContent = spaData.rating_avg;
+            ratingCount.textContent = `(${spaData.rating_count})`;
+            ratingBlock.classList.remove('hidden');
+            ratingBlock.classList.add('flex');
+        } else {
+            ratingBlock.classList.add('hidden');
+            ratingBlock.classList.remove('flex');
+        }
+    }
     if (hiringBlock) {
         if (spaData.is_hiring) {
             hiringBlock.classList.remove('hidden');
@@ -259,6 +273,116 @@ function openSpaModal(spaData) {
         }, 300);
     }
     photoIndex = 0;
+}
+
+// =====================================================
+// REVIEWS MODAL (Shopee-style star filter)
+// =====================================================
+let reviewsData          = { reviews: [], counts: {} };
+let currentReviewFilter  = null; // null = All
+
+function openReviewsModalFromSpa() {
+    if (!selectedSpa) return;
+    openReviewsModal(selectedSpa.id, selectedSpa.branch_id, selectedSpa.name);
+}
+
+function openReviewsModal(spaId, branchId, spaName) {
+    if (!spaId || !branchId) return;
+
+    const modal   = document.getElementById('reviewsModal');
+    const nameEl  = document.getElementById('reviewsModalSpaName');
+    const tabsEl  = document.getElementById('reviewFilterTabs');
+    const listEl  = document.getElementById('reviewsModalList');
+
+    if (nameEl) nameEl.textContent = spaName ?? '';
+    if (tabsEl) tabsEl.innerHTML = `<p class="text-sm text-gray-400">Loading...</p>`;
+    if (listEl) listEl.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">Loading reviews...</p>`;
+
+    currentReviewFilter = null;
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    fetch(`/web-api/spas/${spaId}/${branchId}/reviews`)
+        .then(res => res.json())
+        .then(data => {
+            reviewsData = {
+                reviews: Array.isArray(data.reviews) ? data.reviews : [],
+                counts:  data.counts ?? {},
+                total:   data.total ?? 0,
+            };
+            renderReviewFilterTabs();
+            renderReviewsList();
+        })
+        .catch(err => {
+            console.warn('Failed to load reviews:', err);
+            if (tabsEl) tabsEl.innerHTML = '';
+            if (listEl) listEl.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">Unable to load reviews.</p>`;
+        });
+}
+
+function closeReviewsModal() {
+    const modal = document.getElementById('reviewsModal');
+    if (modal) modal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function renderReviewFilterTabs() {
+    const tabsEl = document.getElementById('reviewFilterTabs');
+    if (!tabsEl) return;
+
+    const total = reviewsData.total ?? reviewsData.reviews.length;
+
+    const tabs = [
+        { label: `All (${total})`, value: null },
+        ...[5, 4, 3, 2, 1].map(star => ({
+            label: `${star} ★ (${reviewsData.counts[star] ?? 0})`,
+            value: star,
+        })),
+    ];
+
+    tabsEl.innerHTML = tabs.map(t => `
+        <button type="button"
+            data-filter="${t.value ?? 'all'}"
+            onclick="selectReviewFilter(${t.value ?? 'null'})"
+            class="review-filter-tab flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition
+                ${currentReviewFilter === t.value
+                    ? 'bg-[#8B7355] text-white border-[#8B7355]'
+                    : 'bg-transparent text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-[#8B7355]'}">
+            ${t.label}
+        </button>`).join('');
+}
+
+function selectReviewFilter(star) {
+    currentReviewFilter = star;
+    renderReviewFilterTabs();
+    renderReviewsList();
+}
+
+function renderReviewsList() {
+    const listEl = document.getElementById('reviewsModalList');
+    if (!listEl) return;
+
+    const filtered = currentReviewFilter === null
+        ? reviewsData.reviews
+        : reviewsData.reviews.filter(r => r.rating === currentReviewFilter);
+
+    if (!filtered.length) {
+        listEl.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">No reviews${currentReviewFilter ? ` with ${currentReviewFilter} star${currentReviewFilter > 1 ? 's' : ''}` : ''} yet.</p>`;
+        return;
+    }
+
+    listEl.innerHTML = filtered.map(r => `
+        <div class="p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(r.name || 'Anonymous')}</span>
+                <span class="text-xs text-gray-400">${r.date ?? ''}</span>
+            </div>
+            <div class="flex items-center gap-0.5 mt-1">${renderStars(r.rating)}</div>
+            ${r.comment ? `<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">${escapeHtml(r.comment)}</p>` : ''}
+        </div>`).join('');
 }
 
 function closeSpaModal() {
@@ -435,6 +559,12 @@ function buildUnifiedCard(spa) {
             </div>
             <div class="p-5">
                 <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">${escapeHtml(spa.name)}</h3>
+                ${spa.rating_avg ? `
+                <div class="flex items-center gap-1 mt-1">
+                    <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+                    <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">${spa.rating_avg}</span>
+                    <span class="text-xs text-gray-400">(${spa.rating_count})</span>
+                </div>` : ''}
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(addr)}</p>
                 ${spa.price_note ? `<p class="mt-2 text-xs font-medium text-[#8B7355] dark:text-[#C4A97D]">Starts at ₱${spa.price_note}</p>` : ''}
                 <p class="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${escapeHtml(spa.desc) || 'No description yet.'}</p>
@@ -2251,6 +2381,12 @@ async function loadNearbySpas() {
                     </div>
                     <div class="p-5">
                         <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">${spa.name}</h3>
+                        ${spa.rating_avg ? `
+                        <div class="flex items-center gap-1 mt-1">
+                            <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+                            <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">${spa.rating_avg}</span>
+                            <span class="text-xs text-gray-400">(${spa.rating_count})</span>
+                        </div>` : ''}
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${addrSummary}</p>
                     </div>
                 </button>`;
@@ -2553,6 +2689,7 @@ window.addEventListener('keydown', (e) => {
         if (!bookingModal?.classList.contains('hidden'))                                    closeBookingModal();
         if (!document.getElementById('businessInfoModal')?.classList.contains('hidden'))    closeBusinessInfo();
         if (!document.getElementById('applicationModal')?.classList.contains('hidden'))     closeApplicationModal();
+        if (!document.getElementById('reviewsModal')?.classList.contains('hidden'))         closeReviewsModal();
     }
 });
 
@@ -2580,8 +2717,13 @@ window.closeRescheduleModal     = closeRescheduleModal;
 window.submitRescheduleRequest  = submitRescheduleRequest;
 window.openRatingModal          = openRatingModal;
 window.closeRatingModal         = closeRatingModal;
+window.openReviewsModal         = openReviewsModal;
+window.openReviewsModalFromSpa  = openReviewsModalFromSpa;
+window.closeReviewsModal        = closeReviewsModal;
+window.selectReviewFilter       = selectReviewFilter;
 window.submitRating             = submitRating;
 window.setRating                = setRating;
+window.setSpaRating             = setSpaRating;
 window._dayBookingMap           = _dayBookingMap;
 window._appointmentMap          = _appointmentMap;
 window.openApplicationModal     = openApplicationModal;
@@ -2667,24 +2809,33 @@ function openRatingModal(bookingId, therapistName, spaName, branchName, branchLo
     const ratingBookingId = document.getElementById('ratingBookingId');
     const ratingTherapistName = document.getElementById('ratingTherapistName');
     const ratingBranchLocation = document.getElementById('ratingBranchLocation');
+    const ratingSpaName = document.getElementById('ratingSpaName');
+    const ratingSpaBranchLocation = document.getElementById('ratingSpaBranchLocation');
 
     if (ratingBookingId) ratingBookingId.value = bookingId;
     if (ratingTherapistName) ratingTherapistName.innerText = therapistName;
+    if (ratingSpaName) ratingSpaName.innerText = spaName;
 
     const locationText = branchLocation || branchName || 'Branch location unavailable';
     if (ratingBranchLocation) ratingBranchLocation.innerText = locationText;
+    if (ratingSpaBranchLocation) ratingSpaBranchLocation.innerText = locationText;
 
     resetStars();
+    resetSpaStars();
 
     const ratingComment = document.getElementById('ratingComment');
     const ratingFeedback = document.getElementById('ratingFeedback');
+    const spaComment = document.getElementById('spaComment');
     if (ratingComment) ratingComment.value = '';
     if (ratingFeedback) ratingFeedback.value = '';
+    if (spaComment) spaComment.value = '';
 
     const commentCount = document.getElementById('ratingCommentCount');
     const feedbackCount = document.getElementById('ratingFeedbackCount');
+    const spaCommentCount = document.getElementById('spaCommentCount');
     if (commentCount) commentCount.textContent = '0';
     if (feedbackCount) feedbackCount.textContent = '0';
+    if (spaCommentCount) spaCommentCount.textContent = '0';
 
     const submitBtn = document.getElementById('ratingSubmitBtn');
     if (submitBtn) {
@@ -2708,6 +2859,7 @@ function closeRatingModal() {
     if (modal) modal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
     resetStars();
+    resetSpaStars();
 }
 
 function resetStars() {
@@ -2719,6 +2871,17 @@ function resetStars() {
     }
     const selectedRating = document.getElementById('selectedRating');
     if (selectedRating) selectedRating.value = 0;
+}
+
+function resetSpaStars() {
+    for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`spa-star-${i}`);
+        if (!star) continue;
+        star.classList.remove('text-yellow-400');
+        star.classList.add('text-gray-300', 'dark:text-gray-600');
+    }
+    const selectedSpaRating = document.getElementById('selectedSpaRating');
+    if (selectedSpaRating) selectedSpaRating.value = 0;
 }
 
 function setRating(rating) {
@@ -2738,14 +2901,38 @@ function setRating(rating) {
     }
 }
 
+function setSpaRating(rating) {
+    const selectedSpaRating = document.getElementById('selectedSpaRating');
+    if (selectedSpaRating) selectedSpaRating.value = rating;
+
+    for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`spa-star-${i}`);
+        if (!star) continue;
+        if (i <= rating) {
+            star.classList.remove('text-gray-300', 'dark:text-gray-600');
+            star.classList.add('text-yellow-400');
+        } else {
+            star.classList.remove('text-yellow-400');
+            star.classList.add('text-gray-300', 'dark:text-gray-600');
+        }
+    }
+}
+
 async function submitRating() {
-    const bookingId = document.getElementById('ratingBookingId')?.value;
-    const rating    = document.getElementById('selectedRating')?.value;
-    const comment   = document.getElementById('ratingComment')?.value || '';
-    const feedback  = document.getElementById('ratingFeedback')?.value || '';
+    const bookingId  = document.getElementById('ratingBookingId')?.value;
+    const rating     = document.getElementById('selectedRating')?.value;
+    const comment    = document.getElementById('ratingComment')?.value || '';
+    const feedback   = document.getElementById('ratingFeedback')?.value || '';
+    const spaRating  = document.getElementById('selectedSpaRating')?.value;
+    const spaComment = document.getElementById('spaComment')?.value || '';
+
+    if (!spaRating || spaRating == 0) {
+        showSpaToast('Please rate the spa', 'error');
+        return;
+    }
 
     if (!rating || rating == 0) {
-        showSpaToast('Please select a rating', 'error');
+        showSpaToast('Please rate the therapist', 'error');
         return;
     }
 
@@ -2766,10 +2953,12 @@ async function submitRating() {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-                booking_id: bookingId,
-                rating:     parseInt(rating),
-                comment:    comment,
-                feedback:   feedback
+                booking_id:   bookingId,
+                rating:       parseInt(rating),
+                comment:      comment,
+                feedback:     feedback,
+                spa_rating:   parseInt(spaRating),
+                spa_comment:  spaComment
             })
         });
 
