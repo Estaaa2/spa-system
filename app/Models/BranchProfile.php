@@ -15,6 +15,7 @@ class BranchProfile extends Model
         'is_listed',
         'cover_image',
         'gallery_images',
+        'gallery_captions',
         'description',
         'phone',
         'address',
@@ -28,6 +29,7 @@ class BranchProfile extends Model
 
     protected $casts = [
         'gallery_images' => 'array',
+        'gallery_captions' => 'array',
         'amenities' => 'array',
         'is_listed' => 'boolean',
         'is_hiring' => 'boolean',
@@ -71,5 +73,15 @@ class BranchProfile extends Model
         return str_contains(strtolower($resolvedCity), 'cavite')
             ? $resolvedCity
             : "{$resolvedCity}, Cavite";
+    }
+
+    // This method returns the caption for a given gallery image path, if it exists.
+    public function captionFor(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        return $this->gallery_captions[$path]['caption'] ?? null;
     }
 }

@@ -618,7 +618,10 @@
                             </div>
                             <div class="grid grid-cols-2 gap-3">
                                 @for($i = 0; $i < 4; $i++)
-                                @php $existingImage = $existingGallery[$i] ?? null; @endphp
+                                @php
+                                    $existingImage   = $existingGallery[$i] ?? null;
+                                    $existingCaption = old("gallery_captions.$i", optional($branch->profile)->captionFor($existingImage) ?? '');
+                                @endphp
                                 <div class="space-y-2">
                                     <input type="hidden" name="existing_gallery_images[{{ $i }}]" value="{{ $existingImage }}">
                                     <input type="hidden" name="remove_gallery_images[{{ $i }}]" id="remove_gallery_image_{{ $i }}" value="0">
@@ -642,9 +645,14 @@
                                     </label>
                                                                         <input type="file" id="gallery_image_{{ $i }}" name="gallery_images[{{ $i }}]"
                                            accept="image/*" class="hidden" onchange="previewGalleryImage(event, {{ $i }})">
+                                    <input type="text" id="gallery_caption_{{ $i }}" name="gallery_captions[{{ $i }}]"
+                                           value="{{ $existingCaption }}" maxlength="80" placeholder="Caption (optional)"
+                                           {{ $existingImage ? '' : 'disabled' }}
+                                           class="{{ $existingImage ? '' : 'hidden' }} block w-full px-2 py-1 text-[11px] text-gray-600 bg-white border border-gray-200 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 placeholder:text-gray-400">
                                 </div>
                                 @endfor
                             </div>
+                            <p class="mt-2 text-[11px] text-gray-400">Optional. Shown wherever this photo appears — up to 80 characters.</p>
 
                             <hr class="my-5 border-gray-100 dark:border-gray-700">
                             <div class="grid grid-cols-2 gap-2">
@@ -862,6 +870,12 @@ function previewGalleryImage(event, index) {
         document.getElementById(`galleryPlaceholder_${index}`)?.classList.add('hidden');
         document.getElementById(`removeGalleryBtn_${index}`)?.classList.remove('hidden');
         document.getElementById(`remove_gallery_image_${index}`).value = '0';
+
+        const captionInput = document.getElementById(`gallery_caption_${index}`);
+        if (captionInput) {
+            captionInput.classList.remove('hidden');
+            captionInput.disabled = false;
+        }
     };
     reader.readAsDataURL(file);
 }
@@ -873,6 +887,13 @@ function removeGalleryImage(index) {
     document.getElementById(`removeGalleryBtn_${index}`)?.classList.add('hidden');
     document.getElementById(`gallery_image_${index}`).value = '';
     document.getElementById(`remove_gallery_image_${index}`).value = '1';
+
+    const captionInput = document.getElementById(`gallery_caption_${index}`);
+    if (captionInput) {
+        captionInput.value = '';
+        captionInput.classList.add('hidden');
+        captionInput.disabled = true;
+    }
 }
 
 // ── Leaflet map (lazy, only on profile tab open)
