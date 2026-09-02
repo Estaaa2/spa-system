@@ -11,14 +11,7 @@ use Illuminate\Http\Request;
 
 class LandingController extends Controller
 {
-    /**
-     * Shared filter: Place matches a branch's own location/name or its
-     * owning spa's name (so "Serenity" still finds a spa by name even
-     * though the Place segment mainly surfaces city suggestions).
-     * Treatment matches a branch's treatment OR package names. Both are
-     * independent AND'd constraints - specifying both narrows to spas
-     * matching *both*, not either.
-     */
+    // This method handles the search request for spas based on the provided place and treatment.
     private function spaSearchQuery(string $place, string $treatment)
     {
         $branchMatches = function ($query) use ($place, $treatment) {
@@ -57,12 +50,7 @@ class LandingController extends Controller
         ->whereHas('branches', $branchMatches);
     }
 
-    /**
-     * Frequency-sorted, deduplicated treatment + package names across all
-     * listed branches. Powers the Treatment segment's suggestion dropdown.
-     * There's no category/type taxonomy in the schema yet, so this is
-     * literal names, not curated categories - revisit once categories exist.
-     */
+    // This method retrieves treatment suggestions based on the most popular treatments and packages across all listed spas.
     private function treatmentSuggestions(): array
     {
         $treatmentNames = Treatment::withoutGlobalScope('spa_branch')
@@ -84,12 +72,7 @@ class LandingController extends Controller
         return $treatmentNames->merge($packageNames)->unique()->values()->take(40)->all();
     }
 
-    /**
-     * One merged, relevance-ish list instead of two tiers. Featured
-     * (professional-tier) spas still sort first when they have matches -
-     * preserving the value of their subscription - but no longer as a
-     * separate section a visitor must scroll past when it's empty.
-     */
+    // This method combines the results of spa searches based on place and treatment, sorts them by professional status, and builds the spa cards for display.
     private function unifiedResults(string $place, string $treatment): array
     {
         $allSpas = $this->spaSearchQuery($place, $treatment)->get();
@@ -140,13 +123,7 @@ class LandingController extends Controller
         ) + ['treatmentSuggestions' => $this->treatmentSuggestions()]);
     }
 
-    /**
-     * Live refine endpoint (no page reload) fired when "Search" is clicked.
-     * Same matching + sort rules as index(), returns one unified array of
-     * pre-built card payloads shaped exactly like the data-spa attribute
-     * already used by the Blade views, so openSpaModal() and the booking
-     * flow in welcome.js work unchanged for these results too.
-     */
+    // This method handles the search request for spas based on the provided place and treatment. 
     public function searchSpas(Request $request)
     {
         $place     = trim($request->input('place', ''));
@@ -161,8 +138,7 @@ class LandingController extends Controller
 
     private function buildSpaCards($spas): array
     {
-        $fallback = asset('storage/branch_profiles/emptyspa.jpg');
-        $cards    = [];
+        $cards = [];
 
         foreach ($spas as $spa) {
             $isFeatured = $spa->isProfessional();
@@ -176,18 +152,7 @@ class LandingController extends Controller
                     ->where('branch_id', $branch->id)
                     ->min('price');
 
-                $coverPhoto = !empty($profile->cover_image)
-                    ? asset('storage/' . $profile->cover_image)
-                    : $fallback;
-
-                $galleryPhotos = collect($profile->gallery_images ?? [])
-                    ->filter()
-                    ->map(fn($img) => asset('storage/' . $img))
-                    ->values();
-
-                $photos = collect([$coverPhoto])
-                    ->merge($galleryPhotos)
-                    ->take(5)->pad(5, $fallback)->values()->toArray();
+                $photos = BranchProfile::photoPayload($profile);
 
                 $branchTreatments = Treatment::withoutGlobalScope('spa_branch')
                     ->where('branch_id', $branch->id)
@@ -284,8 +249,7 @@ class LandingController extends Controller
             ->whereHas('branches', fn($q) => $q->whereIn('id', $branchIds))
             ->get();
 
-        $fallback = asset('storage/branch_profiles/emptyspa.jpg');
-        $result   = [];
+        $result = [];
 
         foreach ($spas as $spa) {
             foreach ($spa->branches as $branch) {
@@ -297,18 +261,8 @@ class LandingController extends Controller
                     ->where('branch_id', $branch->id)
                     ->min('price');
 
-                $coverPhoto = !empty($profile?->cover_image)
-                    ? asset('storage/' . $profile->cover_image)
-                    : $fallback;
-
-                $galleryPhotos = collect($profile->gallery_images ?? [])
-                    ->filter()
-                    ->map(fn($img) => asset('storage/' . $img))
-                    ->values();
-
-                $photos = collect([$coverPhoto])
-                    ->merge($galleryPhotos)
-                    ->take(5)->pad(5, $fallback)->values()->toArray();
+                // Same canonical payload as buildSpaCards() - see the note there.
+                $photos = BranchProfile::photoPayload($profile);
 
                 $treatments = Treatment::withoutGlobalScope('spa_branch')
                     ->where('branch_id', $branch->id)

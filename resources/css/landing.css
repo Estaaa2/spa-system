@@ -99,7 +99,7 @@ main.pt-20 {
 #appointmentsModal, #scheduleModal, #logoutModal, #bookingDetailsModal,
 #rescheduleModal, #spaModal, #bookingModal, #applicationModal,
 #businessInfoModal, #termsModal, #ratingModal, #rateReminderModal,
-#profileModal {
+#profileModal, #photoLightbox {
     padding-bottom: var(--safe-bottom);
     padding-left: var(--safe-left);
     padding-right: var(--safe-right);

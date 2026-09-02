@@ -240,21 +240,8 @@ function openSpaModal(spaData) {
         }
     }
 
-    const fallbackImage = document.body.dataset.fallbackImage ?? '';
-    photos = Array.isArray(spaData.photos) && spaData.photos.length
-        ? spaData.photos
-        : [fallbackImage, fallbackImage, fallbackImage, fallbackImage, fallbackImage];
-
-    const elMainPhoto = document.getElementById('spaModalMainPhoto');
-    if (elMainPhoto) elMainPhoto.src = photos[0] || fallbackImage;
-
-    ['gallery_1', 'gallery_2', 'gallery_3', 'gallery_4'].forEach((id, i) => {
-        const el = document.getElementById(id);
-        if (el) el.src = photos[i + 1] || fallbackImage;
-    });
-
-    const galleryCount = document.getElementById('spaModalGalleryCount');
-    if (galleryCount) galleryCount.classList.add('hidden');
+    photos = normalizeSpaPhotos(spaData.photos);
+    renderSpaPhotoGrid(photos, spaData.name ?? 'Spa');
 
     spaModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
@@ -386,8 +373,235 @@ function renderReviewsList() {
 }
 
 function closeSpaModal() {
+    closeLightbox();
     spaModal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+}
+
+// =====================================================
+// SPA PHOTOS — payload, dynamic grid, lightbox
+// =====================================================
+
+function fallbackSpaImage() {
+    return document.body.dataset.fallbackImage ?? '';
+}
+
+/**
+ * The server now sends photos as [{ url, caption }] with real uploads only
+ * (BranchProfile::photoPayload). The string-array branch is a cheap guard for
+ * any payload that predates that change — remove it once you're confident
+ * nothing is serving the old shape.
+ */
+function normalizeSpaPhotos(raw) {
+    if (!Array.isArray(raw)) return [];
+
+    return raw
+        .map(entry => (typeof entry === 'string'
+            ? { url: entry, caption: null }
+            : { url: entry?.url ?? '', caption: entry?.caption ?? null }))
+        .filter(photo => photo.url);
+}
+
+/**
+ * Thumbnail for listing cards. Falls back to the placeholder when a branch has
+ * uploaded nothing at all.
+ */
+function spaCardThumb(spa) {
+    return normalizeSpaPhotos(spa?.photos)[0]?.url || fallbackSpaImage();
+}
+
+/**
+ * Builds the modal photo grid to fit however many photos exist (0–5). The
+ * grid template itself is driven off data-count in the page's <style> block;
+ * this only emits the cells.
+ */
+function renderSpaPhotoGrid(list, spaName) {
+    const grid = document.getElementById('spaModalPhotoGrid');
+    if (!grid) return;
+
+    const label = escapeHtml(spaName);
+
+    // Zero real uploads: show the placeholder but no gallery affordance —
+    // not clickable, no counter, no viewer.
+    if (!list.length) {
+        grid.dataset.count = '0';
+        grid.innerHTML = `
+            <div class="spa-photo-cell is-empty">
+                <img src="${escapeHtml(fallbackSpaImage())}" alt="${label} has not uploaded any photos yet">
+                <span class="spa-photo-empty-label">
+                    <i class="fa-solid fa-image"></i>
+                    No photos yet
+                </span>
+            </div>`;
+        return;
+    }
+
+    grid.dataset.count = String(list.length);
+    grid.innerHTML = list.map((photo, i) => {
+        const chip = (i === 0 && list.length > 1)
+            ? `<span class="spa-photo-chip">
+                   <i class="fa-solid fa-images"></i>
+                   ${list.length} photos
+               </span>`
+            : '';
+
+        const alt = photo.caption
+            ? escapeHtml(photo.caption)
+            : `${label} photo ${i + 1} of ${list.length}`;
+
+        return `
+            <button type="button" class="spa-photo-cell" data-photo-index="${i}"
+                aria-label="View photo ${i + 1} of ${list.length}">
+                <img src="${escapeHtml(photo.url)}" alt="${alt}">
+                ${chip}
+            </button>`;
+    }).join('');
+}
+
+// Delegated so it survives the innerHTML rebuild on every modal open.
+document.getElementById('spaModalPhotoGrid')?.addEventListener('click', (e) => {
+    const cell = e.target.closest('.spa-photo-cell[data-photo-index]');
+    if (!cell) return;
+    openLightbox(Number(cell.dataset.photoIndex));
+});
+
+const lightboxEl = document.getElementById('photoLightbox');
+let lightboxIndex        = 0;
+let lightboxReturnFocus  = null;
+
+function isLightboxOpen() {
+    return !!lightboxEl && !lightboxEl.classList.contains('hidden');
+}
+
+function openLightbox(index) {
+    if (!lightboxEl || !photos.length) return;
+
+    lightboxIndex       = Math.min(Math.max(index, 0), photos.length - 1);
+    lightboxReturnFocus = document.activeElement;
+
+    const single = photos.length < 2;
+    document.getElementById('lightboxPrev').hidden = single;
+    document.getElementById('lightboxNext').hidden = single;
+
+    renderLightboxSlide();
+    lightboxEl.classList.remove('hidden');
+
+    // Body scroll lock is already held by spaModal. Deliberately not touched
+    // here — otherwise closing the lightbox would unlock the page behind a
+    // still-open modal.
+    document.getElementById('lightboxClose')?.focus();
+}
+
+function closeLightbox() {
+    if (!isLightboxOpen()) return;
+
+    lightboxEl.classList.add('hidden');
+
+    if (lightboxReturnFocus && typeof lightboxReturnFocus.focus === 'function') {
+        lightboxReturnFocus.focus();
+    }
+    lightboxReturnFocus = null;
+}
+
+function renderLightboxSlide() {
+    const photo   = photos[lightboxIndex];
+    const img     = document.getElementById('lightboxImage');
+    const caption = document.getElementById('lightboxCaption');
+    const counter = document.getElementById('lightboxCounter');
+    if (!photo || !img) return;
+
+    img.classList.add('is-swapping');
+    img.onload  = () => img.classList.remove('is-swapping');
+    img.onerror = () => img.classList.remove('is-swapping');
+    img.src = photo.url;
+    img.alt = photo.caption || `Photo ${lightboxIndex + 1} of ${photos.length}`;
+
+    if (caption) {
+        caption.textContent = photo.caption || '';
+        caption.classList.toggle('is-hidden', !photo.caption);
+    }
+    if (counter) counter.textContent = `${lightboxIndex + 1} / ${photos.length}`;
+
+    preloadAdjacentPhotos();
+}
+
+function preloadAdjacentPhotos() {
+    if (photos.length < 2) return;
+
+    [-1, 1].forEach(offset => {
+        const photo = photos[(lightboxIndex + offset + photos.length) % photos.length];
+        if (photo) new Image().src = photo.url;
+    });
+}
+
+function lightboxStep(delta) {
+    if (photos.length < 2) return;
+    lightboxIndex = (lightboxIndex + delta + photos.length) % photos.length;
+    renderLightboxSlide();
+}
+
+if (lightboxEl) {
+    lightboxEl.querySelectorAll('[data-close-lightbox]').forEach(el => {
+        el.addEventListener('click', closeLightbox);
+    });
+    document.getElementById('lightboxPrev')?.addEventListener('click', () => lightboxStep(-1));
+    document.getElementById('lightboxNext')?.addEventListener('click', () => lightboxStep(1));
+
+    // Arrows navigate; Tab is trapped inside the dialog. Escape is handled by
+    // the shared top-most-wins handler at the bottom of this file.
+    lightboxEl.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            lightboxStep(-1);
+            return;
+        }
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            lightboxStep(1);
+            return;
+        }
+        if (e.key !== 'Tab') return;
+
+        const focusable = Array.from(lightboxEl.querySelectorAll('button:not([hidden])'));
+        if (!focusable.length) return;
+
+        const first = focusable[0];
+        const last  = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    });
+
+    // Horizontal swipe, for the Median.co wrapper. A 50px threshold plus the
+    // dx > dy check keeps it from firing on a vertical scroll gesture.
+    const stage = document.getElementById('lightboxStage');
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchTracking = false;
+
+    stage?.addEventListener('touchstart', (e) => {
+        touchTracking = e.touches.length === 1;
+        if (!touchTracking) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    stage?.addEventListener('touchend', (e) => {
+        if (!touchTracking) return;
+        touchTracking = false;
+
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+
+        if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+        lightboxStep(dx < 0 ? 1 : -1);
+    }, { passive: true });
 }
 
 document.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
@@ -536,7 +750,7 @@ function spaHiringBadge(spa) {
 }
 
 function buildUnifiedCard(spa) {
-    const thumb = spa.photos?.[0] || (document.body.dataset.fallbackImage ?? '');
+    const thumb = spaCardThumb(spa);
     const addr  = spaAddressSummary(spa.address);
     const escaped = JSON.stringify(spa).replace(/'/g, '&#39;');
     const badgeClass = spa.is_featured ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10';
@@ -2354,10 +2568,8 @@ async function loadNearbySpas() {
         const grid    = document.getElementById('nearbyGrid');
         if (!section || !grid) return;
 
-        const fallback = document.body.dataset.fallbackImage ?? '';
-
         grid.innerHTML = data.map(spa => {
-            const thumb = spa.photos?.[0] || fallback;
+            const thumb = spaCardThumb(spa);
             const addr  = spa.address ?? '';
             const parts = addr.split(',').map(s => s.trim());
             const addrSummary = parts.length >= 3
@@ -2679,17 +2891,29 @@ function setupProfileAddressAutocomplete() {
 // =====================================================
 // KEYBOARD: Escape closes all modals
 // =====================================================
+
+const escapeCloseOrder = [
+    ['photoLightbox',       () => closeLightbox()],          // z-[155]
+    ['businessInfoModal',   () => closeBusinessInfo()],      // z-[150]
+    ['logoutModal',         () => closeLogoutModal()],       // z-[145]
+    ['reviewsModal',        () => closeReviewsModal()],      // z-[145]
+    ['rescheduleModal',     () => closeRescheduleModal()],   // z-[130]
+    ['bookingDetailsModal', () => closeBookingDetailsModal()], // z-[125]
+    ['termsModal',          () => closeTermsModal()],        // z-[120]
+    ['applicationModal',    () => closeApplicationModal()],  // z-[115]
+    ['bookingModal',        () => closeBookingModal()],      // z-[110]
+    ['spaModal',            () => closeSpaModal()],          // z-[100]
+];
+
 window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        if (!document.getElementById('logoutModal')?.classList.contains('hidden'))          closeLogoutModal();
-        if (!document.getElementById('rescheduleModal')?.classList.contains('hidden'))      closeRescheduleModal();
-        if (!document.getElementById('bookingDetailsModal')?.classList.contains('hidden'))  closeBookingDetailsModal();
-        if (!document.getElementById('termsModal')?.classList.contains('hidden'))           closeTermsModal();
-        if (!spaModal?.classList.contains('hidden'))                                        closeSpaModal();
-        if (!bookingModal?.classList.contains('hidden'))                                    closeBookingModal();
-        if (!document.getElementById('businessInfoModal')?.classList.contains('hidden'))    closeBusinessInfo();
-        if (!document.getElementById('applicationModal')?.classList.contains('hidden'))     closeApplicationModal();
-        if (!document.getElementById('reviewsModal')?.classList.contains('hidden'))         closeReviewsModal();
+    if (e.key !== 'Escape') return;
+
+    for (const [id, close] of escapeCloseOrder) {
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('hidden')) {
+            close();
+            return;
+        }
     }
 });
 
@@ -2738,6 +2962,8 @@ window.formatFileSize           = formatFileSize;
 window.openLogoutModal          = openLogoutModal;
 window.closeLogoutModal         = closeLogoutModal;
 window.toggleScheduleView       = toggleScheduleView;
+window.openLightbox             = openLightbox;
+window.closeLightbox            = closeLightbox;
 
 // =====================================================
 // TOAST

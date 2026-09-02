@@ -765,25 +765,12 @@
                                     ->min('price');
 
                                 $profile = $branch->profile;
-                                $fallbackImage = asset('storage/branch_profiles/emptyspa.jpg');
 
-                                $coverPhoto = !empty($profile?->cover_image)
-                                ? asset('storage/' . $profile->cover_image)
-                                : $fallbackImage;
-
-                                $galleryPhotos = collect($profile->gallery_images ?? [])
-                                ->filter()
-                                ->map(fn($img) => asset('storage/' . $img))
-                                ->values();
-
-                                $photos = collect([$coverPhoto])
-                                    ->merge($galleryPhotos)
-                                    ->take(5)
-                                    ->pad(5, $fallbackImage)
-                                    ->values()
-                                    ->toArray();
-
-                                $thumb = $coverPhoto;
+                                // Canonical photo payload — real uploads only,
+                                // never padded, each entry ['url', 'caption'].
+                                // See BranchProfile::photoPayload().
+                                $photos = \App\Models\BranchProfile::photoPayload($profile);
+                                $thumb  = \App\Models\BranchProfile::thumbnailFor($profile);
 
                                 $activePromo = \App\Models\Promo::withoutGlobalScopes()
                                     ->where('spa_id', $spa->id)
@@ -949,23 +936,11 @@
                                             ->min('price');
 
                                         $profile = $branch->profile;
-                                        $fallbackImage = asset('storage/branch_profiles/emptyspa.jpg');
 
-                                        $coverPhoto = !empty($profile?->cover_image)
-                                            ? asset('storage/' . $profile->cover_image)
-                                            : $fallbackImage;
-
-                                        $galleryPhotos = collect($profile->gallery_images ?? [])
-                                            ->filter()
-                                            ->map(fn($img) => asset('storage/' . $img))
-                                            ->values();
-
-                                        $photos = collect([$coverPhoto])
-                                            ->merge($galleryPhotos)
-                                            ->take(5)
-                                            ->pad(5, $fallbackImage)
-                                            ->values()
-                                            ->toArray();
+                                        // Same canonical payload as the Featured
+                                        // Spas loop above — see BranchProfile.
+                                        $photos     = \App\Models\BranchProfile::photoPayload($profile);
+                                        $coverPhoto = \App\Models\BranchProfile::thumbnailFor($profile);
 
                                         $branchTreatments = \App\Models\Treatment::withoutGlobalScope('spa_branch')
                                             ->where('branch_id', $branch->id)
@@ -1163,7 +1138,7 @@
                         data-open-spa-modal
                         data-spa='@json($item)'>
                         <div class="relative overflow-hidden">
-                            <img src="{{ $item['photos'][0] ?? '' }}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $item['name'] }}">
+                            <img src="{{ $item['photos'][0]['url'] ?? \App\Models\BranchProfile::fallbackPhotoUrl() }}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="{{ $item['name'] }}">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
                             <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full {{ $item['is_featured'] ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10' }} text-[11px] font-semibold backdrop-blur-sm">
                                 <i class="fa-solid {{ $item['is_featured'] ? 'fa-star text-[#F5C842]' : 'fa-spa text-[#8B7355] dark:text-[#C4A97D]' }} text-[10px]"></i>
@@ -1263,31 +1238,12 @@
                 </div>
                 <div class="overflow-y-auto">
                     <div class="p-6">
-                        <div class="grid grid-cols-4 grid-rows-2 gap-2 h-[380px] rounded-2xl overflow-hidden">
-                            <div class="relative col-span-2 row-span-2 bg-gray-100 cursor-pointer dark:bg-gray-700 group">
-                                <img id="spaModalMainPhoto" src="" class="object-cover w-full h-full transition duration-500 group-hover:scale-[1.02]">
-                                <div class="absolute inset-0 transition opacity-0 bg-gradient-to-t from-black/20 to-transparent group-hover:opacity-100"></div>
-                            </div>
-                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700">
-                                <img id="gallery_1" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
-                            </div>
-                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700">
-                                <img id="gallery_2" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
-                            </div>
-                            <div class="col-span-1 row-span-1 overflow-hidden bg-gray-100 dark:bg-gray-700">
-                                <img id="gallery_3" class="object-cover w-full h-full transition duration-300 cursor-pointer hover:scale-105">
-                            </div>
-                            <div class="relative col-span-1 row-span-1 overflow-hidden bg-gray-100 cursor-pointer dark:bg-gray-700 group">
-                                <img id="gallery_4" class="object-cover w-full h-full transition duration-300 group-hover:scale-105">
-                                <div id="spaModalGalleryCount"
-                                    class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white bg-black/40 backdrop-blur-[1px] transition group-hover:bg-black/50">
-                                    <span class="flex flex-col items-center gap-1">
-                                        <i class="text-lg fa-solid fa-images"></i>
-                                        View All
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                        {{-- Photo grid is built entirely by welcome.js's renderSpaPhotoGrid(),
+                             because its shape depends on how many photos the branch actually
+                             uploaded (1-5). Styling lives in the .spa-photo-* plain-CSS rules
+                             in the <style> block below rather than Tailwind utilities, since
+                             Tailwind's content scan does not reach welcome.js. --}}
+                        <div id="spaModalPhotoGrid" class="spa-photo-grid" data-count="0"></div>
                     </div>
                     <div class="grid gap-8 px-6 pb-8 md:grid-cols-3">
                         <div class="space-y-7 md:col-span-2">
@@ -1357,6 +1313,43 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ================= PHOTO LIGHTBOX ================= -->
+    {{-- Opens on top of #spaModal (z-[100]). z-[155] puts it above every other
+         overlay on this page, since it is only ever reachable from a modal.
+         Chrome is deliberately dark in both colour schemes, so the internals
+         need no prefers-color-scheme branch. --}}
+    <div id="photoLightbox" class="fixed inset-0 z-[155] hidden" role="dialog" aria-modal="true"
+         aria-labelledby="lightboxSrLabel">
+        <div class="absolute inset-0 bg-black/90" data-close-lightbox></div>
+
+        <h2 id="lightboxSrLabel" class="sr-only">Spa photo viewer</h2>
+
+        <div class="lightbox-shell">
+            <button type="button" id="lightboxClose" data-close-lightbox
+                class="lightbox-btn lightbox-btn-close" aria-label="Close photo viewer">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <button type="button" id="lightboxPrev"
+                class="lightbox-btn lightbox-btn-prev" aria-label="Previous photo">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <div class="lightbox-stage" id="lightboxStage">
+                <img id="lightboxImage" class="lightbox-image" alt="">
+                <div class="lightbox-footer" id="lightboxFooter">
+                    <p class="lightbox-caption" id="lightboxCaption"></p>
+                    <p class="lightbox-counter" id="lightboxCounter" aria-live="polite"></p>
+                </div>
+            </div>
+
+            <button type="button" id="lightboxNext"
+                class="lightbox-btn lightbox-btn-next" aria-label="Next photo">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
         </div>
     </div>
 
@@ -1432,9 +1425,96 @@
         .step-bar.is-pending { background: #e5e7eb; }
         .step-bar.is-done { background: #8B7355; }
 
+        /* Spa modal photo grid — built by welcome.js's renderSpaPhotoGrid().
+           The grid template depends on how many photos the branch actually
+           uploaded, so the shape is driven off a data-count attribute rather
+           than swapped class names (same reasoning as schedule.blade.php's
+           [aria-pressed] styling: one attribute, no className churn). */
+        .spa-photo-grid { display: grid; gap: 8px; border-radius: 16px; overflow: hidden; grid-template-columns: 1fr; grid-template-rows: 1fr; aspect-ratio: 4 / 3; }
+        .spa-photo-cell { position: relative; display: block; width: 100%; height: 100%; padding: 0; margin: 0; border: 0; overflow: hidden; background: #f3f4f6; cursor: pointer; }
+        .spa-photo-cell img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; }
+        .spa-photo-cell:hover img { transform: scale(1.04); }
+        .spa-photo-cell:focus-visible { outline: 2px solid #8B7355; outline-offset: -2px; }
+        .spa-photo-cell::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.22), transparent 55%); opacity: 0; transition: opacity .2s ease; }
+        .spa-photo-cell:hover::after { opacity: 1; }
+
+        /* Zero real uploads: the placeholder is shown but carries no gallery
+           affordance at all — not clickable, no hover, no counter. Opening a
+           viewer onto a known placeholder is a dead-end interaction. */
+        .spa-photo-cell.is-empty { cursor: default; }
+        .spa-photo-cell.is-empty:hover img { transform: none; }
+        .spa-photo-cell.is-empty::after { display: none; }
+        .spa-photo-empty-label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(0,0,0,.5); color: #fff; font-size: 12px; font-weight: 600; }
+
+        /* Photo-count pill on the hero cell. Below sm this is the only entry
+           point into the viewer, since the grid collapses to the hero alone. */
+        .spa-photo-chip { position: absolute; left: 12px; bottom: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(0,0,0,.55); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); color: #fff; font-size: 12px; font-weight: 600; pointer-events: none; }
+
+        /* Below sm the four small cells would each be roughly 90px wide inside
+           the Median wrapper, so only the hero renders; the rest stay reachable
+           by swiping in the viewer. */
+        .spa-photo-grid .spa-photo-cell:not(:first-child) { display: none; }
+
+        @media (min-width: 640px) {
+            .spa-photo-grid { aspect-ratio: auto; height: 380px; }
+            .spa-photo-grid .spa-photo-cell:not(:first-child) { display: block; }
+
+            .spa-photo-grid[data-count="2"] { grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr; }
+            .spa-photo-grid[data-count="2"] .spa-photo-cell:first-child { grid-column: span 2; }
+
+            .spa-photo-grid[data-count="3"] { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
+            .spa-photo-grid[data-count="3"] .spa-photo-cell:first-child { grid-column: span 2; grid-row: span 2; }
+
+            .spa-photo-grid[data-count="4"] { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); }
+            .spa-photo-grid[data-count="4"] .spa-photo-cell:first-child { grid-column: span 2; grid-row: span 2; }
+            .spa-photo-grid[data-count="4"] .spa-photo-cell:nth-child(2) { grid-column: span 2; }
+
+            .spa-photo-grid[data-count="5"] { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); }
+            .spa-photo-grid[data-count="5"] .spa-photo-cell:first-child { grid-column: span 2; grid-row: span 2; }
+        }
+
+        /* Photo lightbox. Chrome is dark in both colour schemes by design, so
+           there is no prefers-color-scheme branch for these rules. */
+        /* Unlike the other modals this one is truly full-bleed (inset-0 with no
+           top margin), so the close button would sit under the status bar in
+           the Median shell. --safe-top is declared in landing.css and resolves
+           to 0px everywhere else. */
+        .lightbox-shell { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: calc(72px + var(--safe-top, 0px)) 16px 24px; }
+        .lightbox-stage { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 1100px; max-height: 100%; }
+        .lightbox-image { display: block; max-width: 100%; max-height: calc(100vh - 200px); object-fit: contain; border-radius: 12px; user-select: none; -webkit-user-drag: none; transition: opacity .18s ease; }
+        @supports (height: 100dvh) {
+            .lightbox-image { max-height: calc(100dvh - 200px); }
+        }
+        .lightbox-image.is-swapping { opacity: 0; }
+        .lightbox-footer { width: 100%; max-width: 720px; margin-top: 14px; text-align: center; }
+        .lightbox-caption { font-size: 13px; font-weight: 500; line-height: 1.45; color: #fff; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .lightbox-caption.is-hidden { display: none; }
+        .lightbox-counter { margin-top: 6px; font-size: 11px; letter-spacing: .04em; color: rgba(255,255,255,.7); }
+
+        .lightbox-btn { position: absolute; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 9999px; background: rgba(255,255,255,.12); color: #fff; font-size: 16px; cursor: pointer; transition: background-color .15s ease; }
+        .lightbox-btn:hover { background: rgba(255,255,255,.24); }
+        .lightbox-btn:focus-visible { outline: 2px solid #C4A97D; outline-offset: 2px; }
+        .lightbox-btn[hidden] { display: none; }
+        .lightbox-btn-close { top: 16px; right: 16px; }
+        .lightbox-btn-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+        .lightbox-btn-next { right: 16px; top: 50%; transform: translateY(-50%); }
+        @media (max-width: 639px) {
+            .lightbox-shell { padding: calc(64px + var(--safe-top, 0px)) 8px 20px; }
+            .lightbox-btn-prev { left: 8px; }
+            .lightbox-btn-next { right: 8px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .spa-photo-cell img,
+            .lightbox-image { transition: none; }
+            .spa-photo-cell:hover img { transform: none; }
+        }
+
         /* Dark mode (prefers-color-scheme) for the hero search dropdown.
            Plain CSS, not dark: utilities - no .dark class is ever added. */
         @media (prefers-color-scheme: dark) {
+            .spa-photo-cell { background: #374151; }
+            .spa-photo-cell:focus-visible { outline-color: #C4A97D; }
+
             .search-dropdown { background: #1f2937; box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08); }
             .search-dropdown-label { color: #9ca3af; }
             .search-chip { background: #374151; color: #e5e7eb; border-color: rgba(255,255,255,0.08); }
