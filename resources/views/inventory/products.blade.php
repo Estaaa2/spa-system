@@ -2,6 +2,15 @@
 
 @section('title', 'Inventory Products')
 @section('content')
+
+    @php
+        $deductFailedProduct = null;
+
+        if ($errors->deductStock->any() && old('product_id')) {
+            $deductFailedProduct = $products->firstWhere('id', (int) old('product_id'));
+        }
+    @endphp
+
     <div class="p-6" x-data="{
         addOpen: false,
         editOpen: false,
@@ -30,7 +39,19 @@
             };
             this.deleteOpen = true;
         }
-    }">
+    }"
+    x-init="@if($deductFailedProduct)
+        openEdit(@js([
+            'id' => $deductFailedProduct->id,
+            'name' => $deductFailedProduct->name,
+            'brand' => $deductFailedProduct->brand,
+            'stock_quantity' => (int) $deductFailedProduct->stock_quantity,
+            'unit_value' => (int) ($deductFailedProduct->unit_value ?? 0),
+            'unit' => $deductFailedProduct->unit ?? 'ml',
+            'expiration_date' => optional($deductFailedProduct->expiration_date)->format('Y-m-d'),
+        ]))
+    @endif"
+    >
 
         <x-page-header title="Inventory Products" subtitle="Manage inventory products." />
 
@@ -139,15 +160,11 @@
                                             <span>Remove</span>
                                         </button>
                                     </div>
-
-                                    @error('amount')
-                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
-                                    @enderror
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-10 text-center text-gray-500">
+                                <td colspan="6" class="px-6 py-10 text-center text-gray-500">
                                     No products found.
                                 </td>
                             </tr>
@@ -306,13 +323,13 @@
         </div>
 
         <!-- Edit Product Modal -->
-        <div x-show="editOpen" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style="display:none;">
-            <!-- backdrop -->
-            <div class="absolute inset-0 bg-black/50" @click="editOpen = false"></div>
+        <div x-show="editOpen" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+        style="display:none;">
+        <!-- backdrop -->
+        <div class="absolute inset-0 bg-black/50" @click="editOpen = false"></div>
 
-            <div x-transition
-                class="relative w-full max-w-lg bg-white border shadow-lg rounded-xl dark:bg-gray-800 dark:border-gray-700">
+        <div x-transition
+            class="relative w-full max-w-lg my-8 bg-white border shadow-lg rounded-xl dark:bg-gray-800 dark:border-gray-700 max-h-[85vh] overflow-y-auto">
                 <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
                     <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Edit Product</h3>
                     <button type="button" @click="editOpen = false"
@@ -323,47 +340,75 @@
 
                 <div class="p-6 space-y-6">
                     <!-- UPDATE FORM -->
-                    <form method="POST" :action="`{{ url('/inventory/products') }}/${edit.id}`" class="space-y-4">
+                    <form method="POST"
+                        id="updateProductForm"
+                        :action="`{{ url('/inventory/products') }}/${edit.id}`"
+                        class="space-y-4">
+
                         @csrf
                         @method('PUT')
 
+                        <!-- Product Name -->
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Product
-                                Name</label>
-                            <input name="name" x-model="edit.name"
+                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Product Name
+                            </label>
+
+                            <input name="name"
+                                x-model="edit.name"
                                 class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
                                 required>
                         </div>
 
+                        <!-- Brand Name -->
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Brand
-                                Name</label>
-                            <input name="brand" x-model="edit.brand"
+                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Brand Name
+                            </label>
+
+                            <input name="brand"
+                                x-model="edit.brand"
                                 class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
                                 placeholder="Optional">
                         </div>
 
+                        <!-- Stock + Unit Value -->
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
-                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Stock
-                                    Quantity</label>
-                                <input type="number" name="stock_quantity" min="0" x-model="edit.stock_quantity"
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                                    Stock Quantity
+                                </label>
+
+                                <input type="number"
+                                    name="stock_quantity"
+                                    min="0"
+                                    x-model="edit.stock_quantity"
                                     class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
                                     required>
                             </div>
 
                             <div>
-                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit
-                                    Value</label>
-                                <input type="number" name="unit_value" min="0" x-model="edit.unit_value"
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                                    Unit Value
+                                </label>
+
+                                <input type="number"
+                                    name="unit_value"
+                                    min="0"
+                                    x-model="edit.unit_value"
                                     class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
                                     placeholder="30">
                             </div>
                         </div>
 
+                        <!-- Unit -->
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit</label>
-                            <select name="unit" x-model="edit.unit"
+                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Unit
+                            </label>
+
+                            <select name="unit"
+                                x-model="edit.unit"
                                 class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
                                 @foreach (['ml', 'L', 'g', 'kg', 'pcs'] as $unitOption)
                                     <option value="{{ $unitOption }}">{{ $unitOption }}</option>
@@ -371,43 +416,82 @@
                             </select>
                         </div>
 
+                        <!-- Expiration Date -->
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Expiration
-                                Date</label>
-                            <input type="date" name="expiration_date" x-model="edit.expiration_date"
+                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Expiration Date
+                            </label>
+
+                            <input type="date"
+                                name="expiration_date"
+                                x-model="edit.expiration_date"
                                 class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
                         </div>
 
-                        <div class="flex items-center justify-end gap-2">
-                            <button type="button" @click="editOpen = false"
-                                class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
-                                Close
-                            </button>
-                            <button
-                                class="px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90">
-                                Save Changes
-                            </button>
-                        </div>
                     </form>
 
-                    <!-- DEDUCT FORM (logs + reduces stock) -->
-                    <div class="pt-4 border-t dark:border-gray-700">
-                        <h4 class="mb-3 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
+                    <!-- DEDUCT STOCK -->
+                    <div class="pt-5 mt-5 border-t dark:border-gray-700">
+
+                        <h4 class="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-200">
                             Deduct Stock
                         </h4>
 
-                        <form method="POST" :action="`{{ url('/inventory/products') }}/${edit.id}/deduct`"
-                            class="flex flex-wrap items-center gap-2">
+                        <form method="POST"
+                            :action="`{{ url('/inventory/products') }}/${edit.id}/deduct`"
+                            class="space-y-4">
+
                             @csrf
 
-                            <input type="number" name="amount" min="1"
-                                class="px-3 py-2 text-sm border rounded-lg w-28" placeholder="Qty" required>
+                            <input type="hidden"
+                                name="product_id"
+                                :value="edit.id">
 
-                            <button
-                                class="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:opacity-90">
-                                Deduct
-                            </button>
+                            <div>
+                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                                    Quantity to Deduct
+                                </label>
+
+                                <div class="flex items-center gap-2">
+                                    <input type="number"
+                                        name="amount"
+                                        min="1"
+                                        value="{{ old('amount') }}"
+                                        class="flex-1 px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+                                        placeholder="Enter quantity"
+                                        required>
+
+                                    <button type="submit"
+                                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:opacity-90 whitespace-nowrap">
+                                        Deduct Stock
+                                    </button>
+                                </div>
+
+                                @error('amount', 'deductStock')
+                                    <p class="mt-1 text-xs text-red-600">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
                         </form>
+                    </div>
+
+                    <!-- MODAL ACTIONS -->
+                    <div class="flex items-center justify-end gap-2 pt-2">
+
+                        <button type="button"
+                            @click="editOpen = false"
+                            class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
+                            Close
+                        </button>
+
+                        <button type="button"
+                            form="updateProductForm"
+                            @click="$el.closest('.p-6').querySelector('form[action*=\'/inventory/products/\']').submit()"
+                            class="px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90">
+                            Save Changes
+                        </button>
                     </div>
                 </div>
             </div>

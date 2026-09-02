@@ -193,6 +193,7 @@
                                 @foreach($treatments as $t)
                                     <option value="treatment_{{ $t->id }}"
                                             data-duration="{{ $t->duration }}"
+                                            data-service-type="{{ $t->service_type }}"
                                             {{ old('treatment') === 'treatment_'.$t->id ? 'selected' : '' }}>
                                         Treatment: {{ $t->name }}
                                     </option>
@@ -688,6 +689,37 @@ document.addEventListener('DOMContentLoaded', function () {
         addressInput.required = isHome;
     }
 
+    function filterTreatmentOptions() {
+        const isHome = serviceType.value === 'in_home';
+        let clearedTreatmentName = null;
+
+        Array.from(treatmentSelect.options).forEach(opt => {
+            if (!opt.value) return; // skip the placeholder option
+
+            const restricted = opt.dataset.serviceType === 'in_branch_only';
+            const shouldDisable = isHome && restricted;
+
+            opt.disabled = shouldDisable;
+            opt.hidden = shouldDisable;
+
+            if (shouldDisable && opt.selected) {
+                clearedTreatmentName = opt.textContent.trim();
+            }
+        });
+
+        if (clearedTreatmentName) {
+            treatmentSelect.value = '';
+
+            showSpaToast(
+                `"${clearedTreatmentName}" is In-Branch only and was removed — not available for In Home bookings.`,
+                'error'
+            );
+
+            validateTimeRange();
+            refreshAvailableTherapists();
+        }
+    }
+
     // =====================================================
     // THERAPIST LIST
     // =====================================================
@@ -871,7 +903,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     therapistSelect.addEventListener('change', updateSummary);
-    serviceType.addEventListener('change', () => { toggleAddress(); updateSummary(); });
+    serviceType.addEventListener('change', () => { toggleAddress(); updateSummary(); filterTreatmentOptions(); });
     nameInput.addEventListener('input', updateSummary);
 
     phoneInput.addEventListener('input', function () {
@@ -882,6 +914,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // INIT
     // =====================================================
     toggleAddress();
+    filterTreatmentOptions();
 
     if (dateInput.value) {
         updateOperatingHours().then(() => {

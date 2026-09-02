@@ -30,34 +30,37 @@ class InventoryController extends Controller
         abort_unless($product->spa_id === $spaId, 403);
 
         $data = $request->validate([
-            'amount' => ['required','integer','min:1'],
+            'amount' => ['required', 'integer', 'min:1'],
         ]);
 
         $amount = (int) $data['amount'];
 
         DB::transaction(function () use ($product, $amount, $spaId, $user) {
 
-            $p = Product::whereKey($product->id)->lockForUpdate()->first();
+            $p = Product::whereKey($product->id)
+                ->lockForUpdate()
+                ->first();
 
             if ($p->stock_quantity < $amount) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'amount' => 'Not enough stock to deduct.',
-                ]);
+                ])->errorBag('deductStock');
             }
 
             $p->decrement('stock_quantity', $amount);
 
             ProductLog::create([
-                'spa_id'     => $spaId,
-                'product_id' => $p->id,
-                'user_id'    => $user->id,
-                'description'=> "{$p->name} has been deducted ({$amount} stock)",
-                'logged_at'  => now(),
+                'spa_id'      => $spaId,
+                'product_id'  => $p->id,
+                'user_id'     => $user->id,
+                'description' => "{$p->name} has been deducted ({$amount} stock)",
+                'logged_at'   => now(),
             ]);
         });
 
         return back()->with('success', 'Stock deducted successfully.');
     }
+
 
     public function store(Request $request)
     {
