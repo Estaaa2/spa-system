@@ -68,7 +68,7 @@
                             </button>
                         @endif
 
-                        <form id="treatmentsImportForm" action="{{ route('treatments.import') }}" method="POST" enctype="multipart/form-data" class="inline">
+                        <form id="treatmentsImportForm" action="{{ route('treatments.import') }}" method="POST" enctype="multipart/form-data">
                             @csrf
                             <input
                                 type="file"
@@ -81,7 +81,7 @@
                             <button
                                 type="button"
                                 onclick="document.getElementById('treatmentsCsvFile').click()"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                                class="inline-flex items-center justify-center w-full gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
                                 <i class="text-xs fas fa-upload"></i>
                                 <span>Import CSV</span>
                             </button>
@@ -93,6 +93,12 @@
                                 <span>Manage Promos</span>
                             </a>
                         @endif
+
+                        <button type="button" onclick="openTreatmentImportHelpModal()"
+                            class="inline-flex items-center justify-center w-9 h-9 text-[#8B7355] rounded-lg hover:bg-[#F8F5F1] dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
+                            title="CSV format guide">
+                            <i class="fas fa-circle-info"></i>
+                        </button>
                     @endif
                 </div>
             </div>
@@ -161,8 +167,9 @@
                                                 data-service-type="{{ $treatment->service_type }}"
                                                 data-description="{{ $treatment->description }}"
                                                 data-image="{{ $treatment->image_url }}"
-                                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                                Edit
+                                                class="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-sm text-[#6F5430] bg-[#F0E9E1] rounded hover:bg-[#E5D9C9] dark:bg-gray-700 dark:text-[#D2B48C] dark:hover:bg-gray-600">
+                                                <i class="text-xs fas fa-pen"></i>
+                                                <span>Edit</span>
                                             </button>
                                         @endif
 
@@ -170,8 +177,9 @@
                                             <button
                                                 type="button"
                                                 onclick="openDeleteTreatmentModal({{ $treatment->id }}, '{{ addslashes($treatment->name) }}')"
-                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                                Remove
+                                                class="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                                <i class="text-xs fas fa-trash"></i>
+                                                <span>Remove</span>
                                             </button>
                                         @endif
                                     </div>
@@ -230,7 +238,7 @@
                             </button>
                         @endif
 
-                        <form id="packagesImportForm" action="{{ route('packages.import') }}" method="POST" enctype="multipart/form-data" class="inline">
+                        <form id="packagesImportForm" action="{{ route('packages.import') }}" method="POST" enctype="multipart/form-data">
                             @csrf
                             <input
                                 type="file"
@@ -243,11 +251,12 @@
                             <button
                                 type="button"
                                 onclick="document.getElementById('packagesCsvFile').click()"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                                class="inline-flex items-center justify-center w-full gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
                                 <i class="fas fa-upload"></i>
                                 <span>Import CSV</span>
                             </button>
                         </form>
+
                         @if($canViewPromos)
                             <a href="{{ route('promos.index') }}"
                                 class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
@@ -255,6 +264,12 @@
                                 <span>Manage Promos</span>
                             </a>
                         @endif
+
+                        <button type="button" onclick="openPackageImportHelpModal()"
+                            class="inline-flex items-center justify-center w-9 h-9 text-[#8B7355] rounded-lg hover:bg-[#F8F5F1] dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
+                            title="CSV format guide">
+                            <i class="fas fa-circle-info"></i>
+                        </button>
                     @endif
                 </div>
             </div>
@@ -336,8 +351,9 @@
                                                 data-description="{{ $package->description }}"
                                                 data-treatments="{{ $package->treatments->pluck('id')->join(',') }}"
                                                 data-image="{{ $package->image_url }}"
-                                                class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                                Edit
+                                                class="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-sm text-[#6F5430] bg-[#F0E9E1] rounded hover:bg-[#E5D9C9] dark:bg-gray-700 dark:text-[#D2B48C] dark:hover:bg-gray-600">
+                                                <i class="text-xs fas fa-pen"></i>
+                                                <span>Edit</span>
                                             </button>
                                         @endif
 
@@ -345,8 +361,9 @@
                                             <button
                                                 type="button"
                                                 onclick="openDeletePackageModal({{ $package->id }}, '{{ addslashes($package->name) }}')"
-                                                class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                                Remove
+                                                class="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
+                                                <i class="text-xs fas fa-trash"></i>
+                                                <span>Remove</span>
                                             </button>
                                         @endif
                                     </div>
@@ -773,6 +790,131 @@
 </div>
 @endif
 
+{{-- TREATMENT IMPORT HELP MODAL --}}
+<div id="treatmentImportHelpModal" class="fixed inset-0 z-50 items-start justify-center hidden px-4 pt-16 bg-black bg-opacity-50">
+    <div class="w-full max-w-lg p-6 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Treatments CSV Format</h2>
+            <button type="button" onclick="closeTreatmentImportHelpModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <p class="text-sm text-gray-600 dark:text-gray-300">
+                Your CSV file must include the following columns, in this order:
+            </p>
+
+            <div class="p-3 overflow-x-auto text-xs rounded-lg bg-gray-50 dark:bg-gray-900">
+                <code class="text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                    name, duration, price, service_type, description
+                </code>
+            </div>
+
+            <ul class="space-y-1 text-sm text-gray-600 list-disc list-inside dark:text-gray-300">
+                <li><span class="font-medium text-gray-800 dark:text-white">name</span> — required</li>
+                <li><span class="font-medium text-gray-800 dark:text-white">duration</span> — required, minutes (whole number)</li>
+                <li><span class="font-medium text-gray-800 dark:text-white">price</span> — required, ₱300–₱1,400</li>
+                <li><span class="font-medium text-gray-800 dark:text-white">service_type</span> — required, exactly: in_branch_only or in_branch_and_home</li>
+                <li><span class="font-medium text-gray-800 dark:text-white">description</span> — optional</li>
+            </ul>
+
+            <div class="pt-2">
+                <p class="mb-2 text-sm text-gray-600 dark:text-gray-300">Example row:</p>
+                <div class="p-3 overflow-x-auto text-xs rounded-lg bg-gray-50 dark:bg-gray-900">
+                    <code class="text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                        Swedish Massage, 60, 800, in_branch_only, Relaxing full-body massage
+                    </code>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <p class="mb-2 text-sm text-gray-600 dark:text-gray-300">How it should look in Excel/Sheets:</p>
+                <a href="{{ asset('images/treatmentexcelsample.png') }}" target="_blank" rel="noopener" class="block group">
+                    <img src="{{ asset('images/treatmentexcelsample.png') }}"
+                        alt="Example of the treatments CSV file opened in a spreadsheet, showing the name, duration, price, service_type, and description columns"
+                        class="w-full transition-opacity border border-gray-200 rounded-lg cursor-zoom-in dark:border-gray-700 group-hover:opacity-90">
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Click to view full size</p>
+                </a>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t dark:border-gray-700">
+                <a href="{{ route('treatments.sample-csv') }}"
+                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:bg-[#7A6348]">
+                    <i class="text-xs fas fa-download"></i>
+                    Download Sample CSV
+                </a>
+                <button type="button" onclick="closeTreatmentImportHelpModal()"
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- PACKAGE IMPORT HELP MODAL --}}
+<div id="packageImportHelpModal" class="fixed inset-0 z-50 items-start justify-center hidden px-4 pt-16 bg-black bg-opacity-50">
+    <div class="w-full max-w-lg p-6 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Packages CSV Format</h2>
+            <button type="button" onclick="closePackageImportHelpModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <p class="text-sm text-gray-600 dark:text-gray-300">
+                Your CSV file must include the following columns, in this order:
+            </p>
+
+            <div class="p-3 overflow-x-auto text-xs rounded-lg bg-gray-50 dark:bg-gray-900">
+                <code class="text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                    name, total_duration, price, description
+                </code>
+            </div>
+
+            <ul class="space-y-1 text-sm text-gray-600 list-disc list-inside dark:text-gray-300">
+                <li><span class="font-medium text-gray-800 dark:text-white">name</span> — required</li>
+                <li><span class="font-medium text-gray-800 dark:text-white">total_duration</span> — optional, minutes (whole number)</li>
+                <li><span class="font-medium text-gray-800 dark:text-white">price</span> — required, number</li>
+                <li><span class="font-medium text-gray-800 dark:text-white">description</span> — optional</li>
+            </ul>
+
+            <div class="pt-2">
+                <p class="mb-2 text-sm text-gray-600 dark:text-gray-300">Example row:</p>
+                <div class="p-3 overflow-x-auto text-xs rounded-lg bg-gray-50 dark:bg-gray-900">
+                    <code class="text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                        Relax & Renew Package, 120, 1500, Full body massage plus facial combo
+                    </code>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <p class="mb-2 text-sm text-gray-600 dark:text-gray-300">How it should look in Excel/Sheets:</p>
+                <a href="{{ asset('images/packageexcelsample.png') }}" target="_blank" rel="noopener" class="block group">
+                    <img src="{{ asset('images/packageexcelsample.png') }}"
+                        alt="Example of the packages CSV file opened in a spreadsheet, showing the name, total_duration, price, and description columns"
+                        class="w-full transition-opacity border border-gray-200 rounded-lg cursor-zoom-in dark:border-gray-700 group-hover:opacity-90">
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Click to view full size</p>
+                </a>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t dark:border-gray-700">
+                <a href="{{ route('packages.sample-csv') }}"
+                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:bg-[#7A6348]">
+                    <i class="fas fa-download"></i>
+                    Download Sample CSV
+                </a>
+                <button type="button" onclick="closePackageImportHelpModal()"
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     function openAddTreatmentModal() {
         const modal = document.getElementById('addTreatmentModal');
@@ -977,6 +1119,38 @@
 
     function closeDeletePackageModal() {
         const modal = document.getElementById('deletePackageModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    }
+
+    function openTreatmentImportHelpModal() {
+        const modal = document.getElementById('treatmentImportHelpModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closeTreatmentImportHelpModal() {
+        const modal = document.getElementById('treatmentImportHelpModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    }
+
+    function openPackageImportHelpModal() {
+        const modal = document.getElementById('packageImportHelpModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closePackageImportHelpModal() {
+        const modal = document.getElementById('packageImportHelpModal');
         if (modal) {
             modal.classList.add('hidden');
             modal.style.display = 'none';

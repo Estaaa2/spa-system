@@ -6,18 +6,12 @@ use App\Models\BranchProfile;
 use App\Models\Spa;
 use App\Models\Treatment;
 use App\Models\Package;
+use App\Models\Rating;
 use Illuminate\Http\Request;
 
 class LandingController extends Controller
 {
-    /**
-     * Shared filter: Place matches a branch's own location/name or its
-     * owning spa's name (so "Serenity" still finds a spa by name even
-     * though the Place segment mainly surfaces city suggestions).
-     * Treatment matches a branch's treatment OR package names. Both are
-     * independent AND'd constraints - specifying both narrows to spas
-     * matching *both*, not either.
-     */
+    // This method handles the search request for spas based on the provided place and treatment.
     private function spaSearchQuery(string $place, string $treatment)
     {
         $branchMatches = function ($query) use ($place, $treatment) {
@@ -56,12 +50,7 @@ class LandingController extends Controller
         ->whereHas('branches', $branchMatches);
     }
 
-    /**
-     * Frequency-sorted, deduplicated treatment + package names across all
-     * listed branches. Powers the Treatment segment's suggestion dropdown.
-     * There's no category/type taxonomy in the schema yet, so this is
-     * literal names, not curated categories - revisit once categories exist.
-     */
+    // This method retrieves treatment suggestions based on the most popular treatments and packages across all listed spas.
     private function treatmentSuggestions(): array
     {
         $treatmentNames = Treatment::withoutGlobalScope('spa_branch')
@@ -83,12 +72,7 @@ class LandingController extends Controller
         return $treatmentNames->merge($packageNames)->unique()->values()->take(40)->all();
     }
 
-    /**
-     * One merged, relevance-ish list instead of two tiers. Featured
-     * (professional-tier) spas still sort first when they have matches -
-     * preserving the value of their subscription - but no longer as a
-     * separate section a visitor must scroll past when it's empty.
-     */
+    // This method combines the results of spa searches based on place and treatment, sorts them by professional status, and builds the spa cards for display.
     private function unifiedResults(string $place, string $treatment): array
     {
         $allSpas = $this->spaSearchQuery($place, $treatment)->get();
@@ -139,13 +123,7 @@ class LandingController extends Controller
         ) + ['treatmentSuggestions' => $this->treatmentSuggestions()]);
     }
 
-    /**
-     * Live refine endpoint (no page reload) fired when "Search" is clicked.
-     * Same matching + sort rules as index(), returns one unified array of
-     * pre-built card payloads shaped exactly like the data-spa attribute
-     * already used by the Blade views, so openSpaModal() and the booking
-     * flow in welcome.js work unchanged for these results too.
-     */
+    // This method handles the search request for spas based on the provided place and treatment. 
     public function searchSpas(Request $request)
     {
         $place     = trim($request->input('place', ''));
@@ -160,8 +138,7 @@ class LandingController extends Controller
 
     private function buildSpaCards($spas): array
     {
-        $fallback = asset('storage/branch_profiles/emptyspa.jpg');
-        $cards    = [];
+        $cards = [];
 
         foreach ($spas as $spa) {
             $isFeatured = $spa->isProfessional();
@@ -175,18 +152,7 @@ class LandingController extends Controller
                     ->where('branch_id', $branch->id)
                     ->min('price');
 
-                $coverPhoto = !empty($profile->cover_image)
-                    ? asset('storage/' . $profile->cover_image)
-                    : $fallback;
-
-                $galleryPhotos = collect($profile->gallery_images ?? [])
-                    ->filter()
-                    ->map(fn($img) => asset('storage/' . $img))
-                    ->values();
-
-                $photos = collect([$coverPhoto])
-                    ->merge($galleryPhotos)
-                    ->take(5)->pad(5, $fallback)->values()->toArray();
+                $photos = BranchProfile::photoPayload($profile);
 
                 $branchTreatments = Treatment::withoutGlobalScope('spa_branch')
                     ->where('branch_id', $branch->id)
@@ -197,6 +163,14 @@ class LandingController extends Controller
                     ->where('branch_id', $branch->id)
                     ->where('spa_id', $spa->id)
                     ->get();
+
+                $ratingAgg = Rating::query()
+                ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+                ->where('bookings.spa_id', $spa->id)
+                ->where('bookings.branch_id', $branch->id)
+                ->whereNotNull('ratings.spa_rating')
+                ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
+                ->first();
 
                 $cards[] = [
                     'id'              => $spa->id,
@@ -223,6 +197,8 @@ class LandingController extends Controller
                     'amenities'       => $profile->amenities ?? [],
                     'is_hiring'       => $profile->is_hiring ?? false,
                     'hiring_note'     => $profile->hiring_note ?? null,
+                    'rating_avg'      => $ratingAgg->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
+                    'rating_count'    => (int) ($ratingAgg->rating_count ?? 0),
                 ];
             }
         }
@@ -273,8 +249,7 @@ class LandingController extends Controller
             ->whereHas('branches', fn($q) => $q->whereIn('id', $branchIds))
             ->get();
 
-        $fallback = asset('storage/branch_profiles/emptyspa.jpg');
-        $result   = [];
+        $result = [];
 
         foreach ($spas as $spa) {
             foreach ($spa->branches as $branch) {
@@ -286,18 +261,8 @@ class LandingController extends Controller
                     ->where('branch_id', $branch->id)
                     ->min('price');
 
-                $coverPhoto = !empty($profile?->cover_image)
-                    ? asset('storage/' . $profile->cover_image)
-                    : $fallback;
-
-                $galleryPhotos = collect($profile->gallery_images ?? [])
-                    ->filter()
-                    ->map(fn($img) => asset('storage/' . $img))
-                    ->values();
-
-                $photos = collect([$coverPhoto])
-                    ->merge($galleryPhotos)
-                    ->take(5)->pad(5, $fallback)->values()->toArray();
+                // Same canonical payload as buildSpaCards() - see the note there.
+                $photos = BranchProfile::photoPayload($profile);
 
                 $treatments = Treatment::withoutGlobalScope('spa_branch')
                     ->where('branch_id', $branch->id)
@@ -308,6 +273,14 @@ class LandingController extends Controller
                     ->where('branch_id', $branch->id)
                     ->where('spa_id', $spa->id)
                     ->get();
+
+                $ratingAgg = Rating::query()
+                    ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+                    ->where('bookings.spa_id', $spa->id)
+                    ->where('bookings.branch_id', $branch->id)
+                    ->whereNotNull('ratings.spa_rating')
+                    ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
+                    ->first();
 
                 $result[] = [
                     'id'              => $spa->id,
@@ -332,6 +305,8 @@ class LandingController extends Controller
                     'packages'        => $packages,
                     'amenities'       => $profile->amenities ?? [],
                     'distance_km'     => $nearby[$branch->id]->distance_km,
+                    'rating_avg'      => $ratingAgg->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
+                    'rating_count'    => (int) ($ratingAgg->rating_count ?? 0),
                 ];
             }
         }
@@ -340,5 +315,46 @@ class LandingController extends Controller
         usort($result, fn($a, $b) => $a['distance_km'] <=> $b['distance_km']);
 
         return response()->json($result);
+    }
+
+    public function spaReviews(Request $request, $spaId, $branchId)
+    {
+        $base = Rating::query()
+            ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+            ->join('users', 'users.id', '=', 'ratings.customer_id')
+            ->where('bookings.spa_id', $spaId)
+            ->where('bookings.branch_id', $branchId)
+            ->whereNotNull('ratings.spa_rating');
+
+        $countsRaw = (clone $base)
+            ->selectRaw('ratings.spa_rating as rating, COUNT(*) as total')
+            ->groupBy('ratings.spa_rating')
+            ->pluck('total', 'rating');
+
+        $counts = [];
+        for ($i = 5; $i >= 1; $i--) {
+            $counts[$i] = (int) ($countsRaw[$i] ?? 0);
+        }
+
+        $reviews = $base->orderByDesc('ratings.created_at')
+            ->get([
+                'ratings.spa_rating as rating',
+                'ratings.spa_comment as comment',
+                'ratings.created_at',
+                'users.first_name',
+                'users.last_name',
+            ])
+            ->map(fn($r) => [
+                'rating'  => (int) $r->rating,
+                'comment' => $r->comment,
+                'name'    => trim($r->first_name . ' ' . substr($r->last_name ?? '', 0, 1) . '.'),
+                'date'    => $r->created_at?->format('M d, Y'),
+            ]);
+
+        return response()->json([
+            'total'   => $reviews->count(),
+            'counts'  => $counts,
+            'reviews' => $reviews,
+        ]);
     }
 }

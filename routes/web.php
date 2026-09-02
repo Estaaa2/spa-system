@@ -367,11 +367,17 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/services/treatments/import', [ServiceImportExportController::class, 'importTreatments'])
             ->name('treatments.import');
 
+        Route::get('/services/treatments/sample-csv', [ServiceImportExportController::class, 'sampleTreatmentsCsv'])
+            ->name('treatments.sample-csv');
+
         Route::get('/services/packages/export', [ServiceImportExportController::class, 'exportPackages'])
             ->name('packages.export');
 
         Route::post('/services/packages/import', [ServiceImportExportController::class, 'importPackages'])
             ->name('packages.import');
+
+        Route::get('/services/packages/sample-csv', [ServiceImportExportController::class, 'samplePackagesCsv'])
+            ->name('packages.sample-csv');
     });
 
     Route::middleware('branch.permission:view promos')->group(function () {
@@ -443,6 +449,9 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
             Route::post('/products/import', [InventoryImportExportController::class, 'importProducts'])
                 ->name('products.import');
+
+            Route::get('/products/sample-csv', [InventoryImportExportController::class, 'sampleCsv'])
+                ->name('products.sample-csv');
         });
 
         Route::middleware('branch.permission:edit inventory items')->group(function () {
@@ -773,5 +782,6 @@ Route::middleware(['auth'])->group(function () {
 
 Route::get('/web-api/spas/nearby', [LandingController::class, 'nearbySpasList']);
 Route::get('/web-api/spas/search', [LandingController::class, 'searchSpas']);
+Route::get('/web-api/spas/{spaId}/{branchId}/reviews', [LandingController::class, 'spaReviews']);
 
 require __DIR__.'/auth.php';

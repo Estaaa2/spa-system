@@ -16,10 +16,13 @@ class Rating extends Model
         'rating',
         'comment',
         'feedback',
+        'spa_rating',
+        'spa_comment',
     ];
 
     protected $casts = [
         'rating' => 'integer',
+        'spa_rating' => 'integer',
     ];
 
     public function booking()

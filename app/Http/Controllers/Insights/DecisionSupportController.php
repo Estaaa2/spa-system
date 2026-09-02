@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Treatment;
 use App\Models\Package;
 use App\Models\User;
+use App\Models\Rating;
 use Illuminate\Http\Request;
 
 class DecisionSupportController extends Controller
@@ -59,6 +60,38 @@ class DecisionSupportController extends Controller
         $cancelRate     = $totalCurrent > 0
             ? round(($cancelledCount / $totalCurrent) * 100, 1)
             : 0;
+
+        // ── Spa Rating KPIs ───────────────────────────────────────────────
+        // ratings has no spa_id/branch_id of its own — only booking_id — so
+        // scoping to "this spa's current branch" goes through bookings.
+        // We filter by bookings.appointment_date (not ratings.created_at) so
+        // the rating period lines up with the same booking window as every
+        // other KPI on this page: a rating submitted late still counts
+        // toward the appointment it was for, not the day it was typed.
+        $ratingBase = fn() => Rating::query()
+            ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+            ->where('bookings.spa_id', $spaId)
+            ->when($branchId, fn($q) => $q->where('bookings.branch_id', $branchId))
+            ->whereNotNull('ratings.spa_rating');
+
+        $currentRatings = $ratingBase()
+            ->whereBetween('bookings.appointment_date', [$from, $to])
+            ->get(['ratings.spa_rating', 'ratings.spa_comment']);
+
+        $prevRatings = $ratingBase()
+            ->whereBetween('bookings.appointment_date', [$prevFrom, $prevTo])
+            ->get(['ratings.spa_rating']);
+
+        $avgSpaRating     = $currentRatings->count() ? round($currentRatings->avg('spa_rating'), 1) : null;
+        $avgSpaRatingPrev = $prevRatings->count()    ? round($prevRatings->avg('spa_rating'), 1)    : null;
+        $spaRatingGrowth  = ($avgSpaRating !== null && $avgSpaRatingPrev !== null)
+            ? round($avgSpaRating - $avgSpaRatingPrev, 1)
+            : null;
+
+        // Response rate — how many completed bookings this period never got rated
+        $completedCount = $currentBookings->where('status', 'completed')->count();
+        $ratedCount     = $currentRatings->count();
+        $unratedCount   = max($completedCount - $ratedCount, 0);
 
         // ── Service / Package counts ───────────────────────────────────────
         [$treatmentCounts, $packageCounts]         = $this->parseCounts($currentBookings);
@@ -166,18 +199,27 @@ class DecisionSupportController extends Controller
             revenueGrowth:    $revenueGrowth,
             allPackages:      $allPackagesInBranch,
             staffUtilization: $staffUtilization,
+            avgSpaRating:     $avgSpaRating,
+            spaRatingGrowth:  $spaRatingGrowth,
+            completedCount:   $completedCount,
+            unratedCount:     $unratedCount,
         );
 
         return view('insights.decision-support.index', [
             'kpis' => [
-                'total'          => $totalCurrent,
-                'prev_total'     => $totalPrev,
-                'growth'         => $bookingGrowth,
-                'avg_per_day'    => $avgPerDay,
-                'period_days'    => $periodDays,
-                'revenue'        => $revenueCurrent,
-                'revenue_growth' => $revenueGrowth,
-                'cancel_rate'    => $cancelRate,
+                'total'             => $totalCurrent,
+                'prev_total'        => $totalPrev,
+                'growth'            => $bookingGrowth,
+                'avg_per_day'       => $avgPerDay,
+                'period_days'       => $periodDays,
+                'revenue'           => $revenueCurrent,
+                'revenue_growth'    => $revenueGrowth,
+                'cancel_rate'       => $cancelRate,
+                'avg_spa_rating'    => $avgSpaRating,
+                'spa_rating_prev'   => $avgSpaRatingPrev,
+                'spa_rating_growth' => $spaRatingGrowth,
+                'spa_rating_count'  => $ratedCount,
+                'unrated_completed' => $unratedCount,
             ],
             'popularServices'  => $popularServices,
             'popularPackages'  => $popularPackages,
@@ -207,6 +249,11 @@ class DecisionSupportController extends Controller
         return [$tc, $pc];
     }
 
+    private function fmtRating(float $val): string
+    {
+        return number_format($val, 1);
+    }
+
     private function generateInsights(
         ?float $bookingGrowth,
         int    $totalCurrent,
@@ -218,6 +265,10 @@ class DecisionSupportController extends Controller
         ?float $revenueGrowth,
         $allPackages,
         $staffUtilization,
+        ?float $avgSpaRating = null,
+        ?float $spaRatingGrowth = null,
+        int    $completedCount = 0,
+        int    $unratedCount = 0,
     ): array {
         $insights = [];
 
@@ -250,6 +301,30 @@ class DecisionSupportController extends Controller
         } elseif ($cancelRate >= 10) {
             $insights[] = ['type' => 'warning', 'title' => 'Elevated Cancellation Rate',
                 'message' => "{$cancelRate}% cancellation rate. Automated SMS/email reminders typically reduce this by 30–40%."];
+        }
+
+        // ── Spa rating ──────────────────────────────────────────────────
+        if ($avgSpaRating !== null) {
+            if ($avgSpaRating < 3.5) {
+                $insights[] = ['type' => 'danger', 'title' => 'Low Spa Rating',
+                    'message' => "Average spa rating this period is {$avgSpaRating}/5. Review recent customer comments for recurring complaints before it affects new bookings."];
+            } elseif ($spaRatingGrowth !== null && $spaRatingGrowth <= -0.5) {
+                $prevVal = $this->fmtRating($avgSpaRating - $spaRatingGrowth);
+                $insights[] = ['type' => 'warning', 'title' => 'Spa Rating Declining',
+                    'message' => "Spa rating dropped from {$prevVal} to {$avgSpaRating} vs the prior period. Check what changed — staffing, cleanliness, or wait times are common culprits."];
+            } elseif ($spaRatingGrowth !== null && $spaRatingGrowth >= 0.5) {
+                $prevVal = $this->fmtRating($avgSpaRating - $spaRatingGrowth);
+                $insights[] = ['type' => 'success', 'title' => 'Spa Rating Improving',
+                    'message' => "Spa rating rose to {$avgSpaRating}/5 from {$prevVal}. Whatever changed recently is working — worth documenting and repeating."];
+            }
+        }
+
+        if ($completedCount >= 5 && $unratedCount > 0) {
+            $rate = round(($unratedCount / $completedCount) * 100);
+            if ($rate >= 50) {
+                $insights[] = ['type' => 'info', 'title' => 'Low Rating Response Rate',
+                    'message' => "{$unratedCount} of {$completedCount} completed appointments ({$rate}%) were never rated. Consider prompting customers more directly after their visit."];
+            }
         }
 
         $maxHourly = $peakHours->max('value') ?? 0;

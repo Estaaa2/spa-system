@@ -18,28 +18,32 @@
 
 <div class="p-6 mx-auto max-w-7xl">
 
-    <x-page-header title="Applications" subtitle="List of all applicants from hiring."/>
+        <x-page-header title="Applications" subtitle="List of all applicants from hiring."/>
 
-    {{-- Filter Tabs --}}
-    <div class="flex flex-wrap gap-2 mt-6">
-        @foreach(['all' => 'All', 'pending' => 'Pending', 'interview' => 'Interview', 'approved' => 'Approved', 'hired' => 'Hired', 'rejected' => 'Rejected'] as $val => $label)
-        <button onclick="filterStatus('{{ $val }}')" id="filter-{{ $val }}"
-            class="px-3 py-1 text-xs font-semibold rounded-full border transition
-            {{ $val === 'all' ? 'bg-[#8B7355] text-white border-[#8B7355]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#8B7355] hover:text-[#8B7355] dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' }}">
-            {{ $label }}
-            @if($val !== 'all')
-                <span class="ml-1">
-                    ({{ $applicants->where('status', $val)->count() }})
+    {{-- One white card holds the header row, filter tabs, and the table --}}
+    <div class="mt-6 overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
+
+        {{-- Section header + Filter Tabs — same row alignment as the branch-card filters --}}
+        <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-5 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white">
+                Applicant List
+                <span class="px-2 py-0.5 text-xs font-semibold text-gray-500 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
+                    {{ $applicants->count() }}
                 </span>
-            @else
-                <span class="ml-1">({{ $applicants->count() }})</span>
-            @endif
-        </button>
-        @endforeach
-    </div>
+            </h2>
 
-    {{-- Applicants Table --}}
-    <div class="mt-4 overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex flex-wrap gap-2">
+                @foreach (['all' => 'All', 'pending' => 'Pending', 'interview' => 'Interview', 'approved' => 'Approved', 'hired' => 'Hired', 'rejected' => 'Rejected'] as $val => $label)
+                    <button onclick="filterStatus('{{ $val }}')" id="filter-{{ $val }}"
+                        class="px-3 py-1 text-xs font-semibold rounded-full border transition
+                {{ $val === 'all' ? 'bg-[#8B7355] text-white border-[#8B7355]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#8B7355] hover:text-[#8B7355] dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' }}">
+                        {{ $label }}
+                    </button>
+                @endforeach
+            </div>
+        </div>
+
+        {{-- Applicants Table --}}
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-900">
                 <tr>
@@ -184,7 +188,8 @@
                 </tr>
                 @endforelse
             </tbody>
-        </table>
+                </table>
+    </div>
     </div>
 
     {{-- Applicant Details Modal --}}

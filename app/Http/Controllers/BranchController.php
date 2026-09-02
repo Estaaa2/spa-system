@@ -197,16 +197,13 @@ class BranchController extends Controller
         $rangeErrors = [];
 
         foreach ($request->input('hours', []) as $hourData) {
-            $isClosed = isset($hourData['is_closed']) && (bool) $hourData['is_closed'];
+            if (!empty($hourData['is_closed'])) continue;
 
-            if (
-                !$isClosed
-                && !empty($hourData['opening_time'])
-                && !empty($hourData['closing_time'])
-                && $hourData['closing_time'] <= $hourData['opening_time']
-            ) {
-                $day           = $hourData['day_of_week'] ?? 'Unknown day';
-                $rangeErrors[] = "Closing time must be after opening time for {$day}.";
+            $opening = $hourData['opening_time'] ?? null;
+            $closing = $hourData['closing_time'] ?? null;
+
+            if ($opening && $closing && $closing <= $opening) {
+                $rangeErrors[] = "{$hourData['day_of_week']}: closing time must be after opening time.";
             }
         }
 
@@ -217,23 +214,16 @@ class BranchController extends Controller
                 ->withInput();
         }
 
-        // Persist
+        $existingHours = $branch->operatingHours()->get()->keyBy('day_of_week');
+
         foreach ($request->input('hours', []) as $hourData) {
-            $hourId   = $hourData['id'] ?? null;
-            $hour     = $hourId ? OperatingHours::find($hourId) : null;
-            $hour     = $hour ?? new OperatingHours();
-            $isClosed = isset($hourData['is_closed']) && (bool) $hourData['is_closed'];
+            $day  = $hourData['day_of_week'];
+            $hour = $existingHours->get($day) ?? new OperatingHours(['branch_id' => $branch->id, 'day_of_week' => $day]);
 
-            $hour->branch_id   = $branch->id;
-            $hour->day_of_week = $hourData['day_of_week'] ?? $hour->day_of_week;
-            $hour->is_closed   = $isClosed;
-
-            // For closed days: keep existing times so they are restored when
-            // the day is re-opened later.
-            if (!$isClosed) {
-                $hour->opening_time = $hourData['opening_time'] ?? $hour->opening_time ?? '09:00';
-                $hour->closing_time = $hourData['closing_time'] ?? $hour->closing_time ?? '18:00';
-            }
+            $hour->is_closed    = !empty($hourData['is_closed']);
+            $hour->opening_time = $hourData['opening_time'] ?? '09:00';
+            $hour->closing_time = $hourData['closing_time'] ?? '18:00';
+            $hour->branch_id    = $branch->id;
 
             $hour->save();
         }
@@ -263,18 +253,20 @@ class BranchController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'cover_image'      => 'nullable|image|max:2048',
-            'gallery_images.*' => 'nullable|image|max:2048',
-            'description'      => 'nullable|string',
-            'phone'            => 'nullable|string|max:50',
-            'address'          => 'nullable|string|max:255',
-            'city'             => 'nullable|string|max:100',
-            'latitude'         => 'nullable|numeric|between:-90,90',
-            'longitude'        => 'nullable|numeric|between:-180,180',
-            'amenities'        => 'nullable|array',
-            'amenities.*'      => 'nullable|string|max:100',
-            'is_hiring'        => 'nullable|boolean',
-            'hiring_note'      => 'nullable|string|max:150',
+            'cover_image'        => 'nullable|image|max:2048',
+            'gallery_images.*'   => 'nullable|image|max:2048',
+            'gallery_captions'   => 'nullable|array',
+            'gallery_captions.*' => 'nullable|string|max:80',
+            'description'        => 'nullable|string',
+            'phone'              => 'nullable|string|max:50',
+            'address'            => 'nullable|string|max:255',
+            'city'               => 'nullable|string|max:100',
+            'latitude'           => 'nullable|numeric|between:-90,90',
+            'longitude'          => 'nullable|numeric|between:-180,180',
+            'amenities'          => 'nullable|array',
+            'amenities.*'        => 'nullable|string|max:100',
+            'is_hiring'          => 'nullable|boolean',
+            'hiring_note'        => 'nullable|string|max:150',
         ]);
 
         if ($validator->fails()) {
@@ -317,32 +309,44 @@ class BranchController extends Controller
             $profileData['cover_image'] = $profile->cover_image;
         }
 
-        // Gallery (4 slots)
+        // Gallery images and captions
         $finalGallery          = [];
+        $finalCaptions         = [];
         $existingGalleryInputs = $request->input('existing_gallery_images', []);
         $removeGalleryInputs   = $request->input('remove_gallery_images', []);
         $newGalleryFiles       = $request->file('gallery_images', []);
+        $captionInputs         = $request->input('gallery_captions', []);
 
         for ($i = 0; $i < 4; $i++) {
             $existingPath = $existingGalleryInputs[$i] ?? null;
             $removeThis   = isset($removeGalleryInputs[$i]) && (int) $removeGalleryInputs[$i] === 1;
             $newFile      = $newGalleryFiles[$i] ?? null;
+            $captionText  = trim((string) ($captionInputs[$i] ?? ''));
 
             if ($removeThis) {
                 if ($existingPath) Storage::disk('public')->delete($existingPath);
                 continue;
             }
 
+            $finalPath = null;
+
             if ($newFile) {
                 if ($existingPath) Storage::disk('public')->delete($existingPath);
-                $finalGallery[$i] = $newFile->store('branch_profiles', 'public');
+                $finalPath = $newFile->store('branch_profiles', 'public');
+                $finalGallery[$i] = $finalPath;
             } elseif ($existingPath) {
-                $finalGallery[$i] = $existingPath;
+                $finalPath = $existingPath;
+                $finalGallery[$i] = $finalPath;
+            }
+
+            if ($finalPath && $captionText !== '') {
+                $finalCaptions[$finalPath] = ['caption' => $captionText];
             }
         }
 
-        $profileData['gallery_images'] = array_values(array_filter($finalGallery));
-        $profileData['amenities']      = $profileData['amenities'] ?? $profile->amenities ?? [];
+        $profileData['gallery_images']   = array_values(array_filter($finalGallery));
+        $profileData['gallery_captions'] = $finalCaptions;
+        $profileData['amenities']        = $profileData['amenities'] ?? $profile->amenities ?? [];
 
         $profile->update($profileData);
 

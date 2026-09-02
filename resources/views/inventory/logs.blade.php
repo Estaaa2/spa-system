@@ -40,7 +40,6 @@
             <div class="flex flex-wrap items-center gap-3">
                 <div class="flex items-center gap-2">
                     <label for="monthFilter" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        <i class="mr-1 fa-solid fa-calendar"></i>
                     </label>
                     <input type="month"
                            id="monthFilter"

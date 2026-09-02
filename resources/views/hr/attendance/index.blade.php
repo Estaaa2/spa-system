@@ -27,19 +27,6 @@
         subtitle="Clock in and out, review your team's attendance, and manage time-off requests."
     />
 
-    {{-- ── Tabs ── --}}
-    <div class="inline-flex gap-1 p-1 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <button type="button" @click="tab = 'attendance'"
-                :class="tab === 'attendance' ? 'bg-[#8B7355] text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                class="px-5 py-2 text-sm font-semibold transition rounded-xl">
-            Attendance
-        </button>
-        <button type="button" @click="tab = 'leave'"
-                :class="tab === 'leave' ? 'bg-[#8B7355] text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
-                class="px-5 py-2 text-sm font-semibold transition rounded-xl">
-            Leave Requests
-        </button>
-    </div>
 
     {{-- ════════════════════════════════════════════════════════
          ATTENDANCE TAB
@@ -143,13 +130,31 @@
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Branch Roster</h2>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $date->format('l, F j, Y') }}</p>
                 </div>
-                <form method="GET" action="{{ route('attendance.index') }}" class="flex items-center gap-2">
-                    <input type="date" name="date" value="{{ $date->toDateString() }}"
-                        class="px-3 py-2 text-sm border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                    </button>
-                </form>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="inline-flex gap-1 p-1 border border-gray-200 bg-gray-50 rounded-xl dark:bg-gray-900/40 dark:border-gray-600">
+                        <button type="button" @click="tab = 'attendance'"
+                                :class="tab === 'attendance' ? 'bg-[#8B7355] text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700'"
+                                class="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs font-semibold transition rounded-lg">
+                            <i class="fa-solid fa-clock"></i>
+                            Attendance
+                        </button>
+                        <button type="button" @click="tab = 'leave'"
+                                :class="tab === 'leave' ? 'bg-[#8B7355] text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700'"
+                                class="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs font-semibold transition rounded-lg">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            Leave Requests
+                        </button>
+                    </div>
+
+                    <form method="GET" action="{{ route('attendance.index') }}" class="flex items-center gap-2">
+                        <input type="date" name="date" value="{{ $date->toDateString() }}"
+                            class="px-3 py-2 text-sm border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <button type="submit" class="px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
+                    </form>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -196,7 +201,7 @@
                                             <span class="ml-1 text-[10px] text-amber-500" title="{{ $record->remarks }}"><i class="fa-solid fa-triangle-exclamation"></i></span>
                                         @endif
                                     @else
-                                        <span class="text-xs text-gray-400 italic">No record</span>
+                                        <span class="text-xs italic text-gray-400">No record</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -238,27 +243,41 @@
          LEAVE TAB
     ═══════════════════════════════════════════════════════════ --}}
     <div x-show="tab === 'leave'" x-cloak class="space-y-6">
-
-        <div class="flex justify-end">
-            <button type="button" onclick="openRequestLeaveModal()"
-                class="px-5 py-2.5 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348] transition">
-                <i class="mr-1.5 fa-solid fa-plus"></i> Request Leave
-            </button>
-        </div>
-
         @if($canApproveLeave)
         <div id="pendingLeaveSection" class="hidden overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
             <div class="flex items-center justify-between px-6 py-4 border-b border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
                 <h2 class="text-base font-semibold text-amber-900 dark:text-amber-200">Pending Leave Approvals</h2>
-                <span id="pendingLeaveBadge" class="px-3 py-1 text-xs font-semibold text-amber-800 bg-amber-100 rounded-full dark:bg-amber-900/40 dark:text-amber-300">0 Pending</span>
+                <span id="pendingLeaveBadge" class="px-3 py-1 text-xs font-semibold rounded-full text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300">0 Pending</span>
             </div>
             <div id="pendingLeaveList" class="p-6 space-y-4"></div>
         </div>
         @endif
 
         <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">My Leave Requests</h2>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="inline-flex gap-1 p-1 border border-gray-200 bg-gray-50 rounded-xl dark:bg-gray-900/40 dark:border-gray-600">
+                        <button type="button" @click="tab = 'attendance'"
+                                :class="tab === 'attendance' ? 'bg-[#8B7355] text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700'"
+                                class="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs font-semibold transition rounded-lg">
+                            <i class="fa-solid fa-clock"></i>
+                            Attendance
+                        </button>
+                        <button type="button" @click="tab = 'leave'"
+                                :class="tab === 'leave' ? 'bg-[#8B7355] text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700'"
+                                class="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs font-semibold transition rounded-lg">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            Leave Requests
+                        </button>
+                    </div>
+
+                    <button type="button" onclick="openRequestLeaveModal()"
+                        class="px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348] transition">
+                        <i class="mr-1.5 fa-solid fa-plus"></i> Request Leave
+                    </button>
+                </div>
             </div>
             <div id="myLeaveList" class="divide-y divide-gray-100 dark:divide-gray-700">
                 @forelse($myLeaveRequests as $r)
@@ -370,7 +389,7 @@
             <div>
                 <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Reason <span class="text-red-500">*</span></label>
                 <textarea id="leave_reason" rows="3" minlength="10" maxlength="1000"
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white resize-none"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     placeholder="Minimum 10 characters"></textarea>
             </div>
             <p class="text-xs text-gray-400">
@@ -399,7 +418,7 @@
 
             <div id="requestLeaveConfirmAffectedLoading" class="text-xs text-center text-gray-400">Checking your appointments in this window…</div>
             <div id="requestLeaveConfirmAffectedNone" class="hidden text-xs text-center text-gray-400">None of your appointments fall within these dates.</div>
-            <div id="requestLeaveConfirmAffectedWrapper" class="hidden p-3 border rounded-xl border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10">
+            <div id="requestLeaveConfirmAffectedWrapper" class="hidden p-3 border border-red-200 rounded-xl bg-red-50 dark:border-red-800 dark:bg-red-900/10">
                 <p class="text-xs font-semibold text-red-800 dark:text-red-300">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                     <span id="requestLeaveConfirmAffectedCount">0</span> of your appointment(s) fall in this window
@@ -434,9 +453,9 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400" id="leave_review_dates"></p>
                 <p class="mt-2 text-sm italic text-gray-600 dark:text-gray-300" id="leave_review_reason"></p>
             </div>
-            <div id="leave_affected_loading" class="text-xs text-gray-400 hidden">Checking affected appointments…</div>
-            <div id="leave_affected_none" class="text-xs text-gray-400 hidden">No appointments fall within this leave window.</div>
-            <div id="leave_affected_wrapper" class="hidden p-3 border rounded-xl border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10">
+            <div id="leave_affected_loading" class="hidden text-xs text-gray-400">Checking affected appointments…</div>
+            <div id="leave_affected_none" class="hidden text-xs text-gray-400">No appointments fall within this leave window.</div>
+            <div id="leave_affected_wrapper" class="hidden p-3 border border-red-200 rounded-xl bg-red-50 dark:border-red-800 dark:bg-red-900/10">
                 <p class="text-xs font-semibold text-red-800 dark:text-red-300">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                     <span id="leave_affected_count">0</span> appointment(s) will need reassignment
@@ -463,7 +482,7 @@
         <div class="px-6 py-4">
             <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Reason <span class="text-red-500">*</span></label>
             <textarea id="leave_reject_reason" rows="3" minlength="5" maxlength="500"
-                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white resize-none"></textarea>
+                class="w-full px-3 py-2 text-sm border border-gray-300 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
         </div>
         <div class="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-gray-900/40 rounded-b-2xl">
             <button type="button" onclick="closeLeaveRejectReason()" class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">Cancel</button>
@@ -651,7 +670,7 @@ async function loadPendingLeave() {
                         </div>
                     </div>
                     <button type="button" onclick='openLeaveReviewModal(${JSON.stringify(r)})'
-                        class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-amber-600 hover:bg-amber-700 flex-shrink-0">Review</button>
+                        class="flex-shrink-0 px-4 py-2 text-sm font-medium text-white rounded-xl bg-amber-600 hover:bg-amber-700">Review</button>
                 </div>
             </div>`).join('');
     } catch (err) { console.warn('Pending leave poll failed:', err); }
@@ -685,7 +704,7 @@ async function openLeaveReviewModal(r) {
                 <div class="p-2 text-xs bg-white border border-red-100 rounded-lg dark:bg-gray-800 dark:border-red-900/40">
                     <div class="font-medium text-gray-800 dark:text-gray-200">${esc(b.customer_name)} — ${esc(b.appointment_date)} at ${esc(b.start_time_fmt)}</div>
                     ${hasPicker ? `
-                    <select data-affected-booking-id="${b.id}" class="w-full mt-1 px-2 py-1 text-xs border border-gray-300 rounded-lg dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <select data-affected-booking-id="${b.id}" class="w-full px-2 py-1 mt-1 text-xs border border-gray-300 rounded-lg dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="">— Leave unassigned, resolve later —</option>
                         ${options}
                     </select>` : ''}

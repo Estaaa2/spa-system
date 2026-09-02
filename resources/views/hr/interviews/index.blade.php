@@ -92,32 +92,29 @@
         </div>
     </div>
 
-    {{-- Filter Tabs --}}
-    <div class="flex flex-wrap gap-2">
-        @foreach(['all' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $val => $label)
-            <button
-                type="button"
-                onclick="filterStatus('{{ $val }}')"
-                id="filter-{{ $val }}"
-                class="px-3 py-1 text-xs font-semibold rounded-full border transition
-                {{ $val === 'all' ? 'bg-[#8B7355] text-white border-[#8B7355]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#8B7355] hover:text-[#8B7355] dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600' }}">
-                {{ $label }}
-                @if($val !== 'all')
-                    <span class="ml-1">({{ $interviews->where('status', $val)->count() }})</span>
-                @else
-                    <span class="ml-1">({{ $interviews->count() }})</span>
-                @endif
-            </button>
-        @endforeach
-    </div>
-
-    {{-- Interviews Table --}}
+        {{-- Interviews Table --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Interview Records</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-                Review applicant interviews, approve or reject them, and create staff accounts for approved candidates.
-            </p>
+        <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Interview Records</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Review applicant interviews, approve or reject them, and create staff accounts for approved candidates.
+                </p>
+            </div>
+
+            {{-- Filter Tabs --}}
+            <div class="flex flex-wrap gap-2">
+                @foreach(['all' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $val => $label)
+                    <button
+                        type="button"
+                        onclick="filterStatus('{{ $val }}')"
+                        id="filter-{{ $val }}"
+                        class="px-3 py-1 text-xs font-semibold rounded-full border transition
+                        {{ $val === 'all' ? 'bg-[#8B7355] text-white border-[#8B7355]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#8B7355] hover:text-[#8B7355] dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600' }}">
+                        {{ $label }}
+                    </button>
+                @endforeach
+            </div>
         </div>
 
         <div class="overflow-x-auto">

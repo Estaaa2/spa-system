@@ -186,6 +186,20 @@ function openSpaModal(spaData) {
     : 'Prices vary per treatment';
     const hiringBlock = document.getElementById('spaModalHiring');
     const hiringNote   = document.getElementById('spaModalHiringNote');
+    const ratingBlock = document.getElementById('spaModalRating');
+    const ratingValue = document.getElementById('spaModalRatingValue');
+    const ratingCount = document.getElementById('spaModalRatingCount');
+    if (ratingBlock && ratingValue && ratingCount) {
+        if (spaData.rating_avg) {
+            ratingValue.textContent = spaData.rating_avg;
+            ratingCount.textContent = `(${spaData.rating_count})`;
+            ratingBlock.classList.remove('hidden');
+            ratingBlock.classList.add('flex');
+        } else {
+            ratingBlock.classList.add('hidden');
+            ratingBlock.classList.remove('flex');
+        }
+    }
     if (hiringBlock) {
         if (spaData.is_hiring) {
             hiringBlock.classList.remove('hidden');
@@ -226,21 +240,8 @@ function openSpaModal(spaData) {
         }
     }
 
-    const fallbackImage = document.body.dataset.fallbackImage ?? '';
-    photos = Array.isArray(spaData.photos) && spaData.photos.length
-        ? spaData.photos
-        : [fallbackImage, fallbackImage, fallbackImage, fallbackImage, fallbackImage];
-
-    const elMainPhoto = document.getElementById('spaModalMainPhoto');
-    if (elMainPhoto) elMainPhoto.src = photos[0] || fallbackImage;
-
-    ['gallery_1', 'gallery_2', 'gallery_3', 'gallery_4'].forEach((id, i) => {
-        const el = document.getElementById(id);
-        if (el) el.src = photos[i + 1] || fallbackImage;
-    });
-
-    const galleryCount = document.getElementById('spaModalGalleryCount');
-    if (galleryCount) galleryCount.classList.add('hidden');
+    photos = normalizeSpaPhotos(spaData.photos);
+    renderSpaPhotoGrid(photos, spaData.name ?? 'Spa');
 
     spaModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
@@ -261,9 +262,346 @@ function openSpaModal(spaData) {
     photoIndex = 0;
 }
 
+// =====================================================
+// REVIEWS MODAL (Shopee-style star filter)
+// =====================================================
+let reviewsData          = { reviews: [], counts: {} };
+let currentReviewFilter  = null; // null = All
+
+function openReviewsModalFromSpa() {
+    if (!selectedSpa) return;
+    openReviewsModal(selectedSpa.id, selectedSpa.branch_id, selectedSpa.name);
+}
+
+function openReviewsModal(spaId, branchId, spaName) {
+    if (!spaId || !branchId) return;
+
+    const modal   = document.getElementById('reviewsModal');
+    const nameEl  = document.getElementById('reviewsModalSpaName');
+    const tabsEl  = document.getElementById('reviewFilterTabs');
+    const listEl  = document.getElementById('reviewsModalList');
+
+    if (nameEl) nameEl.textContent = spaName ?? '';
+    if (tabsEl) tabsEl.innerHTML = `<p class="text-sm text-gray-400">Loading...</p>`;
+    if (listEl) listEl.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">Loading reviews...</p>`;
+
+    currentReviewFilter = null;
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    fetch(`/web-api/spas/${spaId}/${branchId}/reviews`)
+        .then(res => res.json())
+        .then(data => {
+            reviewsData = {
+                reviews: Array.isArray(data.reviews) ? data.reviews : [],
+                counts:  data.counts ?? {},
+                total:   data.total ?? 0,
+            };
+            renderReviewFilterTabs();
+            renderReviewsList();
+        })
+        .catch(err => {
+            console.warn('Failed to load reviews:', err);
+            if (tabsEl) tabsEl.innerHTML = '';
+            if (listEl) listEl.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">Unable to load reviews.</p>`;
+        });
+}
+
+function closeReviewsModal() {
+    const modal = document.getElementById('reviewsModal');
+    if (modal) modal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function renderReviewFilterTabs() {
+    const tabsEl = document.getElementById('reviewFilterTabs');
+    if (!tabsEl) return;
+
+    const total = reviewsData.total ?? reviewsData.reviews.length;
+
+    const tabs = [
+        { label: `All (${total})`, value: null },
+        ...[5, 4, 3, 2, 1].map(star => ({
+            label: `${star} ★ (${reviewsData.counts[star] ?? 0})`,
+            value: star,
+        })),
+    ];
+
+    tabsEl.innerHTML = tabs.map(t => `
+        <button type="button"
+            data-filter="${t.value ?? 'all'}"
+            onclick="selectReviewFilter(${t.value ?? 'null'})"
+            class="review-filter-tab flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition
+                ${currentReviewFilter === t.value
+                    ? 'bg-[#8B7355] text-white border-[#8B7355]'
+                    : 'bg-transparent text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-[#8B7355]'}">
+            ${t.label}
+        </button>`).join('');
+}
+
+function selectReviewFilter(star) {
+    currentReviewFilter = star;
+    renderReviewFilterTabs();
+    renderReviewsList();
+}
+
+function renderReviewsList() {
+    const listEl = document.getElementById('reviewsModalList');
+    if (!listEl) return;
+
+    const filtered = currentReviewFilter === null
+        ? reviewsData.reviews
+        : reviewsData.reviews.filter(r => r.rating === currentReviewFilter);
+
+    if (!filtered.length) {
+        listEl.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">No reviews${currentReviewFilter ? ` with ${currentReviewFilter} star${currentReviewFilter > 1 ? 's' : ''}` : ''} yet.</p>`;
+        return;
+    }
+
+    listEl.innerHTML = filtered.map(r => `
+        <div class="p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(r.name || 'Anonymous')}</span>
+                <span class="text-xs text-gray-400">${r.date ?? ''}</span>
+            </div>
+            <div class="flex items-center gap-0.5 mt-1">${renderStars(r.rating)}</div>
+            ${r.comment ? `<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">${escapeHtml(r.comment)}</p>` : ''}
+        </div>`).join('');
+}
+
 function closeSpaModal() {
+    closeLightbox();
     spaModal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+}
+
+// =====================================================
+// SPA PHOTOS — payload, dynamic grid, lightbox
+// =====================================================
+
+function fallbackSpaImage() {
+    return document.body.dataset.fallbackImage ?? '';
+}
+
+/**
+ * The server now sends photos as [{ url, caption }] with real uploads only
+ * (BranchProfile::photoPayload). The string-array branch is a cheap guard for
+ * any payload that predates that change — remove it once you're confident
+ * nothing is serving the old shape.
+ */
+function normalizeSpaPhotos(raw) {
+    if (!Array.isArray(raw)) return [];
+
+    return raw
+        .map(entry => (typeof entry === 'string'
+            ? { url: entry, caption: null }
+            : { url: entry?.url ?? '', caption: entry?.caption ?? null }))
+        .filter(photo => photo.url);
+}
+
+/**
+ * Thumbnail for listing cards. Falls back to the placeholder when a branch has
+ * uploaded nothing at all.
+ */
+function spaCardThumb(spa) {
+    return normalizeSpaPhotos(spa?.photos)[0]?.url || fallbackSpaImage();
+}
+
+/**
+ * Builds the modal photo grid to fit however many photos exist (0–5). The
+ * grid template itself is driven off data-count in the page's <style> block;
+ * this only emits the cells.
+ */
+function renderSpaPhotoGrid(list, spaName) {
+    const grid = document.getElementById('spaModalPhotoGrid');
+    if (!grid) return;
+
+    const label = escapeHtml(spaName);
+
+    // Zero real uploads: show the placeholder but no gallery affordance —
+    // not clickable, no counter, no viewer.
+    if (!list.length) {
+        grid.dataset.count = '0';
+        grid.innerHTML = `
+            <div class="spa-photo-cell is-empty">
+                <img src="${escapeHtml(fallbackSpaImage())}" alt="${label} has not uploaded any photos yet">
+                <span class="spa-photo-empty-label">
+                    <i class="fa-solid fa-image"></i>
+                    No photos yet
+                </span>
+            </div>`;
+        return;
+    }
+
+    grid.dataset.count = String(list.length);
+    grid.innerHTML = list.map((photo, i) => {
+        const chip = (i === 0 && list.length > 1)
+            ? `<span class="spa-photo-chip">
+                   <i class="fa-solid fa-images"></i>
+                   ${list.length} photos
+               </span>`
+            : '';
+
+        const alt = photo.caption
+            ? escapeHtml(photo.caption)
+            : `${label} photo ${i + 1} of ${list.length}`;
+
+        return `
+            <button type="button" class="spa-photo-cell" data-photo-index="${i}"
+                aria-label="View photo ${i + 1} of ${list.length}">
+                <img src="${escapeHtml(photo.url)}" alt="${alt}">
+                ${chip}
+            </button>`;
+    }).join('');
+}
+
+// Delegated so it survives the innerHTML rebuild on every modal open.
+document.getElementById('spaModalPhotoGrid')?.addEventListener('click', (e) => {
+    const cell = e.target.closest('.spa-photo-cell[data-photo-index]');
+    if (!cell) return;
+    openLightbox(Number(cell.dataset.photoIndex));
+});
+
+const lightboxEl = document.getElementById('photoLightbox');
+let lightboxIndex        = 0;
+let lightboxReturnFocus  = null;
+
+function isLightboxOpen() {
+    return !!lightboxEl && !lightboxEl.classList.contains('hidden');
+}
+
+function openLightbox(index) {
+    if (!lightboxEl || !photos.length) return;
+
+    lightboxIndex       = Math.min(Math.max(index, 0), photos.length - 1);
+    lightboxReturnFocus = document.activeElement;
+
+    const single = photos.length < 2;
+    document.getElementById('lightboxPrev').hidden = single;
+    document.getElementById('lightboxNext').hidden = single;
+
+    renderLightboxSlide();
+    lightboxEl.classList.remove('hidden');
+
+    // Body scroll lock is already held by spaModal. Deliberately not touched
+    // here — otherwise closing the lightbox would unlock the page behind a
+    // still-open modal.
+    document.getElementById('lightboxClose')?.focus();
+}
+
+function closeLightbox() {
+    if (!isLightboxOpen()) return;
+
+    lightboxEl.classList.add('hidden');
+
+    if (lightboxReturnFocus && typeof lightboxReturnFocus.focus === 'function') {
+        lightboxReturnFocus.focus();
+    }
+    lightboxReturnFocus = null;
+}
+
+function renderLightboxSlide() {
+    const photo   = photos[lightboxIndex];
+    const img     = document.getElementById('lightboxImage');
+    const caption = document.getElementById('lightboxCaption');
+    const counter = document.getElementById('lightboxCounter');
+    if (!photo || !img) return;
+
+    img.classList.add('is-swapping');
+    img.onload  = () => img.classList.remove('is-swapping');
+    img.onerror = () => img.classList.remove('is-swapping');
+    img.src = photo.url;
+    img.alt = photo.caption || `Photo ${lightboxIndex + 1} of ${photos.length}`;
+
+    if (caption) {
+        caption.textContent = photo.caption || '';
+        caption.classList.toggle('is-hidden', !photo.caption);
+    }
+    if (counter) counter.textContent = `${lightboxIndex + 1} / ${photos.length}`;
+
+    preloadAdjacentPhotos();
+}
+
+function preloadAdjacentPhotos() {
+    if (photos.length < 2) return;
+
+    [-1, 1].forEach(offset => {
+        const photo = photos[(lightboxIndex + offset + photos.length) % photos.length];
+        if (photo) new Image().src = photo.url;
+    });
+}
+
+function lightboxStep(delta) {
+    if (photos.length < 2) return;
+    lightboxIndex = (lightboxIndex + delta + photos.length) % photos.length;
+    renderLightboxSlide();
+}
+
+if (lightboxEl) {
+    lightboxEl.querySelectorAll('[data-close-lightbox]').forEach(el => {
+        el.addEventListener('click', closeLightbox);
+    });
+    document.getElementById('lightboxPrev')?.addEventListener('click', () => lightboxStep(-1));
+    document.getElementById('lightboxNext')?.addEventListener('click', () => lightboxStep(1));
+
+    // Arrows navigate; Tab is trapped inside the dialog. Escape is handled by
+    // the shared top-most-wins handler at the bottom of this file.
+    lightboxEl.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            lightboxStep(-1);
+            return;
+        }
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            lightboxStep(1);
+            return;
+        }
+        if (e.key !== 'Tab') return;
+
+        const focusable = Array.from(lightboxEl.querySelectorAll('button:not([hidden])'));
+        if (!focusable.length) return;
+
+        const first = focusable[0];
+        const last  = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    });
+
+    // Horizontal swipe, for the Median.co wrapper. A 50px threshold plus the
+    // dx > dy check keeps it from firing on a vertical scroll gesture.
+    const stage = document.getElementById('lightboxStage');
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchTracking = false;
+
+    stage?.addEventListener('touchstart', (e) => {
+        touchTracking = e.touches.length === 1;
+        if (!touchTracking) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    stage?.addEventListener('touchend', (e) => {
+        if (!touchTracking) return;
+        touchTracking = false;
+
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+
+        if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+        lightboxStep(dx < 0 ? 1 : -1);
+    }, { passive: true });
 }
 
 document.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
@@ -412,7 +750,7 @@ function spaHiringBadge(spa) {
 }
 
 function buildUnifiedCard(spa) {
-    const thumb = spa.photos?.[0] || (document.body.dataset.fallbackImage ?? '');
+    const thumb = spaCardThumb(spa);
     const addr  = spaAddressSummary(spa.address);
     const escaped = JSON.stringify(spa).replace(/'/g, '&#39;');
     const badgeClass = spa.is_featured ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10';
@@ -435,6 +773,12 @@ function buildUnifiedCard(spa) {
             </div>
             <div class="p-5">
                 <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">${escapeHtml(spa.name)}</h3>
+                ${spa.rating_avg ? `
+                <div class="flex items-center gap-1 mt-1">
+                    <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+                    <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">${spa.rating_avg}</span>
+                    <span class="text-xs text-gray-400">(${spa.rating_count})</span>
+                </div>` : ''}
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(addr)}</p>
                 ${spa.price_note ? `<p class="mt-2 text-xs font-medium text-[#8B7355] dark:text-[#C4A97D]">Starts at ₱${spa.price_note}</p>` : ''}
                 <p class="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${escapeHtml(spa.desc) || 'No description yet.'}</p>
@@ -2224,10 +2568,8 @@ async function loadNearbySpas() {
         const grid    = document.getElementById('nearbyGrid');
         if (!section || !grid) return;
 
-        const fallback = document.body.dataset.fallbackImage ?? '';
-
         grid.innerHTML = data.map(spa => {
-            const thumb = spa.photos?.[0] || fallback;
+            const thumb = spaCardThumb(spa);
             const addr  = spa.address ?? '';
             const parts = addr.split(',').map(s => s.trim());
             const addrSummary = parts.length >= 3
@@ -2251,6 +2593,12 @@ async function loadNearbySpas() {
                     </div>
                     <div class="p-5">
                         <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">${spa.name}</h3>
+                        ${spa.rating_avg ? `
+                        <div class="flex items-center gap-1 mt-1">
+                            <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+                            <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">${spa.rating_avg}</span>
+                            <span class="text-xs text-gray-400">(${spa.rating_count})</span>
+                        </div>` : ''}
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${addrSummary}</p>
                     </div>
                 </button>`;
@@ -2543,16 +2891,29 @@ function setupProfileAddressAutocomplete() {
 // =====================================================
 // KEYBOARD: Escape closes all modals
 // =====================================================
+
+const escapeCloseOrder = [
+    ['photoLightbox',       () => closeLightbox()],          // z-[155]
+    ['businessInfoModal',   () => closeBusinessInfo()],      // z-[150]
+    ['logoutModal',         () => closeLogoutModal()],       // z-[145]
+    ['reviewsModal',        () => closeReviewsModal()],      // z-[145]
+    ['rescheduleModal',     () => closeRescheduleModal()],   // z-[130]
+    ['bookingDetailsModal', () => closeBookingDetailsModal()], // z-[125]
+    ['termsModal',          () => closeTermsModal()],        // z-[120]
+    ['applicationModal',    () => closeApplicationModal()],  // z-[115]
+    ['bookingModal',        () => closeBookingModal()],      // z-[110]
+    ['spaModal',            () => closeSpaModal()],          // z-[100]
+];
+
 window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        if (!document.getElementById('logoutModal')?.classList.contains('hidden'))          closeLogoutModal();
-        if (!document.getElementById('rescheduleModal')?.classList.contains('hidden'))      closeRescheduleModal();
-        if (!document.getElementById('bookingDetailsModal')?.classList.contains('hidden'))  closeBookingDetailsModal();
-        if (!document.getElementById('termsModal')?.classList.contains('hidden'))           closeTermsModal();
-        if (!spaModal?.classList.contains('hidden'))                                        closeSpaModal();
-        if (!bookingModal?.classList.contains('hidden'))                                    closeBookingModal();
-        if (!document.getElementById('businessInfoModal')?.classList.contains('hidden'))    closeBusinessInfo();
-        if (!document.getElementById('applicationModal')?.classList.contains('hidden'))     closeApplicationModal();
+    if (e.key !== 'Escape') return;
+
+    for (const [id, close] of escapeCloseOrder) {
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('hidden')) {
+            close();
+            return;
+        }
     }
 });
 
@@ -2580,8 +2941,13 @@ window.closeRescheduleModal     = closeRescheduleModal;
 window.submitRescheduleRequest  = submitRescheduleRequest;
 window.openRatingModal          = openRatingModal;
 window.closeRatingModal         = closeRatingModal;
+window.openReviewsModal         = openReviewsModal;
+window.openReviewsModalFromSpa  = openReviewsModalFromSpa;
+window.closeReviewsModal        = closeReviewsModal;
+window.selectReviewFilter       = selectReviewFilter;
 window.submitRating             = submitRating;
 window.setRating                = setRating;
+window.setSpaRating             = setSpaRating;
 window._dayBookingMap           = _dayBookingMap;
 window._appointmentMap          = _appointmentMap;
 window.openApplicationModal     = openApplicationModal;
@@ -2596,6 +2962,8 @@ window.formatFileSize           = formatFileSize;
 window.openLogoutModal          = openLogoutModal;
 window.closeLogoutModal         = closeLogoutModal;
 window.toggleScheduleView       = toggleScheduleView;
+window.openLightbox             = openLightbox;
+window.closeLightbox            = closeLightbox;
 
 // =====================================================
 // TOAST
@@ -2667,24 +3035,33 @@ function openRatingModal(bookingId, therapistName, spaName, branchName, branchLo
     const ratingBookingId = document.getElementById('ratingBookingId');
     const ratingTherapistName = document.getElementById('ratingTherapistName');
     const ratingBranchLocation = document.getElementById('ratingBranchLocation');
+    const ratingSpaName = document.getElementById('ratingSpaName');
+    const ratingSpaBranchLocation = document.getElementById('ratingSpaBranchLocation');
 
     if (ratingBookingId) ratingBookingId.value = bookingId;
     if (ratingTherapistName) ratingTherapistName.innerText = therapistName;
+    if (ratingSpaName) ratingSpaName.innerText = spaName;
 
     const locationText = branchLocation || branchName || 'Branch location unavailable';
     if (ratingBranchLocation) ratingBranchLocation.innerText = locationText;
+    if (ratingSpaBranchLocation) ratingSpaBranchLocation.innerText = locationText;
 
     resetStars();
+    resetSpaStars();
 
     const ratingComment = document.getElementById('ratingComment');
     const ratingFeedback = document.getElementById('ratingFeedback');
+    const spaComment = document.getElementById('spaComment');
     if (ratingComment) ratingComment.value = '';
     if (ratingFeedback) ratingFeedback.value = '';
+    if (spaComment) spaComment.value = '';
 
     const commentCount = document.getElementById('ratingCommentCount');
     const feedbackCount = document.getElementById('ratingFeedbackCount');
+    const spaCommentCount = document.getElementById('spaCommentCount');
     if (commentCount) commentCount.textContent = '0';
     if (feedbackCount) feedbackCount.textContent = '0';
+    if (spaCommentCount) spaCommentCount.textContent = '0';
 
     const submitBtn = document.getElementById('ratingSubmitBtn');
     if (submitBtn) {
@@ -2708,6 +3085,7 @@ function closeRatingModal() {
     if (modal) modal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
     resetStars();
+    resetSpaStars();
 }
 
 function resetStars() {
@@ -2719,6 +3097,17 @@ function resetStars() {
     }
     const selectedRating = document.getElementById('selectedRating');
     if (selectedRating) selectedRating.value = 0;
+}
+
+function resetSpaStars() {
+    for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`spa-star-${i}`);
+        if (!star) continue;
+        star.classList.remove('text-yellow-400');
+        star.classList.add('text-gray-300', 'dark:text-gray-600');
+    }
+    const selectedSpaRating = document.getElementById('selectedSpaRating');
+    if (selectedSpaRating) selectedSpaRating.value = 0;
 }
 
 function setRating(rating) {
@@ -2738,14 +3127,38 @@ function setRating(rating) {
     }
 }
 
+function setSpaRating(rating) {
+    const selectedSpaRating = document.getElementById('selectedSpaRating');
+    if (selectedSpaRating) selectedSpaRating.value = rating;
+
+    for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`spa-star-${i}`);
+        if (!star) continue;
+        if (i <= rating) {
+            star.classList.remove('text-gray-300', 'dark:text-gray-600');
+            star.classList.add('text-yellow-400');
+        } else {
+            star.classList.remove('text-yellow-400');
+            star.classList.add('text-gray-300', 'dark:text-gray-600');
+        }
+    }
+}
+
 async function submitRating() {
-    const bookingId = document.getElementById('ratingBookingId')?.value;
-    const rating    = document.getElementById('selectedRating')?.value;
-    const comment   = document.getElementById('ratingComment')?.value || '';
-    const feedback  = document.getElementById('ratingFeedback')?.value || '';
+    const bookingId  = document.getElementById('ratingBookingId')?.value;
+    const rating     = document.getElementById('selectedRating')?.value;
+    const comment    = document.getElementById('ratingComment')?.value || '';
+    const feedback   = document.getElementById('ratingFeedback')?.value || '';
+    const spaRating  = document.getElementById('selectedSpaRating')?.value;
+    const spaComment = document.getElementById('spaComment')?.value || '';
+
+    if (!spaRating || spaRating == 0) {
+        showSpaToast('Please rate the spa', 'error');
+        return;
+    }
 
     if (!rating || rating == 0) {
-        showSpaToast('Please select a rating', 'error');
+        showSpaToast('Please rate the therapist', 'error');
         return;
     }
 
@@ -2766,10 +3179,12 @@ async function submitRating() {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-                booking_id: bookingId,
-                rating:     parseInt(rating),
-                comment:    comment,
-                feedback:   feedback
+                booking_id:   bookingId,
+                rating:       parseInt(rating),
+                comment:      comment,
+                feedback:     feedback,
+                spa_rating:   parseInt(spaRating),
+                spa_comment:  spaComment
             })
         });
 
