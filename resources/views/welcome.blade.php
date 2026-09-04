@@ -1270,7 +1270,6 @@
                             <hr class="border-[#E8DDD0] dark:border-gray-700">
                             <div>
                                 <h4 class="mb-4 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23] dark:text-white">What this place offers</h4>
-                                <hr class="border-[#E8DDD0] dark:border-gray-700">
                                 <div id="spaModalAmenities">
                                     <p class="text-sm italic text-gray-400 dark:text-gray-500">No amenities listed yet.</p>
                                 </div>
@@ -1332,12 +1331,13 @@
          need no prefers-color-scheme branch. --}}
     <div id="photoLightbox" class="fixed inset-0 z-[155] hidden" role="dialog" aria-modal="true"
          aria-labelledby="lightboxSrLabel">
-        <div class="absolute inset-0 bg-black/90" data-close-lightbox></div>
+         
+        <div class="absolute inset-0 bg-black/90"></div>
 
         <h2 id="lightboxSrLabel" class="sr-only">Spa photo viewer</h2>
 
         <div class="lightbox-shell">
-            <button type="button" id="lightboxClose" data-close-lightbox
+            <button type="button" id="lightboxClose"
                 class="lightbox-btn lightbox-btn-close" aria-label="Close photo viewer">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -1500,7 +1500,11 @@
         .lightbox-caption.is-hidden { display: none; }
         .lightbox-counter { margin-top: 6px; font-size: 11px; letter-spacing: .04em; color: rgba(255,255,255,.7); }
 
-        .lightbox-btn { position: absolute; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 9999px; background: rgba(255,255,255,.12); color: #fff; font-size: 16px; cursor: pointer; transition: background-color .15s ease; }
+        /* z-index is load-bearing: .lightbox-stage is also positioned, and the
+           prev button precedes it in the DOM while the next button follows it.
+           Without this the stage paints over prev but under next, so on narrow
+           screens (where the stage fills the shell) only the next arrow shows. */
+        .lightbox-btn { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 9999px; background: rgba(255,255,255,.12); color: #fff; font-size: 16px; cursor: pointer; transition: background-color .15s ease; }
         .lightbox-btn:hover { background: rgba(255,255,255,.24); }
         .lightbox-btn:focus-visible { outline: 2px solid #C4A97D; outline-offset: 2px; }
         .lightbox-btn[hidden] { display: none; }
@@ -1511,6 +1515,10 @@
             .lightbox-shell { padding: calc(64px + var(--safe-top, 0px)) 8px 20px; }
             .lightbox-btn-prev { left: 8px; }
             .lightbox-btn-next { right: 8px; }
+            /* At this width the stage fills the shell, so the arrows sit on top
+               of the photo itself and need real contrast against it. */
+            .lightbox-btn-prev, .lightbox-btn-next { background: rgba(0,0,0,.55); }
+            .lightbox-btn-prev:hover, .lightbox-btn-next:hover { background: rgba(0,0,0,.7); }
         }
         @media (prefers-reduced-motion: reduce) {
             .spa-photo-cell img,

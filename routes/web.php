@@ -337,10 +337,23 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/branches', [BranchController::class, 'store'])->name('branches.store');
     });
 
-    Route::middleware('branch.permission:edit branches')->group(function () {
-        Route::get('/branches/{branch}/edit', [BranchController::class, 'edit'])->name('branches.edit');
+    // Branch edit surfaces — fully per-surface permission gating.
+    Route::get('/branches/{branch}/edit', [BranchController::class, 'edit'])
+        ->middleware('branch.permission:edit branch general,edit branch hours,edit branch profile')
+        ->name('branches.edit');
+
+    // General information (branch name).
+    Route::middleware('branch.permission:edit branch general')->group(function () {
         Route::put('/branches/{branch}/general', [BranchController::class, 'updateGeneral'])->name('branches.update.general');
-        Route::put('/branches/{branch}/hours',   [BranchController::class, 'updateHours'])->name('branches.update.hours');
+    });
+
+    // Operating hours.
+    Route::middleware('branch.permission:edit branch hours')->group(function () {
+        Route::put('/branches/{branch}/hours', [BranchController::class, 'updateHours'])->name('branches.update.hours');
+    });
+
+    // Public profile / listing.
+    Route::middleware('branch.permission:edit branch profile')->group(function () {
         Route::put('/branches/{branch}/profile', [BranchController::class, 'updateProfile'])->name('branches.update.profile');
     });
 

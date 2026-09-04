@@ -124,6 +124,9 @@ class RolePermissionController extends Controller
             'manage subscription',
             'view subscription and billing',
             'manage subscription and billing',
+
+            // Deprecated — superseded by the granular 'edit branch general/hours/profile' permissions
+            'edit branches',
         ];
 
         if (in_array($name, $exactHidden, true)) {
@@ -187,6 +190,9 @@ class RolePermissionController extends Controller
             'view dashboard alerts'             => 'Dashboard: Operational Alerts',
             'view dashboard booking button'     => 'Dashboard: New Booking Shortcut',
             'view dashboard my today'           => 'Dashboard: My Personal Schedule',
+            'edit branch general'               => 'Edit General Information',
+            'edit branch hours'                 => 'Edit Operating Hours',
+            'edit branch profile'               => 'Edit Public Profile',
         ];
 
         return $explicit[Str::lower($permissionName)] ?? Str::headline($permissionName);
@@ -203,6 +209,10 @@ class RolePermissionController extends Controller
             'view dashboard alerts'             => 'Shows late check-in, cancellation, and overloaded therapist warning cards.',
             'view dashboard booking button'     => 'Shows the New Booking shortcut button in the dashboard header.',
             'view dashboard my today'           => 'Shows the therapist\'s own personal schedule widget with only their assigned appointments.',
+            'edit branches'                     => '(Deprecated) Superseded by the granular Edit General Information, Edit Operating Hours, and Edit Public Profile permissions. No longer used for access control.',
+            'edit branch general'               => 'Allows this role to edit the branch general information, such as the branch name.',
+            'edit branch hours'                 => 'Allows this role to edit only the branch operating hours (opening and closing times and closed days), separately from the branch name and public profile.',
+            'edit branch profile'               => 'Allows this role to edit the branch public profile listing — photos, description, amenities, contact details, and whether the branch is listed publicly.',
         ];
 
         $lower = Str::lower(trim($permissionName));

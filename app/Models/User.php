@@ -156,7 +156,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->branch_id;
     }
 
-    // In User.php — add this method
     public function hasBranchPermission(string $permission): bool
     {
         $branchId = $this->currentBranchId();

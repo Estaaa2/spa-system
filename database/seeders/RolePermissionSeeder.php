@@ -52,7 +52,10 @@ class RolePermissionSeeder extends Seeder
             // ── Branches ──────────────────────────────────────────────────────
             'view branches',
             'create branches',
-            'edit branches',
+            'edit branches',        // DEPRECATED: superseded by the three granular 'edit branch *' permissions below. Kept defined so any lingering reference cannot throw PermissionDoesNotExist.
+            'edit branch general',
+            'edit branch hours',
+            'edit branch profile',
             'delete branches',
 
             // ── Staff ─────────────────────────────────────────────────────────
@@ -200,7 +203,9 @@ class RolePermissionSeeder extends Seeder
 
             'view branches',
             'create branches',
-            'edit branches',
+            'edit branch general',
+            'edit branch hours',
+            'edit branch profile',
             'delete branches',
 
             'view staff',
@@ -291,6 +296,8 @@ class RolePermissionSeeder extends Seeder
             'edit leave requests',
 
             'view branches',
+            'edit branch profile',
+            'edit branch hours',
 
             'view staff',
             'create staff',
@@ -355,6 +362,7 @@ class RolePermissionSeeder extends Seeder
 
             'view schedule',
             'view branches',
+            'edit branch profile',
             'view staff',
             'view services',
             'view promos',

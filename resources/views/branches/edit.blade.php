@@ -5,9 +5,23 @@
 @section('content')
 
 @php
-    // Determine active tab: query param > default 'general'
-    $activeTab = request()->query('tab', 'general');
-    if (!in_array($activeTab, ['general', 'hours', 'profile'])) $activeTab = 'general';
+    // Determine which tabs this user can access.
+    $canEditGeneral = $canEditGeneral ?? (auth()->user()?->hasBranchPermission('edit branch general') ?? false);
+    $canEditHours   = $canEditHours   ?? (auth()->user()?->hasBranchPermission('edit branch hours') ?? false);
+    $canEditProfile = $canEditProfile ?? (auth()->user()?->hasBranchPermission('edit branch profile') ?? false);
+
+    // Accessible tabs, in display order, based on capability.
+    $accessibleTabs = array_values(array_filter([
+        $canEditGeneral ? 'general' : null,
+        $canEditHours   ? 'hours'   : null,
+        $canEditProfile ? 'profile' : null,
+    ]));
+
+    // Determine active tab: a requested ?tab= must be BOTH valid AND accessible.
+    $activeTab = request()->query('tab', $accessibleTabs[0] ?? 'general');
+    if (!in_array($activeTab, $accessibleTabs, true)) {
+        $activeTab = $accessibleTabs[0] ?? 'general';
+    }
 
     // Helper: slice time to H:i regardless of whether DB stores H:i:s
     $t = fn($time, $default = '09:00') => $time ? substr($time, 0, 5) : $default;
@@ -51,6 +65,7 @@
     <!-- Section switcher -->
     <div role="tablist" aria-label="Branch settings sections"
          class="flex gap-1 p-1.5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                @if($canEditGeneral)
                 <button @click="tab = 'general'" type="button"
                         class="branch-tab flex items-center justify-center flex-1 min-w-0 gap-2 px-3 min-h-[44px] text-sm font-medium transition rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         role="tab" id="tab-general" aria-controls="panel-general"
@@ -63,6 +78,8 @@
                         <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full" title="This section has errors">!</span>
                     @endif
                 </button>
+                @endif
+                @if($canEditHours)
                 <button @click="tab = 'hours'" type="button"
                         class="branch-tab flex items-center justify-center flex-1 min-w-0 gap-2 px-3 min-h-[44px] text-sm font-medium transition rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         role="tab" id="tab-hours" aria-controls="panel-hours"
@@ -76,6 +93,8 @@
                         <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full" title="This section has errors">!</span>
                     @endif
                 </button>
+                @endif
+                @if($canEditProfile)
                 <button @click="tab = 'profile'" type="button"
                         class="branch-tab flex items-center justify-center flex-1 min-w-0 gap-2 px-3 min-h-[44px] text-sm font-medium transition rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         role="tab" id="tab-profile" aria-controls="panel-profile"
@@ -92,6 +111,7 @@
                         <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full" title="This section has errors">!</span>
                     @endif
                 </button>
+                @endif
     </div>
 
     <!-- Branch at a glance -->
@@ -130,6 +150,7 @@
         </div>
     </div>
 
+    @if($canEditGeneral)
     <!-- General Information Tab -->
     <div x-show="tab === 'general'"
          role="tabpanel" id="panel-general" aria-labelledby="tab-general"
@@ -241,7 +262,9 @@
 
         </form>
     </div>
+    @endif
 
+    @if($canEditHours)
     <!-- Operating Hours Tab -->
     <div x-show="tab === 'hours'"
          role="tabpanel" id="panel-hours" aria-labelledby="tab-hours"
@@ -391,7 +414,9 @@
             </div>
         </form>
     </div>
+    @endif
 
+    @if($canEditProfile)
     <!-- Public Profile Tab -->
     <div x-show="tab === 'profile'"
          role="tabpanel" id="panel-profile" aria-labelledby="tab-profile"
@@ -794,6 +819,7 @@
             </form>
         @endif
     </div>{{-- end profile tab --}}
+    @endif
 
 </div>{{-- end x-data --}}
 
@@ -820,8 +846,12 @@ function branchEditPage() {
 
         // Tab cycling with arrow keys (left/right)
         cycleTab(direction) {
-            const order = ['general', 'hours', 'profile'];
-            const next = (order.indexOf(this.tab) + direction + order.length) % order.length;
+            // Only cycle through tabs this user can actually access.
+            const order = @json($accessibleTabs);
+            if (order.length === 0) return;
+            const current = order.indexOf(this.tab);
+            const start = current === -1 ? 0 : current;
+            const next = (start + direction + order.length) % order.length;
             this.tab = order[next];
             this.$nextTick(() => document.getElementById('tab-' + this.tab)?.focus());
         }
