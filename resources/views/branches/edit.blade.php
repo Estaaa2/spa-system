@@ -3,8 +3,6 @@
 @section('title', 'Edit Branch — ' . $branch->name)
 
 @section('content')
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 @php
     // Determine active tab: query param > default 'general'
@@ -13,67 +11,128 @@
 
     // Helper: slice time to H:i regardless of whether DB stores H:i:s
     $t = fn($time, $default = '09:00') => $time ? substr($time, 0, 5) : $default;
+
+    // Determine if the current user can set this branch as the main branch. Only users with the 'owner' role can do this.
+    $canSetMainBranch = auth()->user()?->hasRole('owner') ?? false;
+
+    // Determine if the current user can use the hiring feature. This is based on the spa's business tier.
+    $spa            = $spa ?? $branch->spa;
+    $operatingHours = collect($operatingHours ?? []);
+
+    $spaTier      = $spa?->business_tier;
+    $canUseHiring = $spaTier === 'professional';
+
+    // Count the number of days that are open (not closed) in the operating hours. This is used to display the number of open days in the branch overview.
+    $openDayCount = $operatingHours->filter(fn($h) => !($h->is_closed ?? false))->count();
+    $isListed     = (bool) optional($branch->profile)->is_listed;
 @endphp
 
-<div class="px-4 py-6 mx-auto max-w-7xl sm:px-6 lg:px-8" x-data="branchEditPage()" x-init="init()">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    {{-- ── Page Header ─────────────────────────────────────────────────── --}}
-    <div class="flex items-center gap-4 mb-8">
-        <a href="{{ route('branches.index') }}"
-           class="flex items-center justify-center text-gray-500 transition border border-gray-200 w-9 h-9 rounded-xl hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700">
-            <i class="text-sm fa-solid fa-arrow-left"></i>
-        </a>
-        <div>
-            <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ $branch->name }}</h1>
-            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                <i class="mr-1 fa-solid fa-location-dot text-[#8B7355] text-xs"></i>{{ $branch->location }}
-            </p>
+<div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl" x-data="branchEditPage()" x-init="init()">
+
+    <x-page-header
+        :title="$branch->name"
+        :subtitle="$branch->location"
+    >
+        <x-slot name="right">
+            @role('owner')
+                <a href="{{ route('branches.index') }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl
+                          bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5">
+                    <i class="text-xs fa-solid fa-arrow-left"></i>
+                    All Branches
+                </a>
+            @endrole
+        </x-slot>
+    </x-page-header>
+
+    <!-- Section switcher -->
+    <div role="tablist" aria-label="Branch settings sections"
+         class="flex gap-1 p-1.5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                <button @click="tab = 'general'" type="button"
+                        class="branch-tab flex items-center justify-center flex-1 min-w-0 gap-2 px-3 min-h-[44px] text-sm font-medium transition rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        role="tab" id="tab-general" aria-controls="panel-general"
+                        :aria-selected="tab === 'general' ? 'true' : 'false'"
+                        :aria-pressed="tab === 'general' ? 'true' : 'false'"
+                        :tabindex="tab === 'general' ? 0 : -1">
+                    <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i>
+                    <span>General</span>
+                    @if($errors->hasBag('general') && $errors->getBag('general')->any())
+                        <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full" title="This section has errors">!</span>
+                    @endif
+                </button>
+                <button @click="tab = 'hours'" type="button"
+                        class="branch-tab flex items-center justify-center flex-1 min-w-0 gap-2 px-3 min-h-[44px] text-sm font-medium transition rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        role="tab" id="tab-hours" aria-controls="panel-hours"
+                        :aria-selected="tab === 'hours' ? 'true' : 'false'"
+                        :aria-pressed="tab === 'hours' ? 'true' : 'false'"
+                        :tabindex="tab === 'hours' ? 0 : -1">
+                    <i class="text-xs fa-solid fa-clock" aria-hidden="true"></i>
+                    <span class="sm:hidden">Hours</span>
+                    <span class="hidden sm:inline">Operating Hours</span>
+                    @if($errors->hasBag('hours') && $errors->getBag('hours')->any())
+                        <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full" title="This section has errors">!</span>
+                    @endif
+                </button>
+                <button @click="tab = 'profile'" type="button"
+                        class="branch-tab flex items-center justify-center flex-1 min-w-0 gap-2 px-3 min-h-[44px] text-sm font-medium transition rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        role="tab" id="tab-profile" aria-controls="panel-profile"
+                        :aria-selected="tab === 'profile' ? 'true' : 'false'"
+                        :aria-pressed="tab === 'profile' ? 'true' : 'false'"
+                        :tabindex="tab === 'profile' ? 0 : -1">
+                    <i class="text-xs fa-solid fa-image" aria-hidden="true"></i>
+                    <span class="sm:hidden">Profile</span>
+                    <span class="hidden sm:inline">Public Profile</span>
+                    @if($isListed)
+                        <span class="branch-tab-pill px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Live</span>
+                    @endif
+                    @if($errors->hasBag('profile') && $errors->getBag('profile')->any())
+                        <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full" title="This section has errors">!</span>
+                    @endif
+                </button>
+    </div>
+
+    <!-- Branch at a glance -->
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Role</p>
+                <i class="fa-solid {{ $branch->is_main ? 'fa-crown' : 'fa-store' }} {{ $branch->is_main ? 'text-amber-500' : 'text-gray-400' }} text-sm shrink-0" aria-hidden="true"></i>
+            </div>
+            <p class="mt-2 text-base font-semibold text-gray-900 sm:text-lg dark:text-white">{{ $branch->is_main ? 'Main branch' : 'Secondary' }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $branch->is_main ? 'Primary location for this spa' : 'Not the primary location' }}</p>
+        </div>
+        <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Open days</p>
+                <i class="fa-solid fa-clock {{ $openDayCount === 0 ? 'text-red-500' : 'text-emerald-500' }} text-sm shrink-0" aria-hidden="true"></i>
+            </div>
+            <p class="mt-2 text-base font-semibold text-gray-900 sm:text-lg dark:text-white">{{ $openDayCount }} of 7</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $openDayCount === 0 ? 'Online booking is disabled' : 'Accepting bookings' }}</p>
+        </div>
+        <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Public listing</p>
+                <i class="fa-solid {{ $isListed ? 'fa-eye' : 'fa-eye-slash' }} {{ $isListed ? 'text-emerald-500' : 'text-gray-400' }} text-sm shrink-0" aria-hidden="true"></i>
+            </div>
+            <p class="mt-2 text-base font-semibold text-gray-900 sm:text-lg dark:text-white">{{ $isListed ? 'Live' : 'Hidden' }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $isListed ? 'Visible on the landing page' : 'Not shown to customers' }}</p>
+        </div>
+        <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Plan</p>
+                <i class="fa-solid {{ $spaTier === 'professional' ? 'fa-crown' : 'fa-lock' }} {{ $spaTier === 'professional' ? 'text-amber-500' : 'text-gray-400' }} text-sm shrink-0" aria-hidden="true"></i>
+            </div>
+            <p class="mt-2 text-base font-semibold text-gray-900 sm:text-lg dark:text-white">{{ $spaTier === 'professional' ? 'Professional' : 'Basic' }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $spaTier === 'professional' ? 'All branch features unlocked' : 'Some features are locked' }}</p>
         </div>
     </div>
 
-    {{-- ── Tab Navigation ───────────────────────────────────────────────── --}}
-    <div class="flex mb-8 border-b border-gray-200 dark:border-gray-700">
-        <button @click="tab = 'general'"
-            :class="tab === 'general' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
-            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
-            <i class="text-xs fa-solid fa-pen"></i>
-            General
-            @if($errors->hasBag('general') && $errors->getBag('general')->any())
-                <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">!</span>
-            @endif
-        </button>
-
-        <button @click="tab = 'hours'"
-            :class="tab === 'hours' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
-            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
-            <i class="text-xs fa-solid fa-clock"></i>
-            Operating Hours
-            @if($errors->hasBag('hours') && $errors->getBag('hours')->any())
-                <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">!</span>
-            @endif
-        </button>
-
-        <button @click="tab = 'profile'"
-            :class="tab === 'profile' ? 'border-[#8B7355] text-[#6F5430] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'"
-            class="flex items-center gap-2 px-5 py-3 -mb-px text-sm font-medium transition-colors border-b-2">
-            <i class="text-xs fa-solid fa-image"></i>
-            Public Profile
-            @if(optional($branch->profile)->is_listed)
-                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Live</span>
-            @endif
-            @if($errors->hasBag('profile') && $errors->getBag('profile')->any())
-                <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">!</span>
-            @endif
-        </button>
-    </div>
-
-    {{-- ════════════════════════════════════════════════════════════════════
-         TAB 1 — GENERAL INFO
-         Redesigned as a single wide 3-column row (Name / Location / Main
-         branch toggle) so the card uses the full width of the page instead
-         of leaving the right half empty.
-    ═════════════════════════════════════════════════════════════════════ --}}
+    <!-- General Information Tab -->
     <div x-show="tab === 'general'"
+         role="tabpanel" id="panel-general" aria-labelledby="tab-general"
          x-transition:enter="transition ease-out duration-150"
          x-transition:enter-start="opacity-0 translate-y-1"
          x-transition:enter-end="opacity-100 translate-y-0">
@@ -83,14 +142,14 @@
             @method('PUT')
 
             <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-              <div class="p-8 space-y-6">
+              <div class="p-4 space-y-6 sm:p-6">
 
                 <div>
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Branch Information</h2>
                     <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Update the display name and main branch status.</p>
                 </div>
 
-                {{-- Errors for this tab only --}}
+                <!-- Errors for this tab only -->
                 @if($errors->hasBag('general') && $errors->getBag('general')->any())
                     <div class="p-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
                         <ul class="space-y-0.5 list-disc list-inside">
@@ -101,7 +160,7 @@
                     </div>
                 @endif
 
-                {{-- Success flash --}}
+                <!-- Success flash -->
                 @if(session('tab_success') === 'general')
                     <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
                         <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
@@ -109,7 +168,7 @@
                     </div>
                 @endif
 
-                {{-- Name + Location + Main branch toggle — one wide row --}}
+                <!-- Name + Location + Main branch toggle — one wide row -->
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
                         <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -122,7 +181,7 @@
                                @error('name', 'general') border-red-400 @enderror">
                     </div>
 
-                    {{-- Location (read-only) --}}
+                    <!-- Location (read-only) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
                         <div class="flex items-center gap-2 mt-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600 h-[42px]">
@@ -132,34 +191,49 @@
                         </div>
                     </div>
 
-                    {{-- Main branch toggle --}}
+                    <!-- Main branch. Setting this demotes every other branch in the
+                         spa, so non-owners see the current state as read-only rather
+                         than a control whose input the controller would discard. -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Main Branch</label>
-                        <div class="flex items-center justify-between gap-3 mt-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600 h-[42px]">
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Primary location</span>
-                            <label class="relative inline-flex items-center flex-shrink-0 cursor-pointer">
-                                <input type="hidden" name="is_main" value="0">
-                                <input type="checkbox" id="is_main" name="is_main" value="1"
-                                       {{ $branch->is_main ? 'checked' : '' }}
-                                       class="sr-only peer">
-                                <div class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
-                                            after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all
-                                            peer-checked:after:translate-x-4"></div>
-                            </label>
-                        </div>
-                        <p class="mt-1 text-xs text-gray-400">Only one branch can be main at a time.</p>
+
+                        @if($canSetMainBranch)
+                            <div class="flex items-center justify-between gap-3 mt-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600 h-[42px]">
+                                <span class="text-xs text-gray-500 dark:text-gray-400">Primary location</span>
+                                <label for="is_main" class="relative inline-flex items-center flex-shrink-0 cursor-pointer">
+                                    <span class="sr-only">Set as main branch</span>
+                                    <input type="hidden" name="is_main" value="0">
+                                    <input type="checkbox" id="is_main" name="is_main" value="1"
+                                           {{ $branch->is_main ? 'checked' : '' }}
+                                           class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
+                                                after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all
+                                                peer-checked:after:translate-x-4"></div>
+                                </label>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Only one branch can be main at a time.</p>
+                        @else
+                            <div class="flex items-center gap-2 mt-2 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-700 dark:border-gray-600 h-[42px]">
+                                <i class="fa-solid {{ $branch->is_main ? 'fa-crown text-amber-500' : 'fa-store text-gray-400' }} text-sm flex-shrink-0"></i>
+                                <p class="flex-1 text-sm text-gray-600 truncate dark:text-gray-300">
+                                    {{ $branch->is_main ? 'Main branch' : 'Not the main branch' }}
+                                </p>
+                                <span class="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">Owner only</span>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Only the spa owner can change this.</p>
+                        @endif
                     </div>
                 </div>
 
               </div>
 
-              <div class="flex items-center justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/60 dark:bg-gray-900/20 dark:border-gray-700">
-                    <a href="{{ route('branches.index') }}"
-                        class="px-6 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                        Cancel
-                    </a>
+              <div class="sticky bottom-0 z-10 flex flex-col-reverse gap-3 px-4 py-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-end sm:px-6 bg-gray-50/95 backdrop-blur dark:bg-gray-900/90 dark:border-gray-700">
+                    <button type="reset"
+                        class="w-full px-6 py-2.5 min-h-[44px] text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition sm:w-auto dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                        Reset
+                    </button>
                     <button type="submit"
-                        class="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
+                        class="w-full sm:w-auto min-h-[44px] rounded-xl px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5">
                         Save General Info
                     </button>
                 </div>
@@ -168,11 +242,9 @@
         </form>
     </div>
 
-    {{-- ════════════════════════════════════════════════════════════════════
-         TAB 2 — OPERATING HOURS
-         3-column grid across the widened page for max content width.
-    ═════════════════════════════════════════════════════════════════════ --}}
+    <!-- Operating Hours Tab -->
     <div x-show="tab === 'hours'"
+         role="tabpanel" id="panel-hours" aria-labelledby="tab-hours"
          x-transition:enter="transition ease-out duration-150"
          x-transition:enter-start="opacity-0 translate-y-1"
          x-transition:enter-end="opacity-100 translate-y-0">
@@ -182,7 +254,7 @@
             @method('PUT')
 
             <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-              <div class="p-8 space-y-6">
+              <div class="p-4 space-y-6 sm:p-6">
 
                 <div>
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Operating Hours</h2>
@@ -210,11 +282,30 @@
                     </div>
                 @endif
 
+                @if($operatingHours->isEmpty())
+                    {{-- Only reachable if the view rendered without $operatingHours.
+                         BranchController::edit() pads all seven days, so there is
+                         nothing sensible to draw here - send them to the real route. --}}
+                    <div class="flex flex-col items-center py-8 text-center">
+                        <div class="flex items-center justify-center mb-4 w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20">
+                            <i class="text-xl fa-solid fa-clock text-amber-500" aria-hidden="true"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900 dark:text-white">Operating hours unavailable</h3>
+                        <p class="max-w-sm mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            Reopen this branch from the branch settings page to edit its hours.
+                        </p>
+                        <a href="{{ route('branches.edit', $branch) }}"
+                           class="inline-flex items-center gap-2 mt-5 min-h-[44px] rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348] transition">
+                            <i class="text-xs fa-solid fa-rotate-right" aria-hidden="true"></i>
+                            Reload branch settings
+                        </a>
+                    </div>
+                @else
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach($operatingHours as $hour)
                     @php $suffix = $hour->id ?? $loop->index; @endphp
 
-                    <div class="p-4 bg-white shadow-sm dark:bg-gray-800 rounded-2xl ring-1 ring-black/5 dark:ring-white/10"
+                    <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
                          id="hours_card_{{ $suffix }}">
 
                         <div class="flex items-center justify-between mb-3">
@@ -266,15 +357,16 @@
                         </p>
 
                         @if(isset($hour->is_closed) && $hour->is_closed)
-                            <p class="mt-2 text-xs italic text-center text-gray-400" id="closed_label_{{ $suffix }}">Closed all day</p>
+                            <p class="mt-2 text-xs italic text-center text-gray-500 dark:text-gray-400" id="closed_label_{{ $suffix }}">Closed all day</p>
                         @else
-                            <p class="hidden mt-2 text-xs italic text-center text-gray-400" id="closed_label_{{ $suffix }}">Closed all day</p>
+                            <p class="hidden mt-2 text-xs italic text-center text-gray-500 dark:text-gray-400" id="closed_label_{{ $suffix }}">Closed all day</p>
                         @endif
 
                         <input type="hidden" name="hours[{{ $loop->index }}][id]" value="{{ $hour->id ?? '' }}">
                     </div>
                     @endforeach
                 </div>
+                @endif
 
                 {{-- "All closed" warning — mirrors operating-hours.blade.php --}}
                 <div id="allClosedWarning" class="flex items-center gap-3 p-3 border border-amber-200 bg-amber-50 rounded-xl dark:bg-amber-900/10 dark:border-amber-800">
@@ -286,13 +378,13 @@
 
               </div>
 
-              <div class="flex items-center justify-end gap-3 px-8 py-4 border-t border-gray-100 bg-gray-50/60 dark:bg-gray-900/20 dark:border-gray-700">
-                <a href="{{ route('branches.index') }}"
-                    class="px-6 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                    Cancel
-                </a>
+              <div class="sticky bottom-0 z-10 flex flex-col-reverse gap-3 px-4 py-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-end sm:px-6 bg-gray-50/95 backdrop-blur dark:bg-gray-900/90 dark:border-gray-700">
+                <button type="reset"
+                    class="w-full px-6 py-2.5 min-h-[44px] text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition sm:w-auto dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                    Reset
+                </button>
                 <button type="submit" id="hoursSubmitBtn"
-                    class="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
+                    class="w-full sm:w-auto min-h-[44px] rounded-xl px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5">
                     Save Operating Hours
                 </button>
             </div>
@@ -300,23 +392,17 @@
         </form>
     </div>
 
-    {{-- ════════════════════════════════════════════════════════════════════
-         TAB 3 — PUBLIC PROFILE
-         Two-column layout:
-           • Left (2/3 width): one card for Public Listing + Job Posting,
-             one card below it for Branch Details + Location Pin.
-           • Right (1/3 width): one card for Cover + Gallery images,
-             one card below it for Amenities.
-    ═════════════════════════════════════════════════════════════════════ --}}
+    <!-- Public Profile Tab -->
     <div x-show="tab === 'profile'"
+         role="tabpanel" id="panel-profile" aria-labelledby="tab-profile"
          x-transition:enter="transition ease-out duration-150"
          x-transition:enter-start="opacity-0 translate-y-1"
          x-transition:enter-end="opacity-100 translate-y-0"
          @tab-profile-shown.window="initProfileMap()">
 
-        @if($spa->verification_status !== 'verified')
+        @if(!$spa || $spa->verification_status !== 'verified')
 
-            <div class="p-8 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-6 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <div class="flex flex-col items-center py-8 text-center">
                     <div class="flex items-center justify-center mb-4 w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-900/20">
                         <i class="text-xl fa-solid fa-lock text-amber-500"></i>
@@ -327,7 +413,7 @@
                     </p>
                     @if(Route::has('owner.spa-profile.edit'))
                         <a href="{{ route('owner.spa-profile.edit') }}"
-                           class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90">
+                           class="inline-flex items-center gap-2 mt-5 min-h-[44px] rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348] transition">
                             <i class="text-xs fa-solid fa-arrow-right"></i>
                             Go to Spa Profile
                         </a>
@@ -365,11 +451,11 @@
 
                 <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
-                    {{-- ══════════════ LEFT COLUMN (2/3 width) ══════════════ --}}
+                    <!-- ══════════════ LEFT COLUMN (2/3 width) ══════════════ -->
                     <div class="space-y-5 lg:col-span-2">
 
                         {{-- ── Public Listing + Job Posting — one combined card ── --}}
-                        <div class="bg-white border border-gray-200 shadow-sm p-7 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                        <div class="p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:divide-x sm:divide-gray-100 dark:sm:divide-gray-700">
 
                                 {{-- Public Listing --}}
@@ -399,7 +485,43 @@
                                     </div>
                                 </div>
 
-                                {{-- Job Posting --}}
+                                {{-- Job Posting — Professional tier only.
+                                     On Basic the whole control is replaced by an
+                                     upgrade prompt and no is_hiring / hiring_note
+                                     input is rendered, so a Basic spa cannot post
+                                     even by resubmitting a stale form. --}}
+                                @if(!$canUseHiring)
+                                    <div class="sm:pl-6">
+                                        <div class="flex items-start gap-3 p-4 border border-dashed border-gray-300 rounded-2xl bg-gray-50 dark:bg-gray-900/20 dark:border-gray-600">
+                                            <div class="flex items-center justify-center w-10 h-10 text-gray-500 bg-gray-200 shrink-0 rounded-xl dark:bg-gray-700 dark:text-gray-300">
+                                                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                            </div>
+                                            <div class="min-w-0">
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Job Posting</h2>
+                                                    <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                        Professional
+                                                    </span>
+                                                </div>
+                                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                    Publish a "We're Hiring" badge on this branch's public card and collect
+                                                    applications. Available on the Professional plan.
+                                                </p>
+                                                @role('owner')
+                                                    <a href="{{ route('owner.subscription.index') }}"
+                                                       class="inline-flex items-center gap-2 mt-3 min-h-[44px] -my-2 text-sm font-medium text-[#8B7355] dark:text-[#C4A97D] hover:underline">
+                                                        <i class="fa-solid fa-crown text-yellow-500" aria-hidden="true"></i>
+                                                        Upgrade to enable
+                                                    </a>
+                                                @else
+                                                    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                                                        Ask the spa owner to upgrade the plan.
+                                                    </p>
+                                                @endrole
+                                            </div>
+                                        </div>
+                                    </div>
+                                @else
                                 <div class="sm:pl-6" x-data="{ hiring: {{ optional($branch->profile)->is_hiring ? 'true' : 'false' }} }">
                                     <div class="flex items-start justify-between gap-4">
                                         <div>
@@ -434,16 +556,17 @@
                                                 value="{{ old('hiring_note', optional($branch->profile)->hiring_note) }}"
                                                 placeholder="e.g. Now hiring: Massage Therapists"
                                                 class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
-                                            <p class="mt-1 text-xs text-gray-400">Shown when applicants open the branch details.</p>
+                                            <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Shown when applicants open the branch details.</p>
                                         </div>
                                     </div>
                                 </div>
+                                @endif
 
                             </div>
                         </div>
 
                         {{-- ── Branch Details + Branch Location Pin — one combined card ── --}}
-                        <div class="space-y-6 bg-white border border-gray-200 shadow-sm p-7 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                        <div class="space-y-6 p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
                             {{-- Branch Details --}}
                             <div class="space-y-5">
@@ -474,7 +597,7 @@
                                             value="{{ old('city', optional($branch->profile)->city) }}"
                                             placeholder="e.g. Trece Martires City"
                                             class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
-                                        <p class="mt-1 text-xs text-gray-400">
+                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             Auto-filled when you search or pin the address.
                                         </p>
                                     </div>
@@ -486,7 +609,7 @@
                                         value="{{ old('address', optional($branch->profile)->address) }}"
                                         placeholder="e.g. Camella Homes, Bacoor, Cavite"
                                         class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
-                                    <p class="mt-1 text-xs text-gray-400">
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         Tip: search by subdivision/village, barangay, or city name — block & lot numbers alone won't be found. You can drag the pin afterward for the exact spot.
                                     </p>
 
@@ -496,7 +619,7 @@
                                         {{-- populated by JS --}}
                                     </div>
 
-                                    <p id="addressSearching" class="hidden mt-1 text-xs text-gray-400">
+                                    <p id="addressSearching" class="hidden mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         <i class="fa-solid fa-spinner fa-spin"></i> Searching...
                                     </p>
                                 </div>
@@ -522,7 +645,7 @@
                         </div>
 
                         {{-- ── Amenities — now in the left column, wider grid ── --}}
-                        <div class="bg-white border border-gray-200 shadow-sm p-7 rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+                        <div class="p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
                             x-data="amenitiesManager()">
 
                             <div class="flex items-center justify-between mb-5">
@@ -597,7 +720,7 @@
                                      class="{{ $existingCover ? '' : 'hidden' }} object-cover w-full h-full">
                                 <div id="coverPlaceholder" class="{{ $existingCover ? 'hidden' : '' }} flex flex-col items-center gap-1">
                                     <i class="text-2xl text-gray-300 fa-solid fa-image"></i>
-                                    <p class="text-xs text-gray-400">No image</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">No image</p>
                                 </div>
                                 <button type="button" id="removeCoverBtn" onclick="removeCoverImage()"
                                     class="{{ $existingCover ? '' : 'hidden' }} absolute top-2 right-2 flex items-center justify-center w-7 h-7 text-white bg-red-500 rounded-full hover:bg-red-600">
@@ -607,7 +730,7 @@
                             <label for="cover_image" class="block mt-3 text-sm font-medium text-gray-700 dark:text-gray-300">Upload New Cover</label>
                             <input type="file" name="cover_image" id="cover_image" accept="image/*" onchange="previewCoverImage(event)"
                                    class="block w-full mt-2 text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-gray-700 dark:file:text-white">
-                            <p class="mt-2 text-xs text-gray-400">JPG, PNG, WebP. Max 2MB.</p>
+                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">JPG, PNG, WebP. Max 2MB.</p>
 
                             <hr class="my-5 border-gray-100 dark:border-gray-700">
 
@@ -652,16 +775,16 @@
                                 </div>
                                 @endfor
                             </div>
-                            <p class="mt-2 text-[11px] text-gray-400">Optional. Shown wherever this photo appears — up to 80 characters.</p>
+                            <p class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">Optional. Shown wherever this photo appears — up to 80 characters.</p>
 
                             <hr class="my-5 border-gray-100 dark:border-gray-700">
-                            <div class="grid grid-cols-2 gap-2">
-                                <a href="{{ route('branches.index') }}"
-                                    class="px-4 py-2.5 text-sm font-medium text-center text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                                    Cancel
-                                </a>
+                            <div class="flex flex-col-reverse gap-2 sm:grid sm:grid-cols-2">
+                                <button type="reset"
+                                    class="px-4 py-2.5 min-h-[44px] text-sm font-medium text-center text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                                    Reset
+                                </button>
                                 <button type="submit"
-                                    class="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] rounded-xl hover:opacity-90 transition shadow-sm">
+                                    class="w-full min-h-[44px] rounded-xl px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5">
                                     Save Public Profile
                                 </button>
                             </div>
@@ -693,7 +816,15 @@ function branchEditPage() {
             if (this.tab === 'profile') this.$nextTick(() => this.$dispatch('tab-profile-shown'));
         },
 
-        initProfileMap() { initLeafletMap(); }
+        initProfileMap() { initLeafletMap(); },
+
+        // Tab cycling with arrow keys (left/right)
+        cycleTab(direction) {
+            const order = ['general', 'hours', 'profile'];
+            const next = (order.indexOf(this.tab) + direction + order.length) % order.length;
+            this.tab = order[next];
+            this.$nextTick(() => document.getElementById('tab-' + this.tab)?.focus());
+        }
     };
 }
 
@@ -902,6 +1033,18 @@ let leafletMapInstance = null;
 function initLeafletMap() {
     const mapContainer = document.getElementById('profileMap');
     if (!mapContainer || leafletMapInstance) return;
+
+    // Leaflet comes from a CDN. If it is blocked or offline, say so in the map
+    // slot rather than throwing and taking the rest of the tab's JS down with it.
+    if (typeof L === 'undefined') {
+        mapContainer.innerHTML =
+            '<div class="flex flex-col items-center justify-center h-full gap-2 p-6 text-center">' +
+            '<i class="text-xl text-gray-400 fa-solid fa-map-location-dot"></i>' +
+            '<p class="text-sm font-medium text-gray-600 dark:text-gray-300">Map could not be loaded</p>' +
+            '<p class="text-xs text-gray-500 dark:text-gray-400">Check your connection and reload. You can still type the address and coordinates manually.</p>' +
+            '</div>';
+        return;
+    }
 
     const caviteBounds = L.latLngBounds([14.020, 120.620], [14.520, 121.100]);
     const caviteCenter = [14.2456, 120.8786];
@@ -1175,7 +1318,21 @@ function highlightSuggestion(items) {
 }
 
 // ── On page load: restore operating hours card states
+// A native form reset restores <input> values but not anything JS painted from
+// them - image previews, the remove-image hidden flags, the closed-day labels.
+// Reloading is the only reliable way back to the saved state.
+function bindResetHandlers() {
+    document.querySelectorAll('form').forEach(function (form) {
+        form.addEventListener('reset', function (e) {
+            if (!form.querySelector('input[type="file"], input[name="remove_cover_image"]')) return;
+            e.preventDefault();
+            window.location.reload();
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
+    bindResetHandlers();
     document.querySelectorAll('#hoursForm input[type="checkbox"][name*="is_closed"]').forEach(cb => {
         const card = cb.closest('[id^="hours_card_"]');
         if (!card) return;
@@ -1189,6 +1346,16 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <style>
+    .branch-tab[aria-pressed="true"] {
+        background-image: linear-gradient(to right, #7A6348, #6F5430);
+        color: #ffffff;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .branch-tab[aria-pressed="true"] .branch-tab-pill {
+        background-color: rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+    }
+
     #profileMap { z-index: 1 !important; }
     .leaflet-container { z-index: 1 !important; }
     .leaflet-pane, .leaflet-top, .leaflet-bottom, .leaflet-control { z-index: 1 !important; }

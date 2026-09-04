@@ -56,14 +56,14 @@
                         @if($hasTreatments)
                             <a href="{{ route('treatments.export') }}"
                                 class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
-                                <i class="text-xs fas fa-download"></i>
+                                <i class="text-xs fas fa-upload"></i>
                                 <span>Export CSV</span>
                             </a>
                         @else
                             <button type="button"
                                 onclick="showSpaToast('No treatments available to export. Please add treatments first.', 'error')"
                                 class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-400 bg-white border border-gray-300 rounded-lg cursor-not-allowed whitespace-nowrap dark:bg-gray-800 dark:text-gray-500 dark:border-gray-600">
-                                <i class="text-xs fas fa-download"></i>
+                                <i class="text-xs fas fa-upload"></i>
                                 <span>Export CSV</span>
                             </button>
                         @endif
@@ -82,7 +82,7 @@
                                 type="button"
                                 onclick="document.getElementById('treatmentsCsvFile').click()"
                                 class="inline-flex items-center justify-center w-full gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
-                                <i class="text-xs fas fa-upload"></i>
+                                <i class="text-xs fas fa-download"></i>
                                 <span>Import CSV</span>
                             </button>
                         </form>
@@ -226,14 +226,14 @@
                         @if($hasPackages)
                             <a href="{{ route('packages.export') }}"
                                 class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
-                                <i class="fas fa-download"></i>
+                                <i class="fas fa-upload"></i>
                                 <span>Export CSV</span>
                             </a>
                         @else
                             <button type="button"
                                 onclick="showSpaToast('No packages available to export. Please add packages first.', 'error')"
                                 class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-400 bg-white border border-gray-300 rounded-lg cursor-not-allowed whitespace-nowrap dark:bg-gray-800 dark:text-gray-500 dark:border-gray-600">
-                                <i class="fas fa-download"></i>
+                                <i class="fas fa-upload"></i>
                                 <span>Export CSV</span>
                             </button>
                         @endif
@@ -252,7 +252,7 @@
                                 type="button"
                                 onclick="document.getElementById('packagesCsvFile').click()"
                                 class="inline-flex items-center justify-center w-full gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
-                                <i class="fas fa-upload"></i>
+                                <i class="fas fa-download"></i>
                                 <span>Import CSV</span>
                             </button>
                         </form>
@@ -452,8 +452,8 @@
 
 {{-- ADD TREATMENT MODAL --}}
 @if($canCreateTreatments)
-<div id="addTreatmentModal" class="fixed inset-0 z-50 items-start justify-center hidden px-4 pt-16 bg-black bg-opacity-50">
-    <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+<div id="addTreatmentModal" class="fixed inset-0 z-50 items-center justify-center hidden px-4 py-8 overflow-y-auto bg-black bg-opacity-50">
+    <div class="w-full max-w-md p-6 my-auto bg-white rounded-lg shadow-xl dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Add Treatment</h2>
             <button type="button" onclick="closeAddTreatmentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -533,8 +533,8 @@
 
 {{-- EDIT TREATMENT MODAL --}}
 @if($canEditTreatments)
-<div id="editTreatmentModal" class="fixed inset-0 z-50 items-start justify-center hidden px-4 pt-16 bg-black bg-opacity-50">
-    <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+<div id="editTreatmentModal" class="fixed inset-0 z-50 items-center justify-center hidden px-4 py-8 overflow-y-auto bg-black bg-opacity-50">
+    <div class="w-full max-w-md p-6 my-auto bg-white rounded-lg shadow-xl dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Edit Treatment</h2>
             <button type="button" onclick="closeEditTreatmentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -693,8 +693,8 @@
 
 {{-- EDIT PACKAGE MODAL --}}
 @if($canEditPackages)
-<div id="editPackageModal" class="fixed inset-0 z-50 items-start justify-center hidden px-4 pt-10 overflow-y-auto bg-black bg-opacity-50">
-    <div class="w-full max-w-lg p-6 my-8 bg-white rounded-lg dark:bg-gray-800">
+<div id="editPackageModal" class="fixed inset-0 z-50 items-center justify-center hidden px-4 py-8 overflow-y-auto bg-black bg-opacity-50">
+    <div class="w-full max-w-lg p-6 my-auto bg-white rounded-lg dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Edit Package</h2>
             <button type="button" onclick="closeEditPackageModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -791,8 +791,8 @@
 @endif
 
 {{-- TREATMENT IMPORT HELP MODAL --}}
-<div id="treatmentImportHelpModal" class="fixed inset-0 z-50 items-start justify-center hidden px-4 pt-16 bg-black bg-opacity-50">
-    <div class="w-full max-w-lg p-6 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+<div id="treatmentImportHelpModal" class="fixed inset-0 z-50 items-center justify-center hidden px-4 py-8 overflow-y-auto bg-black bg-opacity-50">
+    <div class="w-full max-w-lg p-6 my-auto bg-white rounded-lg shadow-xl dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Treatments CSV Format</h2>
             <button type="button" onclick="closeTreatmentImportHelpModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -854,8 +854,8 @@
 </div>
 
 {{-- PACKAGE IMPORT HELP MODAL --}}
-<div id="packageImportHelpModal" class="fixed inset-0 z-50 items-start justify-center hidden px-4 pt-16 bg-black bg-opacity-50">
-    <div class="w-full max-w-lg p-6 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+<div id="packageImportHelpModal" class="fixed inset-0 z-50 items-center justify-center hidden px-4 py-8 overflow-y-auto bg-black bg-opacity-50">
+    <div class="w-full max-w-lg p-6 my-auto bg-white rounded-lg shadow-xl dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Packages CSV Format</h2>
             <button type="button" onclick="closePackageImportHelpModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -1184,6 +1184,16 @@
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
             }
+        });
+
+        const modalIds = [
+        'addTreatmentModal', 'editTreatmentModal', 'deleteTreatmentModal',
+        'addPackageModal', 'editPackageModal', 'deletePackageModal',
+        'treatmentImportHelpModal', 'packageImportHelpModal'
+        ];
+        modalIds.forEach(id => {
+            const modal = document.getElementById(id);
+            if (modal) document.body.appendChild(modal);
         });
 
         // ── Add Treatment Form Validation ─────────────────────────────

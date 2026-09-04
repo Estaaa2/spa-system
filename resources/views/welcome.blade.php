@@ -153,6 +153,24 @@
                         {{ auth()->user()?->name ?? 'Guest' }}
                     </h3>
                     <p class="mt-0.5 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
+                    {{-- Account status --}}
+                                <div class="flex items-center justify-center mt-2">
+                                    @if(auth()->user()->hasVerifiedEmail())
+                                        <span class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-[#E4C76A]">
+                                            <span class="inline-flex items-center justify-center w-4 h-4 text-[9px] text-white bg-[#60A5FA] rounded-full">
+                                                <i class="fa-solid fa-check"></i>
+                                            </span>
+                                            Verified Account
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-500">
+                                            <span class="inline-flex items-center justify-center w-4 h-4 text-[9px] text-white bg-amber-500 rounded-full">
+                                                <i class="fa-solid fa-exclamation"></i>
+                                            </span>
+                                            Unverified Account
+                                        </span>
+                                    @endif
+                                </div>
                     <button onclick="closeProfileModal()"
                         class="absolute flex items-center justify-center w-8 h-8 transition top-3 right-3 rounded-xl bg-white/10 hover:bg-white/20">
                         <i class="text-sm fa-solid fa-xmark"></i>
@@ -284,15 +302,6 @@
                         </div>
 
                         <hr class="border-[#E8DDD0] dark:border-gray-700">
-
-                        {{-- Account status --}}
-                        <div class="flex items-center gap-2">
-                            @if(auth()->user()->hasVerifiedEmail())
-                                <span class="text-xs font-semibold text-green-600">✔ Verified Account</span>
-                            @else
-                                <span class="text-xs font-semibold text-amber-500">⚠ Unverified Account</span>
-                            @endif
-                        </div>
 
                     </div>{{-- end scrollable body --}}
 
@@ -1824,7 +1833,9 @@
                                 </div>
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Phone <span class="text-red-500">*</span></label>
-                                    <input type="text" name="phone" required placeholder="09xxxxxxxxx"
+                                    <input type="text" name="phone" required maxlength="11" pattern="^09\d{9}$" inputmode="numeric"
+                                        placeholder="09xxxxxxxxx"
+                                        title="Phone number must be 11 digits starting with 09"
                                         class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                                 <div>
@@ -1936,7 +1947,8 @@
                                 </div>
                                 <div>
                                     <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Contact Number</label>
-                                    <input type="text" name="emergency_contact_phone" placeholder="09xxxxxxxxx"
+                                    <input type="text" name="emergency_contact_phone" maxlength="11" pattern="^09\d{9}$" inputmode="numeric"
+                                        placeholder="09xxxxxxxxx"
                                         class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                 </div>
                             </div>

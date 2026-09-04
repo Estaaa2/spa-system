@@ -135,11 +135,20 @@ class BookingController extends Controller
         ]);
 
         $startTime = $validated['start_time'];
+
         $durationMinutes = $this->resolveDurationMinutes($validated['treatment']);
 
         if ($durationMinutes <= 0) {
             return back()->withErrors([
                 'treatment' => 'Invalid treatment or package duration.'
+            ])->withInput();
+        }
+
+        $serviceRestriction = $this->resolveServiceTypeRestriction($validated['treatment']);
+
+        if ($validated['service_type'] === 'in_home' && $serviceRestriction === 'in_branch_only') {
+            return back()->withErrors([
+                'treatment' => 'This treatment is only available for in-branch appointments.'
             ])->withInput();
         }
 
@@ -390,6 +399,14 @@ class BookingController extends Controller
             ])->withInput();
         }
 
+        $serviceRestriction = $this->resolveServiceTypeRestriction($validated['treatment']);
+
+        if ($validated['service_type'] === 'in_home' && $serviceRestriction === 'in_branch_only') {
+            return back()->withErrors([
+                'treatment' => 'This treatment is only available for in-branch appointments.'
+            ])->withInput();
+        }
+
         $dayOfWeek = Carbon::parse($validated['appointment_date'])->format('l');
 
         $hours = \App\Models\OperatingHours::where('branch_id', $branchId)
@@ -533,7 +550,17 @@ class BookingController extends Controller
         $durationMinutes = $this->resolveDurationMinutes($validated['treatment']);
 
         if ($durationMinutes <= 0) {
-            $durationMinutes = 60;
+            return back()->withErrors([
+                'treatment' => 'Invalid treatment or package duration.'
+            ])->withInput();
+        }
+
+        $serviceRestriction = $this->resolveServiceTypeRestriction($validated['treatment']);
+
+        if ($validated['service_type'] === 'in_home' && $serviceRestriction === 'in_branch_only') {
+            return back()->withErrors([
+                'treatment' => 'This treatment is only available for in-branch appointments.'
+            ])->withInput();
         }
 
         $dayOfWeek = Carbon::parse($validated['appointment_date'])->format('l');
@@ -684,6 +711,22 @@ class BookingController extends Controller
         }
 
         return 0;
+    }
+
+    private function resolveServiceTypeRestriction(string $selection): ?string
+    {
+        if (str_starts_with($selection, 'treatment_')) {
+            $id = (int) str_replace('treatment_', '', $selection);
+            $treatment = Treatment::withoutGlobalScopes()->find($id);
+
+            return $treatment?->service_type === 'in_branch_only'
+                ? 'in_branch_only'
+                : null;
+        }
+
+        // Packages have no service_type column yet, so no restriction can be
+        // enforced here. Add one if packages need the same rule as treatments.
+        return null;
     }
 
     private function getBranchTherapists(int $spaId, int $branchId): Collection
@@ -994,10 +1037,10 @@ class BookingController extends Controller
             'start_time'              => $b->start_time,                      // raw HH:MM:SS
             'end_time'                => $b->end_time,
             'start_time_fmt'          => $b->start_time
-                                            ? \Carbon\Carbon::parse($b->start_time)->format('h:i A')
+                                            ? Carbon::parse($b->start_time)->format('h:i A')
                                             : '—',
             'end_time_fmt'            => $b->end_time
-                                            ? \Carbon\Carbon::parse($b->end_time)->format('h:i A')
+                                            ? Carbon::parse($b->end_time)->format('h:i A')
                                             : '—',
             'appointment_date'        => $b->appointment_date?->format('M d, Y'),
             'appointment_date_raw'    => $b->appointment_date?->format('Y-m-d'),

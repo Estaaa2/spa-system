@@ -13,6 +13,46 @@ use Illuminate\Support\Facades\Validator;
 class BranchController extends Controller
 {
     // -----------------------------------------------------------------------
+    // AUTHORIZATION HELPERS
+    // -----------------------------------------------------------------------
+    private function authorizeBranch(Branch $branch): void
+    {
+        $user = Auth::user();
+        $spa  = $user?->spa;
+
+        if (!$spa || $branch->spa_id !== $spa->id) {
+            abort(403, 'Unauthorized');
+        }
+
+        if (!$user->hasRole('owner') && (int) $branch->id !== (int) $user->branch_id) {
+            abort(403, 'You can only manage your own branch.');
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // JSON DENIAL RESPONSE
+    // ----------------------------------------------------------------------- 
+    private function denyBranchJson(Branch $branch, bool $ownerOnly = false)
+    {
+        $user = Auth::user();
+        $spa  = $user?->spa;
+
+        if (!$spa || $branch->spa_id !== $spa->id) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        if ($ownerOnly && !$user->hasRole('owner')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        if (!$ownerOnly && !$user->hasRole('owner') && (int) $branch->id !== (int) $user->branch_id) {
+            return response()->json(['success' => false, 'message' => 'You can only manage your own branch.'], 403);
+        }
+
+        return null;
+    }
+
+    // -----------------------------------------------------------------------
     // INDEX
     // -----------------------------------------------------------------------
 
@@ -46,7 +86,7 @@ class BranchController extends Controller
         $user = Auth::user();
         $spa  = $user->spa;
 
-        if (!$spa || $branch->spa_id !== $spa->id) abort(403, 'Unauthorized');
+        $this->authorizeBranch($branch);
 
         $daysOfWeek     = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         $operatingHours = $branch->operatingHours()->get();
@@ -77,6 +117,12 @@ class BranchController extends Controller
 
         if (!$spa) {
             return response()->json(['success' => false, 'message' => 'No spa assigned.'], 403);
+        }
+
+        // Creating a branch has no branch to scope against, so authorizeBranch()
+        // cannot help here. Adding to the spa's portfolio is the owner's call.
+        if (!$user->hasRole('owner')) {
+            return response()->json(['success' => false, 'message' => 'Only the spa owner can add branches.'], 403);
         }
 
         if (($spa->business_tier ?? null) !== 'professional') {
@@ -144,7 +190,7 @@ class BranchController extends Controller
         $user = Auth::user();
         $spa  = $user->spa;
 
-        if (!$spa || $branch->spa_id !== $spa->id) abort(403, 'Unauthorized');
+        $this->authorizeBranch($branch);
 
         $validator = Validator::make($request->all(), [
             'name'    => 'required|string|max:255',
@@ -158,7 +204,10 @@ class BranchController extends Controller
                 ->withInput();
         }
 
-        $wantsMain = $request->boolean('is_main');
+        // If the user is an owner, they can set the branch as main. If not, the main status remains unchanged.
+        $wantsMain = $user->hasRole('owner')
+            ? $request->boolean('is_main')
+            : (bool) $branch->is_main;
 
         if ($wantsMain) {
             Branch::where('spa_id', $spa->id)->where('id', '!=', $branch->id)->update(['is_main' => false]);
@@ -176,7 +225,7 @@ class BranchController extends Controller
         $user = Auth::user();
         $spa  = $user->spa;
 
-        if (!$spa || $branch->spa_id !== $spa->id) abort(403, 'Unauthorized');
+        $this->authorizeBranch($branch);
 
         $validator = Validator::make($request->all(), [
             'hours'                => 'required|array',
@@ -242,7 +291,7 @@ class BranchController extends Controller
         $user = Auth::user();
         $spa  = $user->spa;
 
-        if (!$spa || $branch->spa_id !== $spa->id) abort(403, 'Unauthorized');
+        $this->authorizeBranch($branch);
 
         if ($spa->verification_status !== 'verified') {
             if ($branch->profile) $branch->profile->update(['is_listed' => false]);
@@ -361,11 +410,11 @@ class BranchController extends Controller
 
     public function destroy(Branch $branch)
     {
-        $user = Auth::user();
-        $spa  = $user->spa;
-
-        if (!$spa || $branch->spa_id !== $spa->id) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        // The destroy method is responsible for deleting a branch. 
+        // It first checks if the user is authorized to perform this action using the denyBranchJson method. 
+        // If the user is not authorized, it returns a JSON response indicating the failure.
+        if ($denied = $this->denyBranchJson($branch, ownerOnly: true)) {
+            return $denied;
         }
 
         if ($branch->is_main) {
@@ -425,11 +474,8 @@ class BranchController extends Controller
 
     public function show(Branch $branch)
     {
-        $user = Auth::user();
-        $spa  = $user->spa;
-
-        if (!$spa || $branch->spa_id !== $spa->id) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        if ($denied = $this->denyBranchJson($branch)) {
+            return $denied;
         }
 
         if (request()->wantsJson()) return response()->json(['success' => true, 'branch' => $branch]);
