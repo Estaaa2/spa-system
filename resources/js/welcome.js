@@ -541,9 +541,13 @@ function lightboxStep(delta) {
 }
 
 if (lightboxEl) {
-    lightboxEl.querySelectorAll('[data-close-lightbox]').forEach(el => {
-        el.addEventListener('click', closeLightbox);
+    
+    lightboxEl.addEventListener('click', (e) => {
+        if (e.target.closest('.lightbox-image, .lightbox-btn')) return;
+        closeLightbox();
     });
+
+    document.getElementById('lightboxClose')?.addEventListener('click', closeLightbox);
     document.getElementById('lightboxPrev')?.addEventListener('click', () => lightboxStep(-1));
     document.getElementById('lightboxNext')?.addEventListener('click', () => lightboxStep(1));
 
@@ -2891,7 +2895,13 @@ function setupProfileAddressAutocomplete() {
 // =====================================================
 // KEYBOARD: Escape closes all modals
 // =====================================================
-
+/*
+  Top-most wins: one Escape closes exactly one layer. The previous version ran
+  every check in a single pass, so Escape inside a stacked overlay (the photo
+  lightbox over spaModal, or bookingModal over spaModal) dropped the user all
+  the way back to the page. Order below is by z-index, highest first — keep it
+  in sync if you add a modal.
+*/
 const escapeCloseOrder = [
     ['photoLightbox',       () => closeLightbox()],          // z-[155]
     ['businessInfoModal',   () => closeBusinessInfo()],      // z-[150]

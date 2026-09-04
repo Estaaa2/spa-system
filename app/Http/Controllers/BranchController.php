@@ -102,7 +102,19 @@ class BranchController extends Controller
             }
         }
 
-        return view('branches.edit', compact('branch', 'spa', 'operatingHours'));
+        // Determine which edit surfaces the user can access based on their permissions.
+        $canEditGeneral = $user->hasBranchPermission('edit branch general');
+        $canEditHours   = $user->hasBranchPermission('edit branch hours');
+        $canEditProfile = $user->hasBranchPermission('edit branch profile');
+
+        return view('branches.edit', compact(
+            'branch',
+            'spa',
+            'operatingHours',
+            'canEditGeneral',
+            'canEditHours',
+            'canEditProfile',
+        ));
     }
 
     // -----------------------------------------------------------------------

@@ -67,7 +67,9 @@
         $can('edit packages') ||
         $can('delete packages');
 
-    $canBranches = $can('view branches') || $can('create branches') || $can('edit branches') || $can('delete branches');
+    $canBranches = $can('view branches') || $can('create branches')
+        || $can('edit branch general') || $can('edit branch hours') || $can('edit branch profile')
+        || $can('delete branches');
 
     $canManagementStaff = !$suiteEnabled && $canStaffAccounts;
 
@@ -81,7 +83,7 @@
     // owners reach it as "All Branches" under Business, everyone else as
     // "Branch Details" under This Branch. BranchController::index() already
     // filters non-owners down to their own branch, so the label matches reality.
-    $canEditBranchSettings = $can('edit branches');
+    $canEditBranchSettings = $can('edit branch general') || $can('edit branch hours') || $can('edit branch profile');
 
     $showThisBranch = $isOwner || $canBranches || $canEditBranchSettings;
     $showBusiness   = $isOwner;
