@@ -9,6 +9,7 @@ use App\Mail\DeploymentAwaitingResponse;
 use App\Mail\DeploymentRejected;
 use App\Models\Branch;
 use App\Models\Staff;
+use App\Models\OperatingHours;
 use App\Models\StaffBranchDeployment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -121,6 +122,9 @@ class BranchDeploymentController extends Controller
     /**
      * HR submits a new branch deployment request.
      */
+        /**
+     * HR submits a new branch deployment request.
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -154,6 +158,30 @@ class BranchDeploymentController extends Controller
             return back()->with('error', 'Target branch cannot be the same as the staff member\'s current branch.');
         }
 
+        // Block deployment to a branch with no operating days at all.
+        // Such a branch has online booking effectively disabled (see Branch
+        // Edit → "Open days: 0 of 7"), so assigning staff there is pointless
+        // until the branch reopens with at least one operating day.
+        if (!$this->branchHasOpenDays((int) $validated['to_branch_id'])) {
+            return back()->with('error', 'Target branch has no operating days configured and cannot receive staff deployments.');
+        }
+
+        // ✅ ADD: Reject the specific start/end dates if the target branch
+        // is closed on those particular weekdays (not just "closed entirely").
+        $targetBranch = Branch::with('operatingHours')->findOrFail($validated['to_branch_id']);
+
+        if ($targetBranch->isClosedOn($validated['start_date'])) {
+            return back()
+                ->withInput()
+                ->with('error', 'The target branch is closed on the selected start date. Please choose a different date.');
+        }
+
+        if (!empty($validated['end_date']) && $targetBranch->isClosedOn($validated['end_date'])) {
+            return back()
+                ->withInput()
+                ->with('error', 'The target branch is closed on the selected end date. Please choose a different date.');
+        }
+
         $isPermanent = (bool) ($validated['is_permanent'] ?? false);
 
         $deployment = StaffBranchDeployment::create([
@@ -182,12 +210,6 @@ class BranchDeploymentController extends Controller
             ->with('success', 'Deployment request submitted. Awaiting Owner approval and staff response.');
     }
 
-    /**
- * Staff member requests their own branch transfer.
- * Skips the separate "staff_response" consent step — submitting the
- * request IS their consent — but still requires Owner/HR approval
- * before it can go active, same as an HR-initiated request.
- */
     public function storeSelf(Request $request)
     {
         $validated = $request->validate([
@@ -217,6 +239,28 @@ class BranchDeploymentController extends Controller
             return back()->with('error', 'You already have a pending, approved, or active deployment request. Wait for it to be resolved before requesting again.');
         }
 
+        // Same guard as store() — can't self-request a transfer into
+        // a branch that has no operating days configured at all.
+        if (!$this->branchHasOpenDays((int) $validated['to_branch_id'])) {
+            return back()->with('error', 'That branch has no operating days configured and cannot receive staff deployments.');
+        }
+
+        // ✅ ADD: Reject the specific start/end dates if the target branch
+        // is closed on those particular weekdays (not just "closed entirely").
+        $targetBranch = Branch::with('operatingHours')->findOrFail($validated['to_branch_id']);
+
+        if ($targetBranch->isClosedOn($validated['start_date'])) {
+            return back()
+                ->withInput()
+                ->with('error', 'The target branch is closed on the selected start date. Please choose a different date.');
+        }
+
+        if (!empty($validated['end_date']) && $targetBranch->isClosedOn($validated['end_date'])) {
+            return back()
+                ->withInput()
+                ->with('error', 'The target branch is closed on the selected end date. Please choose a different date.');
+        }
+
         $isPermanent = (bool) ($validated['is_permanent'] ?? false);
 
         $deployment = StaffBranchDeployment::create([
@@ -244,6 +288,26 @@ class BranchDeploymentController extends Controller
             ->with('success', 'Your transfer request has been submitted and is awaiting approval.');
     }
 
+    public function selfCancel(StaffBranchDeployment $deployment)
+    {
+        $user = Auth::user();
+
+        $deployment->load('staff');
+
+        if (!$deployment->staff || $deployment->staff->user_id !== $user->id) {
+            abort(403, 'You are not authorized to cancel this deployment.');
+        }
+
+        if ($deployment->status !== 'pending') {
+            return back()->with('error', 'Only pending requests can be cancelled.');
+        }
+
+        $deployment->update(['status' => 'cancelled']);
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Your transfer request has been cancelled.');
+    }
+
     /**
      * Owner approves a pending deployment request.
      */
@@ -257,6 +321,13 @@ class BranchDeploymentController extends Controller
 
         if ($deployment->status !== 'pending') {
             return back()->with('error', 'Only pending requests can be approved.');
+        }
+
+        // ✅ ADD: Defensive re-check at approval time. The target branch's
+        // operating hours could have changed (e.g. closed down) between the
+        // original request and now, so don't let a stale request through.
+        if (!$this->branchHasOpenDays($deployment->to_branch_id)) {
+            return back()->with('error', 'This deployment cannot be approved — the target branch currently has no operating days configured.');
         }
 
         $deployment->update([
@@ -402,5 +473,20 @@ class BranchDeploymentController extends Controller
 
         return redirect()->route('dashboard')
             ->with('success', 'You have accepted the deployment request.');
+    }
+
+    /**
+     * ✅ ADD: Shared check used by store(), storeSelf(), and approve().
+     * A branch "closed" for deployment purposes means every day in its
+     * operating_hours is marked is_closed — i.e. the same condition that
+     * disables online booking on the Branch Edit page's "Open days" card.
+     * A branch with zero operating_hours rows at all is also treated as
+     * closed, since it has nothing configured to deploy staff against.
+     */
+    private function branchHasOpenDays(int $branchId): bool
+    {
+        return OperatingHours::where('branch_id', $branchId)
+            ->where('is_closed', false)
+            ->exists();
     }
 }

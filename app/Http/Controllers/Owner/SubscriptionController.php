@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\SubscriptionPaid;
 use App\Models\Spa;
 use App\Models\Subscription;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -89,12 +90,39 @@ class SubscriptionController extends Controller
             return back()->withErrors(['payment' => 'Could not initiate payment. Please try again.']);
         }
 
+        session(['pending_subscription_id' => $subscription->id]);
         return redirect($checkoutUrl);
+    }
+
+    public function downloadReceipt(Subscription $subscription)
+    {
+        abort_unless($subscription->spa_id === auth()->user()->spa->id, 403);
+        abort_unless($subscription->payment_status === 'paid', 404);
+
+        $spa = $subscription->spa()->with('owner')->first();
+
+        $pdf = Pdf::loadView('owner.subscription.receipt', [
+            'subscription' => $subscription,
+            'spa'           => $spa,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('receipt-' . $subscription->paymongo_checkout_id . '.pdf');
     }
 
     public function success()
     {
-        return view('owner.subscription.success');
+        $subscription = Subscription::find(session('pending_subscription_id'));
+
+        // Fallback if session got dropped somehow (e.g. different browser tab)
+        if (! $subscription) {
+            $subscription = Subscription::where('spa_id', auth()->user()->spa->id)
+                ->latest()
+                ->first();
+        }
+
+        session()->forget('pending_subscription_id');
+
+        return view('owner.subscription.success', compact('subscription'));
     }
 
     public function cancel()
@@ -128,6 +156,8 @@ class SubscriptionController extends Controller
                         'payment_status' => 'paid',
                         'starts_at'      => now(),
                         'expires_at'     => now()->addMonth(),
+                        'paymongo_payment_id' => $payload['data']['attributes']['data']['attributes']['payments'][0]['id'] ?? null,
+                        'payment_method'      => $payload['data']['attributes']['data']['attributes']['payments'][0]['attributes']['source']['type'] ?? null,
                     ]);
 
                     // ✅ Eager load owner too for the email

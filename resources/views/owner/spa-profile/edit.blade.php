@@ -52,7 +52,7 @@
 
         {{-- VERIFICATION STATUS --}}
         <div class="p-6 border shadow-sm rounded-2xl {{ $statusClasses['card'] }}">
-            <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div class="flex items-start gap-4">
                     <div class="flex items-center justify-center bg-white rounded-full shadow-sm w-14 h-14 dark:bg-gray-800">
                         <i class="text-2xl fa-solid {{ $statusClasses['icon'] }}"></i>
@@ -85,18 +85,18 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 md:w-[430px]">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:w-[430px] lg:flex-shrink-0">
                     @foreach ($documentLabels as $type => $label)
                         @php
                             $document = $spa->verificationDocuments->firstWhere('document_type', $type);
                         @endphp
 
-                        <div class="flex flex-col h-full p-3 bg-white border rounded-xl dark:bg-gray-800 dark:border-gray-700 min-h-[96px]">
-                            <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                        <div class="flex flex-col h-full p-3 bg-white border rounded-xl dark:bg-gray-800 dark:border-gray-700 min-h-[76px] sm:min-h-[96px]">
+                            <p class="text-[11px] sm:text-xs font-medium leading-snug tracking-wide text-gray-500 uppercase dark:text-gray-400 break-words">
                                 {{ $label }}
                             </p>
 
-                            <p class="mt-auto pt-3 text-sm font-semibold {{ $document ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500' }}">
+                            <p class="mt-auto pt-2 sm:pt-3 text-sm font-semibold {{ $document ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500' }}">
                                 {{ $document ? 'Uploaded' : 'Required' }}
                             </p>
                         </div>

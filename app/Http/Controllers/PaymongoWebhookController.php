@@ -56,6 +56,8 @@ class PaymongoWebhookController extends Controller
                     'payment_status' => 'paid',
                     'starts_at'      => now(),
                     'expires_at'     => now()->addMonth(),
+                    'paymongo_payment_id'   => data_get($payload, 'data.attributes.data.attributes.payments.0.id'),
+                    'payment_method'        => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.source.type'),
                 ]);
 
                 $spa = Spa::with(['branches.profile', 'owner'])->find($subscription->spa_id);

@@ -246,6 +246,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/branch-deployments/self-request', [BranchDeploymentController::class, 'storeSelf'])
         ->name('branch-deployments.self-request');
+    Route::delete('/branch-deployments/{deployment}/self-cancel',[BranchDeploymentController::class, 'selfCancel'])
+        ->name('branch-deployments.self-cancel');
 });
 
 
@@ -739,6 +741,8 @@ Route::middleware(['auth', 'verified', 'role:owner'])->group(function () {
 
     Route::put('/owner/workforce-finance-suite', [WorkforceFinanceSuiteController::class, 'update'])
         ->name('owner.workforce-finance-suite.update');
+    Route::get('/owner/subscription/receipt/{subscription}',[SubscriptionController::class, 'downloadReceipt'])
+        ->name('owner.subscription.receipt');
 });
 
 /*

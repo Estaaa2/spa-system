@@ -453,7 +453,7 @@
 {{-- ADD TREATMENT MODAL --}}
 @if($canCreateTreatments)
 <div id="addTreatmentModal" class="fixed inset-0 z-50 items-center justify-center hidden px-4 py-8 overflow-y-auto bg-black bg-opacity-50">
-    <div class="w-full max-w-md p-6 my-auto bg-white rounded-lg shadow-xl dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
+    <div class="w-full max-w-md p-6 my-auto bg-white rounded-2xl shadow-xl dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Add Treatment</h2>
             <button type="button" onclick="closeAddTreatmentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -621,8 +621,8 @@
 
 {{-- ADD PACKAGE MODAL --}}
 @if($canCreatePackages)
-<div id="addPackageModal" class="fixed inset-0 z-50 items-start justify-center hidden px-4 pt-10 overflow-y-auto bg-black bg-opacity-50">
-    <div class="w-full max-w-lg p-6 my-8 bg-white rounded-lg dark:bg-gray-800">
+<div id="addPackageModal" class="fixed inset-0 z-50 items-center justify-center hidden px-4 py-8 overflow-y-auto bg-black bg-opacity-50">
+    <div class="w-full max-w-lg p-6 my-auto bg-white rounded-2xl dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Add Package</h2>
             <button type="button" onclick="closeAddPackageModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
