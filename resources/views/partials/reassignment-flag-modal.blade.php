@@ -22,11 +22,11 @@
                 </label>
                 <textarea id="reassign_flag_reason" name="reason" rows="3" minlength="10" maxlength="1000" required
                     placeholder="e.g. Family emergency, need to leave early today..."
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white resize-none"></textarea>
+                    class="w-full px-3 py-2 text-sm border border-gray-300 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
                 <p class="mt-1 text-xs text-gray-400">Minimum 10 characters. This is shown to whoever approves the reassignment.</p>
             </div>
 
-            <div class="p-3 border border-dashed rounded-xl border-gray-300 dark:border-gray-600">
+            <div class="p-3 border border-gray-300 border-dashed rounded-xl dark:border-gray-600">
                 <label class="flex items-start gap-2 cursor-pointer">
                     <input type="checkbox" id="reassign_also_leave" onchange="toggleReassignLeaveType()"
                         class="mt-0.5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355]">
@@ -80,10 +80,12 @@
         document.getElementById('reassignFlagError').classList.add('hidden');
 
         document.getElementById('reassignFlagModal').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
     };
 
     window.closeReassignFlagModal = function () {
         document.getElementById('reassignFlagModal').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
         reassignFlagBookingId = null;
     };
 

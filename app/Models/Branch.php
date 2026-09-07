@@ -67,6 +67,16 @@ class Branch extends Model
         return (bool) $this->has_workforce_finance_suite;
     }
 
+    public function isClosedOn($date): bool
+    {
+        $dayName = \Carbon\Carbon::parse($date)->format('l'); // e.g. "Monday"
+
+        $row = $this->operatingHours->firstWhere('day_of_week', $dayName);
+
+        // No row for that day at all → treat as closed (safer default).
+        return $row ? (bool) $row->is_closed : true;
+    }
+
     // ── Flutter API helpers ───────────────────────────────────────────────────
 
     /**

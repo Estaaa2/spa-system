@@ -228,7 +228,7 @@
 
     <!-- MOBILE TOPBAR -->
     <div
-        class="fixed top-0 z-40 flex items-center justify-between w-full h-14 px-2 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
+        class="fixed top-0 z-40 flex items-center justify-between w-full px-2 bg-white border-b h-14 md:hidden dark:bg-gray-800 dark:border-gray-700">
         <button type="button" @click="open = !open"
             aria-label="Toggle navigation" aria-controls="app-sidebar"
             :aria-expanded="open ? 'true' : 'false'"
@@ -930,7 +930,7 @@
 
             <div class="p-6">
                 <div class="flex items-start gap-4">
-                    <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full">
+                    <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 rounded-full dark:bg-red-900/30">
                         <i class="text-xl text-red-600 dark:text-red-400 fa-solid fa-right-from-bracket"></i>
                     </div>
                     <div>
@@ -985,9 +985,12 @@ document.addEventListener('alpine:init', () => {
             mobileBranchesOpen: false,
             branchesDropdown: false,
             showLogoutModal: false,
+            showSelfRequestModal: false,
 
             selectedBranch: {{ Js::from($currentBranch?->name ?? 'Select Branch') }},
             selectedBranchId: {{ $currentBranch?->id ?? 'null' }},
+            isOnBranchEditPage: {{ Js::from(request()->routeIs('branches.edit')) }},
+            branchEditUrlTemplate: {{ Js::from(route('branches.edit', ['branch' => '__BRANCH_ID__'])) }},
 
             openSection: routeSection || saved,
 
@@ -1032,7 +1035,7 @@ document.addEventListener('alpine:init', () => {
                     credentials: 'same-origin',
                     body: JSON.stringify({ branch_id: branchId }),
                 })
-                
+
                 .then(response => {
                     if (!response.ok) throw new Error('Network response was not ok');
                     return response.json();
@@ -1040,7 +1043,16 @@ document.addEventListener('alpine:init', () => {
                 .then(data => {
                     if (data.success) {
                         showSpaToast('Branch switched successfully', 'success');
-                        setTimeout(() => window.location.reload(), 1000);
+                        setTimeout(() => {
+                        if (this.isOnBranchEditPage) {
+                            const url = new URL(this.branchEditUrlTemplate.replace('__BRANCH_ID__', branchId), window.location.origin);
+                            // preserve ?tab=... if present
+                            url.search = window.location.search;
+                            window.location.href = url.toString();
+                        } else {
+                            window.location.reload();
+                        }
+                    }, 1000);
                     } else {
                         showSpaToast(data.message || 'Failed to switch branch', 'error');
                     }
