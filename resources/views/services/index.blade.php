@@ -95,9 +95,10 @@
                         @endif
 
                         <button type="button" onclick="openTreatmentImportHelpModal()"
-                            class="inline-flex items-center justify-center w-9 h-9 text-[#8B7355] rounded-lg hover:bg-[#F8F5F1] dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
+                            class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
                             title="CSV format guide">
-                            <i class="fas fa-circle-info"></i>
+                            <i class="text-xs fas fa-file-csv"></i>
+                            <span>Download Sample CSV</span>
                         </button>
                     @endif
                 </div>
@@ -266,9 +267,10 @@
                         @endif
 
                         <button type="button" onclick="openPackageImportHelpModal()"
-                            class="inline-flex items-center justify-center w-9 h-9 text-[#8B7355] rounded-lg hover:bg-[#F8F5F1] dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
+                            class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
                             title="CSV format guide">
-                            <i class="fas fa-circle-info"></i>
+                            <i class="text-xs fas fa-file-csv"></i>
+                            <span>Download Sample CSV</span>
                         </button>
                     @endif
                 </div>
@@ -838,12 +840,7 @@
                 </a>
             </div>
 
-            <div class="flex items-center justify-between pt-4 border-t dark:border-gray-700">
-                <a href="{{ route('treatments.sample-csv') }}"
-                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:bg-[#7A6348]">
-                    <i class="text-xs fas fa-download"></i>
-                    Download Sample CSV
-                </a>
+            <div class="flex items-center justify-end pt-4 border-t dark:border-gray-700">
                 <button type="button" onclick="closeTreatmentImportHelpModal()"
                         class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200">
                     Close
@@ -1125,7 +1122,22 @@
         }
     }
 
+    // Fires a temporary, invisible link click to trigger the browser's
+    // native file download without navigating the page away.
+    function triggerSampleCsvDownload(url) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', '');
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     function openTreatmentImportHelpModal() {
+        // Auto-download the sample CSV as soon as the info icon is clicked
+        triggerSampleCsvDownload("{{ route('treatments.sample-csv') }}");
+
         const modal = document.getElementById('treatmentImportHelpModal');
         if (modal) {
             modal.classList.remove('hidden');
@@ -1142,6 +1154,9 @@
     }
 
     function openPackageImportHelpModal() {
+        // Auto-download the sample CSV as soon as the info icon is clicked
+        triggerSampleCsvDownload("{{ route('packages.sample-csv') }}");
+
         const modal = document.getElementById('packageImportHelpModal');
         if (modal) {
             modal.classList.remove('hidden');

@@ -11,13 +11,13 @@
         }
     @endphp
 
-    <div class="p-6" x-data="{
-        addOpen: false,
-        editOpen: false,
-        deleteOpen: false,
-        importHelpOpen: false,
-        edit: { id: null, name: '', brand: '', stock_quantity: 0, unit_value: 0, unit: 'ml', expiration_date: '' },
-        deleteProduct: { id: null, name: '' },
+    <div class="p-6 mx-auto space-y-6 max-w-7xl" x-data="{
+    addOpen: false,
+    editOpen: false,
+    deleteOpen: false,
+    importHelpOpen: false,
+    edit: { id: null, name: '', brand: '', stock_quantity: 0, unit_value: 0, unit: 'ml', expiration_date: '' },
+    deleteProduct: { id: null, name: '' },
 
         openEdit(p) {
             this.edit = {
@@ -58,60 +58,62 @@
 
         <div class="bg-white border shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
             <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
+            <div class="flex flex-col gap-4 px-6 py-4 border-b dark:border-gray-700 lg:flex-row lg:items-center lg:justify-between">
                 <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
                     Inventory List
                 </h2>
 
-                <div class="flex items-center gap-3">
+                <div class="flex flex-col flex-wrap items-stretch gap-2 sm:flex-row sm:items-center">
                     <button type="button" @click="addOpen = true"
-                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90">
+                        class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90 whitespace-nowrap">
                         <i class="fa-solid fa-plus"></i>
                         Add Product
                     </button>
 
                     <a href="{{ route('inventory.products.export') }}"
-                        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                        class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
                         <i class="fa-solid fa-download"></i>
                         Export CSV
                     </a>
 
                     <form id="productsImportForm" action="{{ route('inventory.products.import') }}" method="POST"
-                        enctype="multipart/form-data" class="inline">
+                        enctype="multipart/form-data">
                         @csrf
                         <input type="file" id="productsCsvFile" name="file" accept=".csv" required class="hidden"
                             onchange="document.getElementById('productsImportForm').submit()">
                         <button type="button" onclick="document.getElementById('productsCsvFile').click()"
-                            class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
+                            class="inline-flex items-center justify-center w-full gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
                             <i class="fa-solid fa-upload"></i>
                             Import CSV
                         </button>
                     </form>
-                    <button type="button" @click="importHelpOpen = true"
-                        class="inline-flex items-center justify-center w-9 h-9 text-[#8B7355] rounded-lg hover:bg-[#F8F5F1] dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
+                    <button type="button"
+                        @click="triggerSampleCsvDownload('{{ route('inventory.products.sample-csv') }}'); importHelpOpen = true"
+                        class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
                         title="CSV format guide">
-                        <i class="fa-solid fa-circle-info"></i>
+                        <i class="fa-solid fa-file-csv"></i>
+                        Download Sample CSV
                     </button>
                 </div>
             </div>
 
             <!-- Table -->
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
+                <table class="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-900">
-                        <tr class="text-left">
-                            <th class="px-6 py-3 font-medium text-gray-600 dark:text-gray-300">Product Name</th>
-                            <th class="px-6 py-3 font-medium text-gray-600 dark:text-gray-300">Brand Name</th>
-                            <th class="px-6 py-3 font-medium text-gray-600 dark:text-gray-300">Stock Quantity</th>
-                            <th class="px-6 py-3 font-medium text-gray-600 dark:text-gray-300">Unit</th>
-                            <th class="px-6 py-3 font-medium text-gray-600 dark:text-gray-300">Expiration Date</th>
-                            <th class="px-6 py-3 font-medium text-gray-600 dark:text-gray-300">Actions</th>
+                        <tr>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Product Name</th>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Brand Name</th>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Stock Quantity</th>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Unit</th>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Expiration Date</th>
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Actions</th>
                         </tr>
                     </thead>
 
-                    <tbody class="divide-y dark:divide-gray-700">
+                    <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                         @forelse($products as $product)
-                            <tr>
+                            <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
                                 <td class="px-6 py-3 text-gray-800 dark:text-gray-100">{{ $product->name }}</td>
                                 <td class="px-6 py-3 text-gray-700 dark:text-gray-200">{{ $product->brand ?? '—' }}</td>
                                 <td class="px-6 py-3">
@@ -134,7 +136,7 @@
                                     {{ $product->expiration_date?->format('M d, Y') ?? '—' }}
                                 </td>
                                 <td class="px-6 py-3">
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex flex-col gap-2 sm:flex-row">
                                         <button type="button"
                                             @click="openEdit({
                                             id: {{ $product->id }},
@@ -558,12 +560,7 @@
                         </a>
                     </div>
 
-                    <div class="flex items-center justify-between pt-4 border-t dark:border-gray-700">
-                        <a href="{{ route('inventory.products.sample-csv') }}"
-                            class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90">
-                            <i class="fa-solid fa-download"></i>
-                            Download Sample CSV
-                        </a>
+                    <div class="flex items-center justify-end pt-4 border-t dark:border-gray-700">
                         <button type="button" @click="importHelpOpen = false"
                             class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
                             Close
@@ -574,4 +571,17 @@
         </div>
 
     </div>
+<script>
+    // Fires a temporary, invisible link click to trigger the browser's
+    // native file download without navigating the page away.
+    function triggerSampleCsvDownload(url) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', '');
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
 @endsection

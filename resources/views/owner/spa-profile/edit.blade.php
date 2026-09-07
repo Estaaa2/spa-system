@@ -157,6 +157,10 @@
                 Upload all required documents to submit your spa for verification.
             </p>
 
+            <div class="p-4 mt-6 text-sm text-gray-700 border rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-gray-200 dark:border-gray-700">
+                Accepted formats: PDF, JPG, JPEG, PNG. Maximum file size: 10 MB per document.
+            </div>
+
             @php
                 $documentLabels = [
                     'government_id' => [
@@ -174,7 +178,9 @@
                 ];
             @endphp
 
-            <form method="POST"
+            <form
+                id="verificationDocumentsForm"
+                method="POST"
                 action="{{ route('owner.spa-profile.documents.upload') }}"
                 enctype="multipart/form-data"
                 class="mt-6 space-y-5">
@@ -274,16 +280,12 @@
 
                 @if ($spa->verification_status !== 'verified')
                     <div class="flex justify-end pt-2">
-                        <x-primary-button>
-                            {{ __('Save Documents') }}
+                        <x-primary-button id="verificationDocumentsSubmitBtn">
+                            {{ __('Submit Documents') }}
                         </x-primary-button>
                     </div>
                 @endif
             </form>
-
-            <div class="p-4 mt-6 text-sm text-gray-700 border rounded-xl bg-gray-50 dark:bg-gray-700/50 dark:text-gray-200 dark:border-gray-700">
-                Accepted formats: PDF, JPG, JPEG, PNG. Maximum file size: 10 MB per document.
-            </div>
         </div>
     </div>
 </div>
@@ -291,16 +293,81 @@
 <script>
     function handleFileChange(input, labelId) {
         const label = document.getElementById(labelId);
+
+        if (!label) return;
+
         if (input.files && input.files.length > 0) {
             label.textContent = input.files[0].name;
-            label.classList.remove('italic', 'text-gray-500', 'dark:text-gray-400');
-            label.classList.add('text-gray-800', 'dark:text-gray-200', 'font-medium');
+
+            label.classList.remove(
+                'italic',
+                'text-gray-500',
+                'dark:text-gray-400'
+            );
+
+            label.classList.add(
+                'text-gray-800',
+                'dark:text-gray-200',
+                'font-medium'
+            );
         } else {
             label.textContent = 'No file chosen';
-            label.classList.add('italic', 'text-gray-500', 'dark:text-gray-400');
-            label.classList.remove('text-gray-800', 'dark:text-gray-200', 'font-medium');
+
+            label.classList.add(
+                'italic',
+                'text-gray-500',
+                'dark:text-gray-400'
+            );
+
+            label.classList.remove(
+                'text-gray-800',
+                'dark:text-gray-200',
+                'font-medium'
+            );
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('verificationDocumentsForm');
+
+        if (!form) return;
+
+        form.addEventListener('submit', function (event) {
+            const fileInputs = form.querySelectorAll('input[type="file"]');
+
+            const hasSelectedFile = Array.from(fileInputs).some(input =>
+                input.files && input.files.length > 0
+            );
+
+            if (!hasSelectedFile) {
+                event.preventDefault();
+
+                if (typeof showToast === 'function') {
+                    showToast(
+                        'Please select at least one document before submitting.',
+                        'error'
+                    );
+                } else if (typeof showSpaToast === 'function') {
+                    showSpaToast(
+                        'Please select at least one document before submitting.',
+                        'error'
+                    );
+                } else {
+                    alert('Please select at least one document before submitting.');
+                }
+
+                return;
+            }
+
+            const submitBtn = document.getElementById(
+                'verificationDocumentsSubmitBtn'
+            );
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+        });
+    });
 </script>
 
 @endsection

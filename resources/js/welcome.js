@@ -357,25 +357,138 @@ function renderReviewsList() {
         : reviewsData.reviews.filter(r => r.rating === currentReviewFilter);
 
     if (!filtered.length) {
-        listEl.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">No reviews${currentReviewFilter ? ` with ${currentReviewFilter} star${currentReviewFilter > 1 ? 's' : ''}` : ''} yet.</p>`;
+        listEl.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">
+            No reviews${currentReviewFilter
+                ? ` with ${currentReviewFilter} star${currentReviewFilter > 1 ? 's' : ''}`
+                : ''} yet.
+        </p>`;
         return;
     }
 
     listEl.innerHTML = filtered.map(r => `
         <div class="p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(r.name || 'Anonymous')}</span>
-                <span class="text-xs text-gray-400">${r.date ?? ''}</span>
+            <div class="flex items-center justify-between gap-3">
+                <span class="text-sm font-semibold text-[#3C2F23] dark:text-white">
+                    ${escapeHtml(r.name || 'Anonymous')}
+                </span>
+
+                <span class="text-xs text-gray-400 dark:text-gray-500">
+                    ${escapeHtml(r.date ?? '')}
+                </span>
             </div>
-            <div class="flex items-center gap-0.5 mt-1">${renderStars(r.rating)}</div>
-            ${r.comment ? `<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">${escapeHtml(r.comment)}</p>` : ''}
-        </div>`).join('');
+
+            <div class="flex items-center gap-0.5 mt-1">
+                ${renderStars(r.rating)}
+            </div>
+
+            ${r.comment ? `
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    ${escapeHtml(r.comment)}
+                </p>
+            ` : ''}
+
+            ${Array.isArray(r.photos) && r.photos.length ? `
+                <div class="flex flex-wrap gap-2 mt-3">
+                    ${r.photos.map((url, index) => `
+                        <button
+                            type="button"
+                            onclick="openReviewPhoto('${escapeHtml(url)}')"
+                            class="relative overflow-hidden w-14 h-14 rounded-xl
+                                   ring-1 ring-black/10 dark:ring-white/10
+                                   transition hover:opacity-90
+                                   focus-visible:outline-none
+                                   focus-visible:ring-2
+                                   focus-visible:ring-[#8B7355]"
+                            aria-label="View review photo ${index + 1}"
+                        >
+                            <img
+                                src="${escapeHtml(url)}"
+                                alt="Customer review photo ${index + 1}"
+                                class="object-cover w-full h-full"
+                                loading="lazy"
+                            >
+                        </button>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function openReviewPhoto(url) {
+    photos = [{ url, caption: null }];
+    openLightbox(0);
 }
 
 function closeSpaModal() {
     closeLightbox();
     spaModal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+}
+
+// =====================================================
+// RATING PHOTOS (spa section)
+// =====================================================
+let spaRatingPhotoFiles = [];
+const SPA_RATING_MAX_PHOTOS = 3;
+const SPA_RATING_MAX_SIZE   = 5 * 1024 * 1024;
+
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('spaRatingPhotoInput');
+    if (!input) return;
+
+    input.addEventListener('change', function () {
+        const errorEl     = document.getElementById('spaRatingPhotoError');
+        const errorTextEl = document.getElementById('spaRatingPhotoErrorText');
+        errorEl?.classList.add('hidden');
+
+        for (const file of Array.from(input.files)) {
+            if (spaRatingPhotoFiles.length >= SPA_RATING_MAX_PHOTOS) {
+                if (errorTextEl) errorTextEl.textContent = `You can upload up to ${SPA_RATING_MAX_PHOTOS} photos.`;
+                errorEl?.classList.remove('hidden');
+                break;
+            }
+            if (file.size > SPA_RATING_MAX_SIZE) {
+                if (errorTextEl) errorTextEl.textContent = `${file.name} is over 5MB.`;
+                errorEl?.classList.remove('hidden');
+                continue;
+            }
+            spaRatingPhotoFiles.push(file);
+        }
+
+        input.value = '';
+        renderSpaRatingPhotoPreview();
+    });
+});
+
+function renderSpaRatingPhotoPreview() {
+    const grid = document.getElementById('spaRatingPhotoPreview');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    spaRatingPhotoFiles.forEach((file, index) => {
+        const url  = URL.createObjectURL(file);
+        const cell = document.createElement('div');
+        cell.className = 'relative overflow-hidden rounded-lg aspect-square ring-1 ring-black/10 dark:ring-white/10';
+        cell.innerHTML = `
+            <img src="${url}" class="object-cover w-full h-full">
+            <button type="button" onclick="removeSpaRatingPhoto(${index})"
+                class="absolute top-1 right-1 flex items-center justify-center w-5 h-5 text-white bg-black/60 rounded-full hover:bg-black/80">
+                <i class="fa-solid fa-xmark text-[10px]"></i>
+            </button>`;
+        grid.appendChild(cell);
+    });
+}
+
+function removeSpaRatingPhoto(index) {
+    spaRatingPhotoFiles.splice(index, 1);
+    renderSpaRatingPhotoPreview();
+}
+
+function resetSpaRatingPhotos() {
+    spaRatingPhotoFiles = [];
+    renderSpaRatingPhotoPreview();
+    document.getElementById('spaRatingPhotoError')?.classList.add('hidden');
 }
 
 // =====================================================
@@ -541,7 +654,7 @@ function lightboxStep(delta) {
 }
 
 if (lightboxEl) {
-    
+
     lightboxEl.addEventListener('click', (e) => {
         if (e.target.closest('.lightbox-image, .lightbox-btn')) return;
         closeLightbox();
@@ -2958,6 +3071,8 @@ window.selectReviewFilter       = selectReviewFilter;
 window.submitRating             = submitRating;
 window.setRating                = setRating;
 window.setSpaRating             = setSpaRating;
+window.openReviewPhoto          = openReviewPhoto;
+window.removeSpaRatingPhoto     = removeSpaRatingPhoto;
 window._dayBookingMap           = _dayBookingMap;
 window._appointmentMap          = _appointmentMap;
 window.openApplicationModal     = openApplicationModal;
@@ -3058,6 +3173,7 @@ function openRatingModal(bookingId, therapistName, spaName, branchName, branchLo
 
     resetStars();
     resetSpaStars();
+    resetSpaRatingPhotos();
 
     const ratingComment = document.getElementById('ratingComment');
     const ratingFeedback = document.getElementById('ratingFeedback');
@@ -3096,6 +3212,7 @@ function closeRatingModal() {
     document.body.classList.remove('overflow-hidden');
     resetStars();
     resetSpaStars();
+    resetSpaRatingPhotos();
 }
 
 function resetStars() {
@@ -3166,7 +3283,6 @@ async function submitRating() {
         showSpaToast('Please rate the spa', 'error');
         return;
     }
-
     if (!rating || rating == 0) {
         showSpaToast('Please rate the therapist', 'error');
         return;
@@ -3181,21 +3297,23 @@ async function submitRating() {
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
+        const formData = new FormData();
+        formData.append('booking_id', bookingId);
+        formData.append('rating', rating);
+        formData.append('comment', comment);
+        formData.append('feedback', feedback);
+        formData.append('spa_rating', spaRating);
+        formData.append('spa_comment', spaComment);
+        spaRatingPhotoFiles.forEach((file, i) => formData.append(`photos[${i}]`, file));
+
         const response = await fetch('/ratings', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken || '',
                 'Accept': 'application/json'
+                // No Content-Type — FormData sets its own multipart boundary.
             },
-            body: JSON.stringify({
-                booking_id:   bookingId,
-                rating:       parseInt(rating),
-                comment:      comment,
-                feedback:     feedback,
-                spa_rating:   parseInt(spaRating),
-                spa_comment:  spaComment
-            })
+            body: formData
         });
 
         const data = await response.json();

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 
 class RatingController extends Controller
 {
-    public function store(Request $request)
+        public function store(Request $request)
     {
         $validated = $request->validate([
             'booking_id'   => 'required|exists:bookings,id',
@@ -18,6 +18,8 @@ class RatingController extends Controller
             'feedback'     => 'nullable|string|max:1000',
             'spa_rating'   => 'nullable|integer|min:1|max:5',
             'spa_comment'  => 'nullable|string|max:500',
+            'photos'       => 'nullable|array|max:3',
+            'photos.*'     => 'image|max:5120', // 5MB, matches frontend limit
         ]);
 
         $booking = Booking::findOrFail($validated['booking_id']);
@@ -55,10 +57,18 @@ class RatingController extends Controller
             'spa_comment'  => $validated['spa_comment'] ?? null,
         ]);
 
+        // ADD THIS BLOCK
+        if ($request->hasFile('photos')) {
+            foreach ($request->file('photos') as $photo) {
+                $path = $photo->store('rating_photos', 'public');
+                $rating->photos()->create(['path' => $path]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Rating submitted successfully',
-            'rating'  => $rating
+            'rating'  => $rating->load('photos')  // CHANGED from bare $rating
         ], 201);
     }
 }

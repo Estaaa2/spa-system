@@ -7,7 +7,6 @@ use App\Models\SpaVerificationDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 
 class SpaProfileController extends Controller
 {
@@ -26,100 +25,214 @@ class SpaProfileController extends Controller
         $spa = Auth::user()->spa;
 
         if ($spa->verification_status === 'verified') {
-            return back()->with('error', 'Verified spa profiles can no longer be edited.');
+            return back()->with(
+                'error',
+                'Verified spa profiles can no longer be edited.'
+            );
         }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
         ]);
 
+        if ($spa->name === $validated['name']) {
+            return back()->with(
+                'error',
+                'No changes were made to the spa profile.'
+            );
+        }
+
         $spa->update([
             'name' => $validated['name'],
         ]);
 
-        return back()->with('success', 'Spa profile updated successfully.');
+        return back()->with(
+            'success',
+            'Spa profile updated successfully.'
+        );
     }
 
     public function uploadDocument(Request $request)
     {
-        \Log::info('Upload debug', [
-            'all_files' => $request->allFiles(),
-            'has_documents' => $request->hasFile('documents'),
-            'all_input' => $request->except(['_token']),
-        ]);
-
         $spa = Auth::user()->spa;
 
         if ($spa->verification_status === 'verified') {
-            return back()->with('error', 'Documents are locked because this spa is already verified.');
+            return back()->with(
+                'error',
+                'Documents are locked because this spa is already verified.'
+            );
         }
-
-        $request->validate([
-            'documents.government_id' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-            'documents.dti_sec' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-            'documents.bir_certificate' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-        ]);
 
         $documents = $request->file('documents', []);
 
+        if (
+            !is_array($documents) ||
+            collect($documents)->filter()->isEmpty()
+        ) {
+            return back()->with(
+                'error',
+                'Please select at least one document before submitting.'
+            );
+        }
+
+        $request->validate([
+            'documents' => [
+                'required',
+                'array:government_id,dti_sec,bir_certificate',
+            ],
+
+            'documents.government_id' => [
+                'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png',
+                'max:10240',
+            ],
+
+            'documents.dti_sec' => [
+                'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png',
+                'max:10240',
+            ],
+
+            'documents.bir_certificate' => [
+                'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png',
+                'max:10240',
+            ],
+        ]);
+
+        $allowedTypes = [
+            'government_id',
+            'dti_sec',
+            'bir_certificate',
+        ];
+
+        $uploadedCount = 0;
+
         foreach ($documents as $type => $file) {
+
             if (!$file) {
                 continue;
             }
 
-            $existingDocument = $spa->verificationDocuments()
+            if (!in_array($type, $allowedTypes, true)) {
+                continue;
+            }
+
+            $newPath = $file->store(
+                'spa-verification-documents',
+                'public'
+            );
+
+            $existingDocument = $spa
+                ->verificationDocuments()
                 ->where('document_type', $type)
                 ->first();
 
-            if ($existingDocument) {
-                Storage::disk('public')->delete($existingDocument->file_path);
-            }
-
-            $path = $file->store('spa-verification-documents', 'public');
-
             $spa->verificationDocuments()->updateOrCreate(
-                ['document_type' => $type],
                 [
-                    'file_path' => $path,
+                    'document_type' => $type,
+                ],
+                [
+                    'file_path' => $newPath,
                     'file_name' => $file->getClientOriginalName(),
                     'mime_type' => $file->getMimeType(),
                     'file_size' => $file->getSize(),
                 ]
             );
+
+            if (
+                $existingDocument &&
+                $existingDocument->file_path &&
+                $existingDocument->file_path !== $newPath
+            ) {
+                Storage::disk('public')->delete(
+                    $existingDocument->file_path
+                );
+            }
+
+            $uploadedCount++;
         }
 
-        $requiredDocuments = ['government_id', 'dti_sec', 'bir_certificate'];
+        if ($uploadedCount === 0) {
+            return back()->with(
+                'error',
+                'No valid documents were selected.'
+            );
+        }
 
-        $uploadedDocuments = $spa->verificationDocuments()
+        $spa->load('verificationDocuments');
+
+        $requiredDocuments = [
+            'government_id',
+            'dti_sec',
+            'bir_certificate',
+        ];
+
+        $uploadedDocuments = $spa
+            ->verificationDocuments()
             ->pluck('document_type')
             ->unique()
             ->toArray();
 
-        $hasAllDocuments = count(array_intersect($requiredDocuments, $uploadedDocuments)) === count($requiredDocuments);
+        $hasAllDocuments =
+            count(
+                array_intersect(
+                    $requiredDocuments,
+                    $uploadedDocuments
+                )
+            ) === count($requiredDocuments);
 
         $spa->update([
-            'verification_status' => $hasAllDocuments ? 'pending' : 'unverified',
+            'verification_status' => $hasAllDocuments
+                ? 'pending'
+                : 'unverified',
+
             'verification_remarks' => null,
             'verified_at' => null,
             'verified_by' => null,
         ]);
 
-        return back()->with('success', 'Verification documents updated successfully.');
+        if ($uploadedCount === 1) {
+            return back()->with(
+                'success',
+                'Verification document updated successfully.'
+            );
+        }
+
+        return back()->with(
+            'success',
+            "{$uploadedCount} verification documents updated successfully."
+        );
     }
 
-    public function destroyDocument(SpaVerificationDocument $document)
-    {
+    public function destroyDocument(
+        SpaVerificationDocument $document
+    ) {
         $spa = Auth::user()->spa;
 
-        if ($document->spa_id !== $spa->id) {
+        if ((int) $document->spa_id !== (int) $spa->id) {
             abort(403);
         }
 
         if ($spa->verification_status === 'verified') {
-            return back()->with('error', 'Documents are locked because this spa is already verified.');
+            return back()->with(
+                'error',
+                'Documents are locked because this spa is already verified.'
+            );
         }
 
-        Storage::disk('public')->delete($document->file_path);
+        if (
+            $document->file_path &&
+            Storage::disk('public')->exists($document->file_path)
+        ) {
+            Storage::disk('public')->delete(
+                $document->file_path
+            );
+        }
+
         $document->delete();
 
         $spa->update([
@@ -129,6 +242,9 @@ class SpaProfileController extends Controller
             'verified_by' => null,
         ]);
 
-        return back()->with('success', 'Document removed successfully.');
+        return back()->with(
+            'success',
+            'Document removed successfully.'
+        );
     }
 }

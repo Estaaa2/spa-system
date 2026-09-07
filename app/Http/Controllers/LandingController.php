@@ -123,7 +123,7 @@ class LandingController extends Controller
         ) + ['treatmentSuggestions' => $this->treatmentSuggestions()]);
     }
 
-    // This method handles the search request for spas based on the provided place and treatment. 
+    // This method handles the search request for spas based on the provided place and treatment.
     public function searchSpas(Request $request)
     {
         $place     = trim($request->input('place', ''));
@@ -317,7 +317,7 @@ class LandingController extends Controller
         return response()->json($result);
     }
 
-    public function spaReviews(Request $request, $spaId, $branchId)
+        public function spaReviews(Request $request, $spaId, $branchId)
     {
         $base = Rating::query()
             ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
@@ -338,18 +338,29 @@ class LandingController extends Controller
 
         $reviews = $base->orderByDesc('ratings.created_at')
             ->get([
+                'ratings.id as rating_id',   // ADDED — needed to fetch photos
                 'ratings.spa_rating as rating',
                 'ratings.spa_comment as comment',
                 'ratings.created_at',
                 'users.first_name',
                 'users.last_name',
-            ])
-            ->map(fn($r) => [
-                'rating'  => (int) $r->rating,
-                'comment' => $r->comment,
-                'name'    => trim($r->first_name . ' ' . substr($r->last_name ?? '', 0, 1) . '.'),
-                'date'    => $r->created_at?->format('M d, Y'),
             ]);
+
+        // ADDED — one query for all photos across this page of reviews,
+        // instead of N+1'ing inside the map() below.
+        $photosByRating = \App\Models\RatingPhoto::whereIn('rating_id', $reviews->pluck('rating_id'))
+            ->get()
+            ->groupBy('rating_id');
+
+        $reviews = $reviews->map(fn($r) => [
+            'rating'  => (int) $r->rating,
+            'comment' => $r->comment,
+            'name'    => trim($r->first_name . ' ' . substr($r->last_name ?? '', 0, 1) . '.'),
+            'date'    => $r->created_at?->format('M d, Y'),
+            'photos'  => ($photosByRating[$r->rating_id] ?? collect())
+                            ->map(fn($p) => $p->url)
+                            ->values(),
+        ]);
 
         return response()->json([
             'total'   => $reviews->count(),
