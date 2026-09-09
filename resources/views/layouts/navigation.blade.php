@@ -484,7 +484,7 @@
 
                 {{-- Everything under this label follows the branch switcher above. --}}
                 <p class="px-4 pb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                    Branch
+                    Branch Overview
                 </p>
 
                 <div class="space-y-1">
@@ -804,7 +804,7 @@
                     <hr class="my-4 border-gray-200 dark:border-gray-700">
 
                     <p class="px-4 pb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                        Spa-wide
+                        Business Overview
                     </p>
 
                     <div class="space-y-1">

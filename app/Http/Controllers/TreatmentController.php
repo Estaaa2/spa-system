@@ -15,7 +15,7 @@ class TreatmentController extends Controller
             'price'        => 'required|numeric|min:0',
             'service_type' => 'required|in:in_branch_only,in_branch_and_home',
             'description'  => 'nullable|string',
-            'image'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $branchId = session('current_branch_id') ?? auth()->user()->branch_id;
@@ -58,7 +58,7 @@ class TreatmentController extends Controller
             'price'        => 'required|numeric|min:0',
             'service_type' => 'required|in:in_branch_only,in_branch_and_home',
             'description'  => 'nullable|string',
-            'image'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         if ($request->hasFile('image')) {

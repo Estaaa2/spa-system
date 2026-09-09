@@ -523,6 +523,10 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::delete('/hiring/{posting}', [HiringController::class, 'destroy'])->name('hiring.destroy');
     });
 
+    Route::get(
+    '/applications/{applicant}/resume',[HiringController::class, 'viewResume'])
+        ->name('applications.resume.view');
+
     // Applications
     Route::middleware('branch.permission:view applications')->group(function () {
         Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
