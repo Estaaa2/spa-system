@@ -30,8 +30,8 @@
     // Used when $booking->status is not one of the five known values.
     $statusFallback = 'bg-gray-100 text-gray-700';
 
-    // The button classes are defined here to ensure consistent styling across 
-    // the different action buttons in the appointments table. 
+    // The button classes are defined here to ensure consistent styling across
+    // the different action buttons in the appointments table.
     $btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-4 py-2 text-sm '
              . 'font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 '
              . 'focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
@@ -339,8 +339,13 @@
                     @empty
                         <tr role="row" id="todayEmptyRow">
                             <td role="cell" colspan="{{ $showActions ? 7 : 6 }}"
-                                class="px-6 py-10 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
-                                No appointments scheduled for today.
+                                class="px-6 py-12 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                                        <i class="text-lg fa-solid fa-calendar-day" aria-hidden="true"></i>
+                                    </div>
+                                    <p>No appointments scheduled for today.</p>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -453,8 +458,13 @@
                     @empty
                         <tr role="row" id="upcomingEmptyRow">
                             <td role="cell" colspan="{{ $showUpcomingActions ? 6 : 5 }}"
-                                class="px-6 py-10 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
-                                No upcoming reservations found.
+                                class="px-6 py-12 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                                        <i class="text-lg fa-solid fa-calendar-plus" aria-hidden="true"></i>
+                                    </div>
+                                    <p>No upcoming reservations found.</p>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -511,8 +521,14 @@
                         </tr>
                     @empty
                         <tr role="row">
-                            <td role="cell" colspan="5" class="px-6 py-10 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
-                                No historical records found.
+                            <td role="cell" colspan="5"
+                                class="px-6 py-12 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                                        <i class="text-lg fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                                    </div>
+                                    <p>No historical records found.</p>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -1380,9 +1396,15 @@
 
     // ── Rebuild Today table ───────────────────────────────────────────────────
     const TODAY_EMPTY_HTML = `<tr role="row" id="todayEmptyRow">
-        <td role="cell" colspan="${TODAY_COLS}" class="px-6 py-10 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
-            No appointments scheduled for today.
-        </td></tr>`;
+        <td role="cell" colspan="${TODAY_COLS}" class="px-6 py-12 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
+            <div class="flex flex-col items-center justify-center">
+                <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                    <i class="text-lg fa-solid fa-calendar-day" aria-hidden="true"></i>
+                </div>
+                <p>No appointments scheduled for today.</p>
+            </div>
+        </td>
+    </tr>`;
 
     function updateTodayTable(appointments) {
         patchRows(
@@ -1446,9 +1468,15 @@
 
     // ── Rebuild Upcoming table ────────────────────────────────────────────────
     const UPCOMING_EMPTY_HTML = `<tr role="row" id="upcomingEmptyRow">
-        <td role="cell" colspan="${UPCOMING_COLS}" class="px-6 py-10 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
-            No upcoming reservations found.
-        </td></tr>`;
+        <td role="cell" colspan="${UPCOMING_COLS}" class="px-6 py-12 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
+            <div class="flex flex-col items-center justify-center">
+                <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                    <i class="text-lg fa-solid fa-calendar-plus" aria-hidden="true"></i>
+                </div>
+                <p>No upcoming reservations found.</p>
+            </div>
+        </td>
+    </tr>`;
 
     function updateUpcomingTable(appointments) {
         patchRows(

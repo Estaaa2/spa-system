@@ -114,7 +114,16 @@
                                 <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{{ $row->time_out ? \Carbon\Carbon::parse($row->time_out)->format('h:i A') : '—' }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="px-6 py-8 text-sm text-center text-gray-400">No attendance history yet.</td></tr>
+                            <tr>
+                                <td colspan="4" class="px-6 py-12 text-sm text-center text-gray-500 dark:text-gray-400">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                                            <i class="text-lg fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                                        </div>
+                                        <p>No attendance history yet.</p>
+                                    </div>
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -230,7 +239,16 @@
                                 @endif
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="px-6 py-10 text-sm text-center text-gray-400">No active staff found for this branch.</td></tr>
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-sm text-center text-gray-500 dark:text-gray-400">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                                            <i class="text-lg fa-solid fa-user-group" aria-hidden="true"></i>
+                                        </div>
+                                        <p>No active staff found for this branch.</p>
+                                    </div>
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -298,7 +316,14 @@
                         </span>
                     </div>
                 @empty
-                    <p class="px-6 py-8 text-sm text-center text-gray-400">You haven't requested any leave yet.</p>
+                    <div class="px-6 py-12 text-sm text-center text-gray-500 dark:text-gray-400">
+                        <div class="flex flex-col items-center justify-center">
+                            <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                                <i class="text-lg fa-solid fa-calendar-xmark" aria-hidden="true"></i>
+                            </div>
+                            <p>You haven't requested any leave yet.</p>
+                        </div>
+                    </div>
                 @endforelse
             </div>
         </div>
@@ -621,7 +646,16 @@ async function loadMyLeaveRequests() {
         const list = await res.json();
         const container = document.getElementById('myLeaveList');
         if (!list.length) {
-            container.innerHTML = '<p class="px-6 py-8 text-sm text-center text-gray-400">You haven\'t requested any leave yet.</p>';
+            container.innerHTML = `
+            <div class="px-6 py-12 text-sm text-center text-gray-500 dark:text-gray-400">
+                <div class="flex flex-col items-center justify-center">
+                    <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                        <i class="text-lg fa-solid fa-calendar-xmark" aria-hidden="true"></i>
+                    </div>
+                    <p>You haven't requested any leave yet.</p>
+                </div>
+            </div>
+        `;
             return;
         }
         container.innerHTML = list.map(r => `
