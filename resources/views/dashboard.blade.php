@@ -206,84 +206,133 @@
 @endif
 
 @if($myStaff)
-    <div x-show="showSelfRequestModal" x-cloak
-        @keydown.escape.window="showSelfRequestModal = false"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-        <div class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800 max-h-[85vh] overflow-y-auto">
-            <form action="{{ route('branch-deployments.self-request') }}" method="POST">
-                @csrf
-                <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Request Branch Transfer</h3>
-                        <button type="button" @click="showSelfRequestModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                            <i class="text-lg fas fa-times"></i>
-                        </button>
-                    </div>
+    <template x-teleport="body">
+        <div x-show="showSelfRequestModal"
+            x-cloak
+            @keydown.escape.window="showSelfRequestModal = false"
+            class="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+
+            <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+                <div role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="selfRequestModalTitle"
+                    @click.outside="showSelfRequestModal = false"
+                    class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+
+                    <form action="{{ route('branch-deployments.self-request') }}" method="POST">
+                        @csrf
+
+                        <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                            <div>
+                                <h2 id="selfRequestModalTitle"
+                                    class="text-lg font-semibold text-gray-900 dark:text-white">
+                                    Request Branch Transfer
+                                </h2>
+
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                    Submit a branch transfer request for HR or Owner approval.
+                                </p>
+                            </div>
+
+                            <button type="button"
+                                @click="showSelfRequestModal = false"
+                                aria-label="Close dialog"
+                                class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                            </button>
+                        </div>
+
+                        <div class="px-4 py-6 space-y-4 sm:px-6">
+                            <div>
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                    Target Branch <span class="text-red-500">*</span>
+                                </label>
+
+                                <select name="to_branch_id" required
+                                    class="block w-full min-h-[44px] px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <option value="">Select target branch</option>
+
+                                    @foreach($transferBranches as $branch)
+                                        <option value="{{ $branch->id }}">
+                                            {{ $branch->name }} — {{ $branch->location }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                    Start Date <span class="text-red-500">*</span>
+                                </label>
+
+                                <input type="date"
+                                    name="start_date"
+                                    required
+                                    min="{{ now()->toDateString() }}"
+                                    class="block w-full min-h-[44px] px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+
+                            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl dark:bg-gray-700">
+                                <input type="checkbox"
+                                    id="selfIsPermanent"
+                                    name="is_permanent"
+                                    value="1"
+                                    class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355]"
+                                    onchange="document.getElementById('selfEndDateWrapper').classList.toggle('hidden', this.checked)">
+
+                                <label for="selfIsPermanent"
+                                    class="text-sm font-medium text-gray-900 cursor-pointer dark:text-white">
+                                    Permanent transfer
+                                </label>
+                            </div>
+
+                            <div id="selfEndDateWrapper">
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                    End Date
+                                    <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span>
+                                </label>
+
+                                <input type="date"
+                                    name="end_date"
+                                    class="block w-full min-h-[44px] px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+
+                            <div>
+                                <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
+                                    Reason <span class="text-red-500">*</span>
+                                </label>
+
+                                <textarea name="notes"
+                                    rows="3"
+                                    required
+                                    placeholder="Why are you requesting this transfer?"
+                                    class="block w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 resize-none rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"></textarea>
+
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Required for self-requested transfers.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:justify-end sm:px-6 dark:border-gray-700">
+                            <button type="button"
+                                @click="showSelfRequestModal = false"
+                                class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
+                                Cancel
+                            </button>
+
+                            <button type="submit"
+                                class="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-5 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348]">
+                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                                Submit Request
+                            </button>
+                        </div>
+                    </form>
+
                 </div>
-
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                            Target Branch <span class="text-red-500">*</span>
-                        </label>
-                        <select name="to_branch_id" required
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <option value="">Select target branch</option>
-                            @foreach($transferBranches as $branch)
-                                <option value="{{ $branch->id }}">{{ $branch->name }} — {{ $branch->location }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                            Start Date <span class="text-red-500">*</span>
-                        </label>
-                        <input type="date" name="start_date" required min="{{ now()->toDateString() }}"
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    </div>
-
-                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl dark:bg-gray-700">
-                        <input type="checkbox" id="selfIsPermanent" name="is_permanent" value="1"
-                            class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355]"
-                            onchange="document.getElementById('selfEndDateWrapper').classList.toggle('hidden', this.checked)">
-                        <label for="selfIsPermanent" class="text-sm font-medium text-gray-900 cursor-pointer dark:text-white">
-                            Permanent transfer
-                        </label>
-                    </div>
-
-                    <div id="selfEndDateWrapper">
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                            End Date <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span>
-                        </label>
-                        <input type="date" name="end_date"
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    </div>
-
-                    <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                            Reason <span class="text-red-500">*</span>
-                        </label>
-                        <textarea name="notes" rows="3" required
-                            placeholder="Why are you requesting this transfer?"
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"></textarea>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Required for self-requested transfers.</p>
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl dark:bg-gray-900 dark:border-gray-700">
-                    <button type="button" @click="showSelfRequestModal = false"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                        class="px-5 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348]">
-                        <i class="mr-1.5 fa-solid fa-paper-plane"></i>Submit Request
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
-    </div>
+    </template>
 
     <script>
     function openSelfRequestModal() {
@@ -1475,4 +1524,4 @@
 }());
 </script>
 
-@endsection 
+@endsection

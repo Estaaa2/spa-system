@@ -1,23 +1,33 @@
 @extends('layouts.app')
 
 @section('title', 'Inventory Products')
+
 @section('content')
+@php
+    $deductFailedProduct = null;
 
-    @php
-        $deductFailedProduct = null;
+    if ($errors->deductStock->any() && old('product_id')) {
+        $deductFailedProduct = $products->firstWhere('id', (int) old('product_id'));
+    }
 
-        if ($errors->deductStock->any() && old('product_id')) {
-            $deductFailedProduct = $products->firstWhere('id', (int) old('product_id'));
-        }
-    @endphp
+    $btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-4 py-2 text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
 
-    <div class="p-6 mx-auto space-y-6 max-w-7xl" x-data="{
-    addOpen: false,
-    editOpen: false,
-    deleteOpen: false,
-    importHelpOpen: false,
-    edit: { id: null, name: '', brand: '', stock_quantity: 0, unit_value: 0, unit: 'ml', expiration_date: '' },
-    deleteProduct: { id: null, name: '' },
+    $btn = [
+        'primary' => $btnBase . ' bg-[#8B7355] text-white hover:bg-[#7A6348]',
+        'secondary' => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        'outline' => $btnBase . ' border border-[#8B7355] bg-white text-[#8B7355] hover:bg-[#F8F5F1] dark:bg-gray-800 dark:text-[#C4A97D] dark:border-[#8B7355] dark:hover:bg-gray-700',
+        'danger' => $btnBase . ' bg-red-700 text-white hover:bg-red-800',
+    ];
+@endphp
+
+<div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl"
+    x-data="{
+        addOpen: false,
+        editOpen: false,
+        deleteOpen: false,
+        importHelpOpen: false,
+        edit: { id: null, name: '', brand: '', stock_quantity: 0, unit_value: 0, unit: 'ml', expiration_date: '' },
+        deleteProduct: { id: null, name: '' },
 
         openEdit(p) {
             this.edit = {
@@ -50,95 +60,99 @@
             'unit' => $deductFailedProduct->unit ?? 'ml',
             'expiration_date' => optional($deductFailedProduct->expiration_date)->format('Y-m-d'),
         ]))
-    @endif"
-    >
+    @endif">
 
-        <x-page-header title="Inventory Products" subtitle="Manage inventory products." />
+    <x-page-header
+        title="Inventory Products"
+        subtitle="Manage product stock, units, expiration dates, and inventory records."
+    />
 
-
-        <div class="bg-white border shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
-            <!-- Header -->
-            <div class="flex flex-col gap-4 px-6 py-4 border-b dark:border-gray-700 lg:flex-row lg:items-center lg:justify-between">
-                <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
-                    Inventory List
-                </h2>
-
-                <div class="flex flex-col flex-wrap items-stretch gap-2 sm:flex-row sm:items-center">
-                    <button type="button" @click="addOpen = true"
-                        class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90 whitespace-nowrap">
-                        <i class="fa-solid fa-plus"></i>
-                        Add Product
-                    </button>
-
-                    <a href="{{ route('inventory.products.export') }}"
-                        class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
-                        <i class="fa-solid fa-download"></i>
-                        Export CSV
-                    </a>
-
-                    <form id="productsImportForm" action="{{ route('inventory.products.import') }}" method="POST"
-                        enctype="multipart/form-data">
-                        @csrf
-                        <input type="file" id="productsCsvFile" name="file" accept=".csv" required class="hidden"
-                            onchange="document.getElementById('productsImportForm').submit()">
-                        <button type="button" onclick="document.getElementById('productsCsvFile').click()"
-                            class="inline-flex items-center justify-center w-full gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700">
-                            <i class="fa-solid fa-upload"></i>
-                            Import CSV
-                        </button>
-                    </form>
-                    <button type="button"
-                        @click="triggerSampleCsvDownload('{{ route('inventory.products.sample-csv') }}'); importHelpOpen = true"
-                        class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg bg-white text-[#8B7355] border-[#8B7355] hover:bg-[#F8F5F1] whitespace-nowrap dark:bg-gray-800 dark:text-[#D2B48C] dark:border-[#8B7355] dark:hover:bg-gray-700"
-                        title="CSV format guide">
-                        <i class="fa-solid fa-file-csv"></i>
-                        Download Sample CSV
-                    </button>
-                </div>
+    <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+        <div class="flex flex-col gap-4 px-4 py-4 border-b border-gray-200 sm:px-6 lg:flex-row lg:items-center lg:justify-between dark:border-gray-700">
+            <div>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Inventory List</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">View and manage products available in this branch.</p>
             </div>
 
-            <!-- Table -->
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead class="bg-gray-50 dark:bg-gray-900">
-                        <tr>
-                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Product Name</th>
-                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Brand Name</th>
-                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Stock Quantity</th>
-                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Unit</th>
-                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Expiration Date</th>
-                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Actions</th>
-                        </tr>
-                    </thead>
+            <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <button type="button" @click="addOpen = true" class="{{ $btn['primary'] }}">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    Add Product
+                </button>
 
-                    <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-                        @forelse($products as $product)
-                            <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
-                                <td class="px-6 py-3 text-gray-800 dark:text-gray-100">{{ $product->name }}</td>
-                                <td class="px-6 py-3 text-gray-700 dark:text-gray-200">{{ $product->brand ?? '—' }}</td>
-                                <td class="px-6 py-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="px-2 py-1 text-gray-800 rounded dark:bg-gray-700 dark:text-gray-100">
-                                            {{ $product->stock_quantity }}
+                <a href="{{ route('inventory.products.export') }}" class="{{ $btn['outline'] }}">
+                    <i class="fa-solid fa-file-export" aria-hidden="true"></i>
+                    Export CSV
+                </a>
+
+                <form id="productsImportForm" action="{{ route('inventory.products.import') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <input type="file" id="productsCsvFile" name="file" accept=".csv" required class="hidden"
+                        onchange="document.getElementById('productsImportForm').submit()">
+                    <button type="button" onclick="document.getElementById('productsCsvFile').click()"
+                        class="w-full {{ $btn['outline'] }}">
+                        <i class="fa-solid fa-file-import" aria-hidden="true"></i>
+                        Import CSV
+                    </button>
+                </form>
+
+                <button type="button"
+                    @click="triggerSampleCsvDownload('{{ route('inventory.products.sample-csv') }}'); importHelpOpen = true"
+                    class="{{ $btn['outline'] }}" title="CSV format guide">
+                    <i class="fa-solid fa-file-csv" aria-hidden="true"></i>
+                    CSV Format Guide
+                </button>
+            </div>
+        </div>
+
+        <div class="md:overflow-x-auto">
+            <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
+                    <tr role="row">
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Product</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Brand</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Stock</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Unit</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Expiration</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-center text-gray-500 uppercase dark:text-gray-400">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody role="rowgroup" class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                    @forelse($products as $product)
+                        <tr role="row" class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                            <td role="cell" data-label="Product" class="px-6 py-4">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $product->name }}</p>
+                            </td>
+
+                            <td role="cell" data-label="Brand" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                {{ $product->brand ?? '—' }}
+                            </td>
+
+                            <td role="cell" data-label="Stock" class="px-6 py-4">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $product->stock_quantity }}</span>
+
+                                    @if ($product->stock_quantity <= 5)
+                                        <span class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full dark:bg-red-900/40 dark:text-red-300">
+                                            Low Stock
                                         </span>
+                                    @endif
+                                </div>
+                            </td>
 
-                                        @if ($product->stock_quantity <= 5)
-                                            <span
-                                                class="px-2 py-1 text-xs font-semibold text-white bg-red-500 rounded-full">
-                                                Low
-                                            </span>
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="px-6 py-3 text-gray-700 dark:text-gray-200">
-                                    {{ $product->unit_value ?? 0 }}{{ $product->unit ?? 'ml' }}</td>
-                                <td class="px-6 py-3 text-gray-700 dark:text-gray-200">
-                                    {{ $product->expiration_date?->format('M d, Y') ?? '—' }}
-                                </td>
-                                <td class="px-6 py-3">
-                                    <div class="flex flex-col gap-2 sm:flex-row">
-                                        <button type="button"
-                                            @click="openEdit({
+                            <td role="cell" data-label="Unit" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                {{ $product->unit_value ?? 0 }}{{ $product->unit ?? 'ml' }}
+                            </td>
+
+                            <td role="cell" data-label="Expiration" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                {{ $product->expiration_date?->format('M d, Y') ?? '—' }}
+                            </td>
+
+                            <td role="cell" data-label="Actions" class="px-6 py-4 text-center rt-actions">
+                                <div class="flex flex-wrap gap-2 md:justify-center">
+                                    <button type="button"
+                                        @click="openEdit({
                                             id: {{ $product->id }},
                                             name: @js($product->name),
                                             brand: @js($product->brand),
@@ -147,433 +161,435 @@
                                             unit: @js($product->unit ?? 'ml'),
                                             expiration_date: @js(optional($product->expiration_date)->format('Y-m-d'))
                                         })"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1 text-sm text-[#6F5430] bg-[#F0E9E1] rounded hover:bg-[#E5D9C9] dark:bg-gray-700 dark:text-[#D2B48C] dark:hover:bg-gray-600 whitespace-nowrap">
-                                            <i class="text-xs fa-solid fa-pen"></i>
-                                            <span>Edit</span>
-                                        </button>
+                                        class="{{ $btn['secondary'] }}">
+                                        <i class="fa-solid fa-pen" aria-hidden="true"></i>
+                                        Edit
+                                    </button>
 
-                                        <button type="button"
-                                            @click="openDelete({
+                                    <button type="button"
+                                        @click="openDelete({
                                             id: {{ $product->id }},
                                             name: @js($product->name)
                                         })"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700 whitespace-nowrap">
-                                            <i class="text-xs fa-solid fa-trash"></i>
-                                            <span>Remove</span>
-                                        </button>
+                                        class="{{ $btn['danger'] }}">
+                                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                        Remove
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr role="row">
+                            <td role="cell" colspan="6"
+                                class="px-6 py-12 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="flex items-center justify-center w-12 h-12 mb-3 text-gray-400 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-500">
+                                        <i class="text-lg fa-solid fa-box-open" aria-hidden="true"></i>
                                     </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="px-6 py-10 text-center text-gray-500">
-                                    No products found.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="px-6 py-4">
-                {{ $products->links() }}
-            </div>
+                                    <p>No products found.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
 
-        <!-- Delete Product Modal -->
-        <div x-show="deleteOpen" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style="display:none;">
+        <div class="px-4 py-4 border-t border-gray-200 sm:px-6 dark:border-gray-700">
+            {{ $products->links() }}
+        </div>
+    </div>
 
-            <!-- backdrop -->
-            <div class="absolute inset-0 bg-black/50" @click="deleteOpen = false"></div>
+    <div x-show="deleteOpen" x-transition.opacity
+        class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/50"
+        :class="{ 'hidden': !deleteOpen }">
 
-            <div x-transition
-                class="relative w-full max-w-md bg-white border shadow-lg rounded-xl dark:bg-gray-800 dark:border-gray-700">
+        <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+            <div role="alertdialog" aria-modal="true"
+                aria-labelledby="deleteProductTitle"
+                aria-describedby="deleteProductDescription"
+                @click.outside="deleteOpen = false"
+                x-transition
+                class="w-full max-w-md p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
 
-                <div class="px-6 py-4 border-b dark:border-gray-700">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-                        Remove Product
-                    </h3>
-                </div>
+                <h2 id="deleteProductTitle" class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Remove Product
+                </h2>
 
-                <div class="p-6 space-y-4">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">
-                        Are you sure you want to remove
-                        <span class="font-semibold text-red-600" x-text="deleteProduct.name"></span>?
-                    </p>
+                <p id="deleteProductDescription" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Are you sure you want to permanently remove
+                    <span class="font-medium text-gray-900 dark:text-white" x-text="deleteProduct.name"></span>?
+                </p>
 
-                    <div class="flex justify-end gap-2">
-                        <button type="button" @click="deleteOpen = false"
-                            class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
-                            Cancel
+                <div class="flex flex-col-reverse gap-2 mt-6 sm:flex-row sm:justify-end">
+                    <button type="button" @click="deleteOpen = false" class="{{ $btn['secondary'] }}">
+                        Cancel
+                    </button>
+
+                    <form method="POST" :action="`{{ url('/inventory/products') }}/${deleteProduct.id}`">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="w-full {{ $btn['danger'] }} sm:w-auto">
+                            Yes, Remove
                         </button>
-
-                        <form method="POST" :action="`{{ url('/inventory/products') }}/${deleteProduct.id}`">
-                            @csrf
-                            @method('DELETE')
-
-                            <button class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
-                                Yes, Remove
-                            </button>
-                        </form>
-                    </div>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Add Product Modal -->
-        <div x-show="addOpen" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style="display:none;">
-            <!-- backdrop -->
-            <div class="absolute inset-0 bg-black/50" @click="addOpen = false"></div>
+    <div x-show="addOpen" x-transition.opacity
+        class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/50"
+        :class="{ 'hidden': !addOpen }">
 
-            <!-- modal -->
-            <div x-transition
-                class="relative w-full max-w-lg bg-white border shadow-lg rounded-xl dark:bg-gray-800 dark:border-gray-700">
-                <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Add Product</h3>
-                    <button type="button" @click="addOpen = false"
-                        class="text-gray-500 hover:text-gray-800 dark:hover:text-white">
-                        <i class="fa-solid fa-xmark"></i>
+        <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+            <div role="dialog" aria-modal="true"
+                aria-labelledby="addProductTitle"
+                @click.outside="addOpen = false"
+                x-transition
+                class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+
+                <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                    <div>
+                        <h2 id="addProductTitle" class="text-lg font-semibold text-gray-900 dark:text-white">
+                            Add Product
+                        </h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Add a new product to the branch inventory.
+                        </p>
+                    </div>
+
+                    <button type="button" @click="addOpen = false" aria-label="Close dialog"
+                        class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('inventory.products.store') }}" class="p-6 space-y-4">
+                <form method="POST" action="{{ route('inventory.products.store') }}"
+                    class="px-4 py-6 space-y-4 sm:px-6">
                     @csrf
 
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Product Name</label>
-                        <input name="name" value="{{ old('name') }}"
-                            class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                            required>
+                        <label for="add_product_name" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Product Name
+                        </label>
+                        <input id="add_product_name" name="name" value="{{ old('name') }}" required
+                            class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
                         @error('name')
-                            <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Brand Name</label>
-                        <input name="brand" value="{{ old('brand') }}"
-                            class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                            placeholder="Optional">
+                        <label for="add_product_brand" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Brand Name
+                        </label>
+                        <input id="add_product_brand" name="brand" value="{{ old('brand') }}" placeholder="Optional"
+                            class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
                         @error('brand')
-                            <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit
-                                Value</label>
-                            <input type="number" name="unit_value" min="0" value="{{ old('unit_value', 0) }}"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                            <label for="add_unit_value" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Unit Value
+                            </label>
+                            <input type="number" id="add_unit_value" name="unit_value" min="0"
+                                value="{{ old('unit_value', 0) }}"
+                                class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
                             @error('unit_value')
-                                <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Unit</label>
-                            <select name="unit"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                            <label for="add_unit" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Unit
+                            </label>
+                            <select id="add_unit" name="unit"
+                                class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 @foreach (['ml', 'L', 'g', 'kg', 'pcs'] as $unitOption)
-                                    <option value="{{ $unitOption }}" @selected(old('unit', 'ml') === $unitOption)>{{ $unitOption }}
+                                    <option value="{{ $unitOption }}" @selected(old('unit', 'ml') === $unitOption)>
+                                        {{ $unitOption }}
                                     </option>
                                 @endforeach
                             </select>
+
                             @error('unit')
-                                <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Stock
-                                Quantity</label>
-                            <input type="number" name="stock_quantity" min="0"
-                                value="{{ old('stock_quantity', 0) }}"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                                required>
+                            <label for="add_stock_quantity" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Stock Quantity
+                            </label>
+                            <input type="number" id="add_stock_quantity" name="stock_quantity" min="0"
+                                value="{{ old('stock_quantity', 0) }}" required
+                                class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
                             @error('stock_quantity')
-                                <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Expiration
-                                Date</label>
-                            <input type="date" name="expiration_date" value="{{ old('expiration_date') }}"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                            <label for="add_expiration_date" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Expiration Date
+                            </label>
+                            <input type="date" id="add_expiration_date" name="expiration_date"
+                                value="{{ old('expiration_date') }}"
+                                class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
                             @error('expiration_date')
-                                <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-end gap-2 pt-2">
-                        <button type="button" @click="addOpen = false"
-                            class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
+                    <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                        <button type="button" @click="addOpen = false" class="{{ $btn['secondary'] }}">
                             Cancel
                         </button>
-                        <button class="px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90">
+                        <button type="submit" class="{{ $btn['primary'] }}">
                             Save Product
                         </button>
                     </div>
                 </form>
             </div>
         </div>
+    </div>
+    <template x-teleport="body">
+        <div x-show="editOpen" x-transition.opacity
+        class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/50"
+        :class="{ 'hidden': !editOpen }">
 
-        <!-- Edit Product Modal -->
-        <div x-show="editOpen" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
-        style="display:none;">
-        <!-- backdrop -->
-        <div class="absolute inset-0 bg-black/50" @click="editOpen = false"></div>
+        <div class="flex items-start justify-center min-h-full p-4 pt-6 sm:pt-8">
+            <div role="dialog" aria-modal="true" aria-labelledby="editProductTitle"
+                x-transition
+                class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
 
-        <div x-transition
-            class="relative w-full max-w-lg my-8 bg-white border shadow-lg rounded-xl dark:bg-gray-800 dark:border-gray-700 max-h-[85vh] overflow-y-auto">
-                <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Edit Product</h3>
-                    <button type="button" @click="editOpen = false"
-                        class="text-gray-500 hover:text-gray-800 dark:hover:text-white">
-                        <i class="fa-solid fa-xmark"></i>
+                <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                    <div>
+                        <h2 id="editProductTitle" class="text-lg font-semibold text-gray-900 dark:text-white">
+                            Edit Product
+                        </h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Update product details or deduct available stock.
+                        </p>
+                    </div>
+
+                    <button type="button" @click="editOpen = false" aria-label="Close dialog"
+                        class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </button>
                 </div>
 
-                <div class="p-6 space-y-6">
-                    <!-- UPDATE FORM -->
-                    <form method="POST"
-                        id="updateProductForm"
+                <div class="px-4 pt-4 pb-5 space-y-5 overflow-y-auto sm:px-6 max-h-[75vh]">
+                    <form method="POST" id="updateProductForm"
                         :action="`{{ url('/inventory/products') }}/${edit.id}`"
                         class="space-y-4">
-
-                        @csrf
-                        @method('PUT')
-
-                        <!-- Product Name -->
-                        <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                                Product Name
-                            </label>
-
-                            <input name="name"
-                                x-model="edit.name"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                                required>
-                        </div>
-
-                        <!-- Brand Name -->
-                        <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                                Brand Name
-                            </label>
-
-                            <input name="brand"
-                                x-model="edit.brand"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                                placeholder="Optional">
-                        </div>
-
-                        <!-- Stock + Unit Value -->
-                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                                    Stock Quantity
-                                </label>
-
-                                <input type="number"
-                                    name="stock_quantity"
-                                    min="0"
-                                    x-model="edit.stock_quantity"
-                                    class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                                    required>
-                            </div>
-
-                            <div>
-                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                                    Unit Value
-                                </label>
-
-                                <input type="number"
-                                    name="unit_value"
-                                    min="0"
-                                    x-model="edit.unit_value"
-                                    class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                                    placeholder="30">
-                            </div>
-                        </div>
-
-                        <!-- Unit -->
-                        <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                                Unit
-                            </label>
-
-                            <select name="unit"
-                                x-model="edit.unit"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
-                                @foreach (['ml', 'L', 'g', 'kg', 'pcs'] as $unitOption)
-                                    <option value="{{ $unitOption }}">{{ $unitOption }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <!-- Expiration Date -->
-                        <div>
-                            <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                                Expiration Date
-                            </label>
-
-                            <input type="date"
-                                name="expiration_date"
-                                x-model="edit.expiration_date"
-                                class="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
-                        </div>
-
-                    </form>
-
-                    <!-- DEDUCT STOCK -->
-                    <div class="pt-5 mt-5 border-t dark:border-gray-700">
-
-                        <h4 class="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                            Deduct Stock
-                        </h4>
-
-                        <form method="POST"
-                            :action="`{{ url('/inventory/products') }}/${edit.id}/deduct`"
-                            class="space-y-4">
-
                             @csrf
-
-                            <input type="hidden"
-                                name="product_id"
-                                :value="edit.id">
+                            @method('PUT')
 
                             <div>
-                                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                                    Quantity to Deduct
+                                <label for="edit_product_name" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Product Name
                                 </label>
+                                <input id="edit_product_name" name="name" x-model="edit.name" required
+                                    class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
 
-                                <div class="flex items-center gap-2">
-                                    <input type="number"
-                                        name="amount"
-                                        min="1"
-                                        value="{{ old('amount') }}"
-                                        class="flex-1 px-3 py-2 text-sm border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                                        placeholder="Enter quantity"
-                                        required>
+                            <div>
+                                <label for="edit_product_brand" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Brand Name
+                                </label>
+                                <input id="edit_product_brand" name="brand" x-model="edit.brand" placeholder="Optional"
+                                    class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
 
-                                    <button type="submit"
-                                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:opacity-90 whitespace-nowrap">
-                                        Deduct Stock
-                                    </button>
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label for="edit_stock_quantity" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Stock Quantity
+                                    </label>
+                                    <input type="number" id="edit_stock_quantity" name="stock_quantity" min="0"
+                                        x-model="edit.stock_quantity" required
+                                        class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 </div>
 
-                                @error('amount', 'deductStock')
-                                    <p class="mt-1 text-xs text-red-600">
-                                        {{ $message }}
-                                    </p>
-                                @enderror
+                                <div>
+                                    <label for="edit_unit_value" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Unit Value
+                                    </label>
+                                    <input type="number" id="edit_unit_value" name="unit_value" min="0"
+                                        x-model="edit.unit_value" placeholder="30"
+                                        class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
                             </div>
 
+                            <div>
+                                <label for="edit_unit" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Unit
+                                </label>
+                                <select id="edit_unit" name="unit" x-model="edit.unit"
+                                    class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    @foreach (['ml', 'L', 'g', 'kg', 'pcs'] as $unitOption)
+                                        <option value="{{ $unitOption }}">{{ $unitOption }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="edit_expiration_date" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Expiration Date
+                                </label>
+                                <input type="date" id="edit_expiration_date" name="expiration_date"
+                                    x-model="edit.expiration_date"
+                                    class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
                         </form>
+
+                        <div class="pt-5 border-t border-gray-200 dark:border-gray-700">
+                            <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                                Deduct Stock
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Reduce the available quantity of this product.
+                            </p>
+
+                            <form method="POST"
+                                :action="`{{ url('/inventory/products') }}/${edit.id}/deduct`"
+                                class="mt-4 space-y-4">
+                                @csrf
+                                <input type="hidden" name="product_id" :value="edit.id">
+
+                                <div>
+                                    <label for="deduct_amount" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Quantity to Deduct
+                                    </label>
+
+                                    <div class="flex flex-col gap-2 sm:flex-row">
+                                        <input type="number" id="deduct_amount" name="amount" min="1"
+                                            value="{{ old('amount') }}" placeholder="Enter quantity" required
+                                            class="flex-1 min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
+                                        <button type="submit" class="{{ $btn['danger'] }}">
+                                            Deduct Stock
+                                        </button>
+                                    </div>
+
+                                    @error('amount', 'deductStock')
+                                        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </form>
+                        </div>
                     </div>
 
-                    <!-- MODAL ACTIONS -->
-                    <div class="flex items-center justify-end gap-2 pt-2">
-
-                        <button type="button"
-                            @click="editOpen = false"
-                            class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
+                    <div class="flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:justify-end sm:px-6 dark:border-gray-700">
+                        <button type="button" @click="editOpen = false" class="{{ $btn['secondary'] }}">
                             Close
                         </button>
-
-                        <button type="button"
-                            form="updateProductForm"
-                            @click="$el.closest('.p-6').querySelector('form[action*=\'/inventory/products/\']').submit()"
-                            class="px-4 py-2 text-sm font-medium text-white rounded-lg bg-[#8B7355] hover:opacity-90">
+                        <button type="submit" form="updateProductForm" class="{{ $btn['primary'] }}">
                             Save Changes
                         </button>
                     </div>
                 </div>
             </div>
         </div>
+    </template>
 
-        <!-- CSV Import Help Modal -->
-        <div x-show="importHelpOpen" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style="display:none;">
+    <div x-show="importHelpOpen" x-transition.opacity
+        class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/50"
+        :class="{ 'hidden': !importHelpOpen }">
 
-            <div class="absolute inset-0 bg-black/50" @click="importHelpOpen = false"></div>
+        <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+            <div role="dialog" aria-modal="true" aria-labelledby="csvHelpTitle"
+                @click.outside="importHelpOpen = false"
+                x-transition
+                class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
 
-            <div x-transition
-                class="relative w-full max-w-lg bg-white border shadow-lg rounded-xl dark:bg-gray-800 dark:border-gray-700">
+                <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                    <div>
+                        <h2 id="csvHelpTitle" class="text-lg font-semibold text-gray-900 dark:text-white">
+                            CSV Import Format
+                        </h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Follow the required format before importing inventory products.
+                        </p>
+                    </div>
 
-                <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">CSV Import Format</h3>
-                    <button type="button" @click="importHelpOpen = false"
-                        class="text-gray-500 hover:text-gray-800 dark:hover:text-white">
-                        <i class="fa-solid fa-xmark"></i>
+                    <button type="button" @click="importHelpOpen = false" aria-label="Close dialog"
+                        class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </button>
                 </div>
 
-                <div class="p-6 space-y-4">
+                <div class="px-4 py-6 space-y-4 sm:px-6">
                     <p class="text-sm text-gray-600 dark:text-gray-300">
                         Your CSV file must include the following columns, in this order:
                     </p>
 
-                    <div class="p-3 overflow-x-auto text-xs rounded-lg bg-gray-50 dark:bg-gray-900">
-                        <code class="text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                    <div class="p-4 overflow-x-auto rounded-2xl bg-gray-50 dark:bg-gray-900/40">
+                        <code class="text-xs text-gray-800 dark:text-gray-200 whitespace-nowrap">
                             name, brand, stock_quantity, unit_value, unit, expiration_date
                         </code>
                     </div>
 
-                    <ul class="space-y-1 text-sm text-gray-600 list-disc list-inside dark:text-gray-300">
-                        <li><span class="font-medium text-gray-800 dark:text-white">name</span> — required</li>
-                        <li><span class="font-medium text-gray-800 dark:text-white">brand</span> — optional, leave blank if
-                            none</li>
-                        <li><span class="font-medium text-gray-800 dark:text-white">stock_quantity</span> — required, whole
-                            number</li>
-                        <li><span class="font-medium text-gray-800 dark:text-white">unit_value</span> — number (e.g. 30,
-                            500)</li>
-                        <li><span class="font-medium text-gray-800 dark:text-white">unit</span> — one of: ml, L, g, kg, pcs
-                        </li>
-                        <li><span class="font-medium text-gray-800 dark:text-white">expiration_date</span> — format
-                            YYYY-MM-DD, optional</li>
+                    <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                        <li><span class="font-medium text-gray-900 dark:text-white">name</span> — required</li>
+                        <li><span class="font-medium text-gray-900 dark:text-white">brand</span> — optional</li>
+                        <li><span class="font-medium text-gray-900 dark:text-white">stock_quantity</span> — required, whole number</li>
+                        <li><span class="font-medium text-gray-900 dark:text-white">unit_value</span> — number, for example 30 or 500</li>
+                        <li><span class="font-medium text-gray-900 dark:text-white">unit</span> — ml, L, g, kg, or pcs</li>
+                        <li><span class="font-medium text-gray-900 dark:text-white">expiration_date</span> — YYYY-MM-DD, optional</li>
                     </ul>
 
-                    <div class="pt-2">
+                    <div>
                         <p class="mb-2 text-sm text-gray-600 dark:text-gray-300">Example row:</p>
-                        <div class="p-3 overflow-x-auto text-xs rounded-lg bg-gray-50 dark:bg-gray-900">
-                            <code class="text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                        <div class="p-4 overflow-x-auto rounded-2xl bg-gray-50 dark:bg-gray-900/40">
+                            <code class="text-xs text-gray-800 dark:text-gray-200 whitespace-nowrap">
                                 Aloe Vera Gel, Nature's Best, 24, 250, ml, 2027-03-15
                             </code>
                         </div>
                     </div>
 
-                    <div class="pt-2">
-                        <p class="mb-2 text-sm text-gray-600 dark:text-gray-300">How it should look in Excel/Sheets:</p>
-                        <a href="{{ asset('images/excelsample.png') }}" target="_blank" rel="noopener" class="block group">
+                    <div>
+                        <p class="mb-2 text-sm text-gray-600 dark:text-gray-300">
+                            How it should look in Excel / Sheets:
+                        </p>
+
+                        <a href="{{ asset('images/excelsample.png') }}"
+                            target="_blank" rel="noopener" class="block group">
                             <img src="{{ asset('images/excelsample.png') }}"
-                                alt="Example of the products CSV file opened in a spreadsheet, showing the name, brand, stock_quantity, unit_value, unit, and expiration_date columns"
-                                class="w-full transition-opacity border border-gray-200 rounded-lg cursor-zoom-in dark:border-gray-700 group-hover:opacity-90">
-                            <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Click to view full size</p>
+                                alt="Example of the products CSV file opened in a spreadsheet"
+                                class="w-full transition-opacity border border-gray-200 rounded-xl cursor-zoom-in dark:border-gray-700 group-hover:opacity-90">
+                            <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                                Click to view full size
+                            </p>
                         </a>
                     </div>
 
-                    <div class="flex items-center justify-end pt-4 border-t dark:border-gray-700">
-                        <button type="button" @click="importHelpOpen = false"
-                            class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
+                    <div class="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <button type="button" @click="importHelpOpen = false" class="{{ $btn['secondary'] }}">
                             Close
                         </button>
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
+</div>
+
 <script>
-    // Fires a temporary, invisible link click to trigger the browser's
-    // native file download without navigating the page away.
     function triggerSampleCsvDownload(url) {
         const link = document.createElement('a');
         link.href = url;
@@ -584,4 +600,55 @@
         document.body.removeChild(link);
     }
 </script>
+
+<style>
+@media (max-width: 767px) {
+    .rt,
+    .rt tbody,
+    .rt tr,
+    .rt td {
+        display: block;
+        width: 100%;
+    }
+
+    .rt thead {
+        display: none;
+    }
+
+    .rt tr {
+        padding: 0.75rem 1rem;
+    }
+
+    .rt td {
+        padding: 0.375rem 0 !important;
+        text-align: left !important;
+    }
+
+    .rt td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.125rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .rt td.rt-actions {
+        padding-top: 0.75rem !important;
+    }
+
+    .rt td.rt-empty {
+        padding: 2rem 0 !important;
+        text-align: center !important;
+    }
+}
+
+@media (max-width: 767px) and (prefers-color-scheme: dark) {
+    .rt td[data-label]::before {
+        color: #9ca3af;
+    }
+}
+</style>
 @endsection
