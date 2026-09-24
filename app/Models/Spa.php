@@ -20,10 +20,18 @@ class Spa extends Model
         'verification_remarks',
         'verified_at',
         'verified_by',
+        // Payroll v3
+        'payroll_first_cutoff_day',
+        'payroll_pay_day_offset',
+        'monthly_rate_divisor', // UNVERIFIED — required before monthly-paid staff can be run
     ];
 
     protected $casts = [
         'verified_at' => 'datetime',
+        // Payroll v3
+        'payroll_first_cutoff_day' => 'integer',
+        'payroll_pay_day_offset'   => 'integer',
+        'monthly_rate_divisor'     => 'integer',
     ];
 
     public function owner(): BelongsTo
