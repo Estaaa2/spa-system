@@ -304,6 +304,27 @@ final class StatutoryCalculator
     }
 
     // ------------------------------------------------------------------
+    // Hours of work — rates sheet §6 (Rev. 3)
+    // ------------------------------------------------------------------
+
+    /** Normal hours per day (hourly rate = daily ÷ this; OT starts after it). Decimal string, e.g. '8.00'. */
+    public function normalDailyHours(DateTimeInterface|string $date): string
+    {
+        $h = $this->effective('hours_of_work', $this->ymd($date));
+
+        return bcadd($this->positive($h['normal_daily_hours'], 'normal_daily_hours'), '0', 2);
+    }
+
+    /** Unpaid meal period subtracted from the clocked span before OT is counted (Art. 85). */
+    public function unpaidMealMinutes(DateTimeInterface|string $date): int
+    {
+        $h = $this->effective('hours_of_work', $this->ymd($date));
+        $minutes = $this->amount($h['unpaid_meal_minutes'], 'unpaid_meal_minutes');
+
+        return (int) bcadd($minutes, '0', 0);
+    }
+
+    // ------------------------------------------------------------------
     // Holidays — rates sheet §7
     // ------------------------------------------------------------------
 
