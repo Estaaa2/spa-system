@@ -6,7 +6,7 @@
 |--------------------------------------------------------------------------
 |
 | SOURCE RULE: every number and rule below is transcribed ONLY from
-| levictas-payroll-rates-sheet.md (Rev. 3, 2026-09-25). Each value cites the
+| levictas-payroll-rates-sheet.md (Rev. 4, 2026-09-28). Each value cites the
 | sheet section (§n) and the sheet's status:
 |
 |   OFFICIAL   read directly from a government document or site
@@ -38,7 +38,8 @@ $adoptedFrom = '2026-01-01';
 
 return [
 
-    'version' => '2026.3',   // 2026.3: rates sheet Rev. 3 (hours_of_work: normal hours, unpaid meal period)
+    'version' => '2026.4',   // 2026.4: rates sheet Rev. 4 (payment_timing: Art. 103 interval, 13th-month deadline)
+                            // 2026.3: rates sheet Rev. 3 (hours_of_work: normal hours, unpaid meal period)
                             // 2026.2: rates sheet Rev. 2 (PhilHealth date, EEMR factors, 2027 holidays)
 
     /*
@@ -195,15 +196,18 @@ return [
 
     /*
     |----------------------------------------------------------------------
-    | 13th month + other benefits tax exclusion — §5 — UNVERIFIED
+    | 13th month + other benefits tax exclusion — §5 / §13 — OFFICIAL (Rev. 4)
     |----------------------------------------------------------------------
-    | NIRC Sec. 32(B)(7)(e) as amended by RA 10963 (official text not read).
-    | Per calendar year; THIRTEENTH_MONTH is taxable only above this cap.
+    | RR 11-2018 Sec. 2.78.1(B)(11): 13th-month pay and other benefits are excluded
+    | "provided that the total amount shall not exceed ninety thousand pesos
+    | (₱ 90,000)" — read in the BIR digest (bir-cdn.bir.gov.ph). Implements
+    | NIRC Sec. 32(B)(7)(e) as amended by RA 10963. Per calendar year;
+    | THIRTEENTH_MONTH is taxable only above this cap.
     */
     'thirteenth_month_exemption_cap' => [
         [
             'effective_from' => $adoptedFrom,   // §5 gives no date — DESIGN adoption date
-            'annual_cap'     => '90000.00',     // §5 — UNVERIFIED
+            'annual_cap'     => '90000.00',     // §5 / §13 — OFFICIAL (RR 11-2018 Sec. 2.78.1(B)(11))
         ],
     ],
 
@@ -317,6 +321,30 @@ return [
 
     /*
     |----------------------------------------------------------------------
+    | Payment timing — §12 (Rev. 4)
+    |----------------------------------------------------------------------
+    | max_pay_interval_days  16 — "Wages shall be paid at least once every two
+    |                        (2) weeks or twice a month at intervals not exceeding
+    |                        sixteen (16) days" (Labor Code Art. 103 — VERIFY, text
+    |                        via non-government copies of P.D. 442). With a fixed
+    |                        pay-day offset the gap between pay dates equals the
+    |                        length of the later cutoff, so the run engine checks
+    |                        each cutoff's length against this number.
+    | thirteenth_month_deadline '12-24' (month-day) — 13th-month pay "shall be
+    |                        paid on or before 24 December" with no exemption or
+    |                        deferment (PD 851; DOLE Labor Advisory No. 16-25
+    |                        §IV–V, read from the signed advisory — OFFICIAL).
+    |                        The run engine warns when a 13th-month pay date is later.
+    | Not date-versioned (statutory, unchanged since 1974/1975): a change here
+    | requires a new `version`, like `components`.
+    */
+    'payment_timing' => [
+        'max_pay_interval_days'     => 16,       // §12 — VERIFY (Art. 103)
+        'thirteenth_month_deadline' => '12-24',  // §12 — OFFICIAL (PD 851; DOLE LA 16-25)
+    ],
+
+    /*
+    |----------------------------------------------------------------------
     | National holidays — §7 (2026) and §7b (2027) — OFFICIAL
     |----------------------------------------------------------------------
     | 2026: Proclamations 1006 s. 2025, 1189 s. 2026, 1264 s. 2026 —
@@ -387,11 +415,26 @@ return [
     |  is_taxable             every earning except ADJ_EARNING_NONTAX and
     |                         THIRTEENTH_MONTH (the latter taxable only above
     |                         thirteenth_month_exemption_cap).
-    |  in_13th_month_basis    BASIC, COMMISSION, MINWAGE_TOPUP only. DOLE 13th-month
-    |                         advisory excludes overtime, premium, night
+    |  in_13th_month_basis    BASIC, COMMISSION, MINWAGE_TOPUP only.
+    |                         Exclusions — overtime, premium, night shift
     |                         differential, holiday pay, allowances not integrated
-    |                         into basic; commission included per Philippine
-    |                         Duplicators v. NLRC. MINWAGE_TOPUP is UNVERIFIED.
+    |                         into basic, COLA: DOLE LA 16-25 §II (OFFICIAL).
+    |                         COMMISSION — POLICY CHOICE (decision B): LA 16-25
+    |                         §III cites Boie-Takeda and its worked example
+    |                         EXCLUDES commission, but its formula line reads
+    |                         "total fixed wage and commission". The SC en banc
+    |                         resolution in Philippine Duplicators v. NLRC
+    |                         (G.R. 110068, 15 Feb 1995 — VERIFY, ChanRobles copy)
+    |                         INCLUDES commissions that are a pre-determined % of
+    |                         each sale by the employee, and limits Boie-Takeda to
+    |                         productivity bonuses. Levictas commission rules are a
+    |                         fixed % / flat amount per service the therapist
+    |                         performs, so Duplicators applies. The law sets a
+    |                         minimum (1/12), so including it never under-pays.
+    |                         MINWAGE_TOPUP — LA 16-25 fn. 2: the fixed or
+    |                         guaranteed wage "should not be lower than the minimum
+    |                         wage rate", so the top-up is part of the guaranteed
+    |                         wage (VERIFY — Levictas reading of official text).
     |  counts_toward_min_wage BASIC and COMMISSION only (DOLE: workers paid by
     |                         results must receive at least the minimum wage for
     |                         normal hours). COMMISSION is UNVERIFIED-by-policy.
@@ -421,7 +464,8 @@ return [
         ],
         'COMMISSION' => [
             'kind' => 'earning', 'label' => 'Commission',
-            'is_taxable' => true, 'in_13th_month_basis' => true,
+            'is_taxable' => true,
+            'in_13th_month_basis' => true,           // decision B: Philippine Duplicators (VERIFY) vs LA 16-25 example
             'counts_toward_min_wage' => true,        // UNVERIFIED-by-policy
             'in_sss_compensation' => true, 'in_philhealth_mbs' => false,
             'in_pagibig_fund_salary' => false,       // UNVERIFIED
@@ -464,7 +508,7 @@ return [
         'MINWAGE_TOPUP' => [
             'kind' => 'earning', 'label' => 'Minimum Wage Top-up',
             'is_taxable' => true,
-            'in_13th_month_basis' => true,           // UNVERIFIED
+            'in_13th_month_basis' => true,           // VERIFY — LA 16-25 fn. 2 (guaranteed wage ≥ minimum wage)
             'counts_toward_min_wage' => false,
             'in_sss_compensation' => true, 'in_philhealth_mbs' => false,
             'in_pagibig_fund_salary' => false,       // UNVERIFIED

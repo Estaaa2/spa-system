@@ -33,9 +33,10 @@ final class StatutoryCalculatorHoursOfWorkTest extends TestCase
         $this->assertSame(60, $this->calc->unpaidMealMinutes('2026-09-20'));
     }
 
-    public function test_config_version_is_2026_3(): void
+    public function test_config_version_is_2026_4(): void
     {
-        $this->assertSame('2026.3', $this->calc->version());
+        // 2026.4 (rates sheet Rev. 4) added `payment_timing`; bump this pin with every config version.
+        $this->assertSame('2026.4', $this->calc->version());
     }
 
     public function test_hours_of_work_before_adoption_date_throws(): void
