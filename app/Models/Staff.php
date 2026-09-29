@@ -62,11 +62,6 @@ class Staff extends Model
         return $this->hasMany(StaffAttendance::class);
     }
 
-    public function payrolls()
-    {
-        return $this->hasMany(Payroll::class);
-    }
-
     public function deployments()
     {
         return $this->hasMany(\App\Models\StaffBranchDeployment::class);

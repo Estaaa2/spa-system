@@ -23,6 +23,9 @@ class PayrollUserFactory extends Factory
             'email'      => $this->faker->unique()->safeEmail(),
             'password'   => Hash::make('password'),
             'status'     => 'active',
+            // The business route group requires `verified` (User implements MustVerifyEmail),
+            // same default as Laravel's own UserFactory.
+            'email_verified_at' => now(),
         ];
     }
 }
