@@ -76,6 +76,7 @@ class PayrollRun extends Model
         'approved_at'  => 'datetime',
         'finalized_at' => 'datetime',
         'released_at'  => 'datetime',
+        'review'       => 'array',
     ];
 
     protected static function booted(): void
