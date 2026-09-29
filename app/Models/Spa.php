@@ -23,7 +23,8 @@ class Spa extends Model
         // Payroll v3
         'payroll_first_cutoff_day',
         'payroll_pay_day_offset',
-        'monthly_rate_divisor', // UNVERIFIED — required before monthly-paid staff can be run
+        // monthly_rate_divisor: DEPRECATED (data model v3.1) — never read or written.
+        // Days-per-year factors are derived (StatutoryCalculator::eemrFactor).
     ];
 
     protected $casts = [
@@ -31,7 +32,6 @@ class Spa extends Model
         // Payroll v3
         'payroll_first_cutoff_day' => 'integer',
         'payroll_pay_day_offset'   => 'integer',
-        'monthly_rate_divisor'     => 'integer',
     ];
 
     public function owner(): BelongsTo
