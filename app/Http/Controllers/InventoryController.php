@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\InventoryStockService;
 use App\Models\BranchProductStock;
 use App\Models\Branch;
 use Carbon\Carbon;
@@ -11,12 +12,16 @@ use App\Models\ProductBatch;
 use App\Models\StockMovement;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class InventoryController extends Controller
 {
-    public function products(Request $request)
+    private const MAX_STOCK_QUANTITY = 20000;
+
+    public function products(Request $request, InventoryStockService $inventoryStockService)
     {
         $user = $request->user();
         $spaId = $user->spa_id;
@@ -46,9 +51,23 @@ class InventoryController extends Controller
             ->paginate(5)
             ->withQueryString();
 
-        $products->getCollection()->transform(function ($product) {
+        $products->getCollection()->transform(function ($product) use (
+            $inventoryStockService,
+            $spaId,
+            $branchId
+        ) {
             $product->branch_stock = $product->branchStocks->first();
             $product->nearest_expiration = $product->batches->first()?->expiration_date;
+
+            $reconciliation = $inventoryStockService->reconciliationStatus(
+                $product,
+                $spaId,
+                $branchId
+            );
+
+            $product->batch_quantity = $reconciliation['batch_quantity'];
+            $product->stock_difference = $reconciliation['difference'];
+            $product->inventory_reconciled = $reconciliation['is_reconciled'];
 
             return $product;
         });
@@ -85,16 +104,71 @@ class InventoryController extends Controller
                 'required',
                 Rule::in(['ml', 'L', 'g', 'kg', 'pcs']),
             ],
-            'conversion_factor' => ['required', 'numeric', 'gt:0'],
+            'conversion_factor' => [
+                'required',
+                'numeric',
+                'gt:0',
+                'decimal:0,3',
+                'max:20000',
+            ],
             'retail_price' => ['nullable', 'numeric', 'min:0'],
             'acquisition_cost' => ['nullable', 'numeric', 'min:0'],
-            'opening_stock' => ['required', 'numeric', 'min:0'],
-            'reorder_level' => ['required', 'numeric', 'min:0'],
-            'minimum_stock' => ['nullable', 'numeric', 'min:0'],
-            'maximum_stock' => ['nullable', 'numeric', 'min:0'],
+            'opening_stock' => [
+                'required',
+                'numeric',
+                'min:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+            'reorder_level' => [
+                'required',
+                'numeric',
+                'min:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+            'minimum_stock' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+            'maximum_stock' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+        ], [
+            'opening_stock.max' => 'Opening stock cannot exceed 20,000 units.',
+            'opening_stock.decimal' => 'Opening stock can have a maximum of 3 decimal places.',
+            'reorder_level.max' => 'Reorder level cannot exceed 20,000 units.',
+            'reorder_level.decimal' => 'Reorder level can have a maximum of 3 decimal places.',
+            'minimum_stock.max' => 'Minimum stock cannot exceed 20,000 units.',
+            'minimum_stock.decimal' => 'Minimum stock can have a maximum of 3 decimal places.',
+            'maximum_stock.max' => 'Maximum stock cannot exceed 20,000 units.',
+            'maximum_stock.decimal' => 'Maximum stock can have a maximum of 3 decimal places.',
+            'conversion_factor.gt' => 'Conversion factor must be greater than zero.',
+            'conversion_factor.decimal' => 'Conversion factor can have a maximum of 3 decimal places.',
+            'conversion_factor.max' => 'Conversion factor cannot exceed 20,000 units per purchase unit.',
         ]);
 
+        $this->validateStockThresholds($data);
+
+        if (
+            $data['maximum_stock'] !== null &&
+            (float) $data['opening_stock'] > (float) $data['maximum_stock']
+        ) {
+            throw ValidationException::withMessages([
+                'opening_stock' => 'Opening stock cannot be greater than the configured maximum stock.',
+            ]);
+        }
+
         DB::transaction(function () use ($data, $spaId, $branchId, $user) {
+            $openingStock = round((float) $data['opening_stock'], 3);
+
             $product = Product::create([
                 'spa_id' => $spaId,
                 'sku' => $data['sku'] ?? null,
@@ -120,23 +194,36 @@ class InventoryController extends Controller
                 'spa_id' => $spaId,
                 'branch_id' => $branchId,
                 'product_id' => $product->id,
-                'on_hand_quantity' => $data['opening_stock'],
+                'on_hand_quantity' => $openingStock,
                 'reorder_level' => $data['reorder_level'],
                 'minimum_stock' => $data['minimum_stock'] ?? null,
                 'maximum_stock' => $data['maximum_stock'] ?? null,
             ]);
 
-            if ((float) $data['opening_stock'] > 0) {
+            if ($openingStock > 0) {
+                $batch = ProductBatch::create([
+                    'spa_id' => $spaId,
+                    'branch_id' => $branchId,
+                    'product_id' => $product->id,
+                    'batch_number' => 'OPENING-' . $branchId . '-' . $product->id,
+                    'received_quantity' => $openingStock,
+                    'remaining_quantity' => $openingStock,
+                    'unit_cost' => $product->acquisition_cost,
+                    'manufactured_at' => null,
+                    'expiration_date' => null,
+                    'received_at' => now(),
+                ]);
+
                 StockMovement::create([
                     'spa_id' => $spaId,
                     'branch_id' => $branchId,
                     'product_id' => $product->id,
-                    'product_batch_id' => null,
+                    'product_batch_id' => $batch->id,
                     'user_id' => $user->id,
                     'booking_id' => null,
                     'movement_type' => 'opening_balance',
                     'direction' => 'in',
-                    'quantity' => $data['opening_stock'],
+                    'quantity' => $openingStock,
                     'unit' => $data['usage_unit'],
                     'balance_before' => 0,
                     'balance_after' => $stock->on_hand_quantity,
@@ -196,13 +283,59 @@ class InventoryController extends Controller
                 'required',
                 Rule::in(['ml', 'L', 'g', 'kg', 'pcs']),
             ],
-            'conversion_factor' => ['required', 'numeric', 'gt:0'],
+            'conversion_factor' => [
+                'required',
+                'numeric',
+                'gt:0',
+                'decimal:0,3',
+                'max:20000',
+            ],
             'retail_price' => ['nullable', 'numeric', 'min:0'],
             'acquisition_cost' => ['nullable', 'numeric', 'min:0'],
-            'reorder_level' => ['required', 'numeric', 'min:0'],
-            'minimum_stock' => ['nullable', 'numeric', 'min:0'],
-            'maximum_stock' => ['nullable', 'numeric', 'min:0'],
+            'reorder_level' => [
+                'required',
+                'numeric',
+                'min:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+            'minimum_stock' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+            'maximum_stock' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+        ], [
+            'reorder_level.max' => 'Reorder level cannot exceed 20,000 units.',
+            'reorder_level.decimal' => 'Reorder level can have a maximum of 3 decimal places.',
+            'minimum_stock.max' => 'Minimum stock cannot exceed 20,000 units.',
+            'minimum_stock.decimal' => 'Minimum stock can have a maximum of 3 decimal places.',
+            'maximum_stock.max' => 'Maximum stock cannot exceed 20,000 units.',
+            'maximum_stock.decimal' => 'Maximum stock can have a maximum of 3 decimal places.',
         ]);
+
+        $this->validateStockThresholds($data);
+
+        if (
+            $data['maximum_stock'] !== null &&
+            (float) $stock->on_hand_quantity > (float) $data['maximum_stock']
+        ) {
+            throw ValidationException::withMessages([
+                'maximum_stock' => sprintf(
+                    'Maximum stock cannot be lower than the current branch stock of %s %s.',
+                    $this->formatQuantity((float) $stock->on_hand_quantity),
+                    $product->usage_unit ?: $product->unit ?: 'pcs'
+                ),
+            ]);
+        }
 
         DB::transaction(function () use ($data, $product, $stock, $spaId, $user) {
             $product->update([
@@ -239,8 +372,11 @@ class InventoryController extends Controller
         return back()->with('success', 'Product updated successfully.');
     }
 
-    public function adjustStock(Request $request, Product $product)
-    {
+    public function adjustStock(
+        Request $request,
+        Product $product,
+        InventoryStockService $inventoryStockService
+    ) {
         $user = $request->user();
         $spaId = $user->spa_id;
         $branchId = $user->currentBranchId();
@@ -252,30 +388,115 @@ class InventoryController extends Controller
         }
 
         $data = $request->validateWithBag('adjustStock', [
-            'adjustment_type' => ['required', Rule::in(['increase', 'decrease'])],
-            'quantity' => ['required', 'numeric', 'gt:0'],
-            'reason' => ['required', 'string', 'max:1000'],
+            'adjustment_type' => [
+                'required',
+                Rule::in(['increase', 'decrease']),
+            ],
+            'quantity' => [
+                'required',
+                'numeric',
+                'gt:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+            'reason' => [
+                'required',
+                'string',
+                'min:3',
+                'max:1000',
+            ],
+        ], [
+            'quantity.gt' => 'The stock quantity must be greater than zero.',
+            'quantity.decimal' => 'Stock quantity can have a maximum of 3 decimal places.',
+            'quantity.max' => 'A single stock adjustment cannot exceed 20,000 units.',
+            'reason.min' => 'Please provide a meaningful reason for the stock adjustment.',
         ]);
 
-        DB::transaction(function () use ($data, $product, $spaId, $branchId, $user) {
-            $stock = BranchProductStock::where('spa_id', $spaId)
+        DB::transaction(function () use (
+            $data,
+            $product,
+            $spaId,
+            $branchId,
+            $user,
+            $inventoryStockService
+        ) {
+            $quantity = round((float) $data['quantity'], 3);
+
+            if ($data['adjustment_type'] === 'decrease') {
+                $inventoryStockService->consumeFefo(
+                    product: $product,
+                    spaId: $spaId,
+                    branchId: $branchId,
+                    quantity: $quantity,
+                    movementType: 'adjustment_out',
+                    userId: $user->id,
+                    referenceType: 'manual_adjustment',
+                    referenceId: $product->id,
+                    notes: $data['reason']
+                );
+
+                ProductLog::create([
+                    'spa_id' => $spaId,
+                    'product_id' => $product->id,
+                    'user_id' => $user->id,
+                    'description' => sprintf(
+                        '%s decreased by %s %s. Reason: %s',
+                        $product->name,
+                        $this->formatQuantity($quantity),
+                        $product->usage_unit ?: $product->unit ?: 'pcs',
+                        $data['reason']
+                    ),
+                    'logged_at' => now(),
+                ]);
+
+                return;
+            }
+
+            $stock = BranchProductStock::query()
+                ->where('spa_id', $spaId)
                 ->where('branch_id', $branchId)
                 ->where('product_id', $product->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $before = (float) $stock->on_hand_quantity;
-            $quantity = (float) $data['quantity'];
+            $before = round((float) $stock->on_hand_quantity, 3);
+            $after = round($before + $quantity, 3);
 
-            if ($data['adjustment_type'] === 'decrease' && $before < $quantity) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'quantity' => 'The adjustment exceeds the available stock.',
+            if ($after > self::MAX_STOCK_QUANTITY) {
+                throw ValidationException::withMessages([
+                    'quantity' => sprintf(
+                        'This adjustment would increase branch stock to %s %s. Branch stock cannot exceed 20,000 units.',
+                        $this->formatQuantity($after),
+                        $product->usage_unit ?: $product->unit ?: 'pcs'
+                    ),
                 ])->errorBag('adjustStock');
             }
 
-            $after = $data['adjustment_type'] === 'increase'
-                ? $before + $quantity
-                : $before - $quantity;
+            if (
+                $stock->maximum_stock !== null &&
+                $after > (float) $stock->maximum_stock
+            ) {
+                throw ValidationException::withMessages([
+                    'quantity' => sprintf(
+                        'This adjustment would exceed the configured maximum stock of %s %s.',
+                        $this->formatQuantity((float) $stock->maximum_stock),
+                        $product->usage_unit ?: $product->unit ?: 'pcs'
+                    ),
+                ])->errorBag('adjustStock');
+            }
+
+            $batch = ProductBatch::create([
+                'spa_id' => $spaId,
+                'branch_id' => $branchId,
+                'product_id' => $product->id,
+                'batch_number' => 'ADJ-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(6)),
+                'received_quantity' => $quantity,
+                'remaining_quantity' => $quantity,
+                'unit_cost' => null,
+                'manufactured_at' => null,
+                'expiration_date' => null,
+                'received_at' => now(),
+            ]);
 
             $stock->update([
                 'on_hand_quantity' => $after,
@@ -285,19 +506,17 @@ class InventoryController extends Controller
                 'spa_id' => $spaId,
                 'branch_id' => $branchId,
                 'product_id' => $product->id,
-                'product_batch_id' => null,
+                'product_batch_id' => $batch->id,
                 'user_id' => $user->id,
                 'booking_id' => null,
-                'movement_type' => $data['adjustment_type'] === 'increase'
-                    ? 'adjustment_in'
-                    : 'adjustment_out',
-                'direction' => $data['adjustment_type'] === 'increase' ? 'in' : 'out',
+                'movement_type' => 'adjustment_in',
+                'direction' => 'in',
                 'quantity' => $quantity,
                 'unit' => $product->usage_unit ?: $product->unit ?: 'pcs',
                 'balance_before' => $before,
                 'balance_after' => $after,
                 'reference_type' => 'manual_adjustment',
-                'reference_id' => null,
+                'reference_id' => $product->id,
                 'notes' => $data['reason'],
                 'occurred_at' => now(),
             ]);
@@ -306,12 +525,18 @@ class InventoryController extends Controller
                 'spa_id' => $spaId,
                 'product_id' => $product->id,
                 'user_id' => $user->id,
-                'description' => "{$product->name} stock adjusted from {$before} to {$after}",
+                'description' => sprintf(
+                    '%s increased by %s %s. Reason: %s',
+                    $product->name,
+                    $this->formatQuantity($quantity),
+                    $product->usage_unit ?: $product->unit ?: 'pcs',
+                    $data['reason']
+                ),
                 'logged_at' => now(),
             ]);
         });
 
-        return back()->with('success', 'Stock adjusted successfully.');
+        return back()->with('success', 'Stock adjustment recorded successfully.');
     }
 
     public function receiveStock(Request $request, Product $product)
@@ -337,16 +562,50 @@ class InventoryController extends Controller
                         ->where('branch_id', $branchId)
                         ->where('product_id', $product->id)),
             ],
-            'received_quantity' => ['required', 'numeric', 'gt:0'],
-            'unit_cost' => ['nullable', 'numeric', 'min:0'],
-            'manufactured_at' => ['nullable', 'date'],
+            'received_quantity' => [
+                'required',
+                'numeric',
+                'gt:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
+            ],
+            'unit_cost' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'decimal:0,2',
+            ],
+            'manufactured_at' => [
+                'nullable',
+                'date',
+                'before_or_equal:today',
+            ],
             'expiration_date' => [
                 'nullable',
                 'date',
-                'after_or_equal:manufactured_at',
+                'after_or_equal:today',
             ],
             'notes' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'received_quantity.gt' => 'Received quantity must be greater than zero.',
+            'received_quantity.decimal' => 'Received quantity can have a maximum of 3 decimal places.',
+            'received_quantity.max' => 'A single stock receipt cannot exceed 20,000 units.',
+            'unit_cost.decimal' => 'Unit cost can have a maximum of 2 decimal places.',
+            'manufactured_at.before_or_equal' => 'Manufacturing date cannot be in the future.',
+            'expiration_date.after_or_equal' => 'Expiration date cannot be earlier than today.',
         ]);
+
+        if (
+            !empty($data['manufactured_at']) &&
+            !empty($data['expiration_date']) &&
+            Carbon::parse($data['expiration_date'])->lt(
+                Carbon::parse($data['manufactured_at'])
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'expiration_date' => 'Expiration date cannot be earlier than the manufacturing date.',
+            ])->errorBag('receiveStock');
+        }
 
         DB::transaction(function () use ($data, $product, $spaId, $branchId, $user) {
             $stock = BranchProductStock::where('spa_id', $spaId)
@@ -355,9 +614,32 @@ class InventoryController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $before = (float) $stock->on_hand_quantity;
-            $quantity = (float) $data['received_quantity'];
-            $after = $before + $quantity;
+            $before = round((float) $stock->on_hand_quantity, 3);
+            $quantity = round((float) $data['received_quantity'], 3);
+            $after = round($before + $quantity, 3);
+
+            if ($after > self::MAX_STOCK_QUANTITY) {
+                throw ValidationException::withMessages([
+                    'received_quantity' => sprintf(
+                        'Receiving this stock would increase branch stock to %s %s. Branch stock cannot exceed 20,000 units.',
+                        $this->formatQuantity($after),
+                        $product->usage_unit ?: $product->unit ?: 'pcs'
+                    ),
+                ])->errorBag('receiveStock');
+            }
+
+            if (
+                $stock->maximum_stock !== null &&
+                $after > (float) $stock->maximum_stock
+            ) {
+                throw ValidationException::withMessages([
+                    'received_quantity' => sprintf(
+                        'Receiving this stock would exceed the configured maximum stock of %s %s.',
+                        $this->formatQuantity((float) $stock->maximum_stock),
+                        $product->usage_unit ?: $product->unit ?: 'pcs'
+                    ),
+                ])->errorBag('receiveStock');
+            }
 
             $batch = ProductBatch::create([
                 'spa_id' => $spaId,
@@ -399,7 +681,12 @@ class InventoryController extends Controller
                 'spa_id' => $spaId,
                 'product_id' => $product->id,
                 'user_id' => $user->id,
-                'description' => "{$product->name} received {$quantity} {$product->usage_unit}",
+                'description' => sprintf(
+                    '%s received %s %s',
+                    $product->name,
+                    $this->formatQuantity($quantity),
+                    $product->usage_unit ?: $product->unit ?: 'pcs'
+                ),
                 'logged_at' => now(),
             ]);
         });
@@ -555,12 +842,20 @@ class InventoryController extends Controller
                 'required',
                 'numeric',
                 'gt:0',
+                'decimal:0,3',
+                'max:' . self::MAX_STOCK_QUANTITY,
             ],
             'reason' => [
                 'required',
                 'string',
+                'min:3',
                 'max:1000',
             ],
+        ], [
+            'quantity.gt' => 'Loss quantity must be greater than zero.',
+            'quantity.decimal' => 'Loss quantity can have a maximum of 3 decimal places.',
+            'quantity.max' => 'Loss quantity cannot exceed 20,000 units.',
+            'reason.min' => 'Please provide a meaningful reason for the inventory loss.',
         ]);
 
         DB::transaction(function () use ($data, $batch, $spaId, $branchId, $user) {
@@ -582,18 +877,18 @@ class InventoryController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $quantity = (float) $data['quantity'];
-            $batchRemaining = (float) $lockedBatch->remaining_quantity;
-            $branchOnHand = (float) $stock->on_hand_quantity;
+            $quantity = round((float) $data['quantity'], 3);
+            $batchRemaining = round((float) $lockedBatch->remaining_quantity, 3);
+            $branchOnHand = round((float) $stock->on_hand_quantity, 3);
 
             if ($quantity > $batchRemaining) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'quantity' => 'The quantity exceeds the remaining stock in this batch.',
                 ])->errorBag('batchLoss');
             }
 
             if ($quantity > $branchOnHand) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'quantity' => 'The quantity exceeds the available branch stock.',
                 ])->errorBag('batchLoss');
             }
@@ -605,16 +900,38 @@ class InventoryController extends Controller
                     !$lockedBatch->expiration_date->lt(today())
                 )
             ) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'loss_type' => 'Only an expired batch can be recorded as expired stock.',
                 ])->errorBag('batchLoss');
             }
 
             $before = $branchOnHand;
-            $after = $before - $quantity;
+            $after = round($before - $quantity, 3);
+
+            if ($after < 0) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'This loss would result in negative branch stock.',
+                ])->errorBag('batchLoss');
+            }
+
+            if (abs($after) <= 0.001) {
+                $after = 0;
+            }
+
+            $newBatchRemaining = round($batchRemaining - $quantity, 3);
+
+            if ($newBatchRemaining < 0) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'This loss would result in negative batch stock.',
+                ])->errorBag('batchLoss');
+            }
+
+            if (abs($newBatchRemaining) <= 0.001) {
+                $newBatchRemaining = 0;
+            }
 
             $lockedBatch->update([
-                'remaining_quantity' => $batchRemaining - $quantity,
+                'remaining_quantity' => $newBatchRemaining,
             ]);
 
             $stock->update([
@@ -647,7 +964,7 @@ class InventoryController extends Controller
                 'description' => sprintf(
                     '%s: %s %s removed from batch %s. Reason: %s',
                     ucwords($data['loss_type']),
-                    rtrim(rtrim(number_format($quantity, 3, '.', ''), '0'), '.'),
+                    $this->formatQuantity($quantity),
                     $product->usage_unit ?: $product->unit ?: 'pcs',
                     $lockedBatch->batch_number,
                     $data['reason']
@@ -659,15 +976,22 @@ class InventoryController extends Controller
         return back()->with('success', 'Inventory loss recorded successfully.');
     }
 
-    public function deduct(Request $request, Product $product)
-    {
+    public function deduct(
+        Request $request,
+        Product $product,
+        InventoryStockService $inventoryStockService
+    ) {
         $request->merge([
             'adjustment_type' => 'decrease',
             'quantity' => $request->input('amount'),
             'reason' => $request->input('reason', 'Legacy manual stock deduction.'),
         ]);
 
-        return $this->adjustStock($request, $product);
+        return $this->adjustStock(
+            $request,
+            $product,
+            $inventoryStockService
+        );
     }
 
     public function destroy(Request $request, Product $product)
@@ -869,6 +1193,54 @@ class InventoryController extends Controller
 
         return $pdf->download(
             'inventory-stock-movements-' . now()->format('Y-m-d-His') . '.pdf'
+        );
+    }
+
+    private function validateStockThresholds(array $data): void
+    {
+        $minimumStock = $data['minimum_stock'] ?? null;
+        $reorderLevel = $data['reorder_level'] ?? null;
+        $maximumStock = $data['maximum_stock'] ?? null;
+
+        if (
+            $minimumStock !== null &&
+            $reorderLevel !== null &&
+            (float) $minimumStock > (float) $reorderLevel
+        ) {
+            throw ValidationException::withMessages([
+                'minimum_stock' => 'Minimum stock cannot be greater than the reorder level.',
+            ]);
+        }
+
+        if (
+            $maximumStock !== null &&
+            $reorderLevel !== null &&
+            (float) $reorderLevel > (float) $maximumStock
+        ) {
+            throw ValidationException::withMessages([
+                'reorder_level' => 'Reorder level cannot be greater than maximum stock.',
+            ]);
+        }
+
+        if (
+            $minimumStock !== null &&
+            $maximumStock !== null &&
+            (float) $minimumStock > (float) $maximumStock
+        ) {
+            throw ValidationException::withMessages([
+                'minimum_stock' => 'Minimum stock cannot be greater than maximum stock.',
+            ]);
+        }
+    }
+
+    private function formatQuantity(float $quantity): string
+    {
+        return rtrim(
+            rtrim(
+                number_format($quantity, 3, '.', ''),
+                '0'
+            ),
+            '.'
         );
     }
 }

@@ -676,8 +676,12 @@
                                         <input type="number"
                                             id="loss_quantity"
                                             name="quantity"
+                                            min="0"
+                                            max="20000"
                                             step="0.001"
-                                            min="0.001"
+                                            inputmode="decimal"
+                                            data-stock-limit="20000"
+                                            data-stock-decimals="3"
                                             :max="lossBatch.remaining_quantity"
                                             value="{{ old('quantity') }}"
                                             required

@@ -254,11 +254,30 @@
                                             Low Stock
                                         </span>
                                     @endif
+
+                                    @if(!$product->inventory_reconciled)
+                                        <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300"
+                                            title="Branch stock and batch stock do not match. Inventory should be reconciled before further deductions.">
+                                            <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                            Stock Mismatch
+                                        </span>
+                                    @endif
+
                                 </div>
                                 @if($reorderLevel > 0)
                                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         Reorder at
                                         {{ rtrim(rtrim(number_format($reorderLevel, 3, '.', ''), '0'), '.') }}
+                                    </p>
+                                @endif
+                                @if(!$product->inventory_reconciled)
+                                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                        Batch total:
+                                        {{ rtrim(rtrim(number_format((float) $product->batch_quantity, 3, '.', ''), '0'), '.') }}
+                                        {{ $product->usage_unit ?? $product->unit ?? 'pcs' }}
+
+                                        · Difference:
+                                        {{ rtrim(rtrim(number_format((float) $product->stock_difference, 3, '.', ''), '0'), '.') }}
                                     </p>
                                 @endif
                             </td>
@@ -709,8 +728,12 @@
                                 <input type="number"
                                     id="add_conversion_factor"
                                     name="conversion_factor"
-                                    step="0.001"
                                     min="0.001"
+                                    max="20000"
+                                    step="0.001"
+                                    inputmode="decimal"
+                                    data-stock-limit="20000"
+                                    data-stock-decimals="3"
                                     value="{{ old('conversion_factor', 1) }}"
                                     required
                                     class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -785,8 +808,12 @@
                                     <input type="number"
                                         id="add_opening_stock"
                                         name="opening_stock"
-                                        step="0.001"
                                         min="0"
+                                        max="20000"
+                                        step="0.001"
+                                        inputmode="decimal"
+                                        data-stock-limit="20000"
+                                        data-stock-decimals="3"
                                         value="{{ old('opening_stock', 0) }}"
                                         required
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -807,8 +834,12 @@
                                     <input type="number"
                                         id="add_reorder_level"
                                         name="reorder_level"
-                                        step="0.001"
                                         min="0"
+                                        max="20000"
+                                        step="0.001"
+                                        inputmode="decimal"
+                                        data-stock-limit="20000"
+                                        data-stock-decimals="3"
                                         value="{{ old('reorder_level', 5) }}"
                                         required
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -833,8 +864,12 @@
                                     <input type="number"
                                         id="add_minimum_stock"
                                         name="minimum_stock"
-                                        step="0.001"
                                         min="0"
+                                        max="20000"
+                                        step="0.001"
+                                        inputmode="decimal"
+                                        data-stock-limit="20000"
+                                        data-stock-decimals="3"
                                         value="{{ old('minimum_stock') }}"
                                         placeholder="Optional"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -855,8 +890,12 @@
                                     <input type="number"
                                         id="add_maximum_stock"
                                         name="maximum_stock"
-                                        step="0.001"
                                         min="0"
+                                        max="20000"
+                                        step="0.001"
+                                        inputmode="decimal"
+                                        data-stock-limit="20000"
+                                        data-stock-decimals="3"
                                         value="{{ old('maximum_stock') }}"
                                         placeholder="Optional"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -986,8 +1025,12 @@
                                     <input type="number"
                                         id="receive_quantity"
                                         name="received_quantity"
+                                        min="0"
+                                        max="20000"
                                         step="0.001"
-                                        min="0.001"
+                                        inputmode="decimal"
+                                        data-stock-limit="20000"
+                                        data-stock-decimals="3"
                                         value="{{ old('received_quantity') }}"
                                         required
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-l-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -1316,8 +1359,12 @@
                                 <input type="number"
                                     id="edit_conversion_factor"
                                     name="conversion_factor"
-                                    step="0.001"
                                     min="0.001"
+                                    max="20000"
+                                    step="0.001"
+                                    inputmode="decimal"
+                                    data-stock-limit="20000"
+                                    data-stock-decimals="3"
                                     x-model="edit.conversion_factor"
                                     required
                                     class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -1390,8 +1437,12 @@
                                     <input type="number"
                                         id="edit_minimum_stock"
                                         name="minimum_stock"
-                                        step="0.001"
                                         min="0"
+                                        max="20000"
+                                        step="0.001"
+                                        inputmode="decimal"
+                                        data-stock-limit="20000"
+                                        data-stock-decimals="3"
                                         x-model="edit.minimum_stock"
                                         placeholder="Optional"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -1406,8 +1457,12 @@
                                     <input type="number"
                                         id="edit_maximum_stock"
                                         name="maximum_stock"
-                                        step="0.001"
                                         min="0"
+                                        max="20000"
+                                        step="0.001"
+                                        inputmode="decimal"
+                                        data-stock-limit="20000"
+                                        data-stock-decimals="3"
                                         x-model="edit.maximum_stock"
                                         placeholder="Optional"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -1492,8 +1547,12 @@
                                             <input type="number"
                                                 id="adjustment_quantity"
                                                 name="quantity"
-                                                step="0.001"
                                                 min="0.001"
+                                                max="20000"
+                                                step="0.001"
+                                                inputmode="decimal"
+                                                data-stock-limit="20000"
+                                                data-stock-decimals="3"
                                                 value="{{ old('quantity') }}"
                                                 placeholder="Enter quantity"
                                                 required
@@ -1533,36 +1592,52 @@
                                         </p>
                                     @enderror
                                 </div>
-
-                                <div class="flex justify-end">
-                                    <button type="submit"
-                                        class="w-full {{ $btn['outline'] }} sm:w-auto">
-                                        <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>
-                                        Apply Stock Adjustment
-                                    </button>
-                                </div>
-
                             </form>
                         </div>
 
                     </div>
 
-                    <div class="flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:justify-end sm:px-6 dark:border-gray-700">
-
-                        <button type="button"
-                            @click="editOpen = false"
-                            class="w-full {{ $btn['secondary'] }} sm:w-auto">
-                            Close
-                        </button>
-
-                        <button type="submit"
-                            form="updateProductForm"
-                            class="w-full {{ $btn['primary'] }} sm:w-auto">
-                            Save Changes
-                        </button>
-
+                    <div class="flex flex-col gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:items-center sm:justify-end sm:px-6 dark:border-gray-700">
+                        <div class="relative w-full group sm:w-auto">
+                            <button type="button"
+                                @click="editOpen = false"
+                                aria-describedby="closeProductHelp"
+                                class="w-full {{ $btn['secondary'] }} sm:w-auto">
+                                Close
+                            </button>
+                            <div id="closeProductHelp"
+                                role="tooltip"
+                                class="absolute z-20 hidden w-56 p-3 mb-2 text-xs text-white -translate-x-1/2 bg-gray-900 shadow-lg pointer-events-none bottom-full left-1/2 rounded-xl group-hover:block group-focus-within:block dark:bg-gray-950">
+                                Close this window without submitting product information or stock changes.
+                            </div>
+                        </div>
+                        <div class="relative w-full group sm:w-auto">
+                            <button type="submit"
+                                form="adjustStockForm"
+                                aria-describedby="adjustStockHelp"
+                                class="w-full {{ $btn['outline'] }} sm:w-auto">
+                                Apply Stock Adjustment
+                            </button>
+                            <div id="adjustStockHelp"
+                                role="tooltip"
+                                class="absolute z-20 hidden w-64 p-3 mb-2 text-xs text-white -translate-x-1/2 bg-gray-900 shadow-lg pointer-events-none bottom-full left-1/2 rounded-xl group-hover:block group-focus-within:block dark:bg-gray-950">
+                                Changes the actual branch stock quantity. Decreases use FEFO and create permanent inventory movement records.
+                            </div>
+                        </div>
+                        <div class="relative w-full group sm:w-auto">
+                            <button type="submit"
+                                form="updateProductForm"
+                                aria-describedby="saveProductHelp"
+                                class="w-full {{ $btn['primary'] }} sm:w-auto">
+                                Save Changes
+                            </button>
+                            <div id="saveProductHelp"
+                                role="tooltip"
+                                class="absolute z-20 hidden w-64 p-3 mb-2 text-xs text-white -translate-x-1/2 bg-gray-900 shadow-lg pointer-events-none bottom-full left-1/2 rounded-xl group-hover:block group-focus-within:block dark:bg-gray-950">
+                                Saves product information such as name, units, prices, category, and stock thresholds. It does not change the current stock quantity.
+                            </div>
+                        </div>
                     </div>
-
                 </div>
             </div>
         </div>
