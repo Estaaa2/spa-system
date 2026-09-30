@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Inventory Logs')
+@section('title', 'Product Logs')
 
 @section('content')
 @php
@@ -16,7 +16,7 @@
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
 
     <x-page-header
-        title="Inventory Logs"
+        title="Product Logs"
         subtitle="Review structured stock movements and inventory activity for the current branch."
     />
 

@@ -407,6 +407,258 @@ class InventoryController extends Controller
         return back()->with('success', 'Stock received successfully.');
     }
 
+    public function batches(Request $request)
+    {
+        $user = $request->user();
+        $spaId = $user->spa_id;
+        $branchId = $user->currentBranchId();
+
+        if (!$spaId) {
+            return back()->with('error', 'No spa associated with your account.');
+        }
+
+        if (!$branchId) {
+            return back()->with('error', 'Please select a branch first.');
+        }
+
+        $query = ProductBatch::query()
+            ->where('spa_id', $spaId)
+            ->where('branch_id', $branchId)
+            ->with('product');
+
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->integer('product_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+
+            $query->where(function ($query) use ($search) {
+                $query->where('batch_number', 'like', "%{$search}%")
+                    ->orWhereHas('product', function ($productQuery) use ($search) {
+                        $productQuery->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('status')) {
+            $today = now()->toDateString();
+            $expiringSoon = now()->addDays(30)->toDateString();
+
+            if ($request->status === 'active') {
+                $query->where('remaining_quantity', '>', 0)
+                    ->where(function ($query) use ($expiringSoon) {
+                        $query->whereNull('expiration_date')
+                            ->orWhere('expiration_date', '>', $expiringSoon);
+                    });
+            }
+
+            if ($request->status === 'expiring') {
+                $query->where('remaining_quantity', '>', 0)
+                    ->whereNotNull('expiration_date')
+                    ->whereBetween('expiration_date', [$today, $expiringSoon]);
+            }
+
+            if ($request->status === 'expired') {
+                $query->where('remaining_quantity', '>', 0)
+                    ->whereNotNull('expiration_date')
+                    ->where('expiration_date', '<', $today);
+            }
+
+            if ($request->status === 'depleted') {
+                $query->where('remaining_quantity', '<=', 0);
+            }
+        }
+
+        $batches = $query
+            ->orderByRaw('remaining_quantity <= 0')
+            ->orderByRaw('expiration_date IS NULL')
+            ->orderBy('expiration_date')
+            ->orderByDesc('received_at')
+            ->paginate(5)
+            ->withQueryString();
+
+        $products = Product::query()
+            ->where('spa_id', $spaId)
+            ->whereHas('branchStocks', function ($query) use ($branchId) {
+                $query->where('branch_id', $branchId);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $baseBatchQuery = ProductBatch::query()
+            ->where('spa_id', $spaId)
+            ->where('branch_id', $branchId);
+
+        $today = now()->toDateString();
+        $expiringSoon = now()->addDays(30)->toDateString();
+
+        $summary = [
+            'active' => (clone $baseBatchQuery)
+                ->where('remaining_quantity', '>', 0)
+                ->where(function ($query) use ($expiringSoon) {
+                    $query->whereNull('expiration_date')
+                        ->orWhere('expiration_date', '>', $expiringSoon);
+                })
+                ->count(),
+
+            'expiring' => (clone $baseBatchQuery)
+                ->where('remaining_quantity', '>', 0)
+                ->whereNotNull('expiration_date')
+                ->whereBetween('expiration_date', [$today, $expiringSoon])
+                ->count(),
+
+            'expired' => (clone $baseBatchQuery)
+                ->where('remaining_quantity', '>', 0)
+                ->whereNotNull('expiration_date')
+                ->where('expiration_date', '<', $today)
+                ->count(),
+
+            'depleted' => (clone $baseBatchQuery)
+                ->where('remaining_quantity', '<=', 0)
+                ->count(),
+        ];
+
+        return view('inventory.batches', compact(
+            'batches',
+            'products',
+            'summary'
+        ));
+    }
+
+    public function recordBatchLoss(Request $request, ProductBatch $batch)
+    {
+        $user = $request->user();
+        $spaId = $user->spa_id;
+        $branchId = $user->currentBranchId();
+
+        if (!$spaId) {
+            return back()->with('error', 'No spa associated with your account.');
+        }
+
+        if (!$branchId) {
+            return back()->with('error', 'Please select a branch first.');
+        }
+
+        abort_unless(
+            $batch->spa_id === $spaId &&
+            $batch->branch_id === $branchId,
+            403
+        );
+
+        $data = $request->validateWithBag('batchLoss', [
+            'loss_type' => [
+                'required',
+                Rule::in(['wastage', 'damage', 'expiry']),
+            ],
+            'quantity' => [
+                'required',
+                'numeric',
+                'gt:0',
+            ],
+            'reason' => [
+                'required',
+                'string',
+                'max:1000',
+            ],
+        ]);
+
+        DB::transaction(function () use ($data, $batch, $spaId, $branchId, $user) {
+            $lockedBatch = ProductBatch::query()
+                ->where('spa_id', $spaId)
+                ->where('branch_id', $branchId)
+                ->whereKey($batch->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $product = Product::query()
+                ->where('spa_id', $spaId)
+                ->findOrFail($lockedBatch->product_id);
+
+            $stock = BranchProductStock::query()
+                ->where('spa_id', $spaId)
+                ->where('branch_id', $branchId)
+                ->where('product_id', $product->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $quantity = (float) $data['quantity'];
+            $batchRemaining = (float) $lockedBatch->remaining_quantity;
+            $branchOnHand = (float) $stock->on_hand_quantity;
+
+            if ($quantity > $batchRemaining) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'quantity' => 'The quantity exceeds the remaining stock in this batch.',
+                ])->errorBag('batchLoss');
+            }
+
+            if ($quantity > $branchOnHand) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'quantity' => 'The quantity exceeds the available branch stock.',
+                ])->errorBag('batchLoss');
+            }
+
+            if (
+                $data['loss_type'] === 'expiry' &&
+                (
+                    !$lockedBatch->expiration_date ||
+                    !$lockedBatch->expiration_date->lt(today())
+                )
+            ) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'loss_type' => 'Only an expired batch can be recorded as expired stock.',
+                ])->errorBag('batchLoss');
+            }
+
+            $before = $branchOnHand;
+            $after = $before - $quantity;
+
+            $lockedBatch->update([
+                'remaining_quantity' => $batchRemaining - $quantity,
+            ]);
+
+            $stock->update([
+                'on_hand_quantity' => $after,
+            ]);
+
+            StockMovement::create([
+                'spa_id' => $spaId,
+                'branch_id' => $branchId,
+                'product_id' => $product->id,
+                'product_batch_id' => $lockedBatch->id,
+                'user_id' => $user->id,
+                'booking_id' => null,
+                'movement_type' => $data['loss_type'],
+                'direction' => 'out',
+                'quantity' => $quantity,
+                'unit' => $product->usage_unit ?: $product->unit ?: 'pcs',
+                'balance_before' => $before,
+                'balance_after' => $after,
+                'reference_type' => 'product_batch',
+                'reference_id' => $lockedBatch->id,
+                'notes' => $data['reason'],
+                'occurred_at' => now(),
+            ]);
+
+            ProductLog::create([
+                'spa_id' => $spaId,
+                'product_id' => $product->id,
+                'user_id' => $user->id,
+                'description' => sprintf(
+                    '%s: %s %s removed from batch %s. Reason: %s',
+                    ucwords($data['loss_type']),
+                    rtrim(rtrim(number_format($quantity, 3, '.', ''), '0'), '.'),
+                    $product->usage_unit ?: $product->unit ?: 'pcs',
+                    $lockedBatch->batch_number,
+                    $data['reason']
+                ),
+                'logged_at' => now(),
+            ]);
+        });
+
+        return back()->with('success', 'Inventory loss recorded successfully.');
+    }
+
     public function deduct(Request $request, Product $product)
     {
         $request->merge([

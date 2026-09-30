@@ -449,6 +449,10 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::middleware('branch.permission:view inventory')->group(function () {
             Route::get('/products', [\App\Http\Controllers\InventoryController::class, 'products'])
                 ->name('products');
+            
+            Route::get('/batches', [\App\Http\Controllers\InventoryController::class, 'batches'])
+                ->name('batches');
+
         });
 
         Route::middleware('branch.permission:view inventory logs')->group(function () {
@@ -481,6 +485,9 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
             Route::post('/products/{product}/receive-stock', [\App\Http\Controllers\InventoryController::class, 'receiveStock'])
                 ->name('products.receive-stock');
+
+            Route::post('/batches/{batch}/record-loss', [\App\Http\Controllers\InventoryController::class, 'recordBatchLoss'])
+                ->name('batches.record-loss');
 
             Route::get('/products/export', [InventoryImportExportController::class, 'exportProducts'])
                 ->name('products.export');

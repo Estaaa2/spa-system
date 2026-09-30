@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Inventory Products')
+@section('title', 'Product Inventory')
 
 @section('content')
 @php
@@ -100,7 +100,7 @@
     }">
 
     <x-page-header
-        title="Inventory Products"
+        title="Product Inventory"
         subtitle="Manage branch inventory, product information, stock levels, and inventory records."
     />
 
@@ -109,7 +109,7 @@
         <div class="flex flex-col gap-4 px-4 py-4 border-b border-gray-200 sm:px-6 lg:flex-row lg:items-center lg:justify-between dark:border-gray-700">
             <div>
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">
-                    Inventory List
+                    Product Inventory
                 </h2>
 
                 <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -125,6 +125,12 @@
                     <i class="fa-solid fa-plus" aria-hidden="true"></i>
                     Add Product
                 </button>
+
+                <a href="{{ route('inventory.batches') }}"
+                    class="{{ $btn['outline'] }}">
+                    <i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i>
+                    Batches
+                </a>
 
                 <a href="{{ route('inventory.products.export') }}"
                     class="{{ $btn['outline'] }}">
