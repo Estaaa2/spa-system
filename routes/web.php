@@ -476,6 +476,12 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
             Route::put('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'update'])
                 ->name('products.update');
 
+            Route::post('/products/{product}/adjust-stock', [\App\Http\Controllers\InventoryController::class, 'adjustStock'])
+                ->name('products.adjust-stock');
+
+            Route::post('/products/{product}/receive-stock', [\App\Http\Controllers\InventoryController::class, 'receiveStock'])
+                ->name('products.receive-stock');
+
             Route::get('/products/export', [InventoryImportExportController::class, 'exportProducts'])
                 ->name('products.export');
         });

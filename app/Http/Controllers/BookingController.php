@@ -776,8 +776,38 @@ class BookingController extends Controller
         // booking a therapist who's already been granted time off.
         $onLeaveIds = LeaveRequest::approvedUserIdsOnDate($spaId, $branchId, $appointmentDate);
 
+        $availabilityRows = \App\Models\StaffAvailability::query()
+            ->where('branch_id', $branchId)
+            ->where('date', $appointmentDate)
+            ->whereIn('user_id', $therapistIds)
+            ->get()
+            ->keyBy('user_id');
+
+        $slotStart = Carbon::parse($startTime);
+        $slotEnd   = Carbon::parse($endTime);
+
+        $unavailableIds = $availabilityRows->filter(function ($row) use ($slotStart, $slotEnd) {
+            if ($row->status === 'unavailable') {
+                return true;
+            }
+
+            if ($row->status === 'partial') {
+                // Row is unavailable for this slot if it does NOT fully cover it.
+                if (!$row->start_time || !$row->end_time) {
+                    return true;
+                }
+
+                $availStart = Carbon::parse($row->start_time);
+                $availEnd   = Carbon::parse($row->end_time);
+
+                return $slotStart->lt($availStart) || $slotEnd->gt($availEnd);
+            }
+
+            return false; // 'available' row, explicit or default
+        })->keys();
+
         return $therapists
-            ->reject(fn ($therapist) => $busyIds->contains($therapist->id) || in_array($therapist->id, $onLeaveIds))
+            ->reject(fn ($therapist) => $busyIds->contains($therapist->id) || in_array($therapist->id, $onLeaveIds) || $unavailableIds->contains($therapist->id))
             ->values();
     }
 

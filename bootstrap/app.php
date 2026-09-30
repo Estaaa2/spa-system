@@ -37,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\EnsureCurrentBranch::class,
+            \App\Http\Middleware\LockBranchForNonOwner::class,
             \App\Http\Middleware\RefreshPermissionsCache::class,
         ]);
 

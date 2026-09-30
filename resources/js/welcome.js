@@ -1416,6 +1416,7 @@ const SLOT_REASON_LABELS = {
     fully_booked: 'Fully booked — all therapists are assigned during this time.',
     past_closing: 'This service would end after closing.',
     past: 'This time has already passed today.',
+    already_booked: 'You already have an appointment at this time.',
 };
 
 function selectSlot(time, btn) {

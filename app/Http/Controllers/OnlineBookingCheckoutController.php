@@ -97,6 +97,23 @@ class OnlineBookingCheckoutController extends Controller
         }
 
         // =====================================================
+        // PREVENT CUSTOMER DOUBLE-BOOKING (same customer, overlapping time)
+        // =====================================================
+        $customerOverlap = Booking::query()
+            ->where('customer_user_id', Auth::id())
+            ->where('appointment_date', $validated['appointment_date'])
+            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+            ->where(function ($q) use ($validated, $endTime) {
+                $q->where('start_time', '<', $endTime)
+                  ->where('end_time', '>', $validated['start_time']);
+            })
+            ->exists();
+
+        if ($customerOverlap) {
+            return $this->fail($request, 'You already have an appointment that overlaps this time. Please choose a different time or cancel your existing booking first.');
+        }
+
+        // =====================================================
         // THERAPIST AVAILABILITY VALIDATION
         // =====================================================
         $therapists = User::role('therapist')
@@ -304,6 +321,18 @@ class OnlineBookingCheckoutController extends Controller
             ->get(['start_time', 'end_time'])
             ->map(fn ($b) => [Carbon::parse($b->start_time), Carbon::parse($b->end_time)]);
 
+        // Same-customer windows — used only to grey out times the logged-in
+        // customer already has booked (anywhere at this branch, on this
+        // date), independent of therapist load.
+        $customerBookingWindows = Auth::check()
+            ? Booking::query()
+                ->where('customer_user_id', Auth::id())
+                ->where('appointment_date', $validated['appointment_date'])
+                ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+                ->get(['start_time', 'end_time'])
+                ->map(fn ($b) => [Carbon::parse($b->start_time), Carbon::parse($b->end_time)])
+            : collect();
+
         $slots   = [];
         $cursor  = $opening->copy();
         $now     = now();
@@ -327,11 +356,16 @@ class OnlineBookingCheckoutController extends Controller
                     fn ($w) => $slotStart->lt($w[1]) && $slotEnd->gt($w[0])
                 )->count();
 
-                $available = ($therapistCount - $overlapping) > 0;
+                $customerBusy = $customerBookingWindows->contains(
+                    fn ($w) => $slotStart->lt($w[1]) && $slotEnd->gt($w[0])
+                );
+
+                $available = ($therapistCount - $overlapping) > 0 && !$customerBusy;
+
                 $slots[] = [
                     'time'      => $slotStart->format('H:i'),
                     'available' => $available,
-                    'reason'    => $available ? null : 'fully_booked',
+                    'reason'    => $customerBusy ? 'already_booked' : ($available ? null : 'fully_booked'),
                 ];
             }
 

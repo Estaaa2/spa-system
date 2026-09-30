@@ -62,6 +62,21 @@ class Branch extends Model
         return $this->hasMany(Package::class);
     }
 
+    public function productStocks()
+    {
+        return $this->hasMany(BranchProductStock::class);
+    }
+
+    public function productBatches()
+    {
+        return $this->hasMany(ProductBatch::class);
+    }
+
+    public function stockMovements()
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+
     public function getUsesWorkforceFinanceSuiteAttribute(): bool
     {
         return (bool) $this->has_workforce_finance_suite;

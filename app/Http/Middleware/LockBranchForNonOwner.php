@@ -10,16 +10,10 @@ class LockBranchForNonOwner
 {
     public function handle(Request $request, Closure $next)
     {
-        if (Auth::check()) {
-            $user = Auth::user();
+        $user = Auth::user();
 
-            // If NOT owner → force branch session
-            if (! $user->can('view owner dashboard')) {
-
-                if ($user->branch_id) {
-                    session(['current_branch_id' => $user->branch_id]);
-                }
-            }
+        if ($user && ! $user->hasRole('owner') && $user->branch_id) {
+            session(['current_branch_id' => $user->branch_id]);
         }
 
         return $next($request);
