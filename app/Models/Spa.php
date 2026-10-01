@@ -20,10 +20,18 @@ class Spa extends Model
         'verification_remarks',
         'verified_at',
         'verified_by',
+        // Payroll v3
+        'payroll_first_cutoff_day',
+        'payroll_pay_day_offset',
+        // monthly_rate_divisor was removed (data model v3.1; migration 2026_09_30_010000).
+        // Days-per-year factors are derived (StatutoryCalculator::eemrFactor).
     ];
 
     protected $casts = [
         'verified_at' => 'datetime',
+        // Payroll v3
+        'payroll_first_cutoff_day' => 'integer',
+        'payroll_pay_day_offset'   => 'integer',
     ];
 
     public function owner(): BelongsTo

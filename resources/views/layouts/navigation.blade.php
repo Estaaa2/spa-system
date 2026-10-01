@@ -28,6 +28,21 @@
     // Dashboard
     $canDashboard = $user?->can('view business dashboard');
 
+    // My Payslips (self-service).
+    $myStaffIds = $user?->spa_id
+        ? \App\Models\Staff::withTrashed()->where('user_id', $user->id)->where('spa_id', $user->spa_id)->pluck('id')
+        : collect();
+    $canMyPayslips = $myStaffIds->isNotEmpty() && (
+        \App\Models\Staff::whereIn('id', $myStaffIds)
+            ->where('employment_status', 'active')
+            ->whereHas('branch', fn ($q) => $q->where('has_workforce_finance_suite', true))
+            ->exists()
+        || \App\Models\Payslip::whereIn('staff_id', $myStaffIds)
+            ->whereHas('payrollRun', fn ($q) => $q->where('spa_id', $user->spa_id)
+                ->where('status', \App\Models\PayrollRun::STATUS_RELEASED))
+            ->exists()
+    );
+
     // Operations
     $canBooking = $can('book appointments');
     $canAppointments = $can('view appointments');
@@ -54,8 +69,11 @@
     $canInterviews =
         $can('view interviews') || $can('create interviews') || $can('edit interviews') || $can('delete interviews');
 
+    // Payroll lives in Manpower (Owner/HR); defined here because $showPeople reads it.
+    $canPayroll = $can('view payroll') || $can('edit payroll');
+
     $showPeople =
-        $suiteEnabled && ($canStaffAccounts || $canAttendanceLeave || $canHiring || $canApplicants || $canInterviews);
+        $suiteEnabled && ($canStaffAccounts || $canAttendanceLeave || $canHiring || $canApplicants || $canInterviews || $canPayroll);
 
     // Services (was "Management")
     $canServices =
@@ -89,11 +107,10 @@
     $showBusiness   = $isOwner;
 
     // Finance
-    $canPayroll = $can('view payroll') || $can('edit payroll');
     $canRevenue = $can('view revenue');
     $canBilling = $can('view billing') || $can('create billing') || $can('edit billing') || $can('delete billing');
 
-    $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling);
+    $showFinance = $suiteEnabled && ($canRevenue || $canBilling);
 
     // Insights
     $canDecisionSupport = $can('view decision support');
@@ -498,6 +515,16 @@
                         </div>
                     @endif
 
+                    <!-- My Payslips (self-service) -->
+                    @if ($canMyPayslips)
+                        <div class="mb-1">
+                            <x-nav-link :href="route('my-payslips.index')" :active="request()->routeIs('my-payslips.*')">
+                                <i class="fa-solid fa-file-invoice-dollar w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                My Payslips
+                            </x-nav-link>
+                        </div>
+                    @endif
+
                 @if ($showOperations)
                     <div class="mb-1">
                         <button @click="toggleSection('operations')" type="button"
@@ -603,8 +630,15 @@
                                 </x-nav-link>
                             @endif
                             @if ($canPayroll)
-                                <x-nav-link :href="route('payroll.index')" :active="request()->routeIs('payroll.*')">
+                                {{-- Each payroll.* route highlights exactly one of these three links. --}}
+                                <x-nav-link :href="route('payroll.index')" :active="request()->routeIs('payroll.index', 'payroll.runs.*', 'payroll.payslips.*', 'payroll.lines.*')">
                                     Payroll
+                                </x-nav-link>
+                                <x-nav-link :href="route('payroll.setup.index')" :active="request()->routeIs('payroll.setup.*')">
+                                    Payroll Setup
+                                </x-nav-link>
+                                <x-nav-link :href="route('payroll.staff.index')" :active="request()->routeIs('payroll.staff.*')">
+                                    Staff Pay
                                 </x-nav-link>
                             @endif
 

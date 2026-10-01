@@ -7,6 +7,7 @@ use App\Models\LeaveRequest;
 use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Services\Bookings\ServicePriceResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -909,19 +910,9 @@ class BookingController extends Controller
 
     private function resolveServicePrice(string $selection): float
     {
-        if (str_starts_with($selection, 'treatment_')) {
-            $id = (int) str_replace('treatment_', '', $selection);
-            $treatment = Treatment::withoutGlobalScopes()->find($id);
-            return (float) ($treatment?->price ?? 0);
-        }
-
-        if (str_starts_with($selection, 'package_')) {
-            $id = (int) str_replace('package_', '', $selection);
-            $package = Package::withoutGlobalScopes()->find($id);
-            return (float) ($package?->price ?? 0);
-        }
-
-        return 0;
+        // Shared with payroll (commission base fallback). The float cast keeps this
+        // controller's existing behavior unchanged.
+        return (float) app(ServicePriceResolver::class)->listPrice($selection);
     }
 
     public function liveData()
