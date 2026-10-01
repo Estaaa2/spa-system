@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Package;
 
 class BookingConsumption extends Model
 {
@@ -14,6 +15,7 @@ class BookingConsumption extends Model
         'spa_id',
         'branch_id',
         'treatment_id',
+        'package_id',
         'processed_by',
         'service_reference',
         'service_name',
@@ -32,6 +34,11 @@ class BookingConsumption extends Model
     public function treatment()
     {
         return $this->belongsTo(Treatment::class);
+    }
+
+    public function package()
+    {
+        return $this->belongsTo(Package::class);
     }
 
     public function processor()

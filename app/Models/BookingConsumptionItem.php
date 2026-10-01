@@ -14,6 +14,8 @@ class BookingConsumptionItem extends Model
         'product_id',
         'product_batch_id',
         'product_name',
+        'treatment_id',
+        'treatment_name',
         'batch_number',
         'quantity',
         'unit',
@@ -31,6 +33,11 @@ class BookingConsumptionItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function treatment()
+    {
+        return $this->belongsTo(Treatment::class);
     }
 
     public function batch()
