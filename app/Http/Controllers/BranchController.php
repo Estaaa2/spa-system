@@ -31,7 +31,7 @@ class BranchController extends Controller
 
     // -----------------------------------------------------------------------
     // JSON DENIAL RESPONSE
-    // ----------------------------------------------------------------------- 
+    // -----------------------------------------------------------------------
     private function denyBranchJson(Branch $branch, bool $ownerOnly = false)
     {
         $user = Auth::user();
@@ -228,8 +228,11 @@ class BranchController extends Controller
         $branch->update(['name' => $request->input('name'), 'is_main' => $wantsMain]);
 
         return redirect()
-            ->to(route('branches.edit', $branch->id) . '?tab=general')
-            ->with('tab_success', 'general');
+        ->route('branches.edit', [
+            'branch' => $branch->id,
+            'tab' => 'general',
+        ])
+        ->with('success', 'Branch information updated successfully.');
     }
 
     public function updateHours(Request $request, Branch $branch)
@@ -290,8 +293,11 @@ class BranchController extends Controller
         }
 
         return redirect()
-            ->to(route('branches.edit', $branch->id) . '?tab=hours')
-            ->with('tab_success', 'hours');
+        ->route('branches.edit', [
+            'branch' => $branch->id,
+            'tab' => 'hours',
+        ])
+        ->with('success', 'Operating hours updated successfully.');
     }
 
     // -----------------------------------------------------------------------
@@ -412,8 +418,11 @@ class BranchController extends Controller
         $profile->update($profileData);
 
         return redirect()
-            ->to(route('branches.edit', $branch->id) . '?tab=profile')
-            ->with('tab_success', 'profile');
+        ->route('branches.edit', [
+            'branch' => $branch->id,
+            'tab' => 'profile',
+        ])
+        ->with('success', 'Public profile updated successfully.');
     }
 
     // -----------------------------------------------------------------------
@@ -422,8 +431,8 @@ class BranchController extends Controller
 
     public function destroy(Branch $branch)
     {
-        // The destroy method is responsible for deleting a branch. 
-        // It first checks if the user is authorized to perform this action using the denyBranchJson method. 
+        // The destroy method is responsible for deleting a branch.
+        // It first checks if the user is authorized to perform this action using the denyBranchJson method.
         // If the user is not authorized, it returns a JSON response indicating the failure.
         if ($denied = $this->denyBranchJson($branch, ownerOnly: true)) {
             return $denied;

@@ -71,6 +71,11 @@ class Booking extends Model
         return $this->belongsTo(Treatment::class, 'treatment', 'id');
     }
 
+    public function consumption()
+    {
+        return $this->hasOne(BookingConsumption::class);
+    }
+
     public function getTherapistNameAttribute()
     {
         return $this->therapist ? $this->therapist->name : 'Not Assigned';
@@ -83,10 +88,10 @@ class Booking extends Model
 
     public function getTreatmentLabelAttribute()
     {
-        // This method is used to get the treatment name for a booking. 
-        // It checks if the treatment field starts with 'treatment_' or 'package_' 
-        // and retrieves the corresponding name from the Treatment or Package model, 
-        // respectively. If the treatment is not found, it returns 'Unknown Treatment' 
+        // This method is used to get the treatment name for a booking.
+        // It checks if the treatment field starts with 'treatment_' or 'package_'
+        // and retrieves the corresponding name from the Treatment or Package model,
+        // respectively. If the treatment is not found, it returns 'Unknown Treatment'
         // or 'Unknown Package'. If the treatment field does not start with either prefix,
         //  it simply returns the treatment value as is.
         if (str_starts_with($this->treatment, 'treatment_')) {

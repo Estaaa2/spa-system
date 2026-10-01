@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Services\BookingConsumptionService;
+use App\Services\BookingCompletionService;
 use App\Models\LeaveRequest;
 use App\Models\Package;
 use App\Models\Treatment;
@@ -13,6 +15,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
 {
@@ -867,7 +870,7 @@ class BookingController extends Controller
         })->first();
     }
 
-    private function syncAutomaticStatuses(?int $spaId = null, ?int $branchId = null): void
+    private function syncAutomaticStatuses(?int $spaId = null,?int $branchId = null): void
     {
         $now = Carbon::now();
 
@@ -903,9 +906,8 @@ class BookingController extends Controller
                 } elseif ($now->gte($end)) {
                     $newStatus = 'completed';
                 } else {
-                    // Between start and end
                     if ($booking->status === 'ongoing') {
-                        $newStatus = 'ongoing'; // keep manual ongoing
+                        $newStatus = 'ongoing';
                     } elseif ($now->lt($pendingUntil)) {
                         $newStatus = 'pending';
                     } else {
@@ -914,10 +916,41 @@ class BookingController extends Controller
                 }
             }
 
-            if ($booking->status !== $newStatus) {
+            if ($booking->status === $newStatus) {
+                continue;
+            }
+
+            if ($newStatus !== 'completed') {
                 $booking->update([
                     'status' => $newStatus,
                 ]);
+
+                continue;
+            }
+
+            try {
+                app(BookingCompletionService::class)
+                    ->complete($booking);
+            } catch (ValidationException $e) {
+                \Illuminate\Support\Facades\Log::warning(
+                    'Booking completion inventory consumption failed.',
+                    [
+                        'booking_id' => $booking->id,
+                        'spa_id' => $booking->spa_id,
+                        'branch_id' => $booking->branch_id,
+                        'errors' => $e->errors(),
+                    ]
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error(
+                    'Booking completion failed.',
+                    [
+                        'booking_id' => $booking->id,
+                        'spa_id' => $booking->spa_id,
+                        'branch_id' => $booking->branch_id,
+                        'message' => $e->getMessage(),
+                    ]
+                );
             }
         }
     }

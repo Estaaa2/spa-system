@@ -54,6 +54,11 @@ class Product extends Model
         return $this->hasMany(StockTransfer::class);
     }
 
+    public function treatmentRecipeItems()
+    {
+        return $this->hasMany(TreatmentRecipeItem::class);
+    }
+
     public function batches()
     {
         return $this->hasMany(ProductBatch::class);

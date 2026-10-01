@@ -46,6 +46,11 @@ class Treatment extends Model
                     ->withTimestamps();
     }
 
+    public function recipeItems()
+    {
+        return $this->hasMany(TreatmentRecipeItem::class);
+    }
+
     public function getServiceTypeLabelAttribute()
     {
         return match($this->service_type) {

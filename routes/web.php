@@ -42,6 +42,7 @@ use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TherapistPerformanceController;
 use App\Http\Controllers\TreatmentController;
+use App\Http\Controllers\TreatmentRecipeController;
 use App\Http\Middleware\LandingPageRedirect;
 use Illuminate\Support\Facades\Route;
 
@@ -371,6 +372,9 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     */
     Route::middleware('branch.permission:view services')->group(function () {
         Route::get('/services', [ServiceController::class, 'index'])->name('services.index');
+
+        Route::get('/treatments/{treatment}/recipe', [TreatmentRecipeController::class, 'show'])
+            ->name('treatments.recipe.show');
     });
 
     Route::middleware('branch.permission:create treatments,edit treatments,delete treatments,create packages,edit packages,delete packages')->group(function () {
@@ -394,6 +398,11 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
         Route::get('/services/packages/sample-csv', [ServiceImportExportController::class, 'samplePackagesCsv'])
             ->name('packages.sample-csv');
+    });
+
+    Route::middleware('branch.permission:edit treatments')->group(function () {
+        Route::put('/treatments/{treatment}/recipe', [TreatmentRecipeController::class, 'update'])
+            ->name('treatments.recipe.update');
     });
 
     Route::middleware('branch.permission:view promos')->group(function () {

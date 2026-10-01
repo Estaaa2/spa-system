@@ -181,14 +181,6 @@
                     </div>
                 @endif
 
-                <!-- Success flash -->
-                @if(session('tab_success') === 'general')
-                    <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
-                        Branch information updated successfully.
-                    </div>
-                @endif
-
                 <!-- Name + Location + Main branch toggle — one wide row -->
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
@@ -298,12 +290,6 @@
                     </div>
                 @endif
 
-                @if(session('tab_success') === 'hours')
-                    <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
-                        Operating hours updated successfully.
-                    </div>
-                @endif
 
                 @if($operatingHours->isEmpty())
                     {{-- Only reachable if the view rendered without $operatingHours.
@@ -467,20 +453,13 @@
                     </div>
                 @endif
 
-                {{-- @if(session('tab_success') === 'profile')
-                    <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-2xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
-                        Public profile updated successfully.
-                    </div>
-                @endif --}}
-
                 <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
                     <!-- ══════════════ LEFT COLUMN (2/3 width) ══════════════ -->
                     <div class="space-y-5 lg:col-span-2">
 
                         {{-- ── Public Listing + Job Posting — one combined card ── --}}
-                        <div class="p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:divide-x sm:divide-gray-100 dark:sm:divide-gray-700">
 
                                 {{-- Public Listing --}}
@@ -517,7 +496,7 @@
                                      even by resubmitting a stale form. --}}
                                 @if(!$canUseHiring)
                                     <div class="sm:pl-6">
-                                        <div class="flex items-start gap-3 p-4 border border-dashed border-gray-300 rounded-2xl bg-gray-50 dark:bg-gray-900/20 dark:border-gray-600">
+                                        <div class="flex items-start gap-3 p-4 border border-gray-300 border-dashed rounded-2xl bg-gray-50 dark:bg-gray-900/20 dark:border-gray-600">
                                             <div class="flex items-center justify-center w-10 h-10 text-gray-500 bg-gray-200 shrink-0 rounded-xl dark:bg-gray-700 dark:text-gray-300">
                                                 <i class="fa-solid fa-lock" aria-hidden="true"></i>
                                             </div>
@@ -535,7 +514,7 @@
                                                 @role('owner')
                                                     <a href="{{ route('owner.subscription.index') }}"
                                                        class="inline-flex items-center gap-2 mt-3 min-h-[44px] -my-2 text-sm font-medium text-[#8B7355] dark:text-[#C4A97D] hover:underline">
-                                                        <i class="fa-solid fa-crown text-yellow-500" aria-hidden="true"></i>
+                                                        <i class="text-yellow-500 fa-solid fa-crown" aria-hidden="true"></i>
                                                         Upgrade to enable
                                                     </a>
                                                 @else
@@ -591,7 +570,7 @@
                         </div>
 
                         {{-- ── Branch Details + Branch Location Pin — one combined card ── --}}
-                        <div class="space-y-6 p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                        <div class="p-4 space-y-6 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
                             {{-- Branch Details --}}
                             <div class="space-y-5">
@@ -670,7 +649,7 @@
                         </div>
 
                         {{-- ── Amenities — now in the left column, wider grid ── --}}
-                        <div class="p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+                        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700"
                             x-data="amenitiesManager()">
 
                             <div class="flex items-center justify-between mb-5">
