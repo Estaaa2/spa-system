@@ -228,26 +228,11 @@ class PayrollController extends Controller
     // Status steps (PayrollRunService transitions)
     // =====================================================================
 
-    /**
-     * Approval is the review step: when the run has warnings, the approver must confirm
-     * they reviewed them, and who did is stored on the run (payroll_runs.review) —
-     * standard payroll control of a documented sign-off on exceptions before pay goes out.
-     */
-    public function approve(Request $request, PayrollRun $run): RedirectResponse
+        /** The run page shows every saved warning next to the Approve button; the approver is recorded on the run. */
+    public function approve(PayrollRun $run): RedirectResponse
     {
         $this->authorizeEdit();
         $this->assertOwned($run, $this->currentSpa());
-
-        if ($run->isDraft()) {
-            if ($this->warnings->count($run) > 0 && ! $request->boolean('acknowledge_warnings')) {
-                return back()->with('error', 'Confirm that you reviewed the warnings before approving.');
-            }
-            try {
-                $this->warnings->recordReview($run, $this->user());
-            } catch (PayrollStateException $e) {
-                return back()->with('error', $e->getMessage());
-            }
-        }
 
         return $this->step($run, fn (PayrollRun $r, User $u) => $this->service->approve($r, $u), 'Run approved. It can now be finalized, or sent back to draft for changes.');
     }

@@ -240,7 +240,7 @@ final class PayrollRunReadModel
     /** @return array<string, mixed> header data: steps with actor names and times */
     public function runHeader(PayrollRun $run, ?array $cached): array
     {
-        $ids = array_filter([$run->generated_by, $run->approved_by, $run->finalized_by, $run->released_by, $cached['generated_by'] ?? null, $cached['reviewed_by'] ?? null]);
+        $ids = array_filter([$run->generated_by, $run->approved_by, $run->finalized_by, $run->released_by, $cached['generated_by'] ?? null]);
         $names = $this->userNames($ids);
         $who = fn ($id) => $id ? ($names[(int) $id] ?? "User #{$id}") : null;
         $when = fn ($t) => $t ? Carbon::parse($t)->timezone(config('app.timezone'))->format('M j, Y g:i A') : null;
@@ -254,11 +254,6 @@ final class PayrollRunReadModel
             'config_current' => $run->config_version === (string) config('payroll.version'),
             'current_config' => (string) config('payroll.version'),
             'self_approved'  => $run->approved_by !== null && (int) $run->approved_by === (int) $run->generated_by,
-            'reviewed'       => ! empty($cached['reviewed_by']) ? [
-                'by'    => $who($cached['reviewed_by']),
-                'at'    => $when($cached['reviewed_at'] ?? null),
-                'count' => (int) ($cached['reviewed_count'] ?? 0),
-            ] : null,
             'steps'          => [
                 // generated_by is overwritten on every regeneration; created_at is the first generation.
                 ['key' => 'generated', 'label' => 'Generated', 'by' => $who($run->generated_by),

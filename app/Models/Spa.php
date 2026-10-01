@@ -23,7 +23,7 @@ class Spa extends Model
         // Payroll v3
         'payroll_first_cutoff_day',
         'payroll_pay_day_offset',
-        // monthly_rate_divisor: DEPRECATED (data model v3.1) — never read or written.
+        // monthly_rate_divisor was removed (data model v3.1; migration 2026_09_30_010000).
         // Days-per-year factors are derived (StatutoryCalculator::eemrFactor).
     ];
 

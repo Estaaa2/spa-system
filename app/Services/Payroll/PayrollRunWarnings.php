@@ -12,17 +12,16 @@ use App\Services\Payroll\ValueObjects\RunWarning;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Keeps a run's warnings, and the reviewer's confirmation, on the run itself (Unit 6;
- * data model v3.2 column payroll_runs.review).
+ * Keeps a run's warnings on the run itself (payroll_runs.review — data model v3.1
+ * amendment A2).
  *
  * Unit 4 returns warnings but does not persist them ("the caller must show or flash
  * them"). A flash would reach only the person who clicked Generate, so an approver
- * would approve blind, and nothing would show later what was known when the run was
- * approved. Payroll audit practice asks for exactly that record: what the reviewer
- * saw, who approved, and when.
+ * would approve blind. Saving them lets the run page show the same warnings to
+ * whoever opens the run, and keeps what was known when it was approved.
  *
- * Every write happens while the run is DRAFT (generation, manual-line changes, the
- * confirmation just before approval), inside a transaction that locks the run row.
+ * Every write happens while the run is DRAFT (generation, manual-line changes),
+ * inside a transaction that locks the run row.
  * PayrollRun's guard refuses the column on any later status, so the record is frozen
  * with the register.
  */
@@ -44,10 +43,6 @@ final class PayrollRunWarnings
             'regenerated'    => $result->regenerated,
             'adjusted_at'    => null,
             'warnings'       => array_map(static fn (RunWarning $w) => $w->toArray(), $result->warnings),
-            // A regenerated draft must be reviewed again.
-            'reviewed_by'    => null,
-            'reviewed_at'    => null,
-            'reviewed_count' => null,
         ]);
     }
 
@@ -79,28 +74,11 @@ final class PayrollRunWarnings
             return array_merge($data, [
                 'warnings'       => $kept,
                 'adjusted_at'    => now()->toIso8601String(),
-                'reviewed_by'    => null,
-                'reviewed_at'    => null,
-                'reviewed_count' => null,
             ]);
         });
     }
 
-    /** Record who confirmed the warnings, immediately before approval (still draft). */
-    public function recordReview(PayrollRun $run, User $by): void
-    {
-        $this->write((int) $run->id, function (?array $data) use ($by) {
-            $data ??= ['warnings' => []];
-
-            return array_merge($data, [
-                'reviewed_by'    => (int) $by->getKey(),
-                'reviewed_at'    => now()->toIso8601String(),
-                'reviewed_count' => count($data['warnings'] ?? []),
-            ]);
-        });
-    }
-
-    /** @return array<string, mixed>|null null for runs generated before v3.2 */
+    /** @return array<string, mixed>|null null for runs generated before warnings were saved */
     public function get(PayrollRun $run): ?array
     {
         return is_array($run->review) ? $run->review : null;

@@ -109,7 +109,7 @@ class PayrollRunPagesTest extends TestCase
     {
         $map = ['approve' => 'payroll.runs.approve', 'finalize' => 'payroll.runs.finalize', 'release' => 'payroll.runs.release'];
         foreach ($steps as $s) {
-            $this->actingAs($this->hr)->post(route($map[$s], $run), ['acknowledge_warnings' => '1'])->assertRedirect(route('payroll.runs.show', $run));
+            $this->actingAs($this->hr)->post(route($map[$s], $run))->assertRedirect(route('payroll.runs.show', $run));
         }
     }
 
@@ -389,49 +389,47 @@ class PayrollRunPagesTest extends TestCase
     }
 
     // =====================================================================
-    // v3.2 review record, batch print, service names
+    // Saved warnings, batch print, service names
     // =====================================================================
 
-    public function test_approval_requires_confirming_warnings_and_records_the_reviewer(): void
+    public function test_warnings_are_saved_on_the_run_and_approval_needs_no_checkbox(): void
     {
         $this->workSeptemberCutoffOne();   // staff has no statutory IDs → at least one warning
         $run = $this->generateC1();
         $this->assertGreaterThan(0, app(PayrollRunWarnings::class)->count($run->fresh()));
 
-        $this->actingAs($this->hr)->from(route('payroll.runs.show', $run))
-            ->post(route('payroll.runs.approve', $run))
-            ->assertSessionHas('error', 'Confirm that you reviewed the warnings before approving.');
-        $this->assertSame(PayrollRun::STATUS_DRAFT, $run->fresh()->status);
+        // A different user opening the run sees the same saved warnings.
+        $this->actingAs($this->viewer)->get(route('payroll.runs.show', $run))->assertOk()->assertSee('warning(s)');
 
-        $this->actingAs($this->hr)->post(route('payroll.runs.approve', $run), ['acknowledge_warnings' => '1'])
+        $this->actingAs($this->hr)->post(route('payroll.runs.approve', $run))
             ->assertRedirect(route('payroll.runs.show', $run));
 
         $run->refresh();
         $this->assertSame(PayrollRun::STATUS_APPROVED, $run->status);
-        $this->assertSame($this->hr->id, $run->review['reviewed_by']);
-        $this->actingAs($this->viewer)->get(route('payroll.runs.show', $run))->assertOk()->assertSee('Reviewed by '.$this->hr->name);
+        $this->assertSame($this->hr->id, (int) $run->approved_by);
+        $this->assertGreaterThan(0, app(PayrollRunWarnings::class)->count($run));   // kept with the approved run
     }
 
-    public function test_adjustment_clears_a_previous_review(): void
+    public function test_adjustment_updates_the_saved_warnings(): void
     {
         $this->workSeptemberCutoffOne();
         $run = $this->generateC1();
-        app(PayrollRunWarnings::class)->recordReview($run, $this->hr);
+        $this->assertNull($run->fresh()->review['adjusted_at']);
 
         $this->actingAs($this->hr)->post(route('payroll.payslips.lines.store', $this->slip($run)), [
             'component_code' => 'ADJ_EARNING_NONTAX', 'label' => 'Reimbursement', 'amount' => '100',
         ]);
 
-        $this->assertNull($run->fresh()->review['reviewed_by']);
+        $this->assertNotNull($run->fresh()->review['adjusted_at']);
     }
 
-    public function test_review_record_is_frozen_after_approval(): void
+    public function test_saved_warnings_are_frozen_after_approval(): void
     {
         $run = $this->generateC1();
         $this->toStatus($run, 'approve');
 
         $this->expectException(\App\Exceptions\PayrollStateException::class);
-        app(PayrollRunWarnings::class)->recordReview($run, $this->hr);
+        app(PayrollRunWarnings::class)->recordSettlement($run->id, $this->staff->id, [], false);
     }
 
     public function test_batch_print_lists_every_payslip_with_optional_receipt_line(): void

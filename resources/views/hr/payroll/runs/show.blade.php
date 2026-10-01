@@ -60,7 +60,6 @@
                          . ((int) $run->generated_by === (int) $me ? 'You generated this run; approving it yourself will be shown on the run. ' : '')
                          . ($header['config_current'] ? '' : "Payroll rates changed since this draft was generated ({$header['config_version']} → {$header['current_config']}); regenerate before approving."),
                 'confirm' => 'Approve Run', 'url' => route('payroll.runs.approve', $run), 'method' => 'POST',
-                'ack'     => $warningCount > 0,
             ];
         }
         if ($run->canDelete()) {
@@ -212,12 +211,6 @@
                         Not available.
                     @endif
                 </p>
-                @if($header['reviewed'])
-                    <p class="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
-                        <i class="mr-1 fa-solid fa-clipboard-check" aria-hidden="true"></i>
-                        Reviewed by {{ $header['reviewed']['by'] }} before approval, {{ $header['reviewed']['at'] }} ({{ $header['reviewed']['count'] }} warning(s)).
-                    </p>
-                @endif
             </div>
             @if($cached)
                 <span class="text-sm text-gray-500 shrink-0 dark:text-gray-400">{{ $warningCount }} warning(s)</span>
@@ -522,11 +515,6 @@
             <form id="stepForm" method="POST" class="mt-4">
                 @csrf
                 <input type="hidden" name="_method" id="stepMethod" value="POST">
-                <label id="stepAck" class="hidden items-start gap-3 p-3 text-sm border rounded-xl border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-200">
-                    <input type="checkbox" name="acknowledge_warnings" value="1" id="stepAckBox"
-                           class="w-5 h-5 mt-0.5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
-                    <span>I reviewed the {{ $warningCount }} warning(s) on this run. My name will be recorded as the reviewer.</span>
-                </label>
             </form>
             <div class="flex flex-col-reverse gap-2 mt-6 sm:flex-row sm:justify-end">
                 <button type="button" onclick="closeModalById('stepModal')" class="w-full {{ $btn['neutral'] }} sm:w-auto">Cancel</button>
@@ -704,11 +692,6 @@
         document.getElementById('stepModalDesc').textContent = a.body;
         document.getElementById('stepForm').action = a.url;
         document.getElementById('stepMethod').value = a.method;
-        const ack = document.getElementById('stepAck'), box = document.getElementById('stepAckBox');
-        ack.classList.toggle('hidden', !a.ack);
-        ack.classList.toggle('flex', !!a.ack);
-        box.required = !!a.ack;
-        box.checked = false;
         const c = document.getElementById('stepConfirm');
         c.className = 'w-full sm:w-auto ' + BTN[a.button];
         c.textContent = a.confirm;

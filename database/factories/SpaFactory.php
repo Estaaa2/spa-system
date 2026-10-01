@@ -19,6 +19,9 @@ class SpaFactory extends Factory
         return [
             'owner_id' => PayrollUserFactory::new(),
             'name'     => $this->faker->company().' Spa',
+            // Payroll needs the Professional plan (PayrollRunService); tests that cover
+            // the basic plan set it explicitly.
+            'business_tier' => 'professional',
         ];
     }
 }

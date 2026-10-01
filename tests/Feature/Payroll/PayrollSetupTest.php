@@ -242,7 +242,7 @@ class PayrollSetupTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame('2026-09-30', $r->fresh()->effective_to->toDateString());
-        $new = CommissionRule::where('effective_from', '2026-10-01')->firstOrFail();
+        $new = CommissionRule::whereDate('effective_from', '2026-10-01')->firstOrFail();
         $this->assertSame('12.0000', (string) $new->value);
         $this->assertNull($new->effective_to);
     }
@@ -302,7 +302,7 @@ class PayrollSetupTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame('2026-09-30', $old->fresh()->effective_to->toDateString());
-        $new = StaffPayProfile::where('effective_from', '2026-10-01')->firstOrFail();
+        $new = StaffPayProfile::whereDate('effective_from', '2026-10-01')->firstOrFail();
         $this->assertSame('650.00', (string) $new->base_rate);
         $this->assertTrue($new->commission_enabled);
         $this->assertSame(['Sunday'], $new->rest_days);

@@ -149,6 +149,7 @@ final class PayrollRunService
     {
         return DB::transaction(function () use ($spa, $year, $month, $cutoffNo, $by): RunResult {
             $spa = Spa::query()->whereKey($spa->getKey())->lockForUpdate()->firstOrFail();
+            $this->assertPlanAllowsGeneration($spa);
             $warnings = [];
 
             $monthStart = sprintf('%04d-%02d-01', $year, $month);
@@ -270,6 +271,7 @@ final class PayrollRunService
 
         return DB::transaction(function () use ($spa, $year, $payDate, $by): RunResult {
             $spa = Spa::query()->whereKey($spa->getKey())->lockForUpdate()->firstOrFail();
+            $this->assertPlanAllowsGeneration($spa);
             $warnings = [];
             $period = new PayPeriod("{$year}-01-01", "{$year}-12-31", $payDate, null);
 
@@ -346,7 +348,7 @@ final class PayrollRunService
                 $payslip = $this->upsertPayslip($run, $staff, $existing[$staffId] ?? null, [
                     'home_branch_id' => $home->id,
                     'days_worked'    => '0.00',
-                    'is_mwe'         => false,   // not used on this run (no WTAX line)
+                    'is_mwe'         => false,   // not used on this run (the settler taxes only the amount above the exemption cap)
                     'snapshot'       => [
                         'eligibility'  => ['eligible' => true, 'reason' => null],
                         'home_branch'  => $this->branchSnapshot($home),
@@ -712,6 +714,26 @@ final class PayrollRunService
     // =====================================================================
     // Internals — runs
     // =====================================================================
+
+    /**
+     * Generating or regenerating a run needs the Professional plan, the same gate the
+     * rest of the app uses for the Workforce & Finance Suite (a lapsed subscription
+     * drops the spa to basic but leaves the branch suite flags on). Everything else
+     * keeps working after a downgrade: existing runs can still be approved, finalized
+     * and released so wages already computed are paid, and every run and payslip stays
+     * readable (payroll records must be kept 3 years — Labor Code IRR Book III, Rule X,
+     * Sec. 12).
+     *
+     * @throws PayrollSetupException
+     */
+    private function assertPlanAllowsGeneration(Spa $spa): void
+    {
+        if (($spa->business_tier ?? null) !== 'professional') {
+            throw new PayrollSetupException(
+                "Spa \"{$spa->name}\" is not on the Professional plan, so new payroll runs cannot be generated. Existing runs can still be finished and viewed."
+            );
+        }
+    }
 
     private function regularRunInMonth(Spa $spa, int $cutoffNo, string $monthStart, string $monthEnd): ?PayrollRun
     {

@@ -63,7 +63,7 @@ class PayrollRunServiceTest extends TestCase
         $this->owner = User::findOrFail($this->makeUser('Olive', 'Owner'));
 
         $spaId = DB::table('spas')->insertGetId([
-            'owner_id' => $this->owner->id, 'name' => 'Test Spa',
+            'owner_id' => $this->owner->id, 'name' => 'Test Spa', 'business_tier' => 'professional',
             'payroll_first_cutoff_day' => 15, 'payroll_pay_day_offset' => 5,
             'created_at' => now(), 'updated_at' => now(),
         ]);
@@ -503,6 +503,22 @@ class PayrollRunServiceTest extends TestCase
         $this->assertSame('616.67', $balance['rows'][0]['paid']);
         $this->assertSame('58.33', $balance['rows'][0]['balance']);
         $this->assertContains('Oct cutoff 2', $balance['pending_cutoffs']);
+    }
+
+    public function test_basic_plan_cannot_generate_but_can_finish_existing_runs(): void
+    {
+        $this->staffA();
+        $run = $this->service->generateRegular($this->spa, 2026, 9, 1, $this->owner)->run;
+
+        DB::table('spas')->where('id', $this->spa->id)->update(['business_tier' => 'basic']);   // subscription lapsed
+        $this->spa->refresh();
+
+        $this->assertThrows(fn () => $this->service->generateRegular($this->spa, 2026, 9, 1, $this->owner), PayrollSetupException::class);
+        $this->assertThrows(fn () => $this->service->generateThirteenthMonth($this->spa, 2026, '2026-12-20', $this->owner), PayrollSetupException::class);
+
+        // Wages already computed can still be paid out.
+        $released = $this->service->release($this->finalize($run), $this->owner);
+        $this->assertSame(PayrollRun::STATUS_RELEASED, $released->status);
     }
 
     // ── Scenario staff ───────────────────────────────────────────────────────
