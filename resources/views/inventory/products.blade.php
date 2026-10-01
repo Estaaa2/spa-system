@@ -126,12 +126,6 @@
                     Add Product
                 </button>
 
-                <a href="{{ route('inventory.batches') }}"
-                    class="{{ $btn['outline'] }}">
-                    <i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i>
-                    Batches
-                </a>
-
                 <a href="{{ route('inventory.products.export') }}"
                     class="{{ $btn['outline'] }}">
                     <i class="fa-solid fa-file-export" aria-hidden="true"></i>
@@ -326,7 +320,7 @@
                                         <i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i>
                                         Receive
                                     </button>
-                                    
+
                                     <button type="button"
                                         @click="openEdit({
                                             id: {{ $product->id }},
@@ -351,7 +345,7 @@
                                         <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                         Edit
                                     </button>
-                                    
+
                                     <button type="button"
                                         @click="openDelete({
                                             id: {{ $product->id }},

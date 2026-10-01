@@ -94,6 +94,12 @@ class RolePermissionSeeder extends Seeder
             'delete product inventory',
             'view product logs',
 
+            // ── Inventory Stock Transfers ───────────────────────────────────────
+            'view stock transfers',
+            'create stock transfers',
+            'process stock transfers',
+            'cancel stock transfers',
+
             // ── Staff-side Settings ───────────────────────────────────────────
             'edit own profile',
             'view spa profile',
@@ -240,6 +246,11 @@ class RolePermissionSeeder extends Seeder
             'delete product inventory',
             'view product logs',
 
+            'view stock transfers',
+            'create stock transfers',
+            'process stock transfers',
+            'cancel stock transfers',
+
             'edit own profile',
             'view spa profile',
             'edit spa profile',
@@ -322,6 +333,11 @@ class RolePermissionSeeder extends Seeder
             'view product inventory',
             'edit product inventory',
             'view product logs',
+
+            'view stock transfers',
+            'create stock transfers',
+            'process stock transfers',
+            'cancel stock transfers',
 
             'edit own profile',
             'view spa profile',

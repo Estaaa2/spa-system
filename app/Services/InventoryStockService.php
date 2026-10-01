@@ -23,14 +23,15 @@ class InventoryStockService
         ?int $bookingId = null,
         ?string $referenceType = null,
         ?int $referenceId = null,
-        ?string $notes = null
+        ?string $notes = null,
+        string $errorBag = 'adjustStock'
     ): array {
         $quantity = $this->normalize($quantity);
 
         if ($quantity <= 0) {
             throw ValidationException::withMessages([
                 'quantity' => 'The quantity must be greater than zero.',
-            ])->errorBag('adjustStock');
+            ])->errorBag($errorBag);
         }
 
         if ((int) $product->spa_id !== $spaId) {
@@ -69,7 +70,9 @@ class InventoryStockService
         $this->assertReconciled(
             $product,
             $branchQuantity,
-            $batchQuantity
+            $batchQuantity,
+            null,
+            $errorBag
         );
 
         $usableBatches = $allBatches->filter(function ($batch) {
@@ -92,7 +95,7 @@ class InventoryStockService
                     $this->formatQuantity($usableQuantity),
                     $product->usage_unit ?: $product->unit ?: 'pcs'
                 ),
-            ])->errorBag('adjustStock');
+            ])->errorBag($errorBag);
         }
 
         $remainingToConsume = $quantity;
@@ -126,7 +129,7 @@ class InventoryStockService
             if ($after < -self::TOLERANCE) {
                 throw ValidationException::withMessages([
                     'quantity' => 'The deduction would result in negative branch stock.',
-                ])->errorBag('adjustStock');
+                ])->errorBag($errorBag);
             }
 
             if (abs($after) <= self::TOLERANCE) {
@@ -168,6 +171,13 @@ class InventoryStockService
                 'batch_id' => $batch->id,
                 'batch_number' => $batch->batch_number,
                 'quantity' => $take,
+                'expiration_date' => $batch->expiration_date
+                    ? $batch->expiration_date->toDateString()
+                    : null,
+                'manufactured_at' => $batch->manufactured_at
+                    ? $batch->manufactured_at->toDateString()
+                    : null,
+                'unit_cost' => $batch->unit_cost,
             ];
 
             $balance = $after;
@@ -180,7 +190,7 @@ class InventoryStockService
         if ($remainingToConsume > self::TOLERANCE) {
             throw ValidationException::withMessages([
                 'quantity' => 'The full quantity could not be deducted from the available batches.',
-            ])->errorBag('adjustStock');
+            ])->errorBag($errorBag);
         }
 
         $stock->update([
@@ -199,7 +209,8 @@ class InventoryStockService
             $product,
             $balance,
             $newBatchQuantity,
-            'Inventory reconciliation failed after the deduction. No stock changes were saved.'
+            'Inventory reconciliation failed after the deduction. No stock changes were saved.',
+            $errorBag
         );
 
         return [
@@ -214,6 +225,10 @@ class InventoryStockService
         int $spaId,
         int $branchId
     ): array {
+        if ((int) $product->spa_id !== $spaId) {
+            abort(403);
+        }
+
         $stock = BranchProductStock::query()
             ->where('spa_id', $spaId)
             ->where('branch_id', $branchId)
@@ -232,15 +247,33 @@ class InventoryStockService
                 ->sum('remaining_quantity')
         );
 
+        $usableQuantity = $this->normalize(
+            (float) ProductBatch::query()
+                ->where('spa_id', $spaId)
+                ->where('branch_id', $branchId)
+                ->where('product_id', $product->id)
+                ->where('remaining_quantity', '>', 0)
+                ->where(function ($query) {
+                    $query
+                        ->whereNull('expiration_date')
+                        ->orWhereDate('expiration_date', '>=', today());
+                })
+                ->sum('remaining_quantity')
+        );
+
         $difference = $this->normalize(
             $branchQuantity - $batchQuantity
         );
 
+        $isReconciled = abs($difference) <= self::TOLERANCE;
+
         return [
             'branch_quantity' => $branchQuantity,
             'batch_quantity' => $batchQuantity,
+            'usable_quantity' => $usableQuantity,
             'difference' => $difference,
-            'is_reconciled' => abs($difference) <= self::TOLERANCE,
+            'is_reconciled' => $isReconciled,
+            'reconciled' => $isReconciled,
         ];
     }
 
@@ -248,7 +281,8 @@ class InventoryStockService
         Product $product,
         float $branchQuantity,
         float $batchQuantity,
-        ?string $message = null
+        ?string $message = null,
+        string $errorBag = 'adjustStock'
     ): void {
         if (abs($branchQuantity - $batchQuantity) <= self::TOLERANCE) {
             return;
@@ -262,7 +296,7 @@ class InventoryStockService
                 $this->formatQuantity($batchQuantity),
                 $product->usage_unit ?: $product->unit ?: 'pcs'
             ),
-        ])->errorBag('adjustStock');
+        ])->errorBag($errorBag);
     }
 
     private function normalize(float $quantity): float

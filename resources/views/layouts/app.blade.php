@@ -199,8 +199,25 @@
 
             @if(session('success'))
                 showSpaToast(@json(session('success')), 'success');
+
             @elseif(session('error'))
                 showSpaToast(@json(session('error')), 'error');
+
+            @elseif(session('status'))
+                @php
+                    $toastStatusMap = [
+                        'profile-updated' => 'Profile updated successfully!',
+                        'password-updated' => 'Password updated successfully!',
+                        'verification-link-sent' => 'Verification link sent successfully!',
+                    ];
+
+                    $toastStatusMessage = $toastStatusMap[session('status')] ?? null;
+                @endphp
+
+                @if($toastStatusMessage)
+                    showSpaToast(@json($toastStatusMessage), 'success');
+                @endif
+
             @else
                 @php
                     $toastValidationError = null;

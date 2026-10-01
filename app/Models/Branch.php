@@ -77,6 +77,22 @@ class Branch extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    public function outgoingStockTransfers()
+    {
+        return $this->hasMany(
+            StockTransfer::class,
+            'source_branch_id'
+        );
+    }
+
+    public function incomingStockTransfers()
+    {
+        return $this->hasMany(
+            StockTransfer::class,
+            'destination_branch_id'
+        );
+    }
+
     public function getUsesWorkforceFinanceSuiteAttribute(): bool
     {
         return (bool) $this->has_workforce_finance_suite;

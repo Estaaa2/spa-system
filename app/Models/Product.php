@@ -49,6 +49,11 @@ class Product extends Model
         return $this->hasMany(BranchProductStock::class);
     }
 
+    public function stockTransfers()
+    {
+        return $this->hasMany(StockTransfer::class);
+    }
+
     public function batches()
     {
         return $this->hasMany(ProductBatch::class);

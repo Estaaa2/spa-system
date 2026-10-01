@@ -676,13 +676,13 @@
                                         <input type="number"
                                             id="loss_quantity"
                                             name="quantity"
-                                            min="0"
+                                            min="0.001"
                                             max="20000"
                                             step="0.001"
                                             inputmode="decimal"
                                             data-stock-limit="20000"
                                             data-stock-decimals="3"
-                                            :max="lossBatch.remaining_quantity"
+                                            :max="Math.min(20000, Number(lossBatch.remaining_quantity || 0))"
                                             value="{{ old('quantity') }}"
                                             required
                                             class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-l-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -709,6 +709,8 @@
                                     <textarea id="loss_reason"
                                         name="reason"
                                         rows="3"
+                                        minlength="3"
+                                        maxlength="1000"
                                         required
                                         placeholder="Explain what happened to this stock."
                                         class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('reason') }}</textarea>

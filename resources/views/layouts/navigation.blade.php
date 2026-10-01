@@ -108,8 +108,9 @@
         $can('delete product inventory');
 
     $canProductLogs = $can('view product logs');
+    $canStockTransfers = $canProductInventory;
 
-    $showInventory = $canProductInventory || $canProductLogs;
+    $showInventory = $canProductInventory || $canProductLogs || $canStockTransfers;
 
     // Single source for "which collapsible section owns the current route".
     // Consumed twice: by the collapsed-section dot below, and by the sidebar
@@ -749,13 +750,20 @@
                                 <x-nav-link :href="route('inventory.products')" :active="request()->routeIs('inventory.products')">
                                     Product Inventory
                                 </x-nav-link>
+                                <x-nav-link :href="route('inventory.batches')" :active="request()->routeIs('inventory.batches')">
+                                    Product Batches
+                                </x-nav-link>
                             @endif
                             @if ($canProductLogs)
                                 <x-nav-link :href="route('inventory.logs')" :active="request()->routeIs('inventory.logs')">
                                     Product Logs
                                 </x-nav-link>
                             @endif
-
+                            @if ($canStockTransfers)
+                                <x-nav-link :href="route('inventory.transfers')" :active="request()->routeIs('inventory.transfers*')">
+                                    Stock Transfers
+                                </x-nav-link>
+                            @endif
                         </div>
                     </div>
                 @endif

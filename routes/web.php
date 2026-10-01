@@ -36,6 +36,7 @@ use App\Http\Controllers\RescheduleRequestController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceImportExportController;
+use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
@@ -444,20 +445,21 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     | Inventory
     |--------------------------------------------------------------------------
     */
+
     Route::prefix('inventory')->name('inventory.')->group(function () {
 
         Route::middleware('branch.permission:view inventory')->group(function () {
             Route::get('/products', [\App\Http\Controllers\InventoryController::class, 'products'])
                 ->name('products');
-            
+
             Route::get('/batches', [\App\Http\Controllers\InventoryController::class, 'batches'])
                 ->name('batches');
-
         });
 
         Route::middleware('branch.permission:view inventory logs')->group(function () {
             Route::get('/logs', [\App\Http\Controllers\InventoryController::class, 'logs'])
                 ->name('logs');
+
             Route::get('/logs/export-pdf', [\App\Http\Controllers\InventoryController::class, 'exportLogsPdf'])
                 ->name('logs.export-pdf');
         });
@@ -497,6 +499,27 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
             Route::delete('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'destroy'])
                 ->name('products.destroy');
         });
+
+        Route::middleware('branch.permission:view stock transfers')->group(function () {
+            Route::get('/transfers', [StockTransferController::class, 'index'])
+                ->name('transfers');
+        });
+
+        Route::middleware('branch.permission:create stock transfers')->group(function () {
+            Route::post('/transfers', [StockTransferController::class, 'store'])
+                ->name('transfers.store');
+        });
+
+        Route::middleware('branch.permission:process stock transfers')->group(function () {
+            Route::post('/transfers/{transfer}/process', [StockTransferController::class, 'process'])
+                ->name('transfers.process');
+        });
+
+        Route::middleware('branch.permission:cancel stock transfers')->group(function () {
+            Route::post('/transfers/{transfer}/cancel', [StockTransferController::class, 'cancel'])
+                ->name('transfers.cancel');
+        });
+
     });
 
     /*
