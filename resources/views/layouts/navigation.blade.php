@@ -92,8 +92,14 @@
     $canPayroll = $can('view payroll') || $can('edit payroll');
     $canRevenue = $can('view revenue');
     $canBilling = $can('view billing') || $can('create billing') || $can('edit billing') || $can('delete billing');
+    $canVendorBills =
+        $can('view vendor bills') ||
+        $can('create vendor bills') ||
+        $can('match vendor bills');
 
-    $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling);
+    $showFinance =
+        $suiteEnabled &&
+        ($canPayroll || $canRevenue || $canBilling || $canVendorBills);
 
     // Procurement
     $canSuppliers =
@@ -163,7 +169,8 @@
         'procurement' => request()->routeIs('procurement.*'),
 
         'finance' => request()->routeIs('revenue.*')
-            || request()->routeIs('billing.*'),
+            || request()->routeIs('billing.*')
+            || request()->routeIs('vendor-bills.*'),
 
         'insights' => request()->routeIs('decision-support.*')
             || request()->routeIs('reports.*'),
@@ -709,7 +716,14 @@
                                     Billing &amp; Expenses
                                 </x-nav-link>
                             @endif
-
+                            @if ($canVendorBills)
+                                <x-nav-link
+                                    :href="route('vendor-bills.index')"
+                                    :active="request()->routeIs('vendor-bills.*')"
+                                >
+                                    Vendor Bills
+                                </x-nav-link>
+                            @endif
                         </div>
                     </div>
                 @endif

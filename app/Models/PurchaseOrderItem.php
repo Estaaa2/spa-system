@@ -11,10 +11,12 @@ class PurchaseOrderItem extends Model
         'product_id',
         'quantity',
         'unit',
+        'unit_cost',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:3',
+        'unit_cost' => 'decimal:2',
     ];
 
     public function purchaseOrder()

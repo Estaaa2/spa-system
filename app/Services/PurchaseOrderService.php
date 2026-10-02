@@ -97,10 +97,32 @@ class PurchaseOrderService
                 ]);
 
                 foreach ($purchaseRequest->items as $item) {
+                    $supplierProduct = $supplier->products()
+                        ->where('products.id', $item->product_id)
+                        ->wherePivot('is_active', true)
+                        ->first();
+
+                    if (!$supplierProduct) {
+                        throw ValidationException::withMessages([
+                            'supplier_id' =>
+                                'The selected supplier does not actively supply one or more products in this purchase request.',
+                        ]);
+                    }
+
+                    $unitCost = (float) $supplierProduct->pivot->unit_cost;
+
+                    if ($unitCost <= 0) {
+                        throw ValidationException::withMessages([
+                            'supplier_id' =>
+                                'A valid supplier unit cost is required for every product in the purchase order.',
+                        ]);
+                    }
+
                     $purchaseOrder->items()->create([
                         'product_id' => $item->product_id,
                         'quantity' => $item->quantity,
                         'unit' => $item->unit,
+                        'unit_cost' => $unitCost,
                     ]);
                 }
 

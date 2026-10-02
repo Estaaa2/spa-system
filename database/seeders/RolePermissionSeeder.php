@@ -163,6 +163,10 @@ class RolePermissionSeeder extends Seeder
             'delete billing',
             'view finance inventory',
             'edit finance inventory',
+            'view vendor bills',
+            'create vendor bills',
+            'match vendor bills',
+            'edit vendor bills',
         ];
 
         // Optional: uncomment to clean up stale permissions after all code has been updated
@@ -315,6 +319,10 @@ class RolePermissionSeeder extends Seeder
             'delete billing',
             'view finance inventory',
             'edit finance inventory',
+            'view vendor bills',
+            'create vendor bills',
+            'match vendor bills',
+            'edit vendor bills',
         ]);
 
         // ── Manager ───────────────────────────────────────────────────────────
@@ -503,6 +511,11 @@ class RolePermissionSeeder extends Seeder
             'delete billing',
             'view finance inventory',
             'edit finance inventory',
+
+            'view vendor bills',
+            'create vendor bills',
+            'match vendor bills',
+            'edit vendor bills',
 
             'view reports',
             'view decision support',

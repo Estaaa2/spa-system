@@ -11,6 +11,7 @@ use App\Http\Controllers\CustomerAppointmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Finance\BillingController;
 use App\Http\Controllers\Finance\RevenueController;
+use App\Http\Controllers\Finance\VendorBillController;
 use App\Http\Controllers\HR\ApplicationController;
 use App\Http\Controllers\HR\AttendanceController;
 use App\Http\Controllers\HR\BranchDeploymentController;
@@ -796,6 +797,27 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::patch('/billing/expenses/{expense}/status', [BillingController::class, 'updateExpenseStatus'])
             ->name('billing.expense.updateStatus');
     });
+
+    Route::middleware('branch.permission:view vendor bills')->group(function () {
+        Route::get('/vendor-bills', [VendorBillController::class, 'index'])
+            ->name('vendor-bills.index');
+    });
+
+    Route::middleware('branch.permission:create vendor bills')->group(function () {
+        Route::post('/vendor-bills', [VendorBillController::class, 'store'])
+            ->name('vendor-bills.store');
+    });
+
+    Route::middleware('branch.permission:match vendor bills')->group(function () {
+        Route::post('/vendor-bills/{vendorBill}/match',[VendorBillController::class, 'match'])
+            ->name('vendor-bills.match');
+    });
+
+    Route::middleware('branch.permission:edit vendor bills')->group(function () {
+        Route::put('/vendor-bills/{vendorBill}',[VendorBillController::class, 'update'])
+            ->name('vendor-bills.update');
+    });
+
 });
 
 /*
