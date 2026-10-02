@@ -95,6 +95,29 @@
 
     $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling);
 
+    // Procurement
+    $canSuppliers =
+        $can('view suppliers') ||
+        $can('create suppliers') ||
+        $can('edit suppliers') ||
+        $can('manage supplier products');
+
+    $canPurchaseRequests =
+        $can('view purchase requests') ||
+        $can('create purchase requests') ||
+        $can('review purchase requests');
+
+    $canPurchaseOrders =
+        $can('view purchase orders') ||
+        $can('create purchase orders') ||
+        $can('manage purchase orders');
+
+    $showProcurement =
+        $canSuppliers ||
+        $canPurchaseRequests ||
+        $canPurchaseOrders;
+
+
     // Insights
     $canDecisionSupport = $can('view decision support');
     $canReports = $can('view reports');
@@ -109,8 +132,10 @@
 
     $canProductLogs = $can('view product logs');
     $canStockTransfers = $canProductInventory;
+    $canViewReplenishment = $can('view replenishment');
+    $canViewGoodsReceipts = $user->hasBranchPermission('view goods receipts');
 
-    $showInventory = $canProductInventory || $canProductLogs || $canStockTransfers;
+    $showInventory = $canProductInventory || $canProductLogs || $canStockTransfers || $canViewReplenishment || $canViewGoodsReceipts;
 
     // Single source for "which collapsible section owns the current route".
     // Consumed twice: by the collapsed-section dot below, and by the sidebar
@@ -134,6 +159,8 @@
 
         'services' => request()->routeIs('services.*')
             || (!$suiteEnabled && request()->routeIs('staff.*')),
+
+        'procurement' => request()->routeIs('procurement.*'),
 
         'finance' => request()->routeIs('revenue.*')
             || request()->routeIs('billing.*'),
@@ -724,6 +751,62 @@
                     </div>
                 @endif
 
+                @if ($showProcurement)
+                    <div class="mb-1">
+                        <button @click="toggleSection('procurement')" type="button"
+                            aria-controls="nav-section-procurement"
+                            :aria-expanded="isOpen('procurement') ? 'true' : 'false'"
+                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-cart-flatbed w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                Procurement
+                            </span>
+
+                            <span class="flex items-center gap-2">
+                                @if ($activeSection === 'procurement')
+                                    <span x-show="!isOpen('procurement')" x-cloak aria-hidden="true"
+                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
+                                @endif
+
+                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                                    :class="isOpen('procurement') ? 'transform rotate-180' : ''"></i>
+                            </span>
+                        </button>
+
+                        <div x-show="isOpen('procurement')" x-collapse id="nav-section-procurement"
+                            class="ml-4 space-y-1">
+
+                            @if ($can('view suppliers'))
+                                <x-nav-link
+                                    :href="route('procurement.suppliers.index')"
+                                    :active="request()->routeIs('procurement.suppliers.*')"
+                                >
+                                    Suppliers
+                                </x-nav-link>
+                            @endif
+
+                            @if ($can('view purchase requests'))
+                                <x-nav-link
+                                    :href="route('procurement.purchase-requests.index')"
+                                    :active="request()->routeIs('procurement.purchase-requests.*')"
+                                >
+                                    Purchase Requests
+                                </x-nav-link>
+                            @endif
+
+                            @if ($can('view purchase orders'))
+                                <x-nav-link
+                                    :href="route('procurement.purchase-orders.index')"
+                                    :active="request()->routeIs('procurement.purchase-orders.*')"
+                                >
+                                    Purchase Orders
+                                </x-nav-link>
+                            @endif
+
+                        </div>
+                    </div>
+                @endif
+
                 @if ($showInventory)
                     <div class="mb-1">
                         <button @click="toggleSection('inventory')" type="button"
@@ -757,6 +840,22 @@
                             @if ($canProductLogs)
                                 <x-nav-link :href="route('inventory.logs')" :active="request()->routeIs('inventory.logs')">
                                     Product Logs
+                                </x-nav-link>
+                            @endif
+                            @if ($canViewGoodsReceipts)
+                                <x-nav-link
+                                    :href="route('inventory.goods-receipts.index')"
+                                    :active="request()->routeIs('inventory.goods-receipts.*')"
+                                >
+                                    Goods Receipts
+                                </x-nav-link>
+                            @endif
+                            @if ($canViewReplenishment)
+                                <x-nav-link
+                                    :href="route('inventory.replenishment.index')"
+                                    :active="request()->routeIs('inventory.replenishment.*')"
+                                >
+                                    Replenishment
                                 </x-nav-link>
                             @endif
                             @if ($canStockTransfers)

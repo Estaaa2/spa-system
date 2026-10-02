@@ -93,12 +93,30 @@ class RolePermissionSeeder extends Seeder
             'edit product inventory',
             'delete product inventory',
             'view product logs',
+            'view replenishment',
 
             // ── Inventory Stock Transfers ───────────────────────────────────────
             'view stock transfers',
             'create stock transfers',
             'process stock transfers',
             'cancel stock transfers',
+
+            // ── Procurement ───────────────────────────────────────────────────
+            'view suppliers',
+            'create suppliers',
+            'edit suppliers',
+            'manage supplier products',
+
+            'view purchase orders',
+            'create purchase orders',
+            'manage purchase orders',
+
+            'view purchase requests',
+            'create purchase requests',
+            'review purchase requests',
+
+            'view goods receipts',
+            'receive goods',
 
             // ── Staff-side Settings ───────────────────────────────────────────
             'edit own profile',
@@ -148,7 +166,7 @@ class RolePermissionSeeder extends Seeder
         ];
 
         // Optional: uncomment to clean up stale permissions after all code has been updated
-        Permission::whereNotIn('name', $permissions)->delete();
+        // Permission::whereNotIn('name', $permissions)->delete();
 
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['name' => $perm]);
@@ -245,11 +263,28 @@ class RolePermissionSeeder extends Seeder
             'edit product inventory',
             'delete product inventory',
             'view product logs',
+            'view replenishment',
 
             'view stock transfers',
             'create stock transfers',
             'process stock transfers',
             'cancel stock transfers',
+
+            'view suppliers',
+            'create suppliers',
+            'edit suppliers',
+            'manage supplier products',
+
+            'view purchase requests',
+            'create purchase requests',
+            'review purchase requests',
+
+            'view purchase orders',
+            'create purchase orders',
+            'manage purchase orders',
+
+            'view goods receipts',
+            'receive goods',
 
             'edit own profile',
             'view spa profile',
@@ -333,11 +368,28 @@ class RolePermissionSeeder extends Seeder
             'view product inventory',
             'edit product inventory',
             'view product logs',
+            'view replenishment',
 
             'view stock transfers',
             'create stock transfers',
             'process stock transfers',
             'cancel stock transfers',
+
+            'view suppliers',
+            'create suppliers',
+            'edit suppliers',
+            'manage supplier products',
+
+            'view purchase requests',
+            'create purchase requests',
+            'review purchase requests',
+
+            'view goods receipts',
+            'receive goods',
+
+            'view purchase orders',
+            'create purchase orders',
+            'manage purchase orders',
 
             'edit own profile',
             'view spa profile',

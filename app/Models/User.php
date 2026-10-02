@@ -122,6 +122,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(\App\Models\Staff::class, 'user_id');
     }
 
+    public function requestedPurchaseRequests()
+    {
+        return $this->hasMany(PurchaseRequest::class, 'requested_by');
+    }
+
+    public function reviewedPurchaseRequests()
+    {
+        return $this->hasMany(PurchaseRequest::class, 'reviewed_by');
+    }
+
     public function currentBranchId(): ?int
     {
         if ($this->hasRole('owner')) {

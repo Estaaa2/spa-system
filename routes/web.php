@@ -33,11 +33,15 @@ use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReassignmentRequestController;
 use App\Http\Controllers\RescheduleRequestController;
+use App\Http\Controllers\ReplenishmentController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceImportExportController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\PromoController;
+use App\Http\Controllers\PurchaseRequestController;
+use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TherapistPerformanceController;
@@ -451,6 +455,91 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
     /*
     |--------------------------------------------------------------------------
+    | Procurement
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('procurement')->name('procurement.')->group(function () {
+
+        Route::middleware('branch.permission:view suppliers')->group(function () {
+            Route::get('/suppliers', [\App\Http\Controllers\SupplierController::class, 'index'])
+                ->name('suppliers.index');
+        });
+
+        Route::middleware('branch.permission:create suppliers')->group(function () {
+            Route::post('/suppliers', [\App\Http\Controllers\SupplierController::class, 'store'])
+                ->name('suppliers.store');
+        });
+
+        Route::middleware('branch.permission:edit suppliers')->group(function () {
+            Route::put('/suppliers/{supplier}', [\App\Http\Controllers\SupplierController::class, 'update'])
+                ->name('suppliers.update');
+
+            Route::patch('/suppliers/{supplier}/status', [\App\Http\Controllers\SupplierController::class, 'updateStatus'])
+                ->name('suppliers.status');
+        });
+
+        Route::middleware('branch.permission:manage supplier products')->group(function () {
+            Route::post('/suppliers/{supplier}/products', [\App\Http\Controllers\SupplierController::class, 'attachProduct'])
+                ->name('suppliers.products.store');
+
+            Route::put('/suppliers/{supplier}/products/{supplierProduct}', [\App\Http\Controllers\SupplierController::class, 'updateProduct'])
+                ->name('suppliers.products.update');
+        });
+
+        Route::middleware('branch.permission:view purchase requests')->group(function () {
+            Route::get('/purchase-requests', [
+                PurchaseRequestController::class,
+                'index'
+            ])->name('purchase-requests.index');
+        });
+
+        Route::middleware('branch.permission:create purchase requests')->group(function () {
+            Route::post('/purchase-requests', [
+                PurchaseRequestController::class,
+                'store'
+            ])->name('purchase-requests.store');
+        });
+
+        Route::middleware('branch.permission:review purchase requests')->group(function () {
+            Route::patch('/purchase-requests/{purchaseRequest}/approve', [
+                PurchaseRequestController::class,
+                'approve'
+            ])->name('purchase-requests.approve');
+
+            Route::patch('/purchase-requests/{purchaseRequest}/reject', [
+                PurchaseRequestController::class,
+                'reject'
+            ])->name('purchase-requests.reject');
+        });
+
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Procurement: Purchase Orders
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('branch.permission:view purchase orders')->group(function () {
+        Route::get('/procurement/purchase-orders', [PurchaseOrderController::class, 'index'])
+            ->name('procurement.purchase-orders.index');
+    });
+
+    Route::middleware('branch.permission:create purchase orders')->group(function () {
+        Route::post('/procurement/purchase-orders', [PurchaseOrderController::class, 'store'])
+            ->name('procurement.purchase-orders.store');
+    });
+
+    Route::middleware('branch.permission:manage purchase orders')->group(function () {
+        Route::patch('/procurement/purchase-orders/{purchaseOrder}/issue', [PurchaseOrderController::class, 'issue'])
+            ->name('procurement.purchase-orders.issue');
+
+        Route::patch('/procurement/purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel'])
+            ->name('procurement.purchase-orders.cancel');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Inventory
     |--------------------------------------------------------------------------
     */
@@ -527,6 +616,29 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::middleware('branch.permission:cancel stock transfers')->group(function () {
             Route::post('/transfers/{transfer}/cancel', [StockTransferController::class, 'cancel'])
                 ->name('transfers.cancel');
+        });
+
+        Route::middleware('branch.permission:view replenishment')->group(function () {
+            Route::get('/replenishment',[ReplenishmentController::class, 'index']
+            )->name('replenishment.index');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Goods Receipts / GRN
+        |--------------------------------------------------------------------------
+        */
+
+        Route::middleware('branch.permission:view goods receipts')->group(function () {
+            Route::get('/goods-receipts', [GoodsReceiptController::class, 'index'])
+                ->name('goods-receipts.index');
+        });
+
+        Route::middleware('branch.permission:receive goods')->group(function () {
+            Route::post(
+                '/goods-receipts/{purchaseOrder}',
+                [GoodsReceiptController::class, 'store']
+            )->name('goods-receipts.store');
         });
 
     });

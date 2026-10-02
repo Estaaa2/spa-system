@@ -54,6 +54,29 @@ class Product extends Model
         return $this->hasMany(StockTransfer::class);
     }
 
+    public function supplierProducts()
+    {
+        return $this->hasMany(SupplierProduct::class);
+    }
+
+    public function suppliers()
+    {
+        return $this->belongsToMany(Supplier::class, 'supplier_products')
+            ->withPivot([
+                'unit_cost',
+                'lead_time_days',
+                'minimum_order_quantity',
+                'is_preferred',
+                'is_active',
+            ])
+            ->withTimestamps();
+    }
+
+    public function purchaseRequestItems()
+    {
+        return $this->hasMany(PurchaseRequestItem::class);
+    }
+
     public function treatmentRecipeItems()
     {
         return $this->hasMany(TreatmentRecipeItem::class);

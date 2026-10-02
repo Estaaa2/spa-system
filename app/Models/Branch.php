@@ -72,6 +72,11 @@ class Branch extends Model
         return $this->hasMany(ProductBatch::class);
     }
 
+    public function purchaseRequests()
+    {
+        return $this->hasMany(PurchaseRequest::class);
+    }
+
     public function stockMovements()
     {
         return $this->hasMany(StockMovement::class);
