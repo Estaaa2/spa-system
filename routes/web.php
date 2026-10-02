@@ -17,8 +17,12 @@ use App\Http\Controllers\HR\AttendanceController;
 use App\Http\Controllers\HR\BranchDeploymentController;
 use App\Http\Controllers\HR\HiringController;
 use App\Http\Controllers\HR\InterviewController;
+use App\Http\Controllers\HR\MyPayslipController;
 use App\Http\Controllers\HR\PayrollController;
+use App\Http\Controllers\HR\PayrollSetupController;
+use App\Http\Controllers\HR\PayslipController;
 use App\Http\Controllers\HR\PublicApplicationController;
+use App\Http\Controllers\HR\StaffPayProfileController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
@@ -765,15 +769,64 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])->name('leave-requests.reject');
     });
 
-    // Payroll
+    // Payroll (Units 5–6) — Owner and HR only, via `view payroll` / `edit payroll`.
+    // In each group, static URIs are registered before parameterised ones so a
+    // static segment is never captured as a parameter (/payroll/runs/preview must
+    // come before /payroll/runs/{run}).
     Route::middleware('branch.permission:view payroll')->group(function () {
+        // Static
         Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');
+        Route::get('/payroll/runs/preview', [PayrollController::class, 'preview'])->name('payroll.runs.preview');
+        Route::get('/payroll/setup', [PayrollSetupController::class, 'index'])->name('payroll.setup.index');
+        Route::get('/payroll/setup/commission-rules/preview', [PayrollSetupController::class, 'previewRule'])->name('payroll.setup.rules.preview');
+        Route::get('/payroll/staff', [StaffPayProfileController::class, 'index'])->name('payroll.staff.index');
+
+        // Parameterised
+        Route::get('/payroll/runs/{run}', [PayrollController::class, 'show'])->name('payroll.runs.show');
+        Route::get('/payroll/runs/{run}/print', [PayrollController::class, 'print'])->name('payroll.runs.print');
+        Route::get('/payroll/payslips/{payslip}', [PayslipController::class, 'show'])->name('payroll.payslips.show');
+        Route::get('/payroll/staff/{staff}', [StaffPayProfileController::class, 'show'])->name('payroll.staff.show');
     });
 
     Route::middleware('branch.permission:edit payroll')->group(function () {
-        Route::post('/payroll/generate', [PayrollController::class, 'generate'])->name('payroll.generate');
-        Route::post('/payroll/{payroll}/finalize', [PayrollController::class, 'finalize'])->name('payroll.finalize');
+        // Static
+        Route::post('/payroll/runs', [PayrollController::class, 'store'])->name('payroll.runs.store');
+        Route::put('/payroll/setup/schedule', [PayrollSetupController::class, 'updateSchedule'])->name('payroll.setup.schedule');
+        Route::post('/payroll/setup/commission-rules', [PayrollSetupController::class, 'storeRule'])->name('payroll.setup.rules.store');
+
+        // Parameterised — runs, payslips and manual adjustment lines (Unit 6)
+        Route::post('/payroll/runs/{run}/regenerate', [PayrollController::class, 'regenerate'])->name('payroll.runs.regenerate');
+        Route::delete('/payroll/runs/{run}', [PayrollController::class, 'destroy'])->name('payroll.runs.destroy');
+        Route::post('/payroll/runs/{run}/approve', [PayrollController::class, 'approve'])->name('payroll.runs.approve');
+        Route::post('/payroll/runs/{run}/send-back', [PayrollController::class, 'sendBack'])->name('payroll.runs.send-back');
+        Route::post('/payroll/runs/{run}/finalize', [PayrollController::class, 'finalize'])->name('payroll.runs.finalize');
+        Route::post('/payroll/runs/{run}/release', [PayrollController::class, 'release'])->name('payroll.runs.release');
+        Route::post('/payroll/payslips/{payslip}/lines', [PayslipController::class, 'storeLine'])->name('payroll.payslips.lines.store');
+        Route::delete('/payroll/lines/{line}', [PayslipController::class, 'destroyLine'])->name('payroll.lines.destroy');
+
+        // Parameterised — payroll setup and staff pay (Unit 5)
+        Route::put('/payroll/setup/branches/{branch}/wage', [PayrollSetupController::class, 'updateBranchWage'])->name('payroll.setup.wages.update');
+        Route::put('/payroll/setup/commission-rules/{rule}', [PayrollSetupController::class, 'updateRule'])->name('payroll.setup.rules.update');
+        Route::post('/payroll/setup/commission-rules/{rule}/change', [PayrollSetupController::class, 'supersedeRule'])->name('payroll.setup.rules.supersede');
+        Route::post('/payroll/setup/commission-rules/{rule}/end', [PayrollSetupController::class, 'endRule'])->name('payroll.setup.rules.end');
+        Route::delete('/payroll/setup/commission-rules/{rule}', [PayrollSetupController::class, 'destroyRule'])->name('payroll.setup.rules.destroy');
+
+        Route::post('/payroll/staff/{staff}/profiles', [StaffPayProfileController::class, 'storeProfile'])->name('payroll.staff.profiles.store');
+        Route::put('/payroll/staff/{staff}/profiles/{profile}', [StaffPayProfileController::class, 'updateProfile'])->name('payroll.staff.profiles.update');
+        Route::delete('/payroll/staff/{staff}/profiles/{profile}', [StaffPayProfileController::class, 'destroyProfile'])->name('payroll.staff.profiles.destroy');
+        Route::post('/payroll/staff/{staff}/statutory-ids/reveal', [StaffPayProfileController::class, 'revealStatutoryIds'])->name('payroll.staff.ids.reveal');
+        Route::put('/payroll/staff/{staff}/statutory-ids', [StaffPayProfileController::class, 'updateStatutoryIds'])->name('payroll.staff.ids.update');
+        Route::post('/payroll/staff/{staff}/recurring', [StaffPayProfileController::class, 'storeRecurring'])->name('payroll.staff.recurring.store');
+        Route::post('/payroll/staff/{staff}/recurring/{item}/stop', [StaffPayProfileController::class, 'stopRecurring'])->name('payroll.staff.recurring.stop');
+        Route::delete('/payroll/staff/{staff}/recurring/{item}', [StaffPayProfileController::class, 'destroyRecurring'])->name('payroll.staff.recurring.destroy');
     });
+
+    // My Payslips (Unit 6) — identity-based self-service, deliberately not
+    // permission-gated. MyPayslipController limits it to the signed-in user's own
+    // Staff records and answers 404 for anyone else's payslip. Printing is the
+    // detail page's own Print button (window.print()), so there is no print route.
+    Route::get('/my-payslips', [MyPayslipController::class, 'index'])->name('my-payslips.index');
+    Route::get('/my-payslips/{payslip}', [MyPayslipController::class, 'show'])->name('my-payslips.show');
 
     /*
     |--------------------------------------------------------------------------

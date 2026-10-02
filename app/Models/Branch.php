@@ -18,11 +18,16 @@ class Branch extends Model
         'location',
         'is_main',
         'has_workforce_finance_suite',
+        'min_daily_wage',
+        'wage_order_ref',
+        'min_wage_effective_from',
     ];
 
     protected $casts = [
         'is_main'                     => 'boolean',
         'has_workforce_finance_suite' => 'boolean',
+        'min_daily_wage'              => 'decimal:2',
+        'min_wage_effective_from'     => 'date',
     ];
 
     public function spa(): BelongsTo
