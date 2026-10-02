@@ -110,7 +110,17 @@
     $canRevenue = $can('view revenue');
     $canBilling = $can('view billing') || $can('create billing') || $can('edit billing') || $can('delete billing');
 
-    $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling);
+    // Vendor bills. IMPORTANT: these permission names must match your seeder and routes.
+    $canVendorBills = $can('view vendor bills') || $can('create vendor bills') || $can('edit vendor bills') || $can('delete vendor bills');
+
+    $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling || $canVendorBills);
+
+    // Procurement
+    $canSuppliers = $can('view suppliers');
+    $canPurchaseRequests = $can('view purchase requests');
+    $canPurchaseOrders = $can('view purchase orders');
+
+    $showProcurement = $canSuppliers || $canPurchaseRequests || $canPurchaseOrders;
 
     // Insights
     $canDecisionSupport = $can('view decision support');
@@ -795,7 +805,7 @@
                         <div x-show="isOpen('procurement')" x-collapse id="nav-section-procurement"
                             class="ml-4 space-y-1">
 
-                            @if ($can('view suppliers'))
+                            @if ($canSuppliers)
                                 <x-nav-link
                                     :href="route('procurement.suppliers.index')"
                                     :active="request()->routeIs('procurement.suppliers.*')"
@@ -804,7 +814,7 @@
                                 </x-nav-link>
                             @endif
 
-                            @if ($can('view purchase requests'))
+                            @if ($canPurchaseRequests)
                                 <x-nav-link
                                     :href="route('procurement.purchase-requests.index')"
                                     :active="request()->routeIs('procurement.purchase-requests.*')"
@@ -813,7 +823,7 @@
                                 </x-nav-link>
                             @endif
 
-                            @if ($can('view purchase orders'))
+                            @if ($canPurchaseOrders)
                                 <x-nav-link
                                     :href="route('procurement.purchase-orders.index')"
                                     :active="request()->routeIs('procurement.purchase-orders.*')"
