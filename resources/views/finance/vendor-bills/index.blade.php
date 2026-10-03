@@ -399,7 +399,7 @@
 
                                             <button
                                                 type="submit"
-                                                class="{{ $btn['rowPrimary'] }}"
+                                                class="{{ $btn['primary'] }}"
                                             >
                                                 <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>
 

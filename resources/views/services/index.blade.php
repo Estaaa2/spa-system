@@ -31,6 +31,11 @@
     $showPackageActions   = $canEditPackages   || $canDeletePackages;
     // ── END STOP-AND-FLAG ZONE ───────────────────────────────────────────────
 
+    // Same test the Manage Promos link has always used (union of the two old
+    // section-level gates). Computed here so the link no longer depends on the
+    // page-header component exposing a `right` slot.
+    $showPromosLink = $canViewPromos && ($canManageTreatments || $canManagePackages);
+
     $hasTreatments = $treatments->count() > 0;
     $hasPackages   = $packages->count() > 0;
 
@@ -165,24 +170,20 @@
     <x-page-header
         title="Services"
         subtitle="Manage your treatments and packages."
-    >
-        {{-- Promos are page-scoped, not section-scoped, so this sits in the
-             header's right slot instead of being repeated in both section
-             toolbars. The permission test is the union of what the two old
-             copies were gated on, so nobody gains or loses access to it. --}}
-        <x-slot name="right">
-            @if($canViewPromos && ($canManageTreatments || $canManagePackages))
-                <a href="{{ route('promos.index') }}"
-                   class="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 text-sm font-semibold text-white rounded-xl
-                          bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2
-                          dark:focus-visible:ring-offset-gray-900">
-                    <i class="text-xs fa-solid fa-tag" aria-hidden="true"></i>
-                    Manage Promos
-                </a>
-            @endif
-        </x-slot>
-    </x-page-header>
+    />
+
+    @if($showPromosLink)
+        <div class="flex justify-end">
+            <a href="{{ route('promos.index') }}"
+               class="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 text-sm font-semibold text-white rounded-xl
+                      bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2
+                      dark:focus-visible:ring-offset-gray-900">
+                <i class="text-xs fa-solid fa-tag" aria-hidden="true"></i>
+                Manage Promos
+            </a>
+        </div>
+    @endif
 
     {{-- ══════════════════════════════════════════════════
          SUMMARY — same card shape as appointments: label on top,
