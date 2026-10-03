@@ -302,6 +302,12 @@ class RolePermissionController extends Controller
                 'icon'        => 'fa-solid fa-boxes-stacked',
                 'suite'       => null,
             ],
+            'procurement' => [
+                'title'       => 'Procurement',
+                'description' => 'Suppliers, purchase requests, purchase orders, and goods receiving.',
+                'icon'        => 'fa-solid fa-truck-ramp-box',
+                'suite'       => null,
+            ],
             'finance' => [
                 'title'       => 'Finance',
                 'description' => 'Payroll, billing, revenue, expenses, and financial records.',
@@ -312,6 +318,15 @@ class RolePermissionController extends Controller
                 'title'       => 'Profile & Account',
                 'description' => 'Staff profile and account-related access.',
                 'icon'        => 'fa-solid fa-id-badge',
+                'suite'       => null,
+            ],
+            // Catch-all. Any permission the keyword rules below do not recognise
+            // lands here so it is still rendered. A permission that is never
+            // rendered is never submitted, and update() would treat it as unticked.
+            'other' => [
+                'title'       => 'Other',
+                'description' => 'Permissions that do not belong to a specific module yet.',
+                'icon'        => 'fa-solid fa-ellipsis',
                 'suite'       => null,
             ],
         ];
@@ -330,12 +345,15 @@ class RolePermissionController extends Controller
             Str::contains($name, ['schedule'])                                           => 'schedule',
             Str::contains($name, ['attendance', 'availability', 'leave'])                => 'attendance_leave',
             Str::contains($name, ['hiring', 'applicant', 'application', 'interview', 'deployment']) => 'hiring',
-            Str::contains($name, ['service', 'package', 'treatment'])                   => 'services',
+            Str::contains($name, ['service', 'package', 'treatment', 'promo'])                   => 'services',
             Str::contains($name, ['staff'])                                              => 'staff',
             Str::contains($name, ['branch', 'listing', 'public profile'])                => 'branches',
             Str::contains($name, ['decision support', 'insight', 'analytics', 'report', 'export reports']) => 'insights',
-            Str::contains($name, ['inventory', 'stock', 'product'])                     => 'inventory',
-            Str::contains($name, ['payroll', 'billing', 'revenue', 'expense', 'finance']) => 'finance',
+            // Procurement must come before inventory — 'manage supplier products'
+            // contains 'product' and would otherwise land in the inventory group.
+            Str::contains($name, ['supplier', 'purchase', 'goods']) => 'procurement',
+            Str::contains($name, ['inventory', 'stock', 'product', 'replenishment'])                     => 'inventory',
+            Str::contains($name, ['payroll', 'billing', 'vendor bill', 'revenue', 'expense', 'finance']) => 'finance',
             Str::contains($name, ['profile', 'account', 'password'])                    => 'account',
             default                                                                      => 'other',
         };

@@ -199,6 +199,11 @@ class RolePermissionController extends Controller
                 'description' => 'Products, stocks, logs, and inventory records.',
                 'icon'        => 'fa-solid fa-boxes-stacked',
             ],
+            'procurement' => [
+                'title'       => 'Procurement',
+                'description' => 'Suppliers, purchase requests, purchase orders, and goods receiving.',
+                'icon'        => 'fa-solid fa-truck-ramp-box',
+            ],
             'finance' => [
                 'title'       => 'Finance',
                 'description' => 'Payroll, billing, revenue, expenses, and financial records.',
@@ -208,6 +213,14 @@ class RolePermissionController extends Controller
                 'title'       => 'Profile & Account',
                 'description' => 'Staff profile, spa profile, and account-related access.',
                 'icon'        => 'fa-solid fa-id-badge',
+            ],
+            // Catch-all. Any permission the keyword rules below do not recognise
+            // lands here so it is still rendered. A permission that is never
+            // rendered is never submitted, and update() would treat it as unticked.
+            'other' => [
+                'title'       => 'Other',
+                'description' => 'Permissions that do not belong to a specific module yet.',
+                'icon'        => 'fa-solid fa-ellipsis',
             ],
         ];
     }
@@ -225,12 +238,15 @@ class RolePermissionController extends Controller
             Str::contains($name, ['schedule'])                                     => 'schedule',
             Str::contains($name, ['attendance', 'availability', 'leave'])          => 'attendance_leave',
             Str::contains($name, ['hiring', 'applicant', 'application', 'interview', 'deployment']) => 'hiring',
-            Str::contains($name, ['service', 'package', 'treatment'])              => 'services',
+            Str::contains($name, ['service', 'package', 'treatment', 'promo'])              => 'services',
             Str::contains($name, ['staff'])                                        => 'staff',
             Str::contains($name, ['branch', 'listing', 'public profile'])          => 'branches',
             Str::contains($name, ['decision support', 'insight', 'analytics', 'report', 'export reports']) => 'insights',
-            Str::contains($name, ['inventory', 'stock', 'product'])                => 'inventory',
-            Str::contains($name, ['payroll', 'billing', 'revenue', 'expense', 'finance']) => 'finance',
+            // Procurement must come before inventory — 'manage supplier products'
+            // contains 'product' and would otherwise land in the inventory group.
+            Str::contains($name, ['supplier', 'purchase', 'goods']) => 'procurement',
+            Str::contains($name, ['inventory', 'stock', 'product', 'replenishment'])                => 'inventory',
+            Str::contains($name, ['payroll', 'billing', 'vendor bill', 'revenue', 'expense', 'finance']) => 'finance',
             Str::contains($name, ['profile', 'account', 'password', 'spa profile']) => 'account',
             default                                                                 => 'other',
         };
@@ -389,7 +405,16 @@ class RolePermissionController extends Controller
             'permissions.*' => ['string', Rule::in($allowedPermissionNames->all())],
         ]);
 
-        $role->syncPermissions(collect($validated['permissions'] ?? [])->values()->all());
+        // Permissions this page never renders (hidden ones such as
+        // 'view business dashboard') are not in the form, so they must be carried
+        // over untouched instead of being dropped by syncPermissions().
+        $preserved = $role->permissions
+            ->pluck('name')
+            ->reject(fn($n) => $allowedPermissionNames->contains($n));
+
+        $role->syncPermissions(
+            collect($validated['permissions'] ?? [])->merge($preserved)->unique()->values()->all()
+        );
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
