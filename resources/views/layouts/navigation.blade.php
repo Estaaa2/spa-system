@@ -1096,7 +1096,7 @@
     </div>
 
     <!-- MAIN CONTENT -->
-    <main id="main-content" tabindex="-1" class="flex-1 h-screen overflow-y-auto md:ml-64">
+    <main id="main-content" tabindex="-1" class="relative flex-1 h-screen overflow-y-auto md:ml-64">
         <div class="pt-14 md:pt-0">
             @yield('content')
         </div>

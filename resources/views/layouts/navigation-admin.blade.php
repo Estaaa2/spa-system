@@ -171,7 +171,7 @@
     </div>
 
     <!-- MAIN CONTENT (only this scrolls) -->
-    <main class="flex-1 h-screen overflow-y-auto md:ml-64">
+    <main class="relative flex-1 h-screen overflow-y-auto md:ml-64">
         <div class="p-4 pt-16 md:p-4 md:pt-4">
             @yield('content')
         </div>
