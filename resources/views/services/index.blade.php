@@ -32,8 +32,7 @@
     // ── END STOP-AND-FLAG ZONE ───────────────────────────────────────────────
 
     // Same test the Manage Promos link has always used (union of the two old
-    // section-level gates). Computed here so the link no longer depends on the
-    // page-header component exposing a `right` slot.
+    // section-level gates).
     $showPromosLink = $canViewPromos && ($canManageTreatments || $canManagePackages);
 
     $hasTreatments = $treatments->count() > 0;
@@ -167,23 +166,25 @@
 
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
 
+    {{-- Page-level action sits in the header's `right` slot, beside the clock —
+         the same placement as Dashboard (New Booking) and Payroll (New Run). --}}
     <x-page-header
         title="Services"
         subtitle="Manage your treatments and packages."
-    />
-
-    @if($showPromosLink)
-        <div class="flex justify-end">
-            <a href="{{ route('promos.index') }}"
-               class="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 text-sm font-semibold text-white rounded-xl
-                      bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2
-                      dark:focus-visible:ring-offset-gray-900">
-                <i class="text-xs fa-solid fa-tag" aria-hidden="true"></i>
-                Manage Promos
-            </a>
-        </div>
-    @endif
+    >
+        <x-slot name="right">
+            @if($showPromosLink)
+                <a href="{{ route('promos.index') }}"
+                   class="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 text-sm font-semibold text-white rounded-xl
+                          bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5
+                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2
+                          dark:focus-visible:ring-offset-gray-900">
+                    <i class="text-xs fa-solid fa-tag" aria-hidden="true"></i>
+                    Manage Promos
+                </a>
+            @endif
+        </x-slot>
+    </x-page-header>
 
     {{-- ══════════════════════════════════════════════════
          SUMMARY — same card shape as appointments: label on top,
