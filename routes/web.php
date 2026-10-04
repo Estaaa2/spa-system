@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\RegisteredSpaController;
 use App\Http\Controllers\Admin\RolePermissionController;
+use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Api\FlutterBookingController;
 use App\Http\Controllers\BookingController;
@@ -887,6 +888,7 @@ Route::middleware(['auth', 'role:admin'])
 
         Route::middleware('permission:view registered spas')->group(function () {
             Route::get('/registered-spas', [RegisteredSpaController::class, 'index'])->name('registered-spas.index');
+            Route::get('/subscriptions', [AdminSubscriptionController::class, 'index'])->name('subscriptions.index');
         });
 
         Route::middleware('permission:edit registered spas')->group(function () {
@@ -905,6 +907,7 @@ Route::middleware(['auth', 'role:admin'])
 
         Route::middleware('permission:delete registered users')->group(function () {
             Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
+            Route::post('/users/{id}/restore', [UserManagementController::class, 'restore'])->name('users.restore');
         });
 
         Route::middleware('permission:view system roles')->group(function () {

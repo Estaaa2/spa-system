@@ -1,32 +1,103 @@
-<div x-data="sidebar()" class="flex h-screen bg-gray-100 dark:bg-gray-900">
+@php
+    $adminUser = Auth::user();
+
+    // Pending-verification count for the Registered Spas badge. Same condition
+    // RegisteredSpaController::index() uses for its "Pending Verification" list.
+    $pendingSpaCount = $adminUser?->can('view registered spas')
+        ? \App\Models\Spa::where('verification_status', 'pending')->count()
+        : 0;
+@endphp
+
+<style>
+    @media (max-width: 767.98px) {
+        #app-sidebar {
+            transform: translateX(-100%);
+        }
+
+        #app-sidebar.is-open {
+            transform: translateX(0);
+        }
+    }
+
+    /* Defensive: harmless if app.blade.php already declares this in <head>. */
+    [x-cloak] {
+        display: none !important;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    /* Firefox has no ::-webkit-scrollbar; these two properties are its equivalent. */
+    .overflow-y-auto {
+        scrollbar-width: thin;
+        scrollbar-color: #c1c1c1 #f1f1f1;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .overflow-y-auto::-webkit-scrollbar-track {
+            background: #374151;
+        }
+
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: #6b7280;
+        }
+
+        .overflow-y-auto {
+            scrollbar-color: #6b7280 #374151;
+        }
+    }
+</style>
+
+<div x-data="sidebar" @keydown.escape.window="open = false" class="flex h-screen bg-gray-100 dark:bg-gray-900">
+
+    <a href="#main-content"
+        class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-white focus:text-[#6F5430] focus:ring-2 focus:ring-[#8B7355] dark:focus:bg-gray-800 dark:focus:text-[#C4A97D]">
+        Skip to content
+    </a>
 
     <!-- MOBILE TOPBAR -->
     <div
-        class="fixed top-0 z-40 flex items-center justify-between w-full px-4 py-3 bg-white border-b md:hidden dark:bg-gray-800 dark:border-gray-700">
-        <button @click="open = true" class="text-gray-700 dark:text-gray-200">
+        class="fixed top-0 z-40 flex items-center justify-between w-full px-2 bg-white border-b h-14 md:hidden dark:bg-gray-800 dark:border-gray-700">
+        <button type="button" @click="open = !open"
+            aria-label="Toggle navigation" aria-controls="app-sidebar"
+            :aria-expanded="open ? 'true' : 'false'"
+            class="inline-flex items-center justify-center flex-shrink-0 text-gray-700 rounded-lg w-11 h-11 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
             <i class="text-xl fa-solid fa-bars"></i>
         </button>
 
         <!-- Mobile Title -->
-        <div class="flex items-center gap-2">
-            <i class="text-[#8B7355] fa-solid fa-shield-halved"></i>
-            <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Admin Panel</span>
+        <div class="flex items-center min-w-0 gap-2 pr-3">
+            <i class="text-sm fa-solid fa-shield-halved text-[#8B7355] dark:text-[#C4A97D]"></i>
+            <span class="text-sm font-medium text-gray-700 truncate dark:text-gray-200">Admin Panel</span>
         </div>
     </div>
 
     <!-- SIDEBAR -->
-    <aside
-        class="fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 transform bg-white border-r dark:bg-gray-800 dark:border-gray-700 md:translate-x-0"
-        :class="open ? 'translate-x-0' : '-translate-x-full'">
+    {{-- z-50 so the mobile overlay (z-40) can sit above the topbar without covering the drawer. --}}
+    <aside id="app-sidebar"
+        class="fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-200 bg-white border-r dark:bg-gray-800 dark:border-gray-700"
+        :class="open ? 'is-open' : ''">
         <div class="flex flex-col h-full">
 
             <!-- Brand -->
             <div class="flex-shrink-0 border-b dark:border-gray-700">
-                <div class="px-6 py-4">
-                    <a href="{{ route('admin.dashboard') }}" class="flex items-center space-x-3">
+                <div class="flex items-start justify-between gap-2 py-4 pl-6 pr-3 md:pr-6">
+                    <a href="{{ route('admin.dashboard') }}" class="flex items-center flex-1 min-w-0 space-x-3">
                         <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
-                        <div>
-                            <span class="text-xl font-semibold text-[#8B7355] dark:text-white font-['Playfair_Display']">
+                        <div class="min-w-0">
+                            <span
+                                class="text-2xl font-semibold text-[#8B7355] dark:text-white font-['Playfair_Display']">
                                 Admin Panel
                             </span>
                             <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">
@@ -37,77 +108,86 @@
                 </div>
             </div>
 
-            <!-- Navigation (scrollable) -->
-            <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+            <!-- Navigation -->
+            <nav aria-label="Main" class="flex-1 px-4 py-4 overflow-y-auto">
 
-                <!-- Admin Dashboard -->
-                @can('view admin dashboard')
-                <div class="mb-1 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                    <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                        <i class="fa-solid fa-gauge-high w-4 mr-1 text-[#8B7355]"></i>
-                        Dashboard
-                    </x-nav-link>
-                </div>
-                @endcan
+                <p class="px-4 pb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                    Administration
+                </p>
 
-                <!-- Administration -->
-                <div class="mb-2">
-                    <div class="space-y-1">
-                        @can('view registered spas')
-                        <x-nav-link :href="route('admin.registered-spas.index')" :active="request()->routeIs('admin.registered-spas.*')">
-                            <i class="fa-solid fa-spa w-4 mr-1 text-[#8B7355]"></i>
-                            Registered Spas
-                        </x-nav-link>
-                        @endcan
-
-                        @can('view registered users')
-                        <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
-                            <i class="fa-solid fa-users w-4 mr-1 text-[#8B7355]"></i>
-                            Registered Users
-                        </x-nav-link>
-                        @endcan
-
-                        @can('view system roles')
-                        <x-nav-link :href="route('admin.roles-permissions.index')" :active="request()->routeIs('admin.roles-permissions.*')">
-                            <i class="fa-solid fa-key w-4 mr-1 text-[#8B7355]"></i>
-                            Roles & Permissions
-                        </x-nav-link>
-                        @endcan
-
-                        <!-- Settings -->
+                <div class="space-y-1">
+                    <!-- Admin Dashboard -->
+                    @can('view admin dashboard')
                         <div class="mb-1">
-                            <button @click="settingsOpen = !settingsOpen"
-                                class="flex items-center justify-between w-full px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                                <span class="flex items-center gap-2">
-                                    <i class="fa-solid fa-gear w-4 text-[#8B7355]"></i>
-                                    Settings
-                                </span>
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="settingsOpen ? 'transform rotate-180' : ''"></i>
-                            </button>
-                            <div x-show="settingsOpen" x-collapse class="ml-4 space-y-1">
-                                <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
-                                    Profile
-                                </x-nav-link>
-                            </div>
+                            <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
+                                <i class="fa-solid fa-gauge-high w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                Dashboard
+                            </x-nav-link>
                         </div>
-                    </div>
+                    @endcan
+
+                    @can('view registered spas')
+                        <div class="mb-1">
+                            <x-nav-link :href="route('admin.registered-spas.index')" :active="request()->routeIs('admin.registered-spas.*')">
+                                <i class="fa-solid fa-spa w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                Registered Spas
+                                @if ($pendingSpaCount > 0)
+                                    <span
+                                        class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                                        {{ $pendingSpaCount }}<span class="sr-only"> pending verification</span>
+                                    </span>
+                                @endif
+                            </x-nav-link>
+                        </div>
+                    @endcan
+
+                    @can('view registered spas')
+                        <div class="mb-1">
+                            <x-nav-link :href="route('admin.subscriptions.index')" :active="request()->routeIs('admin.subscriptions.*')">
+                                <i class="fa-solid fa-receipt w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                Subscriptions
+                            </x-nav-link>
+                        </div>
+                    @endcan
+
+                    @can('view registered users')
+                        <div class="mb-1">
+                            <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
+                                <i class="fa-solid fa-users w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                Registered Users
+                            </x-nav-link>
+                        </div>
+                    @endcan
+
+                    @can('view system roles')
+                        <div class="mb-1">
+                            <x-nav-link :href="route('admin.roles-permissions.index')" :active="request()->routeIs('admin.roles-permissions.*')">
+                                <i class="fa-solid fa-key w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                Roles &amp; Permissions
+                            </x-nav-link>
+                        </div>
+                    @endcan
                 </div>
 
             </nav>
 
-            <!-- USER INFO pinned at bottom -->
+            <!-- ACCOUNT & LOGOUT -->
             <div class="flex-shrink-0 p-3 border-t dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <div class="flex-1">
-                        <p class="text-sm font-medium text-gray-800 dark:text-white">{{ Auth::user()->name }}</p>
-                        <p class="text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</p>
-                    </div>
-
-                    <button type="button" @click="showLogoutModal = true"
-                        class="flex items-center justify-center text-gray-600 transition-colors rounded-full w-9 h-9 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                        title="Log Out">
-                        <i class="text-lg fa-solid fa-right-from-bracket"></i>
+                <div class="flex items-center justify-between gap-1">
+                    {{-- Account. The identity block itself is the link to the profile page. --}}
+                    <a href="{{ route('profile.edit') }}"
+                       @if (request()->routeIs('profile.*')) aria-current="page" @endif
+                       class="flex items-center flex-1 min-w-0 gap-3 px-2 py-1.5 -mx-1 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('profile.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
+                        <i class="flex-shrink-0 text-gray-500 fa-solid fa-user-gear dark:text-gray-400"></i>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-medium text-gray-800 truncate dark:text-white">{{ Auth::user()->name }}</span>
+                            <span class="block text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</span>
+                        </span>
+                    </a>
+                    <button @click="showLogoutModal = true"
+                            class="flex items-center justify-center w-8 h-8 text-gray-600 transition-colors rounded-lg hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                            title="Logout">
+                        <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
             </div>
@@ -116,12 +196,19 @@
     </aside>
 
     <!-- OVERLAY for Mobile -->
-    <div x-show="open" @click="open = false" class="fixed inset-0 z-30 bg-black bg-opacity-40 md:hidden"></div>
+    <div x-show="open" x-cloak @click="open = false" aria-hidden="true"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-40 bg-black/40 md:hidden"></div>
 
     <!-- Logout Confirmation Modal -->
     <div x-show="showLogoutModal" x-cloak
         @keydown.escape.window="showLogoutModal = false"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 dark:bg-opacity-70">
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/70">
         <div class="w-[80%] max-w-sm overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 transform scale-95"
@@ -131,9 +218,7 @@
             x-transition:leave-end="opacity-0 transform scale-95">
 
             <div class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Confirm Logout
-                </h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Confirm Logout</h3>
                 <button @click="showLogoutModal = false"
                     class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
                     <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
@@ -142,7 +227,7 @@
 
             <div class="p-6">
                 <div class="flex items-start gap-4">
-                    <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full">
+                    <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 bg-red-100 rounded-full dark:bg-red-900/30">
                         <i class="text-xl text-red-600 dark:text-red-400 fa-solid fa-right-from-bracket"></i>
                     </div>
                     <div>
@@ -170,9 +255,9 @@
         </div>
     </div>
 
-    <!-- MAIN CONTENT (only this scrolls) -->
-    <main class="relative flex-1 h-screen overflow-y-auto md:ml-64">
-        <div class="p-4 pt-16 md:p-4 md:pt-4">
+    <!-- MAIN CONTENT -->
+    <main id="main-content" tabindex="-1" class="relative flex-1 h-screen overflow-y-auto md:ml-64">
+        <div class="pt-14 md:pt-0">
             @yield('content')
         </div>
     </main>
@@ -180,25 +265,10 @@
 </div>
 
 <script>
-function sidebar() {
-    return {
+document.addEventListener('alpine:init', () => {
+    Alpine.data('sidebar', () => ({
         open: false,
         showLogoutModal: false,
-        settingsOpen: false,
-    };
-}
+    }));
+});
 </script>
-
-<style>
-.overflow-y-auto::-webkit-scrollbar { width: 6px; }
-.overflow-y-auto::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
-.overflow-y-auto::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
-.dark .overflow-y-auto::-webkit-scrollbar-track { background: #374151; }
-.dark .overflow-y-auto::-webkit-scrollbar-thumb { background: #6b7280; }
-
-.transition {
-    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
-}
-</style>
