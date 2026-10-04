@@ -830,7 +830,7 @@
                                 <span
                                     class="h-px w-24 bg-gradient-to-l from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
                             </div>
-                            <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">Based on your saved location.</p>
+                            <p id="nearbyLocationText" class="mt-3 text-sm text-gray-600 dark:text-gray-400">Finding spas near you...</p>
                         </div>
                         <div id="nearbyGrid" class="grid grid-cols-1 gap-6 mt-5 sm:grid-cols-2 lg:grid-cols-4">
                             {{-- filled by JS --}}
@@ -2907,11 +2907,20 @@
                                     <div class="md:col-span-2">
                                         <label
                                             class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                            Resume / CV <span class="text-xs font-normal text-gray-400">(optional for
-                                                walk-ins)</span>
+                                            Resume / CV <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="file" name="resume" accept=".pdf,.doc,.docx"
-                                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+
+                                        <input
+                                            type="file"
+                                            name="resume"
+                                            accept=".pdf,.doc,.docx"
+                                            required
+                                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        >
+
+                                        <p class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+                                            Required for online applications. PDF, DOC, or DOCX, maximum 5MB.
+                                        </p>
                                     </div>
                                 </div>
                             </div>

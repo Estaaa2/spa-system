@@ -691,30 +691,31 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
     // Applications
     Route::middleware('branch.permission:view applications')->group(function () {
-        Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications', [ApplicationController::class, 'index'])
+            ->name('applications.index');
     });
 
-    Route::middleware('branch.permission:edit applications')->group(function () {
-        Route::post('/applications', [ApplicationController::class, 'store'])->name('applications.store');
-        Route::post('/applications/{applicant}/schedule-interview', [ApplicationController::class, 'scheduleInterview'])
-            ->name('applications.schedule-interview');
-    });
-
-    Route::middleware('branch.permission:delete applications')->group(function () {
-        Route::delete('/applications/{applicant}', [ApplicationController::class, 'destroy'])->name('applications.destroy');
-    });
+    Route::post('/applications/{applicant}/schedule-interview',[ApplicationController::class, 'scheduleInterview'])
+        ->middleware(['branch.permission:edit applications','branch.permission:create interviews',])
+        ->name('applications.schedule-interview');
 
     // Interviews
     Route::middleware('branch.permission:view interviews')->group(function () {
-        Route::get('/interviews', [InterviewController::class, 'index'])->name('interviews.index');
+        Route::get('/interviews', [InterviewController::class, 'index'])
+            ->name('interviews.index');
     });
 
-    Route::middleware('branch.permission:create interviews,edit interviews')->group(function () {
-        Route::post('/interviews/{interview}/approve', [InterviewController::class, 'approve'])->name('interviews.approve');
-        Route::post('/interviews/{interview}/reject', [InterviewController::class, 'reject'])->name('interviews.reject');
-        Route::post('/interviews/{interview}/create-staff', [InterviewController::class, 'createStaff'])
-            ->name('interviews.create-staff');
+    Route::middleware('branch.permission:edit interviews')->group(function () {
+        Route::post('/interviews/{interview}/approve',[InterviewController::class, 'approve'])
+        ->name('interviews.approve');
+
+        Route::post('/interviews/{interview}/reject',[InterviewController::class, 'reject'])
+        ->name('interviews.reject');
     });
+
+    Route::post('/interviews/{interview}/create-staff',[InterviewController::class, 'createStaff'])
+        ->middleware(['branch.permission:edit interviews','branch.permission:create staff',])
+        ->name('interviews.create-staff');
 
     // Deployment
     Route::middleware('branch.permission:view deployments')->group(function () {

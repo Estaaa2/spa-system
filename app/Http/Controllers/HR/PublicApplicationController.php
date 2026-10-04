@@ -26,7 +26,7 @@ class PublicApplicationController extends Controller
                 'email'                      => 'required|email|max:255',
                 'phone'                      => 'required|string|max:20',
                 'gender'                     => 'nullable|in:male,female,other',
-                'date_of_birth'              => 'nullable|date',
+                'date_of_birth'              => 'nullable|date|before:today',
                 'civil_status'               => 'nullable|in:single,married,widowed,separated',
                 'address'                    => 'required|string|max:255',
                 'position_applied'           => 'required|in:therapist,receptionist,manager,hr,finance',
@@ -40,6 +40,8 @@ class PublicApplicationController extends Controller
             ]);
 
             $resumePath = $request->file('resume')->store('resumes', 'public');
+
+            unset($validated['resume']);
 
             Applicant::create([
                 ...$validated,
@@ -62,9 +64,11 @@ class PublicApplicationController extends Controller
                 'message' => 'Validation failed.'
             ], 422);
         } catch (\Exception $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred: ' . $e->getMessage()
+                'message' => 'Unable to submit your application. Please try again.'
             ], 500);
         }
     }

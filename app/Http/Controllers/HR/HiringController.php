@@ -8,9 +8,15 @@ use App\Models\JobPosting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Services\RecruitmentWorkflowService;
 
 class HiringController extends Controller
 {
+
+    public function __construct(
+        private RecruitmentWorkflowService $recruitment
+    ) {
+    }
     private function getSpaAndBranch()
     {
         $user = Auth::user();
@@ -33,7 +39,6 @@ class HiringController extends Controller
             'phone' => 'required|regex:/^09\d{9}$/',
             'position_applied' => 'required|in:therapist,receptionist,manager,hr,finance',
             'availability' => 'nullable|string|max:255',
-            'source' => 'nullable|string|max:255',
             'gender' => 'nullable|in:male,female,other',
             'date_of_birth' => 'nullable|date|before:today',
             'civil_status' => 'nullable|string|max:255',
@@ -52,6 +57,8 @@ class HiringController extends Controller
 
         [$spa, $branchId] = $this->getSpaAndBranch();
 
+        abort_unless($spa && $branchId, 403);
+
         if ($request->hasFile('resume')) {
             $validated['resume_path'] = $request
                 ->file('resume')
@@ -64,12 +71,13 @@ class HiringController extends Controller
             ...$validated,
             'spa_id' => $spa->id,
             'branch_id' => $branchId,
-            'status' => 'pending',
+            'source' => 'manual',
+            'status' => Applicant::STATUS_PENDING,
         ]);
 
-        return back()->with(
-            'success',
-            'Application submitted successfully.'
+        return redirect()
+            ->route('applications.index')
+            ->with('success', 'Application submitted successfully.'
         );
     }
 
@@ -85,16 +93,9 @@ class HiringController extends Controller
 
         abort_unless($canView, 403);
 
-        [$spa, $branchId] = $this->getSpaAndBranch();
-
-        abort_unless(
-            (int) $applicant->spa_id === (int) $spa->id,
-            403
-        );
-
-        abort_unless(
-            (int) $applicant->branch_id === (int) $branchId,
-            403
+        $this->recruitment->assertApplicantAccessible(
+            $user,
+            $applicant
         );
 
         abort_if(
@@ -112,16 +113,38 @@ class HiringController extends Controller
         $absolutePath = Storage::disk('public')
             ->path($applicant->resume_path);
 
+        $extension = strtolower(
+            pathinfo(
+                $applicant->resume_path,
+                PATHINFO_EXTENSION
+            )
+        );
+
+        $allowedExtensions = [
+            'pdf',
+            'doc',
+            'docx',
+        ];
+
+        abort_unless(
+            in_array($extension, $allowedExtensions, true),
+            404,
+            'Unsupported resume file.'
+        );
+
+        $mimeType = Storage::disk('public')
+            ->mimeType($applicant->resume_path);
+
         $safeName = preg_replace(
             '/[^A-Za-z0-9\-_]/',
             '_',
             $applicant->full_name
         );
 
-        $filename = $safeName . '_Resume.pdf';
+        $filename = $safeName . '_Resume.' . $extension;
 
         return response()->file($absolutePath, [
-            'Content-Type' => 'application/pdf',
+            'Content-Type' => $mimeType ?: 'application/octet-stream',
             'Content-Disposition' => 'inline; filename="' . $filename . '"',
             'X-Content-Type-Options' => 'nosniff',
         ]);

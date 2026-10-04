@@ -18,6 +18,7 @@ let spaMap      = null;
 // customer with an already-saved pin opened their profile.)
 let profileMapMarker     = null;
 let profileSavedLocation = { address: '', lat: null, lng: null };
+let currentDeviceLocation = null;
 
 // Cavite bounding box — plain numbers here (Leaflet's L.latLngBounds is only
 // constructed later, inside the map-init block, so this doesn't depend on
@@ -110,13 +111,23 @@ function openProfileModal() {
         // If user already has a pinned location, show it
         if (!latInput || !lngInput) return;
 
-        const savedLat = profileSavedLocation.lat;
-        const savedLng = profileSavedLocation.lng;
-        if (savedLat && savedLng && window.profileMap) {
-            window.profileMap.setView([savedLat, savedLng], 15);
-            if (profileMapMarker) window.profileMap.removeLayer(profileMapMarker);
-            profileMapMarker = L.marker([savedLat, savedLng], { draggable: true }).addTo(window.profileMap);
-            profileMapMarker.on('dragend', () => updateProfilePin(profileMapMarker.getLatLng()));
+        const displayLat = currentDeviceLocation?.lat ?? profileSavedLocation.lat;
+        const displayLng = currentDeviceLocation?.lng ?? profileSavedLocation.lng;
+
+        if (displayLat && displayLng && window.profileMap) {
+            window.profileMap.setView([displayLat, displayLng], 15);
+
+            if (profileMapMarker) {
+                window.profileMap.removeLayer(profileMapMarker);
+            }
+
+            profileMapMarker = L.marker([displayLat, displayLng], {
+                draggable: true
+            }).addTo(window.profileMap);
+
+            profileMapMarker.on('dragend', () => {
+                updateProfilePin(profileMapMarker.getLatLng());
+            });
         }
     }, 300);
 }
@@ -2675,21 +2686,61 @@ async function submitRescheduleRequest() {
 // =====================================================
 // SPAS NEAR YOU
 // =====================================================
-async function loadNearbySpas() {
+
+async function fetchNearbySpas(lat = null, lng = null, locationSource = 'saved') {
     try {
-        const res  = await fetch('/web-api/spas/nearby');
+        const params = new URLSearchParams();
+
+        if (lat !== null && lng !== null) {
+            params.set('lat', lat);
+            params.set('lng', lng);
+        }
+
+        const url = params.toString()
+            ? `/web-api/spas/nearby?${params.toString()}`
+            : '/web-api/spas/nearby';
+
+        const res = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+
         const data = await res.json();
 
-        if (!Array.isArray(data) || data.length === 0) return;
-
         const section = document.getElementById('nearbySection');
-        const grid    = document.getElementById('nearbyGrid');
+        const grid = document.getElementById('nearbyGrid');
+        const locationText = document.getElementById('nearbyLocationText');
+
         if (!section || !grid) return;
+
+        if (!Array.isArray(data) || data.length === 0) {
+            section.classList.add('hidden');
+            return;
+        }
+
+        if (locationText) {
+            const locationLabels = {
+                current: 'Based on your current location.',
+                pinned: 'Based on your pinned location.',
+                saved: 'Based on your saved location.',
+            };
+
+            locationText.textContent =
+                locationLabels[locationSource]
+                ?? 'Spas near your location.';
+        }
 
         grid.innerHTML = data.map(spa => {
             const thumb = spaCardThumb(spa);
-            const addr  = spa.address ?? '';
+            const addr = spa.address ?? '';
             const parts = addr.split(',').map(s => s.trim());
+
             const addrSummary = parts.length >= 3
                 ? parts.slice(0, parts.length - 2).slice(-3).join(', ')
                 : (addr || 'Location unavailable');
@@ -2697,36 +2748,62 @@ async function loadNearbySpas() {
             const escapedData = JSON.stringify(spa).replace(/'/g, '&#39;');
 
             return `
-                <button type="button"
+                <button
+                    type="button"
                     class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
                     data-open-spa-modal
                     data-spa='${escapedData}'>
+
                     <div class="relative overflow-hidden">
-                        <img src="${thumb}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="${spa.name}">
+                        <img
+                            src="${thumb}"
+                            class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                            alt="${escapeHtml(spa.name)}">
+
                         <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+
                         <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5 dark:ring-white/10">
                             <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>
                             ${spa.distance_km} km away
                         </div>
                     </div>
+
                     <div class="p-5">
-                        <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">${spa.name}</h3>
+                        <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">
+                            ${escapeHtml(spa.name)}
+                        </h3>
+
                         ${spa.rating_avg ? `
-                        <div class="flex items-center gap-1 mt-1">
-                            <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
-                            <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">${spa.rating_avg}</span>
-                            <span class="text-xs text-gray-400">(${spa.rating_count})</span>
-                        </div>` : ''}
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${addrSummary}</p>
+                            <div class="flex items-center gap-1 mt-1">
+                                <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+
+                                <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">
+                                    ${spa.rating_avg}
+                                </span>
+
+                                <span class="text-xs text-gray-400">
+                                    (${spa.rating_count})
+                                </span>
+                            </div>
+                        ` : ''}
+
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            ${escapeHtml(addrSummary)}
+                        </p>
                     </div>
-                </button>`;
+                </button>
+            `;
         }).join('');
 
         grid.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
             btn.addEventListener('click', () => {
                 try {
-                    openSpaModal(JSON.parse(btn.getAttribute('data-spa')));
-                } catch (e) { console.error(e); }
+                    openSpaModal(
+                        JSON.parse(btn.getAttribute('data-spa'))
+                    );
+                } catch (e) {
+                    console.error('Invalid nearby spa data', e);
+                }
             });
         });
 
@@ -2737,6 +2814,53 @@ async function loadNearbySpas() {
     }
 }
 
+function loadNearbySpas() {
+    if (!document.getElementById('nearbySection')) {
+        return;
+    }
+
+    if (!navigator.geolocation) {
+        fetchNearbySpas(null, null, 'saved');
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            currentDeviceLocation = {
+                lat,
+                lng,
+                accuracy: position.coords.accuracy,
+            };
+
+            fetchNearbySpas(lat, lng, 'current');
+
+            showCurrentLocationOnProfileMap(lat, lng);
+        },
+
+        error => {
+            console.warn(
+                'Current location unavailable. Using saved location instead:',
+                error.message
+            );
+
+            fetchNearbySpas(
+                null,
+                null,
+                'saved'
+            );
+        },
+
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000,
+        }
+    );
+}
+
 document.addEventListener('DOMContentLoaded', loadNearbySpas);
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -2744,6 +2868,54 @@ document.addEventListener('DOMContentLoaded', function () {
         loadAppointments();
     }
 });
+
+async function showCurrentLocationOnProfileMap(lat, lng) {
+    if (!window.profileMap) return;
+
+    const withinCavite =
+        lat >= PROFILE_CAVITE_LAT_MIN &&
+        lat <= PROFILE_CAVITE_LAT_MAX &&
+        lng >= PROFILE_CAVITE_LNG_MIN &&
+        lng <= PROFILE_CAVITE_LNG_MAX;
+
+    if (!withinCavite) return;
+
+    if (profileMapMarker) {
+        window.profileMap.removeLayer(profileMapMarker);
+    }
+
+    profileMapMarker = L.marker([lat, lng], {
+        draggable: true
+    }).addTo(window.profileMap);
+
+    profileMapMarker.on('dragend', () => {
+        updateProfilePin(profileMapMarker.getLatLng());
+    });
+
+    window.profileMap.setView([lat, lng], 15);
+
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+
+    if (latInput) latInput.value = lat;
+    if (lngInput) lngInput.value = lng;
+
+    try {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`
+        );
+
+        const data = await res.json();
+
+        const addressField = document.getElementById('address');
+
+        if (addressField && data.display_name) {
+            addressField.value = data.display_name;
+        }
+    } catch (error) {
+        console.warn('Current location reverse geocoding failed:', error);
+    }
+}
 
 // =====================================================
 // MAP (For Profile Modal) — Cavite-bounded, draggable pin, with feedback so
@@ -2794,6 +2966,12 @@ function updateProfilePin(latlng) {
         }
         return;
     }
+
+    fetchNearbySpas(
+        latlng.lat,
+        latlng.lng,
+        'pinned'
+    );
 
     fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json&addressdetails=1`)
         .then(res => res.json())

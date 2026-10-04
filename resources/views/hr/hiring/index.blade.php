@@ -402,33 +402,30 @@
                             </div>
 
                             {{-- Resume --}}
-                            <div class="md:col-span-2">
-
-                                <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                            <div>
+                                <label
+                                    for="resume"
+                                    class="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
                                     Resume / CV
-                                    <span class="text-xs font-normal text-gray-400">
-                                        (PDF only, max 5MB)
+                                    <span class="font-normal text-gray-400 dark:text-gray-500">
+                                        (optional)
                                     </span>
                                 </label>
 
                                 <input
                                     type="file"
+                                    id="resume"
                                     name="resume"
-                                    accept="application/pdf,.pdf"
-                                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
-                                           focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                                           dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    accept=".pdf"
+                                    class="w-full px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl
+                                        focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
+                                        dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 >
 
-                                <p class="mt-1 text-[11px] text-gray-400">
-                                    PDF is recommended so HR can preview the résumé directly in the browser.
+                                <p class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+                                    Optional for walk-in applicants. Upload their résumé if they brought one. PDF only, maximum 5MB.
                                 </p>
-
-                                @error('resume', 'application')
-                                    <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                                @enderror
                             </div>
-
                         </div>
                     </div>
 

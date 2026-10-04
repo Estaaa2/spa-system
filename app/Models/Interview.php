@@ -9,10 +9,20 @@ class Interview extends Model
 {
     use HasFactory;
 
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+
     protected $fillable = [
-        'applicant_id', 'spa_id', 'branch_id',
-        'interviewed_by', 'interview_date',
-        'interview_time', 'status', 'remarks',
+        'applicant_id',
+        'spa_id',
+        'branch_id',
+        'interviewed_by',
+        'interview_date',
+        'interview_time',
+        'status',
+        'remarks',
+        'rejection_reason',
         'staff_account_created',
     ];
 

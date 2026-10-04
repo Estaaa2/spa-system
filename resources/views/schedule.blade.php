@@ -83,7 +83,7 @@
         }
     </style>
 
-    <div class="sched-page flex flex-col gap-4 p-4 mx-auto sm:p-6 max-w-7xl">
+    <div class="flex flex-col gap-4 p-4 mx-auto sched-page sm:p-6 max-w-7xl">
 
         <div class="shrink-0">
             <x-page-header title="Schedule" subtitle="View and manage all appointments in a weekly calendar view." />
@@ -225,7 +225,7 @@
                             }
                         @endphp
 
-                        <div class="sched-col flex-1 min-w-0 border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+                        <div class="flex-1 min-w-0 border-r border-gray-200 sched-col dark:border-gray-700 last:border-r-0"
                              data-col="{{ $i }}">
 
                             {{-- Day header --}}
@@ -323,21 +323,34 @@
 
                                             $meta = $statusMeta[$b->status] ?? $statusFallback;
 
-                                            $customerName = $b->customer_name ?? 'Walk-in';
-                                            // Resolved once for the whole week in ScheduleController.
-                                            // Falls back to the accessor if the controller is older.
+                                            $customerName   = $b->customer_name ?? 'Walk-in';
                                             $treatmentLabel = $b->resolved_treatment ?? $b->treatment_label;
                                             $serviceLabel   = $b->service_type_label;
 
-                                            $startAt   = \Carbon\Carbon::parse($b->start_time);
-                                            $endAt     = \Carbon\Carbon::parse($b->end_time);
+                                            $startAt = \Carbon\Carbon::parse($b->start_time);
+                                            $endAt   = \Carbon\Carbon::parse($b->end_time);
+
+                                            $startMinutes = ((int) $startAt->format('H') * 60) + (int) $startAt->format('i');
+                                            $endMinutes   = ((int) $endAt->format('H') * 60) + (int) $endAt->format('i');
+
+                                            $durationMinutes = max($endMinutes - $startMinutes, 1);
+
+                                            $cardTopPx = max(
+                                                ($startMinutes - $rangeStartMinutes) * $pxPerMinute,
+                                                0
+                                            );
+
+                                            $cardHeightPx = max(
+                                                $durationMinutes * $pxPerMinute,
+                                                18
+                                            );
+
                                             $statusTxt = ucfirst($b->status);
 
-                                            // Human duration for the modal, e.g. "1 hr 30 min"
-                                            $durationMins = max($startAt->diffInMinutes($endAt), 0);
-                                            $durHours     = intdiv($durationMins, 60);
-                                            $durRemainder = $durationMins % 60;
-                                            $durationTxt  = trim(
+                                            $durHours     = intdiv($durationMinutes, 60);
+                                            $durRemainder = $durationMinutes % 60;
+
+                                            $durationTxt = trim(
                                                 ($durHours ? $durHours . ' hr ' : '')
                                                 . ($durRemainder ? $durRemainder . ' min' : '')
                                             ) ?: '0 min';
@@ -345,9 +358,8 @@
                                             $reschedule        = $b->latestRescheduleRequest;
                                             $hasPendingResched = $reschedule?->isPending();
 
-                                            // Progressive detail based on card height
-                                            $showTreatment = $b->sched_height_px >= 40;
-                                            $showTimeRange = $b->sched_height_px >= 60;
+                                            $showTreatment = $cardHeightPx >= 40;
+                                            $showTimeRange = $cardHeightPx >= 60;
 
                                             $showStatusChip = (int) $b->overlap_total === 1;
 
@@ -362,12 +374,12 @@
                                                      hover:ring-2 hover:ring-[#8B7355]/50
                                                      focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]"
                                              style="
-                                                 top: {{ $b->sched_top_px + 1 }}px;
-                                                 height: {{ $b->sched_height_px - 2 }}px;
-                                                 left: calc({{ $leftPct }}% + 1px);
-                                                 width: calc({{ $widthPct }}% - 4px);
-                                                 border-left: 3px solid {{ $meta['accent'] }};
-                                             "
+                                                top: {{ $cardTopPx + 1 }}px;
+                                                height: {{ max($cardHeightPx - 2, 16) }}px;
+                                                left: calc({{ $leftPct }}% + 1px);
+                                                width: calc({{ $widthPct }}% - 4px);
+                                                border-left: 3px solid {{ $meta['accent'] }};
+                                            "
                                              role="button"
                                              tabindex="0"
                                              aria-haspopup="dialog"
@@ -398,7 +410,7 @@
                                                 </span>
                                             @endif
 
-                                            <div class="px-1.5 py-1 h-full flex flex-col overflow-hidden" aria-hidden="true">
+                                            <div class="flex flex-col h-full px-2 py-1 overflow-hidden" aria-hidden="true">
                                                 <div class="flex items-start justify-between gap-0.5">
                                                     <p class="text-[10px] font-semibold leading-tight text-gray-800 dark:text-white truncate flex-1">
                                                         {{ $customerName }}
@@ -549,7 +561,7 @@
                                         <label for="rejectReasonInput" class="sr-only">Reason for rejection</label>
                                         <textarea id="rejectReasonInput" rows="3"
                                             placeholder="Reason for rejection (required, min 5 characters)..."
-                                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-red-400/40"></textarea>
+                                            class="w-full px-3 py-2 text-sm border border-gray-200 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-red-400/40"></textarea>
                                         <div class="flex gap-2">
                                             <button type="button" onclick="rejectReschedule()" id="confirmRejectBtn"
                                                 class="flex-1 min-h-[44px] px-4 text-sm font-semibold text-white transition bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50">

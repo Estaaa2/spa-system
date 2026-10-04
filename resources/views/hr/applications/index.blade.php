@@ -9,7 +9,8 @@
     $canEditApplications = $user?->hasBranchPermission('edit applications') ?? false;
     $canDeleteApplications = $user?->hasBranchPermission('delete applications') ?? false;
 
-    $canScheduleInterview = $canEditApplications;
+    $canCreateInterviews = $user?->hasBranchPermission('create interviews') ?? false;
+    $canScheduleInterview = $canEditApplications && $canCreateInterviews;
 
     $formatLabel = function ($value) {
         return filled($value) ? ucwords(str_replace('_', ' ', $value)) : 'N/A';
@@ -50,11 +51,12 @@
                     <tr>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applicant</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applied Position</th>
+                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Branch</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Contact</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Education</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applied</th>
                         <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Action</th>
+                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase whitespace-nowrap">Action</th>
                     </tr>
                 </thead>
 
@@ -93,6 +95,7 @@
 
                                 'interview_time' => $applicant->interview->interview_time ?? null,
                                 'interview_status' => $applicant->interview->status ?? null,
+                                'rejection_reason' => $applicant->interview->rejection_reason ?? null,
                             ];
                         @endphp
 
@@ -123,6 +126,12 @@
                             <td class="px-6 py-4">
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full bg-[#F6EFE6] text-[#6F5430]">
                                     {{ $formatLabel($applicant->position_applied ?? $applicant->role) }}
+                                </span>
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">
+                                    {{ $applicant->branch?->name ?? 'N/A' }}
                                 </span>
                             </td>
 
@@ -162,46 +171,31 @@
                             </td>
 
                             {{-- Action --}}
-                            <td class="px-6 py-4">
-                                @if($applicant->status === 'pending')
-                                    @if($canScheduleInterview)
-                                        <button
-                                            onclick="event.stopPropagation(); openScheduleModal({{ $applicant->id }}, @js($applicant->full_name))"
-                                            class="px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition">
-                                            <i class="mr-1 fa-solid fa-calendar-plus"></i> Schedule
-                                        </button>
-                                    @else
-                                        <span class="text-xs text-gray-400">
-                                            {{ ucfirst($applicant->status) }}
-                                        </span>
-                                    @endif
-
-                                @elseif($applicant->status === 'interview')
-                                    <span class="text-xs font-medium text-blue-500">
-                                        <i class="mr-1 fa-solid fa-clock"></i> Interview set
-                                    </span>
-
-                                @elseif($applicant->status === 'hired')
-                                    <span class="text-xs font-medium text-teal-600">
-                                        <i class="mr-1 fa-solid fa-check-circle"></i> Hired
-                                    </span>
-
-                                @elseif($applicant->status === 'rejected')
-                                    <span class="text-xs text-red-400">
-                                        <i class="mr-1 fa-solid fa-times-circle"></i> Rejected
-                                    </span>
-
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @if($applicant->status === 'pending' && $canScheduleInterview)
+                                    <button
+                                        type="button"
+                                        data-schedule-url="{{ route('applications.schedule-interview', $applicant) }}"
+                                        data-applicant-name="{{ $applicant->full_name }}"
+                                        onclick="event.stopPropagation(); openInterviewScheduleModal(this)"
+                                        class="inline-flex items-center justify-center gap-1.5 w-[92px] px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition whitespace-nowrap">
+                                        <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i>
+                                        Schedule
+                                    </button>
                                 @else
-                                    <span class="text-xs text-gray-400">
-                                        {{ ucfirst($applicant->status) }}
-                                    </span>
+                                    <button
+                                        type="button"
+                                        onclick="event.stopPropagation(); openApplicantDetailsModal(this.closest('tr'))"
+                                        class="inline-flex items-center justify-center gap-1.5 w-[92px] px-3 py-1.5 text-xs font-semibold text-[#8B7355] bg-white border border-[#8B7355]/40 rounded-lg hover:bg-[#8B7355]/5 transition whitespace-nowrap dark:text-[#C4A97D] dark:bg-gray-800 dark:border-[#C4A97D]/30">
+                                        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                                        View
+                                    </button>
                                 @endif
                             </td>
-
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-16 text-center">
+                            <td colspan="8" class="px-6 py-16 text-center">
                                 <i class="block mb-3 text-4xl text-gray-200 fa-solid fa-users"></i>
 
                                 <p class="text-sm text-gray-400">
@@ -359,6 +353,22 @@
 
             <hr class="border-gray-100 dark:border-gray-700">
 
+            <div id="detailRejectionWrapper" class="hidden">
+                <hr class="mb-4 border-gray-100 dark:border-gray-700">
+
+                <div class="p-4 border border-red-200 bg-red-50 rounded-xl dark:border-red-900 dark:bg-red-900/10">
+                    <h3 class="flex items-center gap-2 mb-2 text-xs font-bold tracking-widest text-red-700 uppercase dark:text-red-300">
+                        <i class="fa-solid fa-ban" aria-hidden="true"></i>
+                        Rejection Reason
+                    </h3>
+
+                    <p
+                        id="detailRejectionReason"
+                        class="text-sm leading-6 text-gray-700 whitespace-pre-line dark:text-gray-300"
+                    ></p>
+                </div>
+            </div>
+
             {{-- Emergency Contact --}}
             <div>
                 <h3 class="flex items-center gap-2 mb-2 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
@@ -405,91 +415,184 @@
 
 {{-- Schedule Interview Modal --}}
 @if($canScheduleInterview)
-<div id="scheduleModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
-    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-xl dark:bg-gray-800">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">
-                Schedule Interview
-            </h2>
-            <button onclick="closeScheduleModal()"
-                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+<div id="scheduleModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div class="w-full max-w-md bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Schedule Interview
+                    </h2>
+
+                    <p
+                        id="scheduleApplicantName"
+                        class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                    ></p>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="closeInterviewScheduleModal()"
+                    class="inline-flex items-center justify-center text-gray-500 transition w-11 h-11 rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                    aria-label="Close schedule interview modal"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form
+                id="scheduleForm"
+                method="POST"
+                class="p-6 space-y-4"
+            >
+                @csrf
+
+                <div>
+                    <label
+                        for="interview_date"
+                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
+                    >
+                        Interview Date <span class="text-red-600">*</span>
+                    </label>
+
+                    <input
+                        type="date"
+                        id="interview_date"
+                        name="interview_date"
+                        value="{{ old('interview_date') }}"
+                        required
+                        class="w-full min-h-[44px] px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
+                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
+                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+
+                    @error('interview_date', 'schedule')
+                        <p class="mt-1 text-xs text-red-600">
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label
+                        for="interview_time"
+                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
+                    >
+                        Interview Time <span class="text-red-600">*</span>
+                    </label>
+
+                    <input
+                        type="time"
+                        id="interview_time"
+                        name="interview_time"
+                        value="{{ old('interview_time') }}"
+                        required
+                        class="w-full min-h-[44px] px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
+                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
+                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+
+                    @error('interview_time', 'schedule')
+                        <p class="mt-1 text-xs text-red-600">
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label
+                        for="interview_remarks"
+                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
+                    >
+                        Remarks
+                    </label>
+
+                    <textarea
+                        id="interview_remarks"
+                        name="remarks"
+                        rows="3"
+                        placeholder="Optional notes..."
+                        class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
+                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
+                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >{{ old('remarks') }}</textarea>
+
+                    @error('remarks', 'schedule')
+                        <p class="mt-1 text-xs text-red-600">
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                        type="button"
+                        onclick="closeInterviewScheduleModal()"
+                        class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-white bg-[#7A6348] rounded-xl hover:bg-[#6F5430]"
+                    >
+                        <i class="mr-2 fa-solid fa-calendar-check"></i>
+                        Schedule Interview
+                    </button>
+                </div>
+            </form>
+
         </div>
-        <p id="scheduleApplicantName"
-            class="mb-4 text-sm font-medium text-[#8B7355]">
-        </p>
-
-        <form id="scheduleForm" method="POST" class="space-y-4">
-            @csrf
-            <div>
-                <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                    Interview Date *
-                </label>
-
-                <input type="date" name="interview_date" required
-                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl
-                           focus:border-[#8B7355] focus:outline-none
-                           dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
-            </div>
-
-            <div>
-                <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                    Interview Time *
-                </label>
-
-                <input type="time" name="interview_time" required
-                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl
-                           focus:border-[#8B7355] focus:outline-none
-                           dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
-            </div>
-
-            <div>
-                <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                    Remarks
-                </label>
-
-                <textarea name="remarks" rows="2" placeholder="Optional notes..."
-                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl
-                           focus:border-[#8B7355] focus:outline-none
-                           dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeScheduleModal()"
-                    class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200">
-                    Cancel
-                </button>
-                <button type="submit"
-                    class="px-4 py-2 text-sm font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348]">
-                    <i class="mr-1 fa-solid fa-calendar-check"></i> Schedule
-                </button>
-            </div>
-        </form>
     </div>
 </div>
-
 @endif
 
 
 <script>
     @if($canScheduleInterview)
+        function openInterviewScheduleModal(button) {
+            const modal = document.getElementById('scheduleModal');
+            const form = document.getElementById('scheduleForm');
+            const applicantName = document.getElementById('scheduleApplicantName');
 
-        const baseScheduleUrl = @json(url('/applications'));
+            if (!modal || !form || !button) {
+                return;
+            }
 
-        function openScheduleModal(applicantId, name) {
-            document.getElementById('scheduleApplicantName').textContent = 'Applicant: ' + name;
+            const actionUrl = button.dataset.scheduleUrl;
+            const name = button.dataset.applicantName;
 
-            document.getElementById('scheduleForm').action =
-                `${baseScheduleUrl}/${applicantId}/schedule-interview`;
+            if (!actionUrl) {
+                return;
+            }
 
-            document.getElementById('scheduleModal').classList.remove('hidden');
+            form.action = actionUrl;
+
+            if (applicantName) {
+                applicantName.textContent = 'Applicant: ' + name;
+            }
+
+            modal.classList.remove('hidden');
         }
 
-        function closeScheduleModal() {
-            document.getElementById('scheduleModal').classList.add('hidden');
+        function closeInterviewScheduleModal() {
+            const modal = document.getElementById('scheduleModal');
+            const form = document.getElementById('scheduleForm');
+
+            modal?.classList.add('hidden');
+
+            if (form) {
+                form.removeAttribute('action');
+            }
         }
 
+        document.getElementById('scheduleForm')?.addEventListener('submit', function (e) {
+            if (!this.getAttribute('action')) {
+                e.preventDefault();
+            }
+        });
     @endif
 
 
@@ -520,6 +623,20 @@
         document.getElementById('detailStartDate').textContent =    data.expected_start_date || 'N/A';
         document.getElementById('detailAppliedOn').textContent =    data.applied_on || 'N/A';
 
+        const rejectionWrapper = document.getElementById('detailRejectionWrapper');
+        const rejectionReason = document.getElementById('detailRejectionReason');
+
+        if (
+            data.status === 'rejected' &&
+            data.rejection_reason
+        ) {
+            rejectionWrapper.classList.remove('hidden');
+            rejectionReason.textContent = data.rejection_reason;
+        } else {
+            rejectionWrapper.classList.add('hidden');
+            rejectionReason.textContent = '';
+        }
+        
         // Resume / CV
         const resumeEl = document.getElementById('detailResume');
 
@@ -534,7 +651,7 @@
                 </a>
             `;
         } else {
-            resumeEl.textContent = 'N/A';
+            resumeEl.textContent = 'No resume uploaded';
         }
 
 
@@ -650,7 +767,7 @@
             const scheduleModal = document.getElementById('scheduleModal');
 
             if (scheduleModal && !scheduleModal.classList.contains('hidden')) {
-                closeScheduleModal();
+                closeInterviewScheduleModal();
             }
         @endif
     });

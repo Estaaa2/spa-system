@@ -3,34 +3,29 @@
 namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
-use App\Mail\StaffCredentialsMail;
 use App\Models\Interview;
-use App\Models\Staff;
-use App\Models\User;
-use Illuminate\Http\Request;
+use App\Services\RecruitmentWorkflowService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
+use Illuminate\Http\Request;
 
 class InterviewController extends Controller
 {
-    private function getSpaAndBranch()
-    {
-        $user     = Auth::user();
-        $spa      = $user->spa;
-        $branchId = $user->currentBranchId();
-        return [$spa, $branchId];
+    public function __construct(
+        private RecruitmentWorkflowService $recruitment
+    ) {
     }
 
     public function index()
     {
-        [$spa, $branchId] = $this->getSpaAndBranch();
+        $user = Auth::user();
 
-        $interviews = Interview::with(['applicant.jobPosting', 'interviewer'])
-            ->where('spa_id', $spa->id)
-            ->where('branch_id', $branchId)
+        $interviews = $this->recruitment
+            ->interviewsFor($user)
+            ->with([
+                'applicant.jobPosting',
+                'applicant.branch',
+                'interviewer',
+            ])
             ->latest()
             ->get();
 
@@ -39,64 +34,45 @@ class InterviewController extends Controller
 
     public function approve(Interview $interview)
     {
-        $interview->update(['status' => 'approved']);
-        $interview->applicant->update(['status' => 'approved']);
+        $this->recruitment->approveInterview(
+            Auth::user(),
+            $interview
+        );
 
-        return back()->with('success', 'Interview approved. You can now create a staff account.');
+        return back()->with(
+            'success',
+            'Interview approved. You can now create a staff account.'
+        );
     }
 
-    public function reject(Interview $interview)
+    public function reject(Request $request, Interview $interview)
     {
-        $interview->update(['status' => 'rejected']);
-        $interview->applicant->update(['status' => 'rejected']);
-
-        return back()->with('success', 'Applicant rejected.');
-    }
-
-    public function createStaff(Request $request, Interview $interview)
-    {
-        if ($interview->staff_account_created) {
-            return back()->with('error', 'Staff account already created for this applicant.');
-        }
-
-        $validated = $request->validate([
-            'email' => 'required|email|unique:users,email',
-            'name' => 'required|string|max:255',
-            'roles' => 'required|in:therapist,receptionist,manager,hr,finance',
+        $validated = $request->validateWithBag('rejectInterview', [
+            'rejection_reason' => 'required|string|max:2000',
         ]);
 
-        [$spa, $branchId] = $this->getSpaAndBranch();
+        $this->recruitment->rejectInterview(
+            Auth::user(),
+            $interview,
+            $validated['rejection_reason']
+        );
 
-        DB::transaction(function () use ($validated, $spa, $branchId, $interview) {
-            $tempPassword = Str::random(12);
+        return back()->with(
+            'success',
+            'Applicant rejected and rejection reason recorded.'
+        );
+    }
 
-            $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($tempPassword),
-                'spa_id' => $spa->id,
-                'branch_id' => $branchId,
-                'temp_password' => $tempPassword,
-                'password_reset_required' => true,
-            ]);
+    public function createStaff(Interview $interview)
+    {
+        $this->recruitment->hireApplicant(
+            Auth::user(),
+            $interview
+        );
 
-            $user->assignRole($validated['roles']);
-            $user->markEmailAsVerified();
-
-            Staff::create([
-                'user_id' => $user->id,
-                'spa_id' => $spa->id,
-                'branch_id' => $branchId,
-                'employment_status' => 'active',
-                'hire_date' => now(),
-            ]);
-
-            $interview->update(['staff_account_created' => true]);
-            $interview->applicant->update(['status' => 'hired']);
-
-            Mail::to($user->email)->send(new StaffCredentialsMail($user, $tempPassword));
-        });
-
-        return back()->with('success', 'Staff account created and credentials sent via email.');
+        return back()->with(
+            'success',
+            'Staff account created and credentials processing completed.'
+        );
     }
 }

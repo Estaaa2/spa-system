@@ -15,6 +15,7 @@ class Staff extends Model
         'user_id',
         'spa_id',
         'branch_id',
+        'applicant_id',
         'employment_status',
         'hire_date',
         'tin',
@@ -82,5 +83,10 @@ class Staff extends Model
     public function payslips(): HasMany
     {
         return $this->hasMany(Payslip::class);
+    }
+
+    public function applicant()
+    {
+        return $this->belongsTo(Applicant::class);
     }
 }
