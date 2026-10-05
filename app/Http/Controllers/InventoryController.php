@@ -93,7 +93,6 @@ class InventoryController extends Controller
                 Rule::unique('products', 'sku')
                     ->where(fn ($query) => $query->where('spa_id', $spaId)),
             ],
-            'barcode' => ['nullable', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'brand' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -172,7 +171,6 @@ class InventoryController extends Controller
             $product = Product::create([
                 'spa_id' => $spaId,
                 'sku' => $data['sku'] ?? null,
-                'barcode' => $data['barcode'] ?? null,
                 'name' => $data['name'],
                 'brand' => $data['brand'] ?? null,
                 'description' => $data['description'] ?? null,
@@ -272,24 +270,11 @@ class InventoryController extends Controller
                     ->ignore($product->id)
                     ->where(fn ($query) => $query->where('spa_id', $spaId)),
             ],
-            'barcode' => ['nullable', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'brand' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:255'],
             'inventory_type' => ['required', Rule::in(['retail', 'backbar', 'both'])],
-            'purchase_unit' => ['nullable', 'string', 'max:30'],
-            'usage_unit' => [
-                'required',
-                Rule::in(['ml', 'L', 'g', 'kg', 'pcs']),
-            ],
-            'conversion_factor' => [
-                'required',
-                'numeric',
-                'gt:0',
-                'decimal:0,3',
-                'max:20000',
-            ],
             'retail_price' => ['nullable', 'numeric', 'min:0'],
             'acquisition_cost' => ['nullable', 'numeric', 'min:0'],
             'reorder_level' => [
@@ -340,16 +325,11 @@ class InventoryController extends Controller
         DB::transaction(function () use ($data, $product, $stock, $spaId, $user) {
             $product->update([
                 'sku' => $data['sku'] ?? null,
-                'barcode' => $data['barcode'] ?? null,
                 'name' => $data['name'],
                 'brand' => $data['brand'] ?? null,
                 'description' => $data['description'] ?? null,
                 'category' => $data['category'] ?? null,
                 'inventory_type' => $data['inventory_type'],
-                'purchase_unit' => $data['purchase_unit'] ?? null,
-                'usage_unit' => $data['usage_unit'],
-                'unit' => $data['usage_unit'],
-                'conversion_factor' => $data['conversion_factor'],
                 'retail_price' => $data['retail_price'] ?? null,
                 'acquisition_cost' => $data['acquisition_cost'] ?? null,
             ]);

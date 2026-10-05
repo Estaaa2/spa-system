@@ -32,7 +32,6 @@
         edit: {
             id: null,
             sku: '',
-            barcode: '',
             name: '',
             brand: '',
             description: '',
@@ -58,7 +57,6 @@
             this.edit = {
                 id: p.id,
                 sku: p.sku ?? '',
-                barcode: p.barcode ?? '',
                 name: p.name ?? '',
                 brand: p.brand ?? '',
                 description: p.description ?? '',
@@ -325,7 +323,6 @@
                                         @click="openEdit({
                                             id: {{ $product->id }},
                                             sku: @js($product->sku),
-                                            barcode: @js($product->barcode),
                                             name: @js($product->name),
                                             brand: @js($product->brand),
                                             description: @js($product->description),
@@ -506,7 +503,7 @@
 
                         <div class="px-4 py-5 space-y-4 overflow-y-auto sm:px-6 max-h-[calc(100vh-12rem)]">
 
-                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div class="grid grid-cols-1 gap-4">
 
                                 <div>
                                     <label for="add_sku"
@@ -521,25 +518,6 @@
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
                                     @error('sku')
-                                        <p class="mt-1 text-xs text-red-600 dark:text-red-400">
-                                            {{ $message }}
-                                        </p>
-                                    @enderror
-                                </div>
-
-                                <div>
-                                    <label for="add_barcode"
-                                        class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Barcode
-                                    </label>
-
-                                    <input id="add_barcode"
-                                        name="barcode"
-                                        value="{{ old('barcode') }}"
-                                        placeholder="Optional"
-                                        class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-
-                                    @error('barcode')
                                         <p class="mt-1 text-xs text-red-600 dark:text-red-400">
                                             {{ $message }}
                                         </p>
@@ -822,7 +800,7 @@
                                 <div>
                                     <label for="add_reorder_level"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Reorder Level
+                                        Threshold Level
                                     </label>
 
                                     <input type="number"
@@ -1206,20 +1184,6 @@
                                         placeholder="Optional"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 </div>
-
-                                <div>
-                                    <label for="edit_barcode"
-                                        class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Barcode
-                                    </label>
-
-                                    <input id="edit_barcode"
-                                        name="barcode"
-                                        x-model="edit.barcode"
-                                        placeholder="Optional"
-                                        class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                </div>
-
                             </div>
 
                             <div>
@@ -1306,66 +1270,66 @@
                                 </select>
                             </div>
 
-                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div class="p-4 border border-blue-200 rounded-xl bg-blue-50 dark:border-blue-900/50 dark:bg-blue-900/20">
+                                <div class="flex items-start gap-3">
+                                    <i class="mt-0.5 text-blue-600 fa-solid fa-lock dark:text-blue-400"
+                                        aria-hidden="true"></i>
 
-                                <div>
-                                    <label for="edit_purchase_unit"
-                                        class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Purchase Unit
-                                    </label>
+                                    <div>
+                                        <p class="text-sm font-medium text-blue-800 dark:text-blue-300">
+                                            Inventory Units Locked
+                                        </p>
 
-                                    <input id="edit_purchase_unit"
-                                        name="purchase_unit"
-                                        x-model="edit.purchase_unit"
-                                        placeholder="Example: bottle"
-                                        class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        <p class="mt-1 text-xs text-blue-700 dark:text-blue-400">
+                                            Purchase unit, usage unit, and conversion factor cannot be changed after the product is created because existing inventory records depend on them.
+                                        </p>
+                                    </div>
                                 </div>
-
-                                <div>
-                                    <label for="edit_usage_unit"
-                                        class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Usage Unit
-                                    </label>
-
-                                    <select id="edit_usage_unit"
-                                        name="usage_unit"
-                                        x-model="edit.usage_unit"
-                                        required
-                                        class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-
-                                        @foreach (['ml', 'L', 'g', 'kg', 'pcs'] as $unitOption)
-                                            <option value="{{ $unitOption }}">
-                                                {{ $unitOption }}
-                                            </option>
-                                        @endforeach
-
-                                    </select>
-                                </div>
-
                             </div>
 
-                            <div>
-                                <label for="edit_conversion_factor"
-                                    class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Conversion Factor
-                                </label>
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 
-                                <input type="number"
-                                    id="edit_conversion_factor"
-                                    name="conversion_factor"
-                                    min="0.001"
-                                    max="20000"
-                                    step="0.001"
-                                    inputmode="decimal"
-                                    data-stock-limit="20000"
-                                    data-stock-decimals="3"
-                                    x-model="edit.conversion_factor"
-                                    required
-                                    class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <div>
+                                    <p class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Purchase Unit
+                                    </p>
 
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    Number of usage units contained in one purchase unit.
-                                </p>
+                                    <div class="flex items-center min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl bg-gray-50 dark:bg-gray-900 dark:border-gray-600">
+                                        <span class="font-medium text-gray-900 dark:text-white"
+                                            x-text="edit.purchase_unit || '—'">
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Usage Unit
+                                    </p>
+
+                                    <div class="flex items-center min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl bg-gray-50 dark:bg-gray-900 dark:border-gray-600">
+                                        <span class="font-medium text-gray-900 dark:text-white"
+                                            x-text="edit.usage_unit || '—'">
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Conversion
+                                    </p>
+
+                                    <div class="flex items-center min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl bg-gray-50 dark:bg-gray-900 dark:border-gray-600">
+                                        <span class="font-medium text-gray-900 dark:text-white">
+                                            <span>1 </span>
+                                            <span x-text="edit.purchase_unit || 'unit'"></span>
+                                            <span> = </span>
+                                            <span x-text="edit.conversion_factor"></span>
+                                            <span> </span>
+                                            <span x-text="edit.usage_unit"></span>
+                                        </span>
+                                    </div>
+                                </div>
+
                             </div>
 
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1628,7 +1592,7 @@
                             <div id="saveProductHelp"
                                 role="tooltip"
                                 class="absolute z-20 hidden w-64 p-3 mb-2 text-xs text-white -translate-x-1/2 bg-gray-900 shadow-lg pointer-events-none bottom-full left-1/2 rounded-xl group-hover:block group-focus-within:block dark:bg-gray-950">
-                                Saves product information such as name, units, prices, category, and stock thresholds. It does not change the current stock quantity.
+                                Saves editable product information such as name, brand, category, prices, and stock thresholds. Inventory units and current stock are not changed here.
                             </div>
                         </div>
                     </div>
@@ -1684,7 +1648,7 @@
 
                     <div class="p-4 overflow-x-auto rounded-xl bg-gray-50 dark:bg-gray-900/40">
                         <code class="text-xs text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                            sku, barcode, name, brand, description, category, inventory_type, purchase_unit, usage_unit, conversion_factor, retail_price, acquisition_cost, reorder_level, minimum_stock, maximum_stock
+                            sku, name, brand, description, category, inventory_type, purchase_unit, usage_unit, conversion_factor, retail_price, acquisition_cost, reorder_level, minimum_stock, maximum_stock
                         </code>
                     </div>
 
@@ -1754,7 +1718,7 @@
 
                         <div class="p-4 overflow-x-auto rounded-xl bg-gray-50 dark:bg-gray-900/40">
                             <code class="text-xs text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                                OIL-LAV-001,,Lavender Massage Oil,ZenCare,Lavender massage oil,Massage Oils,backbar,bottle,ml,1000,,250,1000,500,10000
+                                OIL-LAV-001,Lavender Massage Oil,ZenCare,Lavender massage oil,Massage Oils,backbar,bottle,ml,1000,,250,1000,500,10000
                             </code>
                         </div>
                     </div>
