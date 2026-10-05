@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\OperatingHours;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
@@ -138,16 +139,18 @@ class BranchController extends Controller
         }
 
         if (($spa->business_tier ?? null) !== 'professional') {
-            if (Branch::where('spa_id', $spa->id)->count() >= 2) {
+            if (Branch::where('spa_id', $spa->id)->count() >= 1) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Your Basic plan allows only up to 2 branches. Upgrade to add more.',
+                    'message' => 'Your current plan allows one branch only.',
                 ], 422);
             }
         }
 
         $validated = $request->validate([
-            'name'                        => 'required|string|max:255',
+            'name' => ['required','string','max:255',Rule::unique('branches', 'name')
+                ->where(fn ($query) => $query->where('spa_id', $spa->id)),
+            ],
             'location'                    => 'required|string',
             'is_main'                     => 'nullable',
             'has_workforce_finance_suite' => 'nullable|boolean',
@@ -205,8 +208,17 @@ class BranchController extends Controller
         $this->authorizeBranch($branch);
 
         $validator = Validator::make($request->all(), [
-            'name'    => 'required|string|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('branches', 'name')
+                    ->where(fn ($query) => $query->where('spa_id', $spa->id))
+                    ->ignore($branch->id),
+            ],
             'is_main' => 'nullable|boolean',
+        ], [
+            'name.unique' => 'This branch name is already used by your spa.',
         ]);
 
         if ($validator->fails()) {
@@ -326,10 +338,11 @@ class BranchController extends Controller
             'gallery_captions.*' => 'nullable|string|max:80',
             'description'        => 'nullable|string',
             'phone'              => 'nullable|string|max:50',
-            'address'            => 'nullable|string|max:255',
-            'city'               => 'nullable|string|max:100',
-            'latitude'           => 'nullable|numeric|between:-90,90',
-            'longitude'          => 'nullable|numeric|between:-180,180',
+            'address' => 'required|string|max:255',
+            'city' => 'required|string|max:100',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'location_confirmed' => 'required|accepted',
             'amenities'          => 'nullable|array',
             'amenities.*'        => 'nullable|string|max:100',
             'is_hiring'          => 'nullable|boolean',
@@ -348,7 +361,7 @@ class BranchController extends Controller
             $lat = (float) $request->latitude;
             $lng = (float) $request->longitude;
 
-            if (!($lat >= 13.983 && $lat <= 14.600 && $lng >= 120.850 && $lng <= 121.200)) {
+            if (!($lat >= 14.020 && $lat <= 14.520 && $lng >= 120.620 && $lng <= 121.100)) {
                 return redirect()
                     ->to(route('branches.edit', $branch->id) . '?tab=profile')
                     ->withErrors(['Pinned location must be within Cavite only.'], 'profile')
@@ -359,6 +372,7 @@ class BranchController extends Controller
         $profile = $branch->profile ?? $branch->profile()->create(['branch_id' => $branch->id]);
 
         $profileData              = $validator->validated();
+        unset($profileData['location_confirmed']);
         $profileData['is_listed'] = $request->boolean('is_listed');
         $profileData['is_hiring'] = $request->boolean('is_hiring');
         $profileData['hiring_note'] = $profileData['is_hiring']
@@ -416,6 +430,10 @@ class BranchController extends Controller
         $profileData['amenities']        = $profileData['amenities'] ?? $profile->amenities ?? [];
 
         $profile->update($profileData);
+
+        $branch->update([
+            'location' => $profileData['address'],
+        ]);
 
         return redirect()
         ->route('branches.edit', [

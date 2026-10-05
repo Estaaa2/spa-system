@@ -3,59 +3,97 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use Illuminate\Auth\Events\Registered;
+use App\Services\PendingRegistrationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use Throwable;
 
 class BusinessRegisterController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
     public function create(): View
     {
         return view('auth.register-business');
     }
 
-    /**
-     * Validate, create owner account, send verification email,
-     * then wait for verification before allowing setup access.
-     */
-    public function store(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'first_name'  => ['required', 'string', 'max:100'],
-            'middle_name' => ['nullable', 'string', 'max:100'],
-            'last_name'   => ['required', 'string', 'max:100'],
-            'email'       => ['required', 'string', 'lowercase', 'email:rfc', 'max:255', 'unique:' . User::class],
-            'password'    => ['required', 'confirmed', Rules\Password::defaults()],
+    public function store(
+        Request $request,
+        PendingRegistrationService $registrations
+    ): RedirectResponse {
+        $data = $request->validate([
+            'first_name' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+            'middle_name' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'last_name' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+            'suffix' => [
+                'nullable',
+                'string',
+                'max:20',
+            ],
+            'email' => [
+                'required',
+                'string',
+                'lowercase',
+                'email:rfc',
+                'max:255',
+                Rule::unique('users', 'email'),
+            ],
+            'password' => [
+                'required',
+                'confirmed',
+                Rules\Password::defaults(),
+            ],
+            'terms' => [
+                'required',
+                'accepted',
+            ],
+        ], [
+            'terms.required' => 'You must accept the Terms and Conditions before registering.',
+            'terms.accepted' => 'You must accept the Terms and Conditions before registering.',
         ]);
 
-        // Create owner account — not verified yet
-        $user = User::create([
-            'first_name'  => $request->first_name,
-            'middle_name' => $request->middle_name,
-            'last_name'   => $request->last_name,
-            'email'       => $request->email,
-            'password'    => Hash::make($request->password),
-            'is_owner'    => true,
+        $pending = $registrations->start(
+            $data,
+            'business'
+        );
+
+        $request->session()->put([
+            'pending_registration_uuid' => $pending->uuid,
+            'pending_registration_type' => 'business',
         ]);
+        $request->session()->save();
 
-        $user->assignRole('owner');
+        try {
+            $pending->sendVerificationNotification();
+        } catch (Throwable $e) {
+            report($e);
 
-        // Send verification email via Registered event
-        event(new Registered($user));
+            return redirect()
+                ->route('pending.verification.notice')
+                ->with(
+                    'warning',
+                    'Your registration information was saved temporarily, but the verification email could not be sent. Please try resending it.'
+                );
+        }
 
-        Auth::login($user);
-
-        // Flag so VerifyEmailController redirects to setup after verification
-        session(['owner_pending_setup' => true]);
-
-        return redirect()->route('verification.notice');
+        return redirect()
+            ->route('pending.verification.notice')
+            ->with(
+                'status',
+                'We sent a verification link and 6-digit code to your email address.'
+            );
     }
 }

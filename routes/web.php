@@ -940,8 +940,7 @@ Route::middleware(['auth', 'owner-only'])->group(function () {
     Route::get('/setup/branches/{branch}/operating-hours', [SetupController::class, 'operatingHours'])->name('setup.operating-hours');
     Route::put('/setup/branches/{branch}/operating-hours', [SetupController::class, 'updateOperatingHours'])->name('setup.update-operating-hours');
 
-    Route::get('/setup/branches/{branch}/staff', [SetupController::class, 'staff'])->name('setup.staff');
-    Route::post('/setup/branches/{branch}/staff', [SetupController::class, 'storeStaff'])->name('setup.store-staff');
+    Route::get('/setup/documents', [SetupController::class, 'documents'])->name('setup.documents');
 
     Route::get('/setup/complete', [SetupController::class, 'complete'])->name('setup.complete');
 });

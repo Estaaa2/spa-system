@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Notifications\VerifyEmailWithOtp;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -26,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'first_name',
         'middle_name',
         'last_name',
+        'suffix',
         'email',
         'password',
         'spa_id',
@@ -47,6 +50,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'email_verification_otp_hash',
     ];
 
     /**
@@ -61,6 +65,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'is_owner' => 'boolean',
             'password_reset_required' => 'boolean',
+            'email_verification_otp_expires_at' => 'datetime',
+            'email_verification_otp_sent_at' => 'datetime',
+            'email_verification_otp_attempts' => 'integer',
         ];
     }
 
@@ -70,7 +77,12 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getNameAttribute(): string
     {
-        return collect([$this->first_name, $this->middle_name, $this->last_name])
+        return collect([
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name,
+            $this->suffix,
+        ])
             ->filter()
             ->implode(' ');
     }
@@ -185,4 +197,56 @@ class User extends Authenticatable implements MustVerifyEmail
 
         return $this->hasPermissionTo($permission); // fall back to global
     }
+
+    public function generateEmailVerificationOtp(): string
+    {
+        $otp = str_pad(
+            (string) random_int(0, 999999),
+            6,
+            '0',
+            STR_PAD_LEFT
+        );
+
+        $this->forceFill([
+            'email_verification_otp_hash' => Hash::make($otp),
+            'email_verification_otp_expires_at' => now()->addMinutes(10),
+            'email_verification_otp_sent_at' => now(),
+            'email_verification_otp_attempts' => 0,
+        ])->saveQuietly();
+
+        return $otp;
+    }
+
+    public function clearEmailVerificationOtp(): void
+    {
+        $this->forceFill([
+            'email_verification_otp_hash' => null,
+            'email_verification_otp_expires_at' => null,
+            'email_verification_otp_sent_at' => null,
+            'email_verification_otp_attempts' => 0,
+        ])->saveQuietly();
+    }
+
+    public function markEmailAsVerified(): bool
+    {
+        if ($this->hasVerifiedEmail()) {
+            return false;
+        }
+
+        return $this->forceFill([
+            'email_verified_at' => $this->freshTimestamp(),
+            'email_verification_otp_hash' => null,
+            'email_verification_otp_expires_at' => null,
+            'email_verification_otp_sent_at' => null,
+            'email_verification_otp_attempts' => 0,
+        ])->save();
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $otp = $this->generateEmailVerificationOtp();
+
+        $this->notify(new VerifyEmailWithOtp($otp));
+    }
+
 }

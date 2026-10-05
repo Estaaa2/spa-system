@@ -1270,23 +1270,6 @@
                                 </select>
                             </div>
 
-                            <div class="p-4 border border-blue-200 rounded-xl bg-blue-50 dark:border-blue-900/50 dark:bg-blue-900/20">
-                                <div class="flex items-start gap-3">
-                                    <i class="mt-0.5 text-blue-600 fa-solid fa-lock dark:text-blue-400"
-                                        aria-hidden="true"></i>
-
-                                    <div>
-                                        <p class="text-sm font-medium text-blue-800 dark:text-blue-300">
-                                            Inventory Units Locked
-                                        </p>
-
-                                        <p class="mt-1 text-xs text-blue-700 dark:text-blue-400">
-                                            Purchase unit, usage unit, and conversion factor cannot be changed after the product is created because existing inventory records depend on them.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 
                                 <div>

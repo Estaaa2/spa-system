@@ -1,6 +1,5 @@
 <x-guest-layout>
     <div class="p-8 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <!-- Header -->
         <div class="relative mb-10 text-center">
 
             <img
@@ -14,105 +13,99 @@
             </h1>
 
             <p class="max-w-2xl mx-auto mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">
-                Start by entering your spa business name. You can complete branch and staff setup in the next steps.
+                Start by entering your registered spa business name. You will add your main branch and submit verification documents in the next steps.
             </p>
         </div>
 
-        <!-- Step Indicator -->
         <div class="mb-12">
-            <div class="flex items-center justify-center">
-                <!-- Step 1 -->
-                <div class="flex items-center">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-full bg-[#8B7355] text-white">
-                        <i class="text-sm leading-none fa-solid fa-check"></i>
+            <div class="flex items-center justify-center overflow-x-auto">
+                <div class="flex items-center min-w-max">
+                    <div class="flex items-center">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full bg-[#8B7355] text-white">
+                            1
+                        </div>
+
+                        <span class="ml-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Business Info
+                        </span>
                     </div>
 
-                    <span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Business Info
-                    </span>
-                </div>
+                    <div class="w-16 h-1 mx-4 bg-gray-200 rounded sm:w-24 dark:bg-gray-700"></div>
 
+                    <div class="flex items-center">
+                        <div class="flex items-center justify-center w-10 h-10 text-gray-400 bg-gray-200 rounded-full dark:bg-gray-700 dark:text-gray-300">
+                            2
+                        </div>
 
-                <div class="w-24 h-1 mx-4 bg-gray-200 dark:bg-gray-700"></div>
-
-                <!-- Step 2 -->
-                <div class="flex items-center">
-                    <div class="flex items-center justify-center w-10 h-10 text-gray-400 bg-gray-200 rounded-full dark:bg-gray-700">
-                        2
+                        <span class="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Main Branch
+                        </span>
                     </div>
-                    <span class="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Branches
-                    </span>
-                </div>
 
-                <div class="w-24 h-1 mx-4 bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="w-16 h-1 mx-4 bg-gray-200 rounded sm:w-24 dark:bg-gray-700"></div>
 
-                <!-- Step 3 -->
-                <div class="flex items-center">
-                    <div class="flex items-center justify-center w-10 h-10 text-gray-400 bg-gray-200 rounded-full dark:bg-gray-700">
-                        3
+                    <div class="flex items-center">
+                        <div class="flex items-center justify-center w-10 h-10 text-gray-400 bg-gray-200 rounded-full dark:bg-gray-700 dark:text-gray-300">
+                            3
+                        </div>
+
+                        <span class="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Documents
+                        </span>
                     </div>
-                    <span class="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Staff
-                    </span>
                 </div>
             </div>
         </div>
 
-        <!-- Business Info Form -->
-            <form method="POST" action="{{ route('setup.store-spa') }}" class="m-10 space-y-6">
-                @csrf
+        <form method="POST" action="{{ route('setup.store-spa') }}" class="m-10 space-y-6">
+            @csrf
 
-                <!-- Spa Name -->
-                <div>
-                    <label for="spa_name" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Spa Business Name *
-                    </label>
+            <div>
+                <label for="spa_name" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Spa Business Name *
+                </label>
 
-                    <input
-                        type="text"
-                        id="spa_name"
-                        name="spa_name"
-                        value="{{ old('spa_name') }}"
-                        required
-                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-[#8B7355] focus:outline-none"
-                        placeholder="Enter your spa name"
-                    />
+                <input
+                    type="text"
+                    id="spa_name"
+                    name="spa_name"
+                    value="{{ old('spa_name') }}"
+                    required
+                    class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-[#8B7355] focus:outline-none"
+                    placeholder="Enter your registered spa name"
+                />
 
-                    @error('spa_name')
-                        <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                    @enderror
-                </div>
+                @error('spa_name')
+                    <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+                @enderror
+            </div>
 
-                <!-- Verification Notice -->
-                <div class="p-4 mt-6 border rounded-xl bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:border-amber-400/20">
-                    <div class="flex gap-3">
-                        <div class="mt-0.5 text-amber-600 dark:text-amber-400">
-                            <i class="fa-solid fa-circle-info"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                                Verification documents will be required later
-                            </p>
-                            <p class="mt-1 text-sm leading-6 text-amber-700 dark:text-amber-200/90">
-                                To verify your business and enable public listing, you will later need to upload:
-                                <span class="font-medium">one valid government ID</span>,
-                                <span class="font-medium">DTI or SEC certificate</span>, and
-                                <span class="font-medium">BIR Certificate of Registration</span>.
-                            </p>
-                        </div>
+            <div class="p-4 mt-6 border border-blue-200 bg-blue-50 rounded-2xl dark:bg-blue-900/10 dark:border-blue-800">
+                <div class="flex gap-3">
+                    <div class="mt-0.5 text-blue-600 dark:text-blue-400">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </div>
+
+                    <div>
+                        <p class="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                            Verification documents are part of setup
+                        </p>
+
+                        <p class="mt-1 text-sm leading-6 text-blue-700 dark:text-blue-300">
+                            In the final step you will submit one valid government ID, your DTI or SEC certificate, and your BIR Certificate of Registration for administrator review.
+                        </p>
                     </div>
                 </div>
+            </div>
 
-                <!-- Submit Button -->
-                <div class="pt-6">
-                    <button
-                        type="submit"
-                        class="w-full bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:from-[#6F5430] hover:to-[#5A4526] text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-[1.02]"
-                    >
-                        Continue
-                    </button>
-                </div>
-            </form>
+            <div class="pt-6">
+                <button
+                    type="submit"
+                    class="w-full min-h-[44px] bg-gradient-to-r from-[#7A6348] to-[#6F5430] hover:opacity-90 text-white font-medium py-3 px-4 rounded-xl transition-opacity"
+                >
+                    Continue
+                </button>
+            </div>
+        </form>
     </div>
 </x-guest-layout>

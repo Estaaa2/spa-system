@@ -49,7 +49,7 @@
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
     <x-page-header
         title="Registered Spas"
-        subtitle="Review verification documents and manage spa tiers."
+        subtitle="Review business verification documents and manage verification status."
     />
 
     <nav aria-label="Verification status"
@@ -176,7 +176,7 @@
 
                 <div class="px-4 py-6 space-y-6 sm:px-6">
                     <dl class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-                        @foreach (['SpaName' => 'Spa name', 'CurrentStatus' => 'Current status', 'OwnerName' => 'Owner', 'OwnerEmail' => 'Owner email', 'VerifiedBy' => 'Verified by', 'VerifiedAt' => 'Verified on'] as $field => $label)
+                        @foreach (['SpaName' => 'Spa name','CurrentTier' => 'Business tier','CurrentStatus' => 'Current status','OwnerName' => 'Owner','OwnerEmail' => 'Owner email','VerifiedBy' => 'Verified by','VerifiedAt' => 'Verified on',] as $field => $label)
                             <div>
                                 <dt class="text-gray-500 dark:text-gray-400">{{ $label }}</dt>
                                 <dd id="modal{{ $field }}" class="font-medium text-gray-900 break-words dark:text-white"></dd>
@@ -187,17 +187,6 @@
                     <div>
                         <h3 class="{{ $labelClass }}">Verification documents</h3>
                         <div id="documentsContainer" class="space-y-2"></div>
-                    </div>
-
-                    <div>
-                        <label for="modalTier" class="{{ $labelClass }}">Business tier</label>
-                        <select name="business_tier" id="modalTier" class="{{ $inputClass }}">
-                            <option value="basic">Basic</option>
-                            <option value="professional">Professional</option>
-                        </select>
-                        <p class="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                            Tiers normally follow the spa's subscription. Change this only to correct a mistake.
-                        </p>
                     </div>
 
                     <div id="rejectionReasonWrapper" class="hidden">
@@ -272,6 +261,7 @@
         government_id:   'Government ID',
         dti_sec:         'DTI / SEC Certificate',
         bir_certificate: 'BIR Certificate of Registration',
+        business_permit: 'Business Permit',
     };
     const MODAL_IDS = ['spaModal', 'deleteModal'];
     const FOCUSABLE = 'a[href], button:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -371,6 +361,9 @@
             .then(({ spa }) => {
                 const fields = {
                     modalSpaName:       spa.name,
+                    modalCurrentTier:   spa.business_tier
+                        ? spa.business_tier.charAt(0).toUpperCase() + spa.business_tier.slice(1)
+                        : 'Basic',
                     modalCurrentStatus: spa.verification_status.charAt(0).toUpperCase() + spa.verification_status.slice(1),
                     modalOwnerName:     spa.owner_name,
                     modalOwnerEmail:    spa.owner_email,
@@ -379,7 +372,6 @@
                 };
                 Object.entries(fields).forEach(([fieldId, value]) => { el(fieldId).textContent = value; });
 
-                el('modalTier').value = spa.business_tier;
                 el('modalVerificationRemarks').value = spa.verification_remarks ?? '';
                 form.action = ROUTE_SPA.replace('__ID__', spa.id);
                 renderDocuments(spa.documents);

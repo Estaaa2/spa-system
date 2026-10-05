@@ -1,5 +1,4 @@
 <?php
-
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
@@ -10,7 +9,8 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\BusinessRegisterController;
 use App\Http\Controllers\Auth\VerifyEmailController;
-use App\Http\Controllers\Auth\VerificationCheckController;
+use App\Http\Controllers\Auth\EmailVerificationOtpController;
+use App\Http\Controllers\Auth\PendingRegistrationVerificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -41,28 +41,52 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    Route::get('/verify-registration', [PendingRegistrationVerificationController::class, 'notice'])
+        ->name('pending.verification.notice');
+
+    Route::post('/verify-registration/otp', [PendingRegistrationVerificationController::class, 'verifyOtp'])
+        ->middleware('throttle:6,1')
+        ->name('pending.verification.otp');
+
+    Route::post('/verify-registration/resend', [PendingRegistrationVerificationController::class, 'resend'])
+        ->middleware('throttle:2,1')
+        ->name('pending.verification.resend');
+
+    Route::get('/verify-registration/{pendingRegistration}/confirm', [PendingRegistrationVerificationController::class, 'verifyLink'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('pending.verification.verify');
 });
 
+Route::get(
+    '/verify-registration/success',
+    [PendingRegistrationVerificationController::class, 'success']
+)
+    ->middleware('auth')
+    ->name('pending.verification.success');
+
+Route::get(
+    '/verify-registration/status',
+    [PendingRegistrationVerificationController::class, 'status']
+)->name('pending.verification.status');
+
 Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
-        ->middleware(['signed', 'throttle:6,1'])
-        ->name('verification.verify');
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
 
 Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
-
     Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
         ->middleware('throttle:6,1')
         ->name('verification.send');
-
     Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
         ->name('password.confirm');
-
     Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
-
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
-
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
-
+    Route::post('/verify-email/otp', [EmailVerificationOtpController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('verification.otp.verify');
 });

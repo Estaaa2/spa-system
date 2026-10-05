@@ -1,27 +1,141 @@
-<x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-        {{ __('This is a secure area of the application. Please confirm your password before continuing.') }}
-    </div>
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <form method="POST" action="{{ route('password.confirm') }}">
-        @csrf
+    <title>Confirm Password | Levictas Spa & Wellness</title>
 
-        <!-- Password -->
-        <div>
-            <x-input-label for="password" :value="__('Password')" />
+    <link rel="icon" type="image/png" href="{{ asset('images/1.png') }}">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+
+<body class="min-h-screen antialiased bg-[#F8F5F1] dark:bg-gray-900">
+
+<main class="min-h-screen lg:grid lg:grid-cols-2">
+
+    <section class="relative hidden overflow-hidden lg:block">
+        <img
+            src="{{ asset('images/face.jpeg') }}"
+            alt="Spa"
+            class="absolute inset-0 object-cover w-full h-full">
+
+        <div class="absolute inset-0 bg-black/30"></div>
+
+        <div class="relative z-10 flex items-end min-h-screen p-12">
+            <div class="max-w-md text-white">
+                <h1 class="text-4xl font-light font-['Playfair_Display']">
+                    Secure your account.
+                </h1>
+
+                <p class="mt-4 leading-7 text-white/85">
+                    Confirm your password before accessing this secure area.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="flex items-center min-h-screen px-4 py-8 bg-white sm:px-8 dark:bg-gray-800">
+
+        <div class="w-full max-w-md mx-auto">
+
+            <div class="mb-6 text-center">
+                <img
+                    src="{{ asset('images/1.png') }}"
+                    alt="Levictas"
+                    class="w-auto mx-auto rounded-md h-14">
+            </div>
+
+            <div class="mb-8 text-center">
+                <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
+                    Confirm Password
+                </h2>
+
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Please confirm your password before continuing.
+                </p>
+            </div>
+
+            <form
+                method="POST"
+                action="{{ route('password.confirm') }}"
+                class="space-y-5">
+
+                @csrf
+
+                <div>
+                    <label
+                        for="password"
+                        class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Password
+                    </label>
+
+                    <div class="relative">
+                        <i class="absolute text-gray-400 -translate-y-1/2 fa-solid fa-lock left-3 top-1/2"></i>
+
+                        <input
+                            id="password"
                             name="password"
-                            required autocomplete="current-password" />
+                            type="password"
+                            required
+                            autocomplete="current-password"
+                            placeholder="Enter your password"
+                            class="w-full min-h-[44px] py-2 pr-12 text-sm bg-white border border-gray-300 rounded-xl pl-10 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
+                        <button
+                            type="button"
+                            data-target="password"
+                            aria-label="Show password"
+                            tabindex="-1"
+                            class="toggle-password absolute inset-y-0 right-0 inline-flex items-center justify-center min-w-[44px] text-[#8B7355]">
 
-        <div class="flex justify-end mt-4">
-            <x-primary-button>
-                {{ __('Confirm') }}
-            </x-primary-button>
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+
+                    @error('password')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <button
+                    type="submit"
+                    class="inline-flex items-center justify-center w-full min-h-[48px] px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#6F5430] to-[#8B7355] rounded-xl shadow-sm">
+
+                    <i class="mr-2 fa-solid fa-shield-halved"></i>
+                    Confirm Password
+                </button>
+
+            </form>
         </div>
-    </form>
-</x-guest-layout>
+    </section>
+
+</main>
+
+<script>
+document.querySelectorAll('.toggle-password').forEach(function (button) {
+    button.addEventListener('click', function () {
+        const target = document.getElementById(button.dataset.target);
+        const icon = button.querySelector('i');
+
+        if (!target || !icon) return;
+
+        if (target.type === 'password') {
+            target.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            target.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    });
+});
+</script>
+
+</body>
+</html>

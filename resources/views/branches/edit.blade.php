@@ -437,6 +437,7 @@
             <form method="POST"
                   action="{{ route('branches.update.profile', $branch->id) }}"
                   enctype="multipart/form-data"
+                  id="branchProfileForm"
                   class="space-y-5">
                 @csrf
                 @method('PUT')
@@ -599,8 +600,10 @@
                                         <label for="city" class="block text-sm font-medium text-gray-700 dark:text-gray-300">City / Municipality</label>
                                         <input type="text" name="city" id="city"
                                             value="{{ old('city', optional($branch->profile)->city) }}"
-                                            placeholder="e.g. Trece Martires City"
-                                            class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                                            readonly
+                                            tabindex="-1"
+                                            placeholder="Automatically detected"
+                                            class="block w-full mt-2 text-gray-600 border-gray-200 shadow-sm cursor-not-allowed bg-gray-50 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-400 sm:text-sm">
                                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             Auto-filled when you search or pin the address.
                                         </p>
@@ -639,6 +642,17 @@
                                 </div>
                                 <input type="hidden" name="latitude"  id="latitude"  value="{{ old('latitude',  optional($branch->profile)->latitude) }}">
                                 <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', optional($branch->profile)->longitude) }}">
+                                <input type="hidden"
+                                name="location_confirmed"
+                                id="location_confirmed"
+                                value="{{ old(
+                                    'location_confirmed',
+                                    optional($branch->profile)->address &&
+                                    optional($branch->profile)->latitude &&
+                                    optional($branch->profile)->longitude
+                                        ? '1'
+                                        : '0'
+                                ) }}">
                                 <div id="profileMap" class="w-full overflow-hidden border border-gray-200 h-72 rounded-xl dark:border-gray-600"></div>
                                 <div id="caviteToast" class="flex items-center hidden gap-2 p-3 mt-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
                                     <i class="flex-shrink-0 fa-solid fa-location-crosshairs"></i>
@@ -1050,7 +1064,7 @@ function initLeafletMap() {
             '<div class="flex flex-col items-center justify-center h-full gap-2 p-6 text-center">' +
             '<i class="text-xl text-gray-400 fa-solid fa-map-location-dot"></i>' +
             '<p class="text-sm font-medium text-gray-600 dark:text-gray-300">Map could not be loaded</p>' +
-            '<p class="text-xs text-gray-500 dark:text-gray-400">Check your connection and reload. You can still type the address and coordinates manually.</p>' +
+            '<p class="text-xs text-gray-500 dark:text-gray-400">Check your connection and reload before changing the branch location.</p>' +
             '</div>';
         return;
     }
@@ -1101,6 +1115,7 @@ function initLeafletMap() {
                 const a = document.getElementById('address');
                 if (a && data.display_name) a.value = data.display_name;
                 fillCityFromNominatimAddress(data.address);
+                document.getElementById('location_confirmed').value = '1';
             })
             .catch(() => {
                 showCaviteToast('Could not verify that location. Please try again.');
@@ -1259,6 +1274,8 @@ function selectAddressSuggestion(index) {
     document.getElementById('longitude').value = lng.toFixed(7);
     fillCityFromNominatimAddress(item.address);
 
+    document.getElementById('location_confirmed').value = '1';
+
     if (leafletMapInstance) {
         leafletMapInstance.setView(latlng, 16);
         leafletMapInstance.eachLayer(layer => {
@@ -1283,8 +1300,18 @@ function setupAddressAutocomplete() {
 
     addressInput.addEventListener('input', function () {
         clearTimeout(addressGeocodeTimeout);
+
+        document.getElementById('location_confirmed').value = '0';
+        document.getElementById('latitude').value = '';
+        document.getElementById('longitude').value = '';
+        document.getElementById('city').value = '';
+
         const query = this.value.trim();
-        addressGeocodeTimeout = setTimeout(() => fetchAddressSuggestions(query), 500);
+
+        addressGeocodeTimeout = setTimeout(
+            () => fetchAddressSuggestions(query),
+            500
+        );
     });
 
     // Keyboard navigation (up/down/enter)
@@ -1339,6 +1366,31 @@ function bindResetHandlers() {
         });
     });
 }
+
+document.getElementById('branchProfileForm')?.addEventListener('submit', function (event) {
+    const confirmed = document.getElementById('location_confirmed');
+    const address = document.getElementById('address');
+    const city = document.getElementById('city');
+    const latitude = document.getElementById('latitude');
+    const longitude = document.getElementById('longitude');
+
+    if (
+        !confirmed ||
+        confirmed.value !== '1' ||
+        !address.value.trim() ||
+        !city.value.trim() ||
+        !latitude.value ||
+        !longitude.value
+    ) {
+        event.preventDefault();
+
+        showCaviteToast(
+            'Choose an address suggestion or pin the exact branch location before saving.'
+        );
+
+        address.focus();
+    }
+});
 
 document.addEventListener('DOMContentLoaded', function () {
     bindResetHandlers();

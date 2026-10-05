@@ -56,7 +56,6 @@ class RegisteredSpaController extends Controller
             'spa' => [
                 'id' => $spa->id,
                 'name' => $spa->name,
-                'business_tier' => $spa->business_tier,
                 'verification_status' => $spa->verification_status,
                 'verification_remarks' => $spa->verification_remarks,
                 'verified_at' => optional($spa->verified_at)?->format('F d, Y h:i A'),
@@ -78,22 +77,60 @@ class RegisteredSpaController extends Controller
     public function update(Request $request, Spa $spa)
     {
         $request->validate([
-            'business_tier' => ['required', 'in:basic,professional'],
             'verification_status' => ['required', 'in:verified,rejected'],
             'verification_remarks' => ['nullable', 'string', 'required_if:verification_status,rejected'],
         ]);
 
         $status = $request->verification_status;
 
+        if ($status === 'verified') {
+            $requiredDocuments = [
+                'government_id',
+                'dti_sec',
+                'bir_certificate',
+                'business_permit',
+            ];
+
+            $uploadedDocuments = $spa
+                ->verificationDocuments()
+                ->pluck('document_type')
+                ->unique()
+                ->toArray();
+
+            $missingDocuments = array_diff(
+                $requiredDocuments,
+                $uploadedDocuments
+            );
+
+            if (!empty($missingDocuments)) {
+                return back()->with(
+                    'error',
+                    'This spa cannot be verified because one or more required documents are missing.'
+                );
+            }
+        }
+
         $spa->update([
-            'business_tier' => $request->business_tier,
             'verification_status' => $status,
-            'verification_remarks' => $status === 'rejected' ? $request->verification_remarks : null,
-            'verified_at' => $status === 'verified' ? now() : null,
-            'verified_by' => $status === 'verified' ? auth()->id() : null,
+            'verification_remarks' => $status === 'rejected'
+                ? $request->verification_remarks
+                : null,
+            'verified_at' => $status === 'verified'
+                ? now()
+                : null,
+            'verified_by' => $status === 'verified'
+                ? auth()->id()
+                : null,
         ]);
 
-        return redirect()->route('admin.registered-spas.index')->with('success', 'Spa updated successfully.');
+        return redirect()
+            ->route('admin.registered-spas.index')
+            ->with(
+                'success',
+                $status === 'verified'
+                    ? 'Spa verified successfully.'
+                    : 'Spa verification rejected successfully.'
+            );
     }
 
     public function destroy(Spa $spa)

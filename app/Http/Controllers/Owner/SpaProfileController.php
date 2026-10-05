@@ -7,6 +7,7 @@ use App\Models\SpaVerificationDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class SpaProfileController extends Controller
 {
@@ -32,7 +33,16 @@ class SpaProfileController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('spas', 'name')
+                    ->ignore($spa->id),
+            ],
+        ], [
+            'name.unique' =>
+                'This spa business name is already registered.',
         ]);
 
         if ($spa->name === $validated['name']) {
@@ -78,7 +88,7 @@ class SpaProfileController extends Controller
         $request->validate([
             'documents' => [
                 'required',
-                'array:government_id,dti_sec,bir_certificate',
+                'array:government_id,dti_sec,bir_certificate,business_permit',
             ],
 
             'documents.government_id' => [
@@ -101,12 +111,20 @@ class SpaProfileController extends Controller
                 'mimes:pdf,jpg,jpeg,png',
                 'max:10240',
             ],
+
+            'documents.business_permit' => [
+                'nullable',
+                'file',
+                'mimes:pdf,jpg,jpeg,png',
+                'max:10240',
+            ],
         ]);
 
         $allowedTypes = [
             'government_id',
             'dti_sec',
             'bir_certificate',
+            'business_permit',
         ];
 
         $uploadedCount = 0;
@@ -169,6 +187,7 @@ class SpaProfileController extends Controller
             'government_id',
             'dti_sec',
             'bir_certificate',
+            'business_permit',
         ];
 
         $uploadedDocuments = $spa
