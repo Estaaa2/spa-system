@@ -2,88 +2,137 @@
 
 @section('title', 'Registered Users')
 @section('content')
-<div class="p-6">
+@php
+    // Button tokens, same shape as appointments.blade.php's $btn map.
+    $btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-4 py-2 text-sm '
+             . 'font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 '
+             . 'focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
+
+    $btn = [
+        'primary' => $btnBase . ' bg-[#8B7355] text-white hover:bg-[#7A6348]',
+        'edit'    => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
+                   . 'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        'neutral' => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
+                   . 'dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
+        'remove'  => $btnBase . ' bg-red-700 text-white hover:bg-red-800',
+    ];
+
+    $inputClass = 'block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl '
+                . 'focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 '
+                . 'dark:placeholder-gray-400 dark:text-white';
+
+    $tabBase     = 'flex items-center justify-center flex-1 min-h-[44px] px-3 text-sm font-medium transition rounded-xl';
+    $tabActive   = $tabBase . ' text-white shadow-sm bg-gradient-to-r from-[#7A6348] to-[#6F5430]';
+    $tabInactive = $tabBase . ' text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700';
+
+    $canEdit   = auth()->user()->can('edit registered users');
+    $canDelete = auth()->user()->can('delete registered users');
+    $showActions = $showDeleted ? $canDelete : ($canEdit || $canDelete);
+@endphp
+<div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
     <x-page-header
         title="Registered Users"
-        subtitle="Manage user roles"
-    >
-    </x-page-header>
+        subtitle="Review accounts, change roles, and remove or restore users."
+    />
 
-    <!-- CARD -->
-    <div class="bg-white border shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
-        <!-- Card Header -->
-        <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-            <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">
-                Registered Users
+    <nav aria-label="User lists"
+         class="flex gap-1 p-1.5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+        <a href="{{ route('admin.users.index') }}"
+           @if (! $showDeleted) aria-current="page" @endif
+           class="{{ $showDeleted ? $tabInactive : $tabActive }}">Active</a>
+        <a href="{{ route('admin.users.index', ['view' => 'deleted']) }}"
+           @if ($showDeleted) aria-current="page" @endif
+           class="{{ $showDeleted ? $tabActive : $tabInactive }}">Removed</a>
+    </nav>
+
+    <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+        <div class="flex flex-col gap-3 px-4 py-4 border-b border-gray-200 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-gray-700">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                {{ $showDeleted ? 'Removed Users' : 'Active Users' }}
             </h2>
 
             <form method="GET" class="flex gap-2">
-                <input
-                    name="q"
-                    value="{{ $q }}"
-                    class="w-64 px-3 py-2 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                    placeholder="Search name or email"
-                >
-                <button
-                    class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-lg hover:opacity-90">
-                    Search
-                </button>
+                @if ($showDeleted)
+                    <input type="hidden" name="view" value="deleted">
+                @endif
+                <input type="search" name="q" value="{{ $q }}" aria-label="Search name or email"
+                       placeholder="Search name or email" class="{{ $inputClass }} sm:w-64">
+                <button type="submit" class="{{ $btn['primary'] }}">Search</button>
             </form>
         </div>
 
-        <!-- Table -->
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 dark:bg-gray-900/30">
-                    <tr class="text-left text-gray-600 dark:text-gray-300">
-                        <th class="px-6 py-3">Name</th>
-                        <th class="px-6 py-3">Email</th>
-                        <th class="px-6 py-3">Current Role</th>
-                        <th class="px-6 py-3 text-center">Actions</th>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Name</th>
+                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Email</th>
+                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Role</th>
+                        @if ($showDeleted)
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Removed</th>
+                        @endif
+                        @if ($showActions)
+                            <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Actions</th>
+                        @endif
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                     @forelse($users as $user)
                         @php
-                            $currentRole = $user->roles->first()?->name ?? 'none';
+                            $currentRole = $user->roles->first()?->name;
+                            $displayName = $user->name !== '' ? $user->name : $user->email;
                         @endphp
-                        <tr class="border-t dark:border-gray-700">
-                            <td class="px-6 py-3 text-gray-800 dark:text-gray-100">
-                                {{ $user->name }}
-                            </td>
-                            <td class="px-6 py-3 text-gray-600 dark:text-gray-300">
-                                {{ $user->email }}
-                            </td>
-                            <td class="px-6 py-3">
-                                <span class="px-2 py-1 text-xs bg-gray-100 rounded dark:bg-gray-700 dark:text-gray-200">
-                                    {{ $currentRole }}
+                        <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{{ $displayName }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $user->email }}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
+                                    {{ $currentRole ? ucfirst($currentRole) : 'No role' }}
                                 </span>
                             </td>
-                            <td class="px-6 py-3 text-center">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button
-                                        onclick="openEditRoleModal(
-                                            {{ $user->id }},
-                                            '{{ $user->name }}',
-                                            '{{ $currentRole }}'
-                                        )"
-                                        class="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">
-                                        Review
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onclick="openDeleteModal({{ $user->id }}, '{{ addslashes($user->name) }}')"
-                                        class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">
-                                        Remove
-                                    </button>
-                                </div>
-                            </td>
+                            @if ($showDeleted)
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ $user->deleted_at->format('M d, Y') }}
+                                </td>
+                            @endif
+                            @if ($showActions)
+                                <td class="px-6 py-4">
+                                    <div class="flex flex-wrap gap-2">
+                                        @if ($showDeleted)
+                                            <form method="POST" action="{{ route('admin.users.restore', $user->id) }}">
+                                                @csrf
+                                                <button type="submit" class="{{ $btn['edit'] }}">
+                                                    <i class="text-xs fa-solid fa-rotate-left" aria-hidden="true"></i>
+                                                    <span>Restore</span>
+                                                </button>
+                                            </form>
+                                        @else
+                                            @if ($canEdit)
+                                                <button type="button" class="{{ $btn['edit'] }}"
+                                                        onclick='openRoleModal({{ $user->id }}, @json($displayName), @json($currentRole))'>
+                                                    <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i>
+                                                    <span>Change Role</span>
+                                                </button>
+                                            @endif
+                                            @if ($canDelete)
+                                                <button type="button" class="{{ $btn['remove'] }}"
+                                                        onclick='openDeleteModal({{ $user->id }}, @json($displayName))'>
+                                                    <i class="text-xs fa-solid fa-trash" aria-hidden="true"></i>
+                                                    <span>Remove</span>
+                                                </button>
+                                            @endif
+                                        @endif
+                                    </div>
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                                No users found.
+                            <td colspan="5" class="px-6 py-12 text-center">
+                                <i class="mb-3 text-4xl text-gray-400 fa-solid fa-users" aria-hidden="true"></i>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                    {{ $showDeleted ? 'No removed users.' : 'No users found.' }}
+                                </p>
                             </td>
                         </tr>
                     @endforelse
@@ -91,116 +140,152 @@
             </table>
         </div>
 
-        <!-- Card Footer -->
-        <div class="px-6 py-4 border-t dark:border-gray-700">
-            {{ $users->links() }}
-        </div>
+        @if ($users->hasPages())
+            <div class="px-4 py-4 border-t border-gray-200 sm:px-6 dark:border-gray-700">
+                {{ $users->links() }}
+            </div>
+        @endif
     </div>
 </div>
 
-<!-- DELETE MODAL -->
-<div id="deleteModal" class="fixed inset-0 z-50 flex items-center justify-center hidden p-4 bg-black bg-opacity-50">
-    <div class="w-full max-w-md bg-white shadow-xl rounded-xl dark:bg-gray-800">
-        <div class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Remove User</h3>
-            <button type="button" onclick="closeDeleteModal()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                <i class="text-xl fa-solid fa-xmark"></i>
-            </button>
+@if ($canEdit && ! $showDeleted)
+<div id="roleModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="roleModalTitle"
+             class="w-full max-w-md bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <form id="roleForm" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                    <div>
+                        <h2 id="roleModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Change User Role</h2>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Updating the role for <span id="roleUserName" class="font-medium text-gray-900 dark:text-white"></span>.
+                        </p>
+                    </div>
+                    <button type="button" onclick="closeModal('roleModal')" aria-label="Close dialog"
+                            class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="px-4 py-6 sm:px-6">
+                    <label for="roleSelect" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role</label>
+                    <select name="role" id="roleSelect" required class="{{ $inputClass }}">
+                        {{-- Shown when the user's current role is not assignable here, so Save cannot silently pick the first option. --}}
+                        <option value="" disabled>Select a role</option>
+                        @foreach($roles as $role)
+                            @continue(in_array($role->name, ['admin', 'customer'], true))
+                            <option value="{{ $role->name }}">{{ ucfirst($role->name) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" onclick="closeModal('roleModal')" class="w-full {{ $btn['neutral'] }} sm:w-auto">Cancel</button>
+                        <button type="submit" class="w-full {{ $btn['primary'] }} sm:w-auto">Save Changes</button>
+                    </div>
+                </div>
+            </form>
         </div>
+    </div>
+</div>
+@endif
 
-        <div class="p-6">
-            <p class="text-sm text-gray-600 dark:text-gray-300">
-                Are you sure you want to remove
-                <span id="deleteUserName" class="font-semibold text-red-600"></span>?
-                This action cannot be undone.
+@if ($canDelete && ! $showDeleted)
+<div id="deleteModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="alertdialog" aria-modal="true" aria-labelledby="deleteModalTitle" aria-describedby="deleteModalDesc"
+             class="w-full max-w-md p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <h2 id="deleteModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Remove User</h2>
+            <p id="deleteModalDesc" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                This removes <span id="deleteUserName" class="font-medium text-gray-900 dark:text-white"></span>
+                and blocks their sign-in. You can restore the account from the Removed tab.
             </p>
-
-            <div class="flex justify-end gap-2 mt-6">
-                <button
-                    type="button"
-                    onclick="closeDeleteModal()"
-                    class="px-4 py-2 text-sm font-medium bg-white border rounded-lg hover:bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
-                    Cancel
-                </button>
-
-                <form id="deleteForm" method="POST">
+            <div class="flex flex-col-reverse gap-2 mt-6 sm:flex-row sm:justify-end">
+                <button type="button" onclick="closeModal('deleteModal')" class="w-full {{ $btn['neutral'] }} sm:w-auto">Keep User</button>
+                <form id="deleteForm" method="POST" class="sm:w-auto">
                     @csrf
                     @method('DELETE')
-                    <button
-                        type="submit"
-                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
-                        Yes, Remove
-                    </button>
+                    <button type="submit" class="w-full {{ $btn['remove'] }} sm:w-auto">Yes, Remove</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+@endif
 
-<!-- EDIT ROLE MODAL -->
-<div id="editRoleModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
-    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white rounded-lg dark:bg-gray-800">
-        <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">
-            Edit User Role
-        </h2>
-
-        <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-            Update role for <span id="modalUserName" class="font-medium"></span>
-        </p>
-
-        <form id="editRoleForm" method="POST">
-            @csrf
-            @method('PUT')
-
-            <select name="role"
-                    id="modalRoleSelect"
-                    class="w-full px-3 py-2 mb-4 text-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-                @foreach($roles as $role)
-                    @continue($role->name === 'admin')
-                    @continue($role->name === 'customer')
-
-                    <option value="{{ $role->name }}">
-                        {{ $role->name }}
-                    </option>
-                @endforeach
-            </select>
-
-            <div class="flex justify-end gap-2">
-                <button type="button"
-                        onclick="closeEditRoleModal()"
-                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-lg dark:bg-gray-700 dark:text-gray-300">
-                    Cancel
-                </button>
-                <button type="submit"
-                        class="px-4 py-2 text-sm font-medium text-white bg-[#8B7355] border border-transparent rounded-md shadow-sm hover:bg-[#7A6348] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8B7355]">
-                    Save Changes
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- MODAL SCRIPT -->
+@if ($showActions && ! $showDeleted)
 <script>
-function openDeleteModal(userId, userName) {
-    document.getElementById('deleteUserName').textContent = userName;
-    document.getElementById('deleteForm').action = `/admin/users/${userId}`;
-    document.getElementById('deleteModal').classList.remove('hidden');
-}
+(function () {
+    'use strict';
 
-function closeDeleteModal() {
-    document.getElementById('deleteModal').classList.add('hidden');
-}
+    const ROUTE_ROLE    = @json(route('admin.users.updateRole', '__ID__'));
+    const ROUTE_DESTROY = @json(route('admin.users.destroy', '__ID__'));
+    const MODAL_IDS = ['roleModal', 'deleteModal'];
+    const FOCUSABLE = 'a[href], button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function openEditRoleModal(userId, userName, currentRole) {
-    document.getElementById('modalUserName').textContent = userName;
-    document.getElementById('modalRoleSelect').value = currentRole;
-    document.getElementById('editRoleForm').action = `/users/${userId}/role`;
-    document.getElementById('editRoleModal').classList.remove('hidden');
-}
+    let lastFocused = null;   // element to restore focus to on close
 
-function closeEditRoleModal() {
-    document.getElementById('editRoleModal').classList.add('hidden');
-}
+    function openModal(id, focusSelector) {
+        const el = document.getElementById(id);
+        lastFocused = document.activeElement;
+        el.classList.remove('hidden');
+        el.querySelector(focusSelector).focus();
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+        if (lastFocused && document.contains(lastFocused)) lastFocused.focus();
+        lastFocused = null;
+    }
+
+    // Escape closes the open modal; Tab is kept inside it.
+    document.addEventListener('keydown', function (e) {
+        const modal = MODAL_IDS.map(id => document.getElementById(id))
+            .find(el => el && !el.classList.contains('hidden'));
+        if (!modal) return;
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeModal(modal.id);
+            return;
+        }
+        if (e.key !== 'Tab') return;
+
+        const items = Array.from(modal.querySelectorAll(FOCUSABLE));
+        const first = items[0];
+        const last  = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault(); first.focus();
+        }
+    });
+
+    // Backdrop click closes the delete confirmation only, so a stray tap
+    // cannot discard a role the admin has just chosen.
+    const deleteModal = document.getElementById('deleteModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('click', e => { if (e.target === deleteModal) closeModal('deleteModal'); });
+    }
+
+    window.closeModal = closeModal;
+
+    window.openRoleModal = function (id, name, role) {
+        const select = document.getElementById('roleSelect');
+        document.getElementById('roleUserName').textContent = name;
+        document.getElementById('roleForm').action = ROUTE_ROLE.replace('__ID__', id);
+        select.value = role ?? '';
+        if (select.selectedIndex < 0) select.value = '';
+        openModal('roleModal', 'select');
+    };
+
+    window.openDeleteModal = function (id, name) {
+        document.getElementById('deleteUserName').textContent = name;
+        document.getElementById('deleteForm').action = ROUTE_DESTROY.replace('__ID__', id);
+        openModal('deleteModal', 'button[type="button"]');
+    };
+}());
 </script>
+@endif
 @endsection

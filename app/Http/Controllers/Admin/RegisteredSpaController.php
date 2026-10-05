@@ -8,29 +8,44 @@ use Illuminate\Http\Request;
 
 class RegisteredSpaController extends Controller
 {
+    private const STATUSES = ['pending', 'verified', 'rejected', 'unverified'];
+
     public function index(Request $request)
     {
-        $q = $request->q;
+        $q      = trim((string) $request->get('q'));
+        $status = in_array($request->get('status'), self::STATUSES, true) ? $request->get('status') : null;
 
         $spas = Spa::with('owner')
-            ->when($q, function($query) use ($q) {
-                $query->where('name', 'like', "%{$q}%")
-                    ->orWhereHas('owner', function($q2) use ($q) {
-                        $q2->where('name', 'like', "%{$q}%");
-                    });
+            ->when($status, fn ($query) => $query->where('verification_status', $status))
+            ->when($q !== '', function ($query) use ($q) {
+                // Grouped so the status filter still applies to every match.
+                $query->where(function ($match) use ($q) {
+                    $match->where('name', 'like', "%{$q}%")
+                        ->orWhereHas('owner', function ($owner) use ($q) {
+                            $owner->where(function ($name) use ($q) {
+                                $name->where('first_name', 'like', "%{$q}%")
+                                    ->orWhere('last_name', 'like', "%{$q}%")
+                                    ->orWhere('email', 'like', "%{$q}%");
+                            });
+                        });
+                });
             })
             ->latest()
-            ->paginate(10); // ← paginate instead of all()
+            ->paginate(10)
+            ->withQueryString();
 
-        $pendingSpas = Spa::with('owner')
-            ->where('verification_status', 'pending')
-            ->latest()
-            ->take(5)
-            ->get();
+        // Tab counts, one query: ['pending' => 3, 'verified' => 12, ...]
+        $counts = Spa::selectRaw('verification_status, COUNT(*) as total')
+            ->groupBy('verification_status')
+            ->pluck('total', 'verification_status');
 
-        $verifiedCount = Spa::where('verification_status', 'verified')->count();
-
-        return view('admin.registered-spas.index', compact('spas', 'q', 'pendingSpas', 'verifiedCount'));
+        return view('admin.registered-spas.index', [
+            'spas'     => $spas,
+            'q'        => $q,
+            'status'   => $status,
+            'statuses' => self::STATUSES,
+            'counts'   => $counts,
+        ]);
     }
 
     public function edit(Spa $spa)

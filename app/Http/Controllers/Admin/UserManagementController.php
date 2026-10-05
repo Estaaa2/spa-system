@@ -13,8 +13,10 @@ class UserManagementController extends Controller
     public function index(Request $request)
     {
         $q = $request->get('q');
+        $showDeleted = $request->get('view') === 'deleted';
 
         $users = User::query()
+            ->when($showDeleted, fn ($query) => $query->onlyTrashed())
 
             // Exclude users with 'admin' role
             ->whereDoesntHave('roles', function ($query) {
@@ -38,7 +40,7 @@ class UserManagementController extends Controller
 
         $roles = Role::orderBy('name')->get();
 
-        return view('admin.users.index', compact('users', 'roles', 'q'));
+        return view('admin.users.index', compact('users', 'roles', 'q', 'showDeleted'));
     }
 
     public function updateRole(Request $request, User $user)

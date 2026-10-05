@@ -111,7 +111,7 @@
     $canBilling = $can('view billing') || $can('create billing') || $can('edit billing') || $can('delete billing');
 
     // Vendor bills. IMPORTANT: these permission names must match your seeder and routes.
-    $canVendorBills = $can('view vendor bills') || $can('create vendor bills') || $can('edit vendor bills') || $can('delete vendor bills');
+    $canVendorBills = $can('view vendor bills') || $can('create vendor bills') || $can('edit vendor bills');
 
     $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling || $canVendorBills);
 
