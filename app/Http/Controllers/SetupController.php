@@ -195,10 +195,9 @@ class SetupController extends Controller
             return $branch;
         });
 
-        return redirect()->route(
-            'setup.operating-hours',
-            $branch
-        );
+        return redirect()
+            ->route('setup.documents')
+            ->with('success', 'Main branch created. Please upload your verification documents.');
     }
 
     public function operatingHours(Branch $branch): View|RedirectResponse
@@ -335,10 +334,20 @@ class SetupController extends Controller
 
     public function complete(): RedirectResponse
     {
+
+        \Log::info('Setup complete endpoint reached', [
+            'user_id' => Auth::id(),
+        ]);
+
         $user = Auth::user();
 
         if (!$user->spa_id) {
-            return redirect()->route('setup.index');
+            return redirect()
+                ->route('setup.index')
+                ->with(
+                    'error',
+                    'Please complete your business information first.'
+                );
         }
 
         $spa = $user
@@ -347,7 +356,12 @@ class SetupController extends Controller
             ->firstOrFail();
 
         if (!$spa->branches()->exists()) {
-            return redirect()->route('setup.branches');
+            return redirect()
+                ->route('setup.branches')
+                ->with(
+                    'error',
+                    'Please create your main branch first.'
+                );
         }
 
         $requiredDocuments = [
@@ -376,15 +390,22 @@ class SetupController extends Controller
                 ->route('setup.documents')
                 ->with(
                     'error',
-                    'Upload all required verification documents before completing setup.'
+                    'Upload all required verification documents before submitting for review.'
                 );
         }
 
+        $spa->update([
+            'verification_status' => 'pending',
+            'verification_remarks' => null,
+            'verified_at' => null,
+            'verified_by' => null,
+        ]);
+
         return redirect()
-            ->route('dashboard')
+            ->route('owner.onboarding.waiting')
             ->with(
                 'success',
-                'Business setup completed. Your verification documents are now ready for administrator review.'
+                'Your documents were submitted successfully. An administrator will review them within 24 hours.'
             );
     }
 

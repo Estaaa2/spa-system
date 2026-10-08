@@ -106,21 +106,40 @@ final class PayrollRunReadModel
      */
     public function setupGaps(Spa $spa): array
     {
-        $suite = Branch::query()->where('spa_id', $spa->id)->where('has_workforce_finance_suite', true)->get(['id', 'name', 'min_daily_wage']);
+        $payrollBranches = $spa->hasAccess() && $spa->hasFeature('payroll')
+            ? Branch::query()
+                ->where('spa_id', $spa->id)
+                ->whereNull('deleted_at')
+                ->get([
+                    'id',
+                    'name',
+                    'min_daily_wage',
+                ])
+            : collect();
 
         $staffIds = Staff::query()
             ->where('spa_id', $spa->id)
             ->where('employment_status', 'active')
-            ->whereIn('branch_id', $suite->pluck('id'))
+            ->whereNull('deleted_at')
+            ->whereIn('branch_id', $payrollBranches->pluck('id'))
             ->pluck('id');
 
-        $withProfile = StaffPayProfile::query()->whereIn('staff_id', $staffIds)->effectiveOn(now()->toDateString())
-            ->distinct()->pluck('staff_id');
+        $withProfile = StaffPayProfile::query()
+            ->whereIn('staff_id', $staffIds)
+            ->effectiveOn(now()->toDateString())
+            ->distinct()
+            ->pluck('staff_id');
 
         return [
-            'suite_branches'        => $suite->count(),
-            'branches_missing_wage' => $suite->whereNull('min_daily_wage')->pluck('name')->values()->all(),
-            'staff_missing_profile' => $staffIds->diff($withProfile)->count(),
+            'suite_branches' => $payrollBranches->count(),
+            'branches_missing_wage' => $payrollBranches
+                ->whereNull('min_daily_wage')
+                ->pluck('name')
+                ->values()
+                ->all(),
+            'staff_missing_profile' => $staffIds
+                ->diff($withProfile)
+                ->count(),
         ];
     }
 

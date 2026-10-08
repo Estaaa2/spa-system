@@ -1,0 +1,72 @@
+<?php
+
+return [
+    'basic' => [
+        'name' => 'Basic',
+        'monthly_price' => 799,
+        'yearly_price' => 7990,
+        'max_branches' => 1,
+        'max_staff' => 5,
+        'features' => [
+            'operations',
+            'services',
+            'this_branch',
+            'spa_profile',
+            'billing_page',
+        ],
+    ],
+
+    'premium' => [
+        'name' => 'Premium',
+        'monthly_price' => 1499,
+        'yearly_price' => 14990,
+        'max_branches' => 3,
+        'max_staff' => 10,
+        'features' => [
+            'operations',
+            'services',
+            'this_branch',
+            'spa_profile',
+            'billing_page',
+            'insights',
+            'inventory_basic',
+            'all_branches',
+            'branch_public_listing',
+            'online_reservation',
+        ],
+    ],
+
+    'business' => [
+        'name' => 'Business',
+        'monthly_price' => 2999,
+        'yearly_price' => 29990,
+        'max_branches' => 5,
+        'max_staff' => 20,
+        'features' => [
+            'operations',
+            'services',
+            'this_branch',
+            'spa_profile',
+            'billing_page',
+            'insights',
+            'inventory_basic',
+            'inventory_full',
+            'all_branches',
+            'branch_public_listing',
+            'online_reservation',
+            'manpower',
+            'payroll',
+            'finance',
+            'procurement',
+        ],
+    ],
+
+    'expired' => [
+        'name' => 'Expired',
+        'monthly_price' => 0,
+        'yearly_price' => 0,
+        'max_branches' => 0,
+        'max_staff' => 0,
+        'features' => [],
+    ],
+];

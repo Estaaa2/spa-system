@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\RegisteredSpaController;
@@ -48,6 +48,8 @@ use App\Http\Controllers\PromoController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\GoodsReceiptController;
+use App\Http\Controllers\LockedSpaController;
+use App\Http\Controllers\Owner\TrialController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TherapistPerformanceController;
@@ -169,7 +171,7 @@ Route::post('/webhooks/paymongo', [PaymongoWebhookController::class, 'handle'])
 
 /*
 |--------------------------------------------------------------------------
-| Public Job Application (no auth — anyone can apply)
+| Public Job Application (no auth anyone can apply)
 |--------------------------------------------------------------------------
 */
 
@@ -226,7 +228,13 @@ Route::patch('/profile', [ProfileController::class, 'update'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
+Route::middleware([
+    'auth',
+    'verified',
+    'force.password.change',
+    'owner.onboarding',
+    'spa.access',
+])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('role:owner|manager|therapist|receptionist')
         ->name('dashboard');
@@ -283,7 +291,12 @@ Route::middleware(['auth', 'role:admin'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
+Route::middleware([
+    'auth',
+    'verified',
+    'force.password.change',
+    'spa.access',
+])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
@@ -338,41 +351,65 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     |--------------------------------------------------------------------------
     */
     Route::middleware('branch.permission:view branches')->group(function () {
-        Route::post('/branch/switch', [BranchController::class, 'switch'])->name('branch.switch');
-        Route::get('/branch/current', [BranchController::class, 'getCurrentBranch'])->name('branch.current');
+        Route::post('/branch/switch', [BranchController::class, 'switch'])
+            ->name('branch.switch');
+
+        Route::get('/branch/current', [BranchController::class, 'getCurrentBranch'])
+            ->name('branch.current');
 
         Route::prefix('branches')->group(function () {
-            Route::get('/', [BranchController::class, 'index'])->name('branches.index');
-            Route::get('/{branch}', [BranchController::class, 'show'])->name('branches.show');
+            Route::get('/', [BranchController::class, 'index'])
+                ->name('branches.index');
+
+            Route::get('/{branch}', [BranchController::class, 'show'])
+                ->name('branches.show');
         });
     });
 
-    Route::middleware('branch.permission:create branches')->group(function () {
-        Route::post('/branches', [BranchController::class, 'store'])->name('branches.store');
+    Route::middleware([
+        'branch.permission:create branches',
+        'plan:all_branches',
+    ])->group(function () {
+        Route::post('/branches', [BranchController::class, 'store'])
+            ->name('branches.store');
     });
 
-    // Branch edit surfaces — fully per-surface permission gating.
+    // Branch edit page remains open for permitted users.
     Route::get('/branches/{branch}/edit', [BranchController::class, 'edit'])
-        ->middleware('branch.permission:edit branch general,edit branch hours,edit branch profile')
+        ->middleware(
+            'branch.permission:edit branch general,edit branch hours,edit branch profile'
+        )
         ->name('branches.edit');
 
-    // General information (branch name).
     Route::middleware('branch.permission:edit branch general')->group(function () {
-        Route::put('/branches/{branch}/general', [BranchController::class, 'updateGeneral'])->name('branches.update.general');
+        Route::put('/branches/{branch}/general', [
+            BranchController::class,
+            'updateGeneral',
+        ])->name('branches.update.general');
     });
 
-    // Operating hours.
     Route::middleware('branch.permission:edit branch hours')->group(function () {
-        Route::put('/branches/{branch}/hours', [BranchController::class, 'updateHours'])->name('branches.update.hours');
+        Route::put('/branches/{branch}/hours', [
+            BranchController::class,
+            'updateHours',
+        ])->name('branches.update.hours');
     });
 
-    // Public profile / listing.
     Route::middleware('branch.permission:edit branch profile')->group(function () {
-        Route::put('/branches/{branch}/profile', [BranchController::class, 'updateProfile'])->name('branches.update.profile');
+        Route::put('/branches/{branch}/profile', [
+            BranchController::class,
+            'updateProfile',
+        ])->name('branches.update.profile');
     });
 
-    Route::middleware('branch.permission:delete branches')->group(function () {
-        Route::delete('/branches/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
+    Route::middleware([
+        'branch.permission:delete branches',
+        'plan:all_branches',
+    ])->group(function () {
+        Route::delete('/branches/{branch}', [
+            BranchController::class,
+            'destroy',
+        ])->name('branches.destroy');
     });
 
     /*
@@ -466,17 +503,26 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     */
     Route::prefix('procurement')->name('procurement.')->group(function () {
 
-        Route::middleware('branch.permission:view suppliers')->group(function () {
+        Route::middleware([
+            'branch.permission:view suppliers',
+            'plan:procurement',
+        ])->group(function () {
             Route::get('/suppliers', [\App\Http\Controllers\SupplierController::class, 'index'])
                 ->name('suppliers.index');
         });
 
-        Route::middleware('branch.permission:create suppliers')->group(function () {
+        Route::middleware([
+            'branch.permission:create suppliers',
+            'plan:procurement',
+        ])->group(function () {
             Route::post('/suppliers', [\App\Http\Controllers\SupplierController::class, 'store'])
                 ->name('suppliers.store');
         });
 
-        Route::middleware('branch.permission:edit suppliers')->group(function () {
+        Route::middleware([
+            'branch.permission:edit suppliers',
+            'plan:procurement',
+        ])->group(function () {
             Route::put('/suppliers/{supplier}', [\App\Http\Controllers\SupplierController::class, 'update'])
                 ->name('suppliers.update');
 
@@ -484,7 +530,10 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
                 ->name('suppliers.status');
         });
 
-        Route::middleware('branch.permission:manage supplier products')->group(function () {
+        Route::middleware([
+            'branch.permission:manage supplier products',
+            'plan:procurement',
+        ])->group(function () {
             Route::post('/suppliers/{supplier}/products', [\App\Http\Controllers\SupplierController::class, 'attachProduct'])
                 ->name('suppliers.products.store');
 
@@ -492,21 +541,30 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
                 ->name('suppliers.products.update');
         });
 
-        Route::middleware('branch.permission:view purchase requests')->group(function () {
+        Route::middleware([
+            'branch.permission:view purchase requests',
+            'plan:procurement',
+        ])->group(function () {
             Route::get('/purchase-requests', [
                 PurchaseRequestController::class,
                 'index'
             ])->name('purchase-requests.index');
         });
 
-        Route::middleware('branch.permission:create purchase requests')->group(function () {
+        Route::middleware([
+            'branch.permission:create purchase requests',
+            'plan:procurement',
+        ])->group(function () {
             Route::post('/purchase-requests', [
                 PurchaseRequestController::class,
                 'store'
             ])->name('purchase-requests.store');
         });
 
-        Route::middleware('branch.permission:review purchase requests')->group(function () {
+        Route::middleware([
+            'branch.permission:review purchase requests',
+            'plan:procurement',
+        ])->group(function () {
             Route::patch('/purchase-requests/{purchaseRequest}/approve', [
                 PurchaseRequestController::class,
                 'approve'
@@ -526,17 +584,26 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware('branch.permission:view purchase orders')->group(function () {
+    Route::middleware([
+        'branch.permission:view purchase orders',
+        'plan:procurement',
+    ])->group(function () {
         Route::get('/procurement/purchase-orders', [PurchaseOrderController::class, 'index'])
             ->name('procurement.purchase-orders.index');
     });
 
-    Route::middleware('branch.permission:create purchase orders')->group(function () {
+    Route::middleware([
+        'branch.permission:create purchase orders',
+        'plan:procurement',
+    ])->group(function () {
         Route::post('/procurement/purchase-orders', [PurchaseOrderController::class, 'store'])
             ->name('procurement.purchase-orders.store');
     });
 
-    Route::middleware('branch.permission:manage purchase orders')->group(function () {
+    Route::middleware([
+        'branch.permission:manage purchase orders',
+        'plan:procurement',
+    ])->group(function () {
         Route::patch('/procurement/purchase-orders/{purchaseOrder}/issue', [PurchaseOrderController::class, 'issue'])
             ->name('procurement.purchase-orders.issue');
 
@@ -552,15 +619,26 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
     Route::prefix('inventory')->name('inventory.')->group(function () {
 
-        Route::middleware('branch.permission:view inventory')->group(function () {
+        Route::middleware([
+            'branch.permission:view inventory',
+            'plan:inventory_basic',
+        ])->group(function () {
             Route::get('/products', [\App\Http\Controllers\InventoryController::class, 'products'])
                 ->name('products');
+        });
 
+        Route::middleware([
+            'branch.permission:view inventory',
+            'plan:inventory_full',
+        ])->group(function () {
             Route::get('/batches', [\App\Http\Controllers\InventoryController::class, 'batches'])
                 ->name('batches');
         });
 
-        Route::middleware('branch.permission:view inventory logs')->group(function () {
+        Route::middleware([
+            'branch.permission:view inventory logs',
+            'plan:inventory_basic',
+        ])->group(function () {
             Route::get('/logs', [\App\Http\Controllers\InventoryController::class, 'logs'])
                 ->name('logs');
 
@@ -568,7 +646,10 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
                 ->name('logs.export-pdf');
         });
 
-        Route::middleware('branch.permission:create inventory items')->group(function () {
+        Route::middleware([
+            'branch.permission:create inventory items',
+            'plan:inventory_basic',
+        ])->group(function () {
             Route::post('/products', [\App\Http\Controllers\InventoryController::class, 'store'])
                 ->name('products.store');
 
@@ -579,7 +660,10 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
                 ->name('products.sample-csv');
         });
 
-        Route::middleware('branch.permission:edit inventory items')->group(function () {
+        Route::middleware([
+            'branch.permission:edit inventory items',
+            'plan:inventory_basic',
+        ])->group(function () {
             Route::post('/products/{product}/deduct', [\App\Http\Controllers\InventoryController::class, 'deduct'])
                 ->name('products.deduct');
 
@@ -599,32 +683,50 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
                 ->name('products.export');
         });
 
-        Route::middleware('branch.permission:delete inventory items')->group(function () {
+        Route::middleware([
+            'branch.permission:delete inventory items',
+            'plan:inventory_basic',
+        ])->group(function () {
             Route::delete('/products/{product}', [\App\Http\Controllers\InventoryController::class, 'destroy'])
                 ->name('products.destroy');
         });
 
-        Route::middleware('branch.permission:view stock transfers')->group(function () {
+        Route::middleware([
+            'branch.permission:view stock transfers',
+            'plan:inventory_full',
+        ])->group(function () {
             Route::get('/transfers', [StockTransferController::class, 'index'])
                 ->name('transfers');
         });
 
-        Route::middleware('branch.permission:create stock transfers')->group(function () {
+        Route::middleware([
+            'branch.permission:create stock transfers',
+            'plan:inventory_full',
+        ])->group(function () {
             Route::post('/transfers', [StockTransferController::class, 'store'])
                 ->name('transfers.store');
         });
 
-        Route::middleware('branch.permission:process stock transfers')->group(function () {
+        Route::middleware([
+            'branch.permission:process stock transfers',
+            'plan:inventory_full',
+        ])->group(function () {
             Route::post('/transfers/{transfer}/process', [StockTransferController::class, 'process'])
                 ->name('transfers.process');
         });
 
-        Route::middleware('branch.permission:cancel stock transfers')->group(function () {
+        Route::middleware([
+            'branch.permission:cancel stock transfers',
+            'plan:inventory_full',
+        ])->group(function () {
             Route::post('/transfers/{transfer}/cancel', [StockTransferController::class, 'cancel'])
                 ->name('transfers.cancel');
         });
 
-        Route::middleware('branch.permission:view replenishment')->group(function () {
+        Route::middleware([
+            'branch.permission:view replenishment',
+            'plan:inventory_full',
+        ])->group(function () {
             Route::get('/replenishment',[ReplenishmentController::class, 'index']
             )->name('replenishment.index');
         });
@@ -635,12 +737,18 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         |--------------------------------------------------------------------------
         */
 
-        Route::middleware('branch.permission:view goods receipts')->group(function () {
+        Route::middleware([
+            'branch.permission:view goods receipts',
+            'plan:inventory_full',
+        ])->group(function () {
             Route::get('/goods-receipts', [GoodsReceiptController::class, 'index'])
                 ->name('goods-receipts.index');
         });
 
-        Route::middleware('branch.permission:receive goods')->group(function () {
+        Route::middleware([
+            'branch.permission:receive goods',
+            'plan:inventory_full'
+        ])->group(function () {
             Route::post(
                 '/goods-receipts/{purchaseOrder}',
                 [GoodsReceiptController::class, 'store']
@@ -654,12 +762,18 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     | Insights
     |--------------------------------------------------------------------------
     */
-    Route::middleware('branch.permission:view decision support')->group(function () {
+    Route::middleware([
+        'branch.permission:view decision support',
+        'plan:insights',
+    ])->group(function () {
         Route::get('/decision-support', [DecisionSupportController::class, 'index'])
             ->name('decision-support.index');
     });
 
-    Route::middleware('branch.permission:view reports')->group(function () {
+    Route::middleware([
+        'branch.permission:view reports',
+        'plan:insights'
+    ])->group(function () {
         Route::get('/reports', [ReportsController::class, 'index'])
             ->name('reports.index');
     });
@@ -670,76 +784,138 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     |--------------------------------------------------------------------------
     */
     // Hiring
-    Route::middleware('branch.permission:view hiring')->group(function () {
-        Route::get('/hiring', [HiringController::class, 'index'])->name('hiring.index');
+    Route::middleware([
+        'branch.permission:view hiring',
+        'plan:manpower',
+    ])->group(function () {
+        Route::get('/hiring', [HiringController::class, 'index'])
+            ->name('hiring.index');
     });
 
-    Route::middleware('branch.permission:create hiring')->group(function () {
-        Route::post('/hiring', [HiringController::class, 'store'])->name('hiring.store');
+    Route::middleware([
+        'branch.permission:create hiring',
+        'plan:manpower',
+    ])->group(function () {
+        Route::post('/hiring', [HiringController::class, 'store'])
+            ->name('hiring.store');
     });
 
-    Route::middleware('branch.permission:edit hiring')->group(function () {
-        Route::put('/hiring/{posting}', [HiringController::class, 'update'])->name('hiring.update');
+    Route::middleware([
+        'branch.permission:edit hiring',
+        'plan:manpower',
+    ])->group(function () {
+        Route::put('/hiring/{posting}', [HiringController::class, 'update'])
+            ->name('hiring.update');
     });
 
-    Route::middleware('branch.permission:delete hiring')->group(function () {
-        Route::delete('/hiring/{posting}', [HiringController::class, 'destroy'])->name('hiring.destroy');
+    Route::middleware([
+        'branch.permission:delete hiring',
+        'plan:manpower',
+    ])->group(function () {
+        Route::delete('/hiring/{posting}', [HiringController::class, 'destroy'])
+            ->name('hiring.destroy');
     });
 
     Route::get(
-    '/applications/{applicant}/resume',[HiringController::class, 'viewResume'])
-        ->name('applications.resume.view');
+        '/applications/{applicant}/resume',
+        [HiringController::class, 'viewResume']
+    )->middleware([
+        'branch.permission:view applications',
+        'plan:manpower',
+    ])->name('applications.resume.view');
 
     // Applications
-    Route::middleware('branch.permission:view applications')->group(function () {
+    Route::middleware([
+        'branch.permission:view applications',
+        'plan:manpower',
+    ])->group(function () {
         Route::get('/applications', [ApplicationController::class, 'index'])
             ->name('applications.index');
     });
 
-    Route::post('/applications/{applicant}/schedule-interview',[ApplicationController::class, 'scheduleInterview'])
-        ->middleware(['branch.permission:edit applications','branch.permission:create interviews',])
-        ->name('applications.schedule-interview');
+    Route::post(
+        '/applications/{applicant}/schedule-interview',
+        [ApplicationController::class, 'scheduleInterview']
+    )->middleware([
+        'branch.permission:edit applications',
+        'branch.permission:create interviews',
+        'plan:manpower',
+    ])->name('applications.schedule-interview');
 
     // Interviews
-    Route::middleware('branch.permission:view interviews')->group(function () {
+    Route::middleware([
+        'branch.permission:view interviews',
+        'plan:manpower',
+    ])->group(function () {
         Route::get('/interviews', [InterviewController::class, 'index'])
             ->name('interviews.index');
     });
 
-    Route::middleware('branch.permission:edit interviews')->group(function () {
-        Route::post('/interviews/{interview}/approve',[InterviewController::class, 'approve'])
-        ->name('interviews.approve');
+    Route::middleware([
+        'branch.permission:edit interviews',
+        'plan:manpower',
+    ])->group(function () {
+        Route::post(
+            '/interviews/{interview}/approve',
+            [InterviewController::class, 'approve']
+        )->name('interviews.approve');
 
-        Route::post('/interviews/{interview}/reject',[InterviewController::class, 'reject'])
-        ->name('interviews.reject');
+        Route::post(
+            '/interviews/{interview}/reject',
+            [InterviewController::class, 'reject']
+        )->name('interviews.reject');
     });
 
-    Route::post('/interviews/{interview}/create-staff',[InterviewController::class, 'createStaff'])
-        ->middleware(['branch.permission:edit interviews','branch.permission:create staff',])
-        ->name('interviews.create-staff');
+    Route::post(
+        '/interviews/{interview}/create-staff',
+        [InterviewController::class, 'createStaff']
+    )->middleware([
+        'branch.permission:edit interviews',
+        'branch.permission:create staff',
+        'plan:manpower',
+    ])->name('interviews.create-staff');
 
     // Deployment
-    Route::middleware('branch.permission:view deployments')->group(function () {
+    Route::middleware([
+        'branch.permission:view deployments',
+        'plan:manpower',
+    ])->group(function () {
         Route::get('/deployment', [BranchDeploymentController::class, 'index'])
             ->name('deployment.index');
     });
 
-    Route::middleware('branch.permission:create deployments')->group(function () {
+    Route::middleware([
+        'branch.permission:create deployments',
+        'plan:manpower',
+    ])->group(function () {
         Route::post('/branch-deployments', [BranchDeploymentController::class, 'store'])
             ->name('branch-deployments.store');
     });
 
-    Route::middleware('branch.permission:approve deployments')->group(function () {
-        Route::post('/branch-deployments/{deployment}/approve', [BranchDeploymentController::class, 'approve'])
-            ->name('branch-deployments.approve');
+    Route::middleware([
+        'branch.permission:approve deployments',
+        'plan:manpower',
+    ])->group(function () {
+        Route::post(
+            '/branch-deployments/{deployment}/approve',
+            [BranchDeploymentController::class, 'approve']
+        )->name('branch-deployments.approve');
 
-        Route::post('/branch-deployments/{deployment}/reject', [BranchDeploymentController::class, 'reject'])
-            ->name('branch-deployments.reject');
+        Route::post(
+            '/branch-deployments/{deployment}/reject',
+            [BranchDeploymentController::class, 'reject']
+        )->name('branch-deployments.reject');
+
     });
 
-    Route::middleware('branch.permission:delete deployments')->group(function () {
-        Route::post('/branch-deployments/{deployment}/cancel', [BranchDeploymentController::class, 'cancel'])
-            ->name('branch-deployments.cancel');
+    Route::middleware([
+        'branch.permission:delete deployments',
+        'plan:manpower',
+    ])->group(function () {
+        Route::post(
+            '/branch-deployments/{deployment}/cancel',
+            [BranchDeploymentController::class, 'cancel']
+        )->name('branch-deployments.cancel');
     });
 
     // Attendance & Leave
@@ -747,7 +923,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     });
 
-    // Self-service clock in/out — identity-based, not permission-gated.
+    // Self-service clock in/out identity-based, not permission-gated.
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clock-out');
 
@@ -760,7 +936,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
     });
     Route::get('/leave-requests/mine', [LeaveRequestController::class, 'mine'])->name('leave-requests.mine');
-    // Not permission-gated at the route level — reachable by the leave's own
+    // Not permission-gated at the route level reachable by the leave's own
     // submitter (for their post-submit preview) or an approver (for the
     // review modal's inline picker). affectedBookings() enforces the real
     // ownership-or-approver check itself.
@@ -771,11 +947,14 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])->name('leave-requests.reject');
     });
 
-    // Payroll (Units 5–6) — Owner and HR only, via `view payroll` / `edit payroll`.
+    // Payroll  Owner and HR only, via `view payroll` / `edit payroll`.
     // In each group, static URIs are registered before parameterised ones so a
     // static segment is never captured as a parameter (/payroll/runs/preview must
     // come before /payroll/runs/{run}).
-    Route::middleware('branch.permission:view payroll')->group(function () {
+    Route::middleware([
+        'branch.permission:view payroll',
+        'plan:payroll',
+    ])->group(function () {
         // Static
         Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll.index');
         Route::get('/payroll/runs/preview', [PayrollController::class, 'preview'])->name('payroll.runs.preview');
@@ -790,13 +969,16 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::get('/payroll/staff/{staff}', [StaffPayProfileController::class, 'show'])->name('payroll.staff.show');
     });
 
-    Route::middleware('branch.permission:edit payroll')->group(function () {
+    Route::middleware([
+        'branch.permission:edit payroll',
+        'plan:payroll',
+    ])->group(function () {
         // Static
         Route::post('/payroll/runs', [PayrollController::class, 'store'])->name('payroll.runs.store');
         Route::put('/payroll/setup/schedule', [PayrollSetupController::class, 'updateSchedule'])->name('payroll.setup.schedule');
         Route::post('/payroll/setup/commission-rules', [PayrollSetupController::class, 'storeRule'])->name('payroll.setup.rules.store');
 
-        // Parameterised — runs, payslips and manual adjustment lines (Unit 6)
+        // Parameterised runs, payslips and manual adjustment lines (Unit 6)
         Route::post('/payroll/runs/{run}/regenerate', [PayrollController::class, 'regenerate'])->name('payroll.runs.regenerate');
         Route::delete('/payroll/runs/{run}', [PayrollController::class, 'destroy'])->name('payroll.runs.destroy');
         Route::post('/payroll/runs/{run}/approve', [PayrollController::class, 'approve'])->name('payroll.runs.approve');
@@ -806,7 +988,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::post('/payroll/payslips/{payslip}/lines', [PayslipController::class, 'storeLine'])->name('payroll.payslips.lines.store');
         Route::delete('/payroll/lines/{line}', [PayslipController::class, 'destroyLine'])->name('payroll.lines.destroy');
 
-        // Parameterised — payroll setup and staff pay (Unit 5)
+        // Parameterised payroll setup and staff pay (Unit 5)
         Route::put('/payroll/setup/branches/{branch}/wage', [PayrollSetupController::class, 'updateBranchWage'])->name('payroll.setup.wages.update');
         Route::put('/payroll/setup/commission-rules/{rule}', [PayrollSetupController::class, 'updateRule'])->name('payroll.setup.rules.update');
         Route::post('/payroll/setup/commission-rules/{rule}/change', [PayrollSetupController::class, 'supersedeRule'])->name('payroll.setup.rules.supersede');
@@ -823,7 +1005,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::delete('/payroll/staff/{staff}/recurring/{item}', [StaffPayProfileController::class, 'destroyRecurring'])->name('payroll.staff.recurring.destroy');
     });
 
-    // My Payslips (Unit 6) — identity-based self-service, deliberately not
+    // My Payslips (Unit 6) identity-based self-service, deliberately not
     // permission-gated. MyPayslipController limits it to the signed-in user's own
     // Staff records and answers 404 for anyone else's payslip. Printing is the
     // detail page's own Print button (window.print()), so there is no print route.
@@ -835,40 +1017,64 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
     | Finance Modules
     |--------------------------------------------------------------------------
     */
-    Route::middleware('branch.permission:view revenue')->group(function () {
+    Route::middleware([
+        'branch.permission:view revenue',
+        'plan:finance',
+    ])->group(function () {
         Route::get('/revenue', [RevenueController::class, 'index'])->name('revenue.index');
     });
 
-    Route::middleware('branch.permission:view billing')->group(function () {
+    Route::middleware([
+        'branch.permission:view billing',
+        'plan:finance',
+    ])->group(function () {
         Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
     });
 
-    Route::middleware('branch.permission:create billing')->group(function () {
+    Route::middleware([
+        'branch.permission:create billing',
+        'plan:finance',
+    ])->group(function () {
         Route::post('/billing/expenses', [BillingController::class, 'storeExpense'])
             ->name('billing.expense.store');
     });
 
-    Route::middleware('branch.permission:edit billing')->group(function () {
+    Route::middleware([
+        'branch.permission:edit billing',
+        'plan:finance',
+    ])->group(function () {
         Route::patch('/billing/expenses/{expense}/status', [BillingController::class, 'updateExpenseStatus'])
             ->name('billing.expense.updateStatus');
     });
 
-    Route::middleware('branch.permission:view vendor bills')->group(function () {
+    Route::middleware([
+        'branch.permission:view vendor bills',
+        'plan:finance',
+    ])->group(function () {
         Route::get('/vendor-bills', [VendorBillController::class, 'index'])
             ->name('vendor-bills.index');
     });
 
-    Route::middleware('branch.permission:create vendor bills')->group(function () {
+    Route::middleware([
+        'branch.permission:create vendor bills',
+        'plan:finance',
+    ])->group(function () {
         Route::post('/vendor-bills', [VendorBillController::class, 'store'])
             ->name('vendor-bills.store');
     });
 
-    Route::middleware('branch.permission:match vendor bills')->group(function () {
+    Route::middleware([
+        'branch.permission:match vendor bills',
+        'plan:finance',
+    ])->group(function () {
         Route::post('/vendor-bills/{vendorBill}/match',[VendorBillController::class, 'match'])
             ->name('vendor-bills.match');
     });
 
-    Route::middleware('branch.permission:edit vendor bills')->group(function () {
+    Route::middleware([
+        'branch.permission:edit vendor bills',
+        'plan:finance',
+    ])->group(function () {
         Route::put('/vendor-bills/{vendorBill}',[VendorBillController::class, 'update'])
             ->name('vendor-bills.update');
     });
@@ -930,19 +1136,13 @@ Route::middleware(['auth', 'role:admin'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'owner-only'])->group(function () {
+Route::middleware(['auth', 'owner-only', 'owner.onboarding'])->group(function () {
     Route::get('/setup/index', [SetupController::class, 'index'])->name('setup.index');
     Route::post('/setup/spa', [SetupController::class, 'storeSpa'])->name('setup.store-spa');
 
     Route::get('/setup/branches', [SetupController::class, 'branches'])->name('setup.branches');
     Route::post('/setup/branches', [SetupController::class, 'storeBranch'])->name('setup.store-branch');
-
-    Route::get('/setup/branches/{branch}/operating-hours', [SetupController::class, 'operatingHours'])->name('setup.operating-hours');
-    Route::put('/setup/branches/{branch}/operating-hours', [SetupController::class, 'updateOperatingHours'])->name('setup.update-operating-hours');
-
     Route::get('/setup/documents', [SetupController::class, 'documents'])->name('setup.documents');
-
-    Route::get('/setup/complete', [SetupController::class, 'complete'])->name('setup.complete');
 });
 
 /*
@@ -951,7 +1151,7 @@ Route::middleware(['auth', 'owner-only'])->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:owner'])
+Route::middleware(['auth', 'role:owner', 'owner.onboarding'])
     ->prefix('owner')
     ->name('owner.')
     ->group(function () {
@@ -965,6 +1165,13 @@ Route::middleware(['auth', 'role:owner'])
         Route::get('/roles-permissions', [OwnerRolePermissionController::class, 'index'])->name('roles-permissions.index');
         Route::get('/roles-permissions/{role}/edit', [OwnerRolePermissionController::class, 'edit'])->name('roles-permissions.edit');
         Route::put('/roles-permissions/{role}', [OwnerRolePermissionController::class, 'update'])->name('roles-permissions.update');
+
+        // Free trial selection
+        Route::get('/trial/choose', [TrialController::class, 'choose'])
+            ->name('trial.choose');
+
+        Route::post('/trial/start', [TrialController::class, 'start'])
+            ->name('trial.start');
 
         // Subscription Management
         Route::get('/subscription', [SubscriptionController::class, 'index'])->name('subscription.index');
@@ -982,6 +1189,17 @@ Route::middleware(['auth', 'verified', 'role:owner'])->group(function () {
         ->name('owner.workforce-finance-suite.update');
     Route::get('/owner/subscription/receipt/{subscription}',[SubscriptionController::class, 'downloadReceipt'])
         ->name('owner.subscription.receipt');
+});
+
+Route::middleware(['auth', 'owner-only', 'owner.onboarding'])->group(function () {
+    Route::get('/owner/onboarding/waiting', function () {
+        return redirect()->route('dashboard');
+    })->name('owner.onboarding.waiting');
+});
+
+Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
+    Route::get('/spa/locked', [LockedSpaController::class, 'show'])
+        ->name('spa.locked');
 });
 
 /*
@@ -1041,3 +1259,4 @@ Route::get('/web-api/spas/search', [LandingController::class, 'searchSpas']);
 Route::get('/web-api/spas/{spaId}/{branchId}/reviews', [LandingController::class, 'spaReviews']);
 
 require __DIR__.'/auth.php';
+

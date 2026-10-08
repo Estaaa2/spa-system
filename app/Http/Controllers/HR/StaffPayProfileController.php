@@ -68,7 +68,7 @@ class StaffPayProfileController extends Controller
         $upcoming = StaffPayProfile::query()->whereIn('staff_id', $staff->pluck('id'))->where('effective_from', '>', $today)
             ->orderBy('effective_from')->get()->unique('staff_id')->keyBy('staff_id');
 
-        $rows = $staff->map(function (Staff $s) use ($current, $upcoming) {
+        $rows = $staff->map(function (Staff $s) use ($current, $upcoming, $spa) {
             $missingIds = array_keys(array_filter($this->idState($s), fn ($st) => $st !== 'set'));
 
             return [
@@ -78,8 +78,11 @@ class StaffPayProfileController extends Controller
                 'profile'      => $current->get($s->id),
                 'upcoming'     => $upcoming->get($s->id),
                 'missing_ids'  => array_map(fn ($k) => self::ID_FIELDS[$k], $missingIds),
-                'in_payroll'   => $s->branch !== null && ! $s->branch->trashed() && (bool) $s->branch->has_workforce_finance_suite,
-            ];
+                'in_payroll' => $spa->hasAccess()
+                && $spa->hasFeature('payroll')
+                && $s->branch !== null
+                && ! $s->branch->trashed(),
+                        ];
         });
 
         $counts = [
@@ -145,7 +148,10 @@ class StaffPayProfileController extends Controller
             'staff'          => $staff->load('user.roles'),
             'name'           => $this->displayName($staff),
             'home'           => $home,
-            'inPayroll'      => $home !== null && ! $home->trashed() && (bool) $home->has_workforce_finance_suite,
+            'inPayroll' => $spa?->hasAccess()
+                && $spa?->hasFeature('payroll')
+                && $home !== null
+                && ! $home->trashed(),
             'canEdit'        => $canEdit,
             'profiles'       => $profiles,
             'profileUsage'   => $usage['profiles'],

@@ -319,11 +319,15 @@ final class PayrollRunService
                     $warnings[] = new RunWarning(RunWarning::HOME_BRANCH_MISSING, "{$who}: home branch is missing or deleted — no 13th-month payslip.", $staffId);
                     continue;
                 }
-                if (! $home->has_workforce_finance_suite) {
+                if (!$spa->hasAccess() || !$spa->hasFeature('payroll')) {
                     if (Decimal::isPositive($b['sum'])) {
-                        $warnings[] = new RunWarning(RunWarning::NOT_IN_SUITE_BRANCH,
-                            "{$who}: home branch \"{$home->name}\" does not have the Workforce & Finance Suite — no 13th-month payslip.", $staffId);
+                        $warnings[] = new RunWarning(
+                            RunWarning::NOT_IN_SUITE_BRANCH,
+                            "{$who}: the spa does not have active Business-plan payroll access — no 13th-month payslip.",
+                            $staffId
+                        );
                     }
+
                     continue;
                 }
 
@@ -716,7 +720,7 @@ final class PayrollRunService
     // =====================================================================
 
     /**
-     * Generating or regenerating a run needs the Professional plan, the same gate the
+     * Generating or regenerating a run requires active payroll access, using the same gate as
      * rest of the app uses for the Workforce & Finance Suite (a lapsed subscription
      * drops the spa to basic but leaves the branch suite flags on). Everything else
      * keeps working after a downgrade: existing runs can still be approved, finalized
@@ -728,9 +732,9 @@ final class PayrollRunService
      */
     private function assertPlanAllowsGeneration(Spa $spa): void
     {
-        if (($spa->business_tier ?? null) !== 'professional') {
+        if (!$spa->hasAccess() || !$spa->hasFeature('payroll')) {
             throw new PayrollSetupException(
-                "Spa \"{$spa->name}\" is not on the Professional plan, so new payroll runs cannot be generated. Existing runs can still be finished and viewed."
+                "Spa \"{$spa->name}\" does not have active Business-plan payroll access, so new payroll runs cannot be generated. Existing runs can still be finished and viewed."
             );
         }
     }
@@ -990,9 +994,20 @@ final class PayrollRunService
         if ($home === null || $home->trashed()) {
             return ['warning' => new RunWarning(RunWarning::HOME_BRANCH_MISSING, "{$who}: home branch is missing or deleted — not paid.", $id)];
         }
-        if (! $home->has_workforce_finance_suite) {
-            return ['warning' => new RunWarning(RunWarning::NOT_IN_SUITE_BRANCH,
-                "{$who}: home branch \"{$home->name}\" does not have the Workforce & Finance Suite — not paid by this run.", $id)];
+        $spa = Spa::query()->find($run->spa_id);
+
+        if (
+            !$spa ||
+            !$spa->hasAccess() ||
+            !$spa->hasFeature('payroll')
+        ) {
+            return [
+                'warning' => new RunWarning(
+                    RunWarning::NOT_IN_SUITE_BRANCH,
+                    "{$who}: the spa does not have active Business-plan payroll access — not paid by this run.",
+                    $id
+                ),
+            ];
         }
 
         $timeline = $this->rates->timelineFor($staff, $end);

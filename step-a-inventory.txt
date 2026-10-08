@@ -1,0 +1,163 @@
+﻿C:\xampp\htdocs\laravel\spa-system\app\Console\Commands\SendSubscriptionExpiryReminders.php:16: protected $description = 'Email spa owners whose Professional subscription expires in 3 days';
+C:\xampp\htdocs\laravel\spa-system\app\Console\Commands\SendSubscriptionExpiryReminders.php:41: // Only remind if the spa is still on professional at this point
+C:\xampp\htdocs\laravel\spa-system\app\Console\Commands\SendSubscriptionExpiryReminders.php:43: if ($spa->business_tier !== 'professional') {
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Admin\AdminDashboardController.php:15: $professionalCount = Spa::where('business_tier', 'professional')->count();
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Admin\AdminDashboardController.php:16: $basicCount        = Spa::where('business_tier', 'basic')->count();
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Admin\AdminDashboardController.php:20: $activeSubscriptions = Subscription::where('payment_status', 'paid')
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Admin\AdminDashboardController.php:46: 'professionalCount',
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Admin\AdminDashboardController.php:49: 'activeSubscriptions',
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Admin\RegisteredSpaController.php:129: 'business_tier' => $spa->business_tier,
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Api\SpaController.php:24: // Featured = professional tier with active subscription
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Api\SpaController.php:26: $query->where('business_tier', 'professional')
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Api\SpaController.php:56: $q->where('business_tier', '!=', 'professional')
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Api\SpaController.php:86: ->where('business_tier', 'professional')
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Api\SpaController.php:184: ->where('business_tier', 'basic')
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\HR\StaffPayProfileController.php:81: 'in_payroll'   => $s->branch !== null && ! $s->branch->trashed() && (bool) $s->branch->has_workforce_finance_suite,
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\HR\StaffPayProfileController.php:148: 'inPayroll'      => $home !== null && ! $home->trashed() && (bool) $home->has_workforce_finance_suite,
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Owner\RolePermissionController.php:42: return (bool) ($this->getCurrentBranch()->has_workforce_finance_suite ?? false);
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Owner\SubscriptionController.php:81: 'business_tier' => $planKey,
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Owner\SubscriptionController.php:249: 'business_tier' => 'basic',
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Owner\WorkforceFinanceSuiteController.php:35: if (($spa->business_tier ?? null) !== 'professional') {
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Owner\WorkforceFinanceSuiteController.php:38: ->with('success', 'Upgrade to Professional first to use this suite.');
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\Owner\WorkforceFinanceSuiteController.php:52: 'has_workforce_finance_suite' => (bool) ($branchFlags[$branch->id] ?? false),
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\BranchController.php:159: 'has_workforce_finance_suite' => 'nullable|boolean',
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\BranchController.php:168: ! $spa->hasFeature('manpower') &&$request->boolean('has_workforce_finance_suite')) {
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\BranchController.php:187: 'has_workforce_finance_suite' => $canUseSuite ? $request->boolean('has_workforce_finance_suite') : false,
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\LandingController.php:75: // This method combines the results of spa searches based on place and treatment, sorts them by professional status, and builds the spa cards for display.
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\LandingController.php:80: $sorted = $allSpas->sortByDesc(fn($spa) => $spa->isProfessional() ? 1 : 0)->values();
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\LandingController.php:112: $spas      = $allSpas->filter(fn($spa) => $spa->isProfessional());
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\LandingController.php:113: $basicSpas = $allSpas->filter(fn($spa) => !$spa->isProfessional());
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\LandingController.php:144: $isFeatured = $spa->isProfessional();
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\LandingController.php:331: 'is_featured' => $spa->isProfessional(),
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\PaymongoWebhookController.php:77: $subscription->business_tier,
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\PaymongoWebhookController.php:81: ? $subscription->business_tier
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\PaymongoWebhookController.php:89: 'plan' => $subscription->business_tier,
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\PaymongoWebhookController.php:128: 'business_tier' => $planKey,
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\StaffController.php:26: $hasSuite = $branch?->has_workforce_finance_suite ?? false;
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\StaffController.php:27: $isProfessional = $user->spa?->isProfessional() ?? false;
+C:\xampp\htdocs\laravel\spa-system\app\Http\Controllers\StaffController.php:40: return view('staff.index', compact('staff', 'isProfessional', 'hasSuite'));
+C:\xampp\htdocs\laravel\spa-system\app\Http\Middleware\EnsureOwnerOnBoardingState.php:98: if (!$spa->hasActiveSubscription()) {
+C:\xampp\htdocs\laravel\spa-system\app\Mail\SubscriptionExpiringSoon.php:29: subject: 'Your Levictas Professional subscription expires in 3 days',
+C:\xampp\htdocs\laravel\spa-system\app\Models\Branch.php:20: 'has_workforce_finance_suite',
+C:\xampp\htdocs\laravel\spa-system\app\Models\Branch.php:28: 'has_workforce_finance_suite' => 'boolean',
+C:\xampp\htdocs\laravel\spa-system\app\Models\Branch.php:108: return (bool) $this->has_workforce_finance_suite;
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:18: 'business_tier',
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:63: public function activeSubscription()
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:84: public function hasActiveSubscription(): bool
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:110: $subscription = $this->activeSubscription();
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:113: $subscription->business_tier,
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:117: return $subscription->business_tier;
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:120: if (in_array($this->business_tier, ['basic', 'premium', 'business'], true)) {
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:121: return $this->business_tier;
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:170: if ($this->hasActiveSubscription()) {
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:176: $this->activeSubscription()?->expires_at,
+C:\xampp\htdocs\laravel\spa-system\app\Models\Spa.php:189: public function isProfessional(): bool
+C:\xampp\htdocs\laravel\spa-system\app\Models\Subscription.php:14: 'business_tier',
+C:\xampp\htdocs\laravel\spa-system\app\Services\Payroll\PayrollRunReadModel.php:109: $suite = Branch::query()->where('spa_id', $spa->id)->where('has_workforce_finance_suite', true)->get(['id', 'name', 'min_daily_wage']);
+C:\xampp\htdocs\laravel\spa-system\app\Services\Payroll\PayrollRunService.php:322: if (! $home->has_workforce_finance_suite) {
+C:\xampp\htdocs\laravel\spa-system\app\Services\Payroll\PayrollRunService.php:719: * Generating or regenerating a run needs the Professional plan, the same gate the
+C:\xampp\htdocs\laravel\spa-system\app\Services\Payroll\PayrollRunService.php:731: if (($spa->business_tier ?? null) !== 'professional') {
+C:\xampp\htdocs\laravel\spa-system\app\Services\Payroll\PayrollRunService.php:733: "Spa \"{$spa->name}\" is not on the Professional plan, so new payroll runs cannot be generated. Existing runs can still be finished and viewed."
+C:\xampp\htdocs\laravel\spa-system\app\Services\Payroll\PayrollRunService.php:993: if (! $home->has_workforce_finance_suite) {
+C:\xampp\htdocs\laravel\spa-system\app\Services\Payroll\PayrollRunService.php:1380: 'has_workforce_finance_suite' => (bool) $b->has_workforce_finance_suite,
+C:\xampp\htdocs\laravel\spa-system\database\factories\BranchFactory.php:24: 'has_workforce_finance_suite' => true,
+C:\xampp\htdocs\laravel\spa-system\database\factories\SpaFactory.php:11: * business_tier / verification_status / payroll settings have DB defaults.
+C:\xampp\htdocs\laravel\spa-system\database\factories\SpaFactory.php:22: // Payroll needs the Professional plan (PayrollRunService); tests that cover
+C:\xampp\htdocs\laravel\spa-system\database\factories\SpaFactory.php:24: 'business_tier' => 'professional',
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_01_18_000000_create_spas_table.php:18: $table->enum('business_tier', ['basic','professional'])->default('basic');
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_03_15_120813_create_subscriptions_table.php:18: $table->string('business_tier');
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_03_25_025942_add_workforce_finance_suite_to_branches_table.php:12: $table->boolean('has_workforce_finance_suite')
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_03_25_025942_add_workforce_finance_suite_to_branches_table.php:21: $table->dropColumn('has_workforce_finance_suite');
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010152_add_trial_fields_to_spas_table.php:15: ->after('business_tier');
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:15: $table->string('business_tier')
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:21: ->where('business_tier', 'professional')
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:23: 'business_tier' => 'premium',
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:27: ->where('business_tier', 'professional')
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:29: 'business_tier' => 'premium',
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:37: ->where('business_tier', 'premium')
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:39: 'business_tier' => 'professional',
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:43: ->where('business_tier', 'premium')
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:45: 'business_tier' => 'professional',
+C:\xampp\htdocs\laravel\spa-system\database\migrations\2026_10_08_010234_convert_professional_plans_to_premium.php:49: $table->enum('business_tier', ['basic', 'professional'])
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\registered-spas\index.blade.php:38: 'professional' => 'bg-[#8B7355]/10 text-[#6F5430] dark:bg-[#C4A97D]/10 dark:text-[#C4A97D]',
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\registered-spas\index.blade.php:158: <span class="{{ $badgeClass }} {{ $tierClasses[$spa->business_tier] ?? $tierClasses['basic'] }}">
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\registered-spas\index.blade.php:159: {{ ucfirst($spa->business_tier) }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\registered-spas\index.blade.php:1288: spa.business_tier
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\registered-spas\index.blade.php:1289: ? spa.business_tier
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\registered-spas\index.blade.php:1292: spa.business_tier
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\subscriptions\index.blade.php:36: subtitle="Professional plan payments made by spas through PayMongo."
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:7: $adoptionRate = $totalSpas > 0 ? round(($professionalCount / $totalSpas) * 100) : 0;
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:18: 'professional' => 'bg-[#8B7355]/10 text-[#6F5430] dark:bg-[#C4A97D]/10 dark:text-[#C4A97D]',
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:139: <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ $professionalCount }}</p>
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:140: <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Professional</p>
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:150: <span class="font-medium text-gray-700 dark:text-gray-300">Professional adoption</span>
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:154: role="progressbar" aria-label="Professional adoption"
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:162: <span class="font-semibold text-gray-900 dark:text-white">{{ $activeSubscriptions }}</span>
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:210: <span class="{{ $badgeClass }} {{ $tierClasses[$spa->business_tier] ?? $tierClasses['basic'] }}">
+C:\xampp\htdocs\laravel\spa-system\resources\views\admin\dashboard.blade.php:211: {{ ucfirst($spa->business_tier) }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\edit.blade.php:36: $spaTier      = $spa?->business_tier;
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\edit.blade.php:37: $canUseHiring = $spaTier === 'professional';
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\edit.blade.php:146: <i class="fa-solid {{ $spaTier === 'professional' ? 'fa-crown' : 'fa-lock' }} {{ $spaTier === 'professional' ? 'text-amber-500' : 'text-gray-400' }} text-sm shrink-0" aria-hidden="true"></i>
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\edit.blade.php:148: <p class="mt-2 text-base font-semibold text-gray-900 sm:text-lg dark:text-white">{{ $spaTier === 'professional' ? 'Professional' : 'Basic' }}</p>
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\edit.blade.php:149: <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $spaTier === 'professional' ? 'All branch features unlocked' : 'Some features are locked' }}</p>
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\edit.blade.php:493: {{-- Job Posting — Professional tier only.
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\edit.blade.php:508: Professional
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\edit.blade.php:513: applications. Available on the Professional plan.
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\index.blade.php:16: $canUseProfessionalSuite = ($spa->business_tier ?? null) === 'professional';
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\index.blade.php:19: $hasUnlimitedBranches    = $canUseProfessionalSuite;
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\index.blade.php:95: {{ $canUseProfessionalSuite ? 'Suite Enabled' : 'Branch Plan Limit' }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\index.blade.php:99: {{ $canUseProfessionalSuite ? $branches->where('has_workforce_finance_suite', true)->count() : $remainingBranchSlots }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\index.blade.php:102: {{ $canUseProfessionalSuite ? 'Using Workforce & Finance Suite' : 'Remaining slots on Basic' }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\index.blade.php:142: $hasSuite  = $canUseProfessionalSuite && $branch->has_workforce_finance_suite;
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\index.blade.php:207: {{-- Suite badge (professional only) --}}
+C:\xampp\htdocs\laravel\spa-system\resources\views\branches\index.blade.php:208: @if($canUseProfessionalSuite)
+C:\xampp\htdocs\laravel\spa-system\resources\views\emails\subscription-expiring.blade.php:20: Hi, this is a reminder that the Professional subscription for
+C:\xampp\htdocs\laravel\spa-system\resources\views\emails\subscription-paid.blade.php:27: ✦ PROFESSIONAL PLAN ACTIVATED ✦
+C:\xampp\htdocs\laravel\spa-system\resources\views\emails\subscription-paid.blade.php:41: <strong style="color:#6F5430;">Professional Partner</strong> on the Levictas platform.
+C:\xampp\htdocs\laravel\spa-system\resources\views\emails\subscription-paid.blade.php:70: Professional Tier
+C:\xampp\htdocs\laravel\spa-system\resources\views\hr\payroll\staff\index.blade.php:102: @if($branch && !$branch->trashed() && $branch->has_workforce_finance_suite)
+C:\xampp\htdocs\laravel\spa-system\resources\views\hr\payroll\setup.blade.php:47: $suiteBranches = $branches->where('has_workforce_finance_suite', true)->count();
+C:\xampp\htdocs\laravel\spa-system\resources\views\hr\payroll\setup.blade.php:67: $missingWage = $branches->filter(fn ($b) => $b->has_workforce_finance_suite && $b->min_daily_wage === null)->count();
+C:\xampp\htdocs\laravel\spa-system\resources\views\hr\payroll\setup.blade.php:340: @if($b->has_workforce_finance_suite)
+C:\xampp\htdocs\laravel\spa-system\resources\views\layouts\navigation.blade.php:30: (bool) ($currentBranch?->has_workforce_finance_suite ?? false);
+C:\xampp\htdocs\laravel\spa-system\resources\views\layouts\navigation.blade.php:48: ->whereHas('branch', fn ($q) => $q->where('has_workforce_finance_suite', true))
+C:\xampp\htdocs\laravel\spa-system\resources\views\layouts\navigation.blade.php:351: class="ml-2 text-[10px] px-2 py-0.5 rounded-full {{ $branch->has_workforce_finance_suite ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' }}">
+C:\xampp\htdocs\laravel\spa-system\resources\views\layouts\navigation.blade.php:352: {{ $branch->has_workforce_finance_suite ? 'Suite' : 'Basic' }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\layouts\navigation.blade.php:498: class="text-[10px] px-2 py-0.5 rounded-full {{ $branch->has_workforce_finance_suite ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' }}">
+C:\xampp\htdocs\laravel\spa-system\resources\views\layouts\navigation.blade.php:499: {{ $branch->has_workforce_finance_suite ? 'Suite' : 'Basic' }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\subscription\index.blade.php:8: $hasActiveSubscription = $spa->hasActiveSubscription();
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\subscription\index.blade.php:58: @elseif ($hasActiveSubscription)
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\subscription\index.blade.php:81: @elseif ($hasActiveSubscription && $subscription?->expires_at)
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\subscription\index.blade.php:95: @if (! $hasActiveSubscription && ! $isTrialing)
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\subscription\index.blade.php:280: {{ ucfirst($history->business_tier) }} Plan
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\subscription\index.blade.php:325: @if ($hasActiveSubscription)
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\subscription\index.blade.php:354: @if (! $hasActiveSubscription && ! $isTrialing)
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\subscription\receipt.blade.php:110: $planName = ucfirst($subscription->business_tier ?? 'Basic');
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\workforce-finance-suite\index.blade.php:17: @if (($spa->business_tier ?? null) !== 'professional')
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\workforce-finance-suite\index.blade.php:26: Available on Professional only
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\workforce-finance-suite\index.blade.php:31: <span class="font-semibold">{{ ucfirst($spa->business_tier ?? 'basic') }}</span>
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\workforce-finance-suite\index.blade.php:33: <span class="font-semibold">Professional</span>
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\workforce-finance-suite\index.blade.php:135: @if($branch->has_workforce_finance_suite)
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\workforce-finance-suite\index.blade.php:159: {{ old("branches.{$branch->id}", $branch->has_workforce_finance_suite) ? 'checked' : '' }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\owner\workforce-finance-suite\index.blade.php:163: Enable professional for this branch
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:8: $isProfessional = $spa?->isProfessional() ?? false;
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:18: $hasUnlimitedStaff = $isProfessional;
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:40: $professionalRolesCount = $roleCounts['hr'] + $roleCounts['finance'];
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:104: colours on $isProfessional. Preserved exactly as found — see notes. --}}
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:106: <p class="text-xs font-semibold tracking-wide uppercase {{ $isProfessional ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-300' }}">
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:107: {{ $hasSuite ? 'Professional Roles' : 'Suite Status' }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:110: <h3 class="text-2xl font-semibold sm:text-3xl {{ $isProfessional ? 'text-indigo-900 dark:text-indigo-200' : 'text-amber-900 dark:text-amber-200' }}">
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:111: {{ $hasSuite ? $professionalRolesCount : 'Disabled' }}
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:113: <span class="text-xs sm:text-sm {{ $isProfessional ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-300' }}">
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:174: @if(!$isProfessional)
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:177: HR &amp; Finance roles require Professional
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:282: {{-- OUTSTANDING: gated on $hasSuite here, on $isProfessional in the
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:285: <optgroup label="Professional Roles ✦">
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:409: onclick='editStaff({{ $member->id }}, {{ $isProfessional ? 'true' : 'false' }}, @json($role), @json($displayName))'
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:625: // OUTSTANDING: isPro comes from $isProfessional at the call site, while the
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:633: const professionalOptions = isPro ? `
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:634: <optgroup label="Professional Roles ✦">
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:653: ${professionalOptions}
+C:\xampp\htdocs\laravel\spa-system\resources\views\staff\index.blade.php:659: HR &amp; Finance roles require the Professional plan.
+C:\xampp\htdocs\laravel\spa-system\resources\views\welcome.blade.php:3242: placeholder="e.g., Great massage, very professional..."
+C:\xampp\htdocs\laravel\spa-system\resources\views\welcome.blade.php:3407: <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Quality care from professional

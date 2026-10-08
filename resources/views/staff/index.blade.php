@@ -5,18 +5,22 @@
 @php
     $user = auth()->user();
     $spa = $user?->spa;
-    $isProfessional = $spa?->isProfessional() ?? false;
+
+    $hasManpower = $hasManpower
+        ?? ($spa?->hasFeature('manpower') ?? false);
+
+    $staffLimit = $staffLimit
+        ?? ($spa?->planLimit('staff') ?? 0);
+
     $canCreateStaff = $user?->hasBranchPermission('create staff') ?? false;
     $canEditStaff = $user?->hasBranchPermission('edit staff') ?? false;
     $canDeleteStaff = $user?->hasBranchPermission('delete staff') ?? false;
     $showActions = $canEditStaff || $canDeleteStaff;
 
-    // OUTSTANDING: hardcoded in the view. If StaffController enforces a different
-    // number the UI and the server disagree silently. Left as-is on purpose.
-    $staffLimit = 10;
-    $staffCount = $staff->count();
-    $hasUnlimitedStaff = $isProfessional;
-    $hasReachedStaffLimit = !$hasUnlimitedStaff && $staffCount >= $staffLimit;
+    $staffCount = $activeStaffCount
+    ?? $staff->where('employment_status', 'active')->count();
+
+    $hasReachedStaffLimit = $staffLimit <= 0 || $staffCount >= $staffLimit;
     $remainingStaffSlots = max($staffLimit - $staffCount, 0);
 
     $roleCounts = [
@@ -100,42 +104,63 @@
                 <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Leadership roles</span>
             </div>
         </div>
-        {{-- OUTSTANDING: this card switches its background on $hasSuite and its text
-             colours on $isProfessional. Preserved exactly as found — see notes. --}}
-        <div class="p-4 border shadow-sm sm:p-5 rounded-2xl {{ $hasSuite ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
-            <p class="text-xs font-semibold tracking-wide uppercase {{ $isProfessional ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-300' }}">
-                {{ $hasSuite ? 'Professional Roles' : 'Suite Status' }}
+        {{-- Business-plan manpower controls HR and Finance role availability. --}}
+        <div class="p-4 border shadow-sm sm:p-5 rounded-2xl
+            {{ $hasManpower
+                ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800'
+                : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
+            <p class="text-xs font-semibold tracking-wide uppercase
+                {{ $hasManpower
+                    ? 'text-indigo-700 dark:text-indigo-300'
+                    : 'text-amber-700 dark:text-amber-300' }}">
+                {{ $hasManpower ? 'Business Roles' : 'Business Feature' }}
             </p>
+
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
-                <h3 class="text-2xl font-semibold sm:text-3xl {{ $isProfessional ? 'text-indigo-900 dark:text-indigo-200' : 'text-amber-900 dark:text-amber-200' }}">
-                    {{ $hasSuite ? $professionalRolesCount : 'Disabled' }}
+                <h3 class="text-2xl font-semibold sm:text-3xl
+                    {{ $hasManpower
+                        ? 'text-indigo-900 dark:text-indigo-200'
+                        : 'text-amber-900 dark:text-amber-200' }}">
+                    {{ $hasManpower ? $professionalRolesCount : 'Unavailable' }}
                 </h3>
-                <span class="text-xs sm:text-sm {{ $isProfessional ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-300' }}">
-                    {{ $hasSuite ? 'HR & Finance roles' : 'Suite Disabled' }}
+
+                <span class="text-xs sm:text-sm
+                    {{ $hasManpower
+                        ? 'text-indigo-700 dark:text-indigo-300'
+                        : 'text-amber-700 dark:text-amber-300' }}">
+                    {{ $hasManpower ? 'HR & Finance roles' : 'Business plan required' }}
                 </span>
             </div>
         </div>
     </div>
     {{-- Staff Plan Limit Notice --}}
-    @if(!$hasUnlimitedStaff)
+    @if($staffLimit > 0)
         <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
-                        Basic Plan Staff Limit
+                        {{ ucfirst($spa?->currentPlan() ?? 'Current') }} Plan Staff Limit
                     </h2>
+
                     <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                        This branch can only have up to <span class="font-semibold">{{ $staffLimit }}</span> staff accounts on the Basic plan.
+                        Your plan allows up to
+                        <span class="font-semibold">{{ $staffLimit }}</span>
+                        active staff members across all branches.
+
                         @if($hasReachedStaffLimit)
                             You have already reached the limit.
                         @else
-                            You still have <span class="font-semibold">{{ $remainingStaffSlots }}</span> staff slot(s) remaining.
+                            You have
+                            <span class="font-semibold">{{ $remainingStaffSlots }}</span>
+                            staff slot(s) remaining.
                         @endif
                     </p>
                 </div>
-                <a href="{{ route('owner.subscription.index') }}" class="w-full {{ $btn['upgrade'] }} sm:w-auto">
+
+                <a href="{{ route('owner.subscription.index') }}"
+                class="w-full {{ $btn['upgrade'] }} sm:w-auto">
                     <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                    Upgrade Subscription
+                    View Plans
                 </a>
             </div>
         </div>
@@ -147,15 +172,21 @@
                 <div class="p-4 sm:p-5">
                     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <h2 class="text-base font-semibold text-red-700 dark:text-red-300">Staff Limit Reached</h2>
+                            <h2 class="text-base font-semibold text-red-700 dark:text-red-300">
+                                Staff Limit Reached
+                            </h2>
+
                             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                This branch already has {{ $staffCount }} staff account(s), which is the maximum allowed for the Basic plan.
-                                Upgrade your subscription to add more staff members.
+                                Your {{ ucfirst($spa?->currentPlan() ?? 'current') }} plan allows
+                                {{ $staffLimit }} active staff members across all branches.
+                                Upgrade your plan to add more staff.
                             </p>
                         </div>
-                        <a href="{{ route('owner.subscription.index') }}" class="w-full {{ $btn['upgrade'] }} sm:w-auto">
-                            <i class="fa-solid fa-crown" aria-hidden="true"></i>
-                            Unlock Unlimited Staff
+
+                        <a href="{{ route('owner.subscription.index') }}"
+                        class="w-full {{ $btn['upgrade'] }} sm:w-auto">
+                            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                            View Plans
                         </a>
                     </div>
                 </div>
@@ -171,13 +202,13 @@
                         </p>
                     </div>
                     <div class="flex flex-col items-start gap-2 sm:items-end">
-                        @if(!$isProfessional)
+                        @if(!$hasManpower)
                             <div class="px-3 py-2 text-xs rounded-xl bg-amber-50 text-amber-700 sm:text-right dark:bg-amber-900/20 dark:text-amber-300">
                                 <i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>
-                                HR &amp; Finance roles require Professional
+                                HR &amp; Finance roles require the Business plan.
                             </div>
                         @endif
-                        @if(!$hasUnlimitedStaff)
+                        @if($staffLimit > 0 && !$hasReachedStaffLimit)
                             <div class="px-3 py-2 text-xs text-gray-700 bg-gray-100 rounded-xl sm:text-right dark:bg-gray-700 dark:text-gray-300">
                                 {{ $remainingStaffSlots }} of {{ $staffLimit }} slot(s) remaining
                             </div>
@@ -279,22 +310,25 @@
                                     <option value="receptionist" {{ old('roles') == 'receptionist' ? 'selected' : '' }}>Receptionist</option>
                                     <option value="manager" {{ old('roles') == 'manager' ? 'selected' : '' }}>Manager</option>
                                 </optgroup>
-                                {{-- OUTSTANDING: gated on $hasSuite here, on $isProfessional in the
-                                     edit modal. Left divergent on purpose — see notes. --}}
-                                @if($hasSuite)
-                                <optgroup label="Professional Roles ✦">
-                                    <option value="hr" {{ old('roles') == 'hr' ? 'selected' : '' }}>HR</option>
-                                    <option value="finance" {{ old('roles') == 'finance' ? 'selected' : '' }}>Finance</option>
-                                </optgroup>
+                                {{-- HR and Finance roles are available only with the Business plan. --}}
+                                @if($hasManpower)
+                                    <optgroup label="Business Roles">
+                                        <option value="hr" {{ old('roles') === 'hr' ? 'selected' : '' }}>
+                                            HR
+                                        </option>
+                                        <option value="finance" {{ old('roles') === 'finance' ? 'selected' : '' }}>
+                                            Finance
+                                        </option>
+                                    </optgroup>
                                 @endif
                             </select>
                             @error('roles')
                                 <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
-                            @if(!$hasSuite)
+                            @if(!$hasManpower)
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     <i class="fa-solid fa-lock text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                    HR &amp; Finance roles require the Workforce &amp; Finance Suite to be enabled on this branch.
+                                    HR &amp; Finance roles require the Business plan.
                                 </p>
                             @endif
                         </div>
@@ -328,7 +362,7 @@
             {{-- .rt collapses this table into stacked cards below md. The explicit
                  role="" attributes are required because changing display away from
                  table strips the native table semantics. --}}
-            <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
                 <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                     <tr role="row">
                         <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Staff Member</th>
@@ -406,7 +440,7 @@
                                 @if($canEditStaff)
                                 <button
                                     type="button"
-                                    onclick='editStaff({{ $member->id }}, {{ $isProfessional ? 'true' : 'false' }}, @json($role), @json($displayName))'
+                                    onclick='editStaff({{ $member->id }}, {{ $hasManpower ? 'true' : 'false' }}, @json($role), @json($displayName))'
                                     class="{{ $btn['edit'] }}"
                                 >
                                     <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i>
@@ -622,16 +656,16 @@
     // EDIT
     // ════════════════════════════════════════════════════════════════
 
-    // OUTSTANDING: isPro comes from $isProfessional at the call site, while the
-    // create form gates the same optgroup on $hasSuite. Left divergent on purpose.
-    function editStaff(staffId, isPro, currentRole, staffName) {
-        isPro = isPro === true;
+    // HR and Finance options are available only when the spa has the
+    // Business-plan manpower feature.
+    function editStaff(staffId, hasManpower, currentRole, staffName) {
+        hasManpower = hasManpower === true;
         currentRole = currentRole || '';
 
         const sel = role => currentRole === role ? ' selected' : '';
 
-        const professionalOptions = isPro ? `
-            <optgroup label="Professional Roles ✦">
+        const businessRoleOptions = hasManpower ? `
+            <optgroup label="Business Roles">
                 <option value="hr"${sel('hr')}>HR</option>
                 <option value="finance"${sel('finance')}>Finance</option>
             </optgroup>
@@ -650,13 +684,13 @@
                         <option value="receptionist"${sel('receptionist')}>Receptionist</option>
                         <option value="manager"${sel('manager')}>Manager</option>
                     </optgroup>
-                    ${professionalOptions}
+                    ${businessRoleOptions}
                 </select>
                 ${
-                    !isPro
+                    !hasManpower
                         ? `<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                             <i class="fa-solid fa-lock text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                            HR &amp; Finance roles require the Professional plan.
+                            HR &amp; Finance roles require the Business plan.
                            </p>`
                         : ''
                 }

@@ -92,7 +92,7 @@
                         </p>
 
                         <p class="mt-1 text-sm leading-6 text-blue-700 dark:text-blue-300">
-                            In the final step you will submit one valid government ID, your DTI or SEC certificate, and your BIR Certificate of Registration for administrator review.
+                            In the final step you will submit one valid government ID, your DTI or SEC certificate, your BIR Certificate of Registration, and your Business Permit for administrator review.
                         </p>
                     </div>
                 </div>

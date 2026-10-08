@@ -220,7 +220,7 @@
                     <button type="submit"
                         class="w-full min-h-[44px] bg-gradient-to-r from-[#7A6348] to-[#6F5430] text-white text-sm font-semibold py-3 px-4 rounded-xl transition-opacity shadow-sm hover:opacity-90">
 
-                        Save Main Branch & Set Operating Hours
+                        Save Main Branch
 
                     </button>
 

@@ -9,6 +9,7 @@ use App\Models\OperatingHours;
 use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Models\Spa;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
@@ -33,6 +34,15 @@ class OnlineBookingCheckoutController extends Controller
             'appointment_date' => ['required', 'date', 'after_or_equal:today'],
             'start_time'       => ['required'],
         ]);
+
+        $spa = Spa::find($validated['spa_id']);
+
+        if (! $spa || ! $spa->hasFeature('online_reservation')) {
+            return $this->fail(
+                $request,
+                'Online reservations are not available for this spa. The owner must upgrade to Premium or Business.'
+            );
+        }
 
         if ($validated['service_type'] === 'in_home' && blank($validated['customer_address'])) {
             return $this->fail($request, 'Home address is required for home service bookings.');
@@ -280,6 +290,15 @@ class OnlineBookingCheckoutController extends Controller
             'treatment'        => ['required', 'string'],
             'appointment_date' => ['required', 'date'],
         ]);
+
+        $spa = Spa::find($validated['spa_id']);
+
+        if (! $spa || ! $spa->hasFeature('online_reservation')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Online reservations are not available for this spa. The owner must upgrade to Premium or Business.',
+            ], 422);
+        }
 
         [$type, $id] = array_pad(explode('_', $validated['treatment'], 2), 2, null);
 

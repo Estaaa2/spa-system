@@ -33,12 +33,33 @@
     $spa            = $spa ?? $branch->spa;
     $operatingHours = collect($operatingHours ?? []);
 
-    $spaTier      = $spa?->business_tier;
-    $canUseHiring = $spaTier === 'professional';
+    $spaTier = strtolower((string) ($spa?->currentPlan() ?: 'basic'));
+
+    if ($spaTier === 'professional') {
+        $spaTier = 'premium';
+    }
+
+    if (! in_array($spaTier, ['basic', 'premium', 'business'], true)) {
+        $spaTier = 'basic';
+    }
+
+    $hasSpaAccess = $spa?->hasAccess() ?? false;
+
+    $canUseHiring = $hasSpaAccess
+        && ($spa?->hasFeature('manpower') ?? false);
+
+    $planBadgeClasses = [
+        'basic' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+        'premium' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        'business' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    ];
+
+    $planBadgeClass = $planBadgeClasses[$spaTier];
 
     // Count the number of days that are open (not closed) in the operating hours. This is used to display the number of open days in the branch overview.
     $openDayCount = $operatingHours->filter(fn($h) => !($h->is_closed ?? false))->count();
     $isListed     = (bool) optional($branch->profile)->is_listed;
+    $canPublicListing = $spa?->hasFeature('branch_public_listing') ?? false;
 @endphp
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -143,10 +164,26 @@
         <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <div class="flex items-start justify-between gap-2">
                 <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Plan</p>
-                <i class="fa-solid {{ $spaTier === 'professional' ? 'fa-crown' : 'fa-lock' }} {{ $spaTier === 'professional' ? 'text-amber-500' : 'text-gray-400' }} text-sm shrink-0" aria-hidden="true"></i>
+                <i
+                    class="fa-solid {{ $hasSpaAccess ? 'fa-crown' : 'fa-lock' }} {{ $hasSpaAccess ? 'text-amber-500' : 'text-gray-400' }} shrink-0 text-sm"
+                    aria-hidden="true">
+                </i>
             </div>
-            <p class="mt-2 text-base font-semibold text-gray-900 sm:text-lg dark:text-white">{{ $spaTier === 'professional' ? 'Professional' : 'Basic' }}</p>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $spaTier === 'professional' ? 'All branch features unlocked' : 'Some features are locked' }}</p>
+            <p class="mt-2 text-base font-semibold text-gray-900 capitalize sm:text-lg dark:text-white">
+                {{ $spaTier }}
+            </p>
+
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                @if ($hasSpaAccess)
+                    Current plan is active
+                @else
+                    Choose a subscription plan to unlock access
+                @endif
+            </p>
+
+            <span class="mt-2 inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold {{ $planBadgeClass }}">
+                {{ ucfirst($spaTier) }}
+            </span>
         </div>
     </div>
 
@@ -464,37 +501,88 @@
                             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:divide-x sm:divide-gray-100 dark:sm:divide-gray-700">
 
                                 {{-- Public Listing --}}
-                                <div class="sm:pr-6" x-data="{ listed: {{ optional($branch->profile)->is_listed ? 'true' : 'false' }} }">
-                                    <div class="flex items-start justify-between gap-4">
-                                        <div>
-                                            <h2 class="text-base font-semibold text-gray-900 dark:text-white">Public Listing</h2>
-                                            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                                                Shown to customers on the landing page.
+                                @if ($canPublicListing)
+                                    <div
+                                        class="sm:pr-6"
+                                        x-data="{ listed: {{ optional($branch->profile)->is_listed ? 'true' : 'false' }} }"
+                                    >
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div>
+                                                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                                                    Public Listing
+                                                </h2>
+
+                                                <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                                    Shown to customers on the landing page.
+                                                </p>
+                                            </div>
+
+                                            <label class="relative inline-flex items-center flex-shrink-0 cursor-pointer">
+                                                <input type="hidden" name="is_listed" value="0">
+
+                                                <input
+                                                    type="checkbox"
+                                                    name="is_listed"
+                                                    value="1"
+                                                    x-model="listed"
+                                                    {{ optional($branch->profile)->is_listed ? 'checked' : '' }}
+                                                    class="sr-only peer"
+                                                >
+
+                                                <div
+                                                    class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
+                                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
+                                                        peer-checked:after:translate-x-5"
+                                                ></div>
+                                            </label>
+                                        </div>
+
+                                        <div
+                                            x-show="listed"
+                                            x-transition
+                                            class="flex items-center gap-2 px-3 py-2 mt-4 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800"
+                                        >
+                                            <i class="text-xs text-green-500 fa-solid fa-circle-check"></i>
+
+                                            <p class="text-xs font-medium text-green-700 dark:text-green-300">
+                                                Visible on the public landing page.
                                             </p>
                                         </div>
-                                        <label class="relative inline-flex items-center flex-shrink-0 cursor-pointer">
-                                            <input type="hidden" name="is_listed" value="0">
-                                            <input type="checkbox" name="is_listed" value="1"
-                                                   x-model="listed"
-                                                   {{ optional($branch->profile)->is_listed ? 'checked' : '' }}
-                                                   class="sr-only peer">
-                                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
-                                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
-                                                        peer-checked:after:translate-x-5"></div>
-                                        </label>
                                     </div>
+                                @else
+                                    <div class="sm:pr-6">
+                                        <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                                            Public Listing
+                                        </h2>
 
-                                    <div x-show="listed" x-transition class="flex items-center gap-2 px-3 py-2 mt-4 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
-                                        <i class="text-xs text-green-500 fa-solid fa-circle-check"></i>
-                                        <p class="text-xs font-medium text-green-700 dark:text-green-300">Visible on the public landing page.</p>
+                                        <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                            Public listing is available on Premium and Business plans.
+                                        </p>
+
+                                        <div class="flex items-start gap-3 px-3 py-3 mt-4 border border-yellow-200 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800">
+                                            <i class="mt-0.5 text-yellow-600 fa-solid fa-lock dark:text-yellow-400"></i>
+
+                                            <div>
+                                                <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                                    Upgrade to list this branch publicly.
+                                                </p>
+
+                                                @role('owner')
+                                                    <a
+                                                        href="{{ route('owner.subscription.index') }}"
+                                                        class="inline-flex items-center mt-1 text-xs font-semibold text-yellow-800 underline dark:text-yellow-200"
+                                                    >
+                                                        Upgrade plan
+                                                    </a>
+                                                @endrole
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                @endif
 
-                                {{-- Job Posting — Professional tier only.
-                                     On Basic the whole control is replaced by an
-                                     upgrade prompt and no is_hiring / hiring_note
-                                     input is rendered, so a Basic spa cannot post
-                                     even by resubmitting a stale form. --}}
+                                {{-- Job Posting requires the manpower feature.
+                                The locked state intentionally renders no is_hiring or hiring_note
+                                inputs, so a plan without this feature cannot submit stale values. --}}
                                 @if(!$canUseHiring)
                                     <div class="sm:pl-6">
                                         <div class="flex items-start gap-3 p-4 border border-gray-300 border-dashed rounded-2xl bg-gray-50 dark:bg-gray-900/20 dark:border-gray-600">
@@ -505,12 +593,12 @@
                                                 <div class="flex flex-wrap items-center gap-2">
                                                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Job Posting</h2>
                                                     <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                                        Professional
+                                                        Business Feature
                                                     </span>
                                                 </div>
                                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                                     Publish a "We're Hiring" badge on this branch's public card and collect
-                                                    applications. Available on the Professional plan.
+                                                    applications. Available when your plan includes manpower features.
                                                 </p>
                                                 @role('owner')
                                                     <a href="{{ route('owner.subscription.index') }}"

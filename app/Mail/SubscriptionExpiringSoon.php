@@ -15,18 +15,30 @@ class SubscriptionExpiringSoon extends Mailable
     use Queueable, SerializesModels;
 
     public Spa $spa;
+
     public Subscription $subscription;
+
+    public string $planName;
 
     public function __construct(Spa $spa, Subscription $subscription)
     {
         $this->spa = $spa;
         $this->subscription = $subscription;
+
+        $plan = strtolower((string) $subscription->business_tier);
+
+        $this->planName = match ($plan) {
+            'business' => 'Business',
+            'premium', 'professional' => 'Premium',
+            'basic' => 'Basic',
+            default => ucfirst($plan ?: 'Subscription'),
+        };
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your Levictas Professional subscription expires in 3 days',
+            subject: "Your Levictas {$this->planName} subscription expires in 3 days",
         );
     }
 
@@ -35,7 +47,8 @@ class SubscriptionExpiringSoon extends Mailable
         return new Content(
             view: 'emails.subscription-expiring',
             with: [
-                'spaName'  => $this->spa->name ?? 'your spa',
+                'spaName' => $this->spa->name ?? 'your spa',
+                'planName' => $this->planName,
                 'expiresAt' => $this->subscription->expires_at,
             ],
         );

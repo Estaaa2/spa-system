@@ -13,12 +13,30 @@
 </style>
 
 @php
-    $canUseProfessionalSuite = ($spa->business_tier ?? null) === 'professional';
-    $branchLimit             = 2;
-    $branchCount             = $branches->count();
-    $hasUnlimitedBranches    = $canUseProfessionalSuite;
-    $hasReachedBranchLimit   = !$hasUnlimitedBranches && $branchCount >= $branchLimit;
-    $remainingBranchSlots    = max($branchLimit - $branchCount, 0);
+    $branchCount = $branches->count();
+
+    $currentPlan = strtolower((string) ($spa->currentPlan() ?: 'basic'));
+
+    if ($currentPlan === 'professional') {
+        $currentPlan = 'premium';
+    }
+
+    if (! in_array($currentPlan, ['basic', 'premium', 'business'], true)) {
+        $currentPlan = 'basic';
+    }
+
+    $hasAccess = $spa->hasAccess();
+    $branchLimit = $spa->planLimit('branches');
+    $hasReachedBranchLimit = ! $spa->canAddBranch();
+    $remainingBranchSlots = max($branchLimit - $branchCount, 0);
+
+    $planBadgeClasses = [
+        'basic' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+        'premium' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        'business' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    ];
+
+    $planBadgeClass = $planBadgeClasses[$currentPlan];
 
     // Shared button shape. Same base as appointments.blade.php so controls on this
     // page match the rest of the staff side: 44px minimum, rounded-xl, focus-visible ring.
@@ -43,26 +61,70 @@
     />
 
     {{-- ── Plan Limit Notice ──────────────────────────────────────────── --}}
-    @if(!$hasUnlimitedBranches)
-        <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+    @if (! $hasAccess)
+        <div class="p-4 border border-red-200 rounded-2xl bg-red-50 dark:border-red-800 dark:bg-red-900/10">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold tracking-wide text-red-800 uppercase dark:text-red-300">
+                        Subscription Required
+                    </h2>
+
+                    <p class="mt-1 text-sm text-red-700 dark:text-red-300">
+                        Choose a subscription plan to manage branches and branch settings.
+                    </p>
+                </div>
+
+                <a
+                    href="{{ route('owner.subscription.index') }}"
+                    class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto"
+                >
+                    <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
+                    View Subscription Plans
+                </a>
+            </div>
+        </div>
+    @elseif ($hasReachedBranchLimit)
+        <div class="p-4 border rounded-2xl border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
-                        Basic Plan Branch Limit
+                        {{ ucfirst($currentPlan) }} Plan Branch Limit
                     </h2>
+
                     <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                        Your spa can only have up to <span class="font-semibold">{{ $branchLimit }}</span> branches on the Basic plan.
-                        @if($hasReachedBranchLimit)
-                            You have already reached the limit.
-                        @else
-                            You still have <span class="font-semibold">{{ $remainingBranchSlots }}</span> branch slot(s) remaining.
-                        @endif
+                        Your plan allows up to
+                        <span class="font-semibold">{{ $branchLimit }}</span>
+                        branches. You have reached the limit.
                     </p>
                 </div>
-                <a href="{{ route('owner.subscription.index') }}" class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto">
+
+                <a
+                    href="{{ route('owner.subscription.index') }}"
+                    class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto"
+                >
                     <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                    Upgrade Subscription
+                    Change Subscription
                 </a>
+            </div>
+        </div>
+    @else
+        <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:border-gray-700 dark:bg-gray-800">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-gray-600 dark:text-gray-300">
+                    You have
+                    <span class="font-semibold text-gray-900 dark:text-white">
+                        {{ $remainingBranchSlots }}
+                    </span>
+                    branch slot(s) remaining on your
+                    <span class="font-semibold text-gray-900 capitalize dark:text-white">
+                        {{ $currentPlan }}
+                    </span>
+                    plan.
+                </p>
+
+                <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold {{ $planBadgeClass }}">
+                    {{ ucfirst($currentPlan) }} plan
+                </span>
             </div>
         </div>
     @endif
@@ -92,14 +154,16 @@
 
         <div class="col-span-2 p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl lg:col-span-1 dark:bg-gray-800 dark:border-gray-700">
             <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                {{ $canUseProfessionalSuite ? 'Suite Enabled' : 'Branch Plan Limit' }}
+                Available Slots
             </p>
+
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
                 <h3 class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">
-                    {{ $canUseProfessionalSuite ? $branches->where('has_workforce_finance_suite', true)->count() : $remainingBranchSlots }}
+                    {{ $remainingBranchSlots }}
                 </h3>
+
                 <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">
-                    {{ $canUseProfessionalSuite ? 'Using Workforce & Finance Suite' : 'Remaining slots on Basic' }}
+                    of {{ $branchLimit }} on {{ ucfirst($currentPlan) }}
                 </span>
             </div>
         </div>
@@ -117,13 +181,29 @@
                     </p>
                 </div>
 
-                @if($hasReachedBranchLimit)
-                    <button type="button" disabled class="{{ $btn['disabled'] }} w-full shrink-0 md:w-auto">
+                @if (! $hasAccess)
+                    <a
+                        href="{{ route('owner.subscription.index') }}"
+                        class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto"
+                    >
+                        <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
+                        Choose a Plan
+                    </a>
+                @elseif ($hasReachedBranchLimit)
+                    <button
+                        type="button"
+                        disabled
+                        class="{{ $btn['disabled'] }} w-full shrink-0 md:w-auto"
+                    >
                         <i class="fa-solid fa-lock" aria-hidden="true"></i>
                         Branch Limit Reached
                     </button>
                 @else
-                    <button type="button" onclick="openCreateModal()" class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto">
+                    <button
+                        type="button"
+                        onclick="openCreateModal()"
+                        class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto"
+                    >
                         <i class="fa-solid fa-plus" aria-hidden="true"></i>
                         Add New Branch
                     </button>
@@ -139,7 +219,6 @@
                 @foreach($branches as $branch)
                 @php
                     $isListed  = (bool) optional($branch->profile)->is_listed;
-                    $hasSuite  = $canUseProfessionalSuite && $branch->has_workforce_finance_suite;
                     $isCurrent = session('current_branch_id') == $branch->id;
                     $canRemove = !$branch->is_main && $branch->users_count == 0;
 
@@ -168,7 +247,7 @@
                                 </h3>
                                 <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <i class="fa-solid fa-location-dot text-[#8B7355] text-xs" aria-hidden="true"></i>
-                                    {{ $branch->location }}
+                                    {{ \Illuminate\Support\Str::limit($branch->location, 32) }}
                                 </p>
                             </div>
                         </div>
@@ -203,17 +282,6 @@
                             </p>
                         </div>
                     </div>
-
-                    {{-- Suite badge (professional only) --}}
-                    @if($canUseProfessionalSuite)
-                        <div class="mt-3">
-                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full
-                                {{ $hasSuite ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' }}">
-                                <i class="fa-solid fa-briefcase" aria-hidden="true"></i>
-                                Suite {{ $hasSuite ? 'Enabled' : 'Disabled' }}
-                            </span>
-                        </div>
-                    @endif
 
                     {{-- Footer: tab action links + remove --}}
                     {{-- The three edit links are always the same width and structure, and the
@@ -272,10 +340,33 @@
                     Get started by creating your first branch for this spa.
                 </p>
                 <div class="mt-6">
-                    <button type="button" onclick="openCreateModal()" class="{{ $btn['primary'] }} w-full sm:w-auto">
-                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                        Add New Branch
-                    </button>
+                    @if (! $hasAccess)
+                        <a
+                            href="{{ route('owner.subscription.index') }}"
+                            class="{{ $btn['primary'] }} w-full sm:w-auto"
+                        >
+                            <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
+                            Choose a Plan
+                        </a>
+                    @elseif ($hasReachedBranchLimit)
+                        <button
+                            type="button"
+                            disabled
+                            class="{{ $btn['disabled'] }} w-full sm:w-auto"
+                        >
+                            <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                            Branch Limit Reached
+                        </button>
+                    @else
+                        <button
+                            type="button"
+                            onclick="openCreateModal()"
+                            class="{{ $btn['primary'] }} w-full sm:w-auto"
+                        >
+                            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                            Add New Branch
+                        </button>
+                    @endif
                 </div>
             </div>
         @endif
@@ -479,9 +570,12 @@
     let isSubmitting   = false;
     let isManualMode   = false;
 
-    const HAS_NO_BRANCHES          = {{ $branches->count() === 0 ? 'true' : 'false' }};
+    const HAS_NO_BRANCHES = {{ $branches->count() === 0 ? 'true' : 'false' }};
+    const HAS_ACCESS = {{ $hasAccess ? 'true' : 'false' }};
     const HAS_REACHED_BRANCH_LIMIT = {{ $hasReachedBranchLimit ? 'true' : 'false' }};
-    const CSRF_TOKEN               = @json(csrf_token());
+    const BRANCH_LIMIT = {{ (int) $branchLimit }};
+    const CURRENT_PLAN = @json(ucfirst($currentPlan));
+    const CSRF_TOKEN = @json(csrf_token());
 
     // Named route with a placeholder id, so this survives the route group moving.
     const ROUTE_DELETE = @json(route('branches.destroy', '__ID__'));
@@ -644,8 +738,17 @@
 
     // ── Create modal ──────────────────────────────────────────────────────
     function openCreateModal() {
+        if (!HAS_ACCESS) {
+            notify('Choose a subscription plan before adding a branch.', 'error');
+            return;
+        }
+
         if (HAS_REACHED_BRANCH_LIMIT) {
-            notify('Your Basic plan allows only up to 2 branches. Upgrade your subscription to add more.', 'error');
+            notify(
+                CURRENT_PLAN + ' allows up to ' + BRANCH_LIMIT +
+                ' branch(es). Change your subscription to add more.',
+                'error'
+            );
             return;
         }
 
@@ -747,8 +850,17 @@
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
 
+            if (!HAS_ACCESS) {
+                notify('Choose a subscription plan before adding a branch.', 'error');
+                return;
+            }
+
             if (HAS_REACHED_BRANCH_LIMIT) {
-                notify('Your Basic plan allows only up to 2 branches. Upgrade your subscription to add more.', 'error');
+                notify(
+                    CURRENT_PLAN + ' allows up to ' + BRANCH_LIMIT +
+                    ' branch(es). Change your subscription to add more.',
+                    'error'
+                );
                 return;
             }
 

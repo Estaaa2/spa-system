@@ -44,7 +44,15 @@
 
     // ── Lookups ──
     $branchNames = $branches->pluck('name', 'id')->all();
-    $suiteBranches = $branches->where('has_workforce_finance_suite', true)->count();
+
+    $hasPayrollAccess = $spa->hasAccess()
+        && $spa->hasFeature('payroll');
+
+    $payrollBranches = $hasPayrollAccess
+        ? $branches
+        : collect();
+
+    $payrollBranchCount = $payrollBranches->count();
     $targetNames = [
         'treatment' => $treatments->mapWithKeys(fn ($t) => [$t->id => $t->name . ($t->deleted_at ? ' (deleted)' : '')])->all(),
         'package'   => $packages->mapWithKeys(fn ($p) => [$p->id => $p->name . ($p->deleted_at ? ' (deleted)' : '')])->all(),
@@ -64,7 +72,9 @@
         ? 'Default (any service)'
         : (ucfirst($r->target_type) . ': ' . ($targetNames[$r->target_type][$r->target_id] ?? "#{$r->target_id} (not found)"));
 
-    $missingWage = $branches->filter(fn ($b) => $b->has_workforce_finance_suite && $b->min_daily_wage === null)->count();
+    $missingWage = $payrollBranches
+    ->filter(fn ($branch) => $branch->min_daily_wage === null)
+    ->count();
     $activeRules = $rules->filter(fn ($r) => $ruleState($r) === 'active')->count();
 
     // Per-form error bags (controller: HandlesPayrollSetupForms).
@@ -103,10 +113,18 @@
             </div>
         </div>
         <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Suite Branches</p>
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                Payroll Branches
+            </p>
+
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
-                <h3 class="text-2xl font-semibold text-gray-900 whitespace-nowrap sm:text-3xl dark:text-white">{{ $suiteBranches }}/{{ $branches->count() }}</h3>
-                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Staff paid by payroll</span>
+                <h3 class="text-2xl font-semibold text-gray-900 whitespace-nowrap sm:text-3xl dark:text-white">
+                    {{ $payrollBranchCount }}/{{ $branches->count() }}
+                </h3>
+
+                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">
+                    Business payroll access
+                </span>
             </div>
         </div>
         <div class="p-4 border shadow-sm sm:p-5 rounded-2xl {{ $missingWage > 0 ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700' }}">
@@ -131,11 +149,36 @@
         </div>
     @endif
 
-    @if($suiteBranches === 0)
-        <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
-            <p class="text-sm text-amber-800 dark:text-amber-300">
+    @if (! $hasPayrollAccess)
+        <div role="status" class="p-4 border border-purple-200 rounded-2xl bg-purple-50 dark:border-purple-800 dark:bg-purple-900/10">
+            <p class="text-sm font-semibold text-purple-900 dark:text-purple-200">
+                <i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>
+                Payroll requires an active Business plan
+            </p>
+
+            <p class="mt-2 text-sm text-purple-800 dark:text-purple-300">
+                Payroll is unavailable until the spa has an active subscription with the payroll feature.
+            </p>
+
+            @if (Route::has('owner.subscription.index'))
+                <a
+                    href="{{ route('owner.subscription.index') }}"
+                    class="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7A6348]"
+                >
+                    <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
+                    View Subscription Plans
+                </a>
+            @endif
+        </div>
+    @elseif ($payrollBranchCount === 0)
+        <div role="status" class="p-4 border rounded-2xl border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+            <p class="text-sm font-semibold text-amber-900 dark:text-amber-200">
                 <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                No branch has the Workforce &amp; Finance Suite, so payroll runs will not pay anyone yet. Only staff whose home branch has the suite are paid.
+                No active branches are available for payroll
+            </p>
+
+            <p class="mt-2 text-sm text-amber-800 dark:text-amber-300">
+                Add an active branch before configuring payroll.
             </p>
         </div>
     @endif
@@ -254,7 +297,7 @@
                     <li class="flex gap-3"><i class="mt-0.5 text-gray-400 fa-solid fa-receipt" aria-hidden="true"></i>
                         <span>Commission counts only bookings that are <strong>completed and fully paid</strong>, and only for staff whose pay profile has commission turned on.</span></li>
                     <li class="flex gap-3"><i class="mt-0.5 text-gray-400 fa-solid fa-code-branch" aria-hidden="true"></i>
-                        <span>Only staff whose <strong>home branch has the Workforce &amp; Finance Suite</strong> and a minimum wage on file are paid.</span></li>
+                        <span>Only active staff whose <strong>home branch has a minimum wage on file</strong> are included in payroll.</span>
                     <li class="flex gap-3"><i class="mt-0.5 text-gray-400 fa-solid fa-scale-balanced" aria-hidden="true"></i>
                         <span>Withholding tax is computed each cutoff; year-end annualization is done by your bookkeeper.</span></li>
                 </ul>
@@ -307,7 +350,7 @@
                 <span class="text-sm text-gray-500 shrink-0 dark:text-gray-400">{{ $branches->count() }} branch(es)</span>
             </div>
             <div class="md:overflow-x-auto">
-                <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
                     <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                         <tr role="row">
                             <th role="columnheader" class="{{ $th }}">Branch</th>
@@ -337,15 +380,20 @@
                                 </td>
                                 <td role="cell" data-label="Payroll" class="px-6 py-4">
                                     <div class="flex flex-wrap gap-1">
-                                        @if($b->has_workforce_finance_suite)
-                                            <span class="{{ $badgeBase }} bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"><i class="fa-solid fa-star text-[10px]" aria-hidden="true"></i> Suite</span>
+                                        @if ($hasPayrollAccess)
+                                            <span class="{{ $badgeBase }} bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                                                <i class="fa-solid fa-money-check-dollar text-[10px]" aria-hidden="true"></i>
+                                                Payroll enabled
+                                            </span>
                                         @else
-                                            <span class="{{ $badgeBase }} bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">No suite — staff not paid</span>
+                                            <span class="{{ $badgeBase }} bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                                                Payroll unavailable
+                                            </span>
                                         @endif
                                         @if($b->min_daily_wage === null)
                                             <span class="{{ $badgeBase }} bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
                                                 <i class="fa-solid fa-triangle-exclamation text-[10px]" aria-hidden="true"></i>
-                                                Missing rate — payroll will not run for this branch's staff
+                                                Missing rate — payroll cannot calculate this branch's staff
                                             </span>
                                         @endif
                                     </div>
@@ -544,7 +592,7 @@
                 <p class="px-6 pt-4 text-sm text-red-600 dark:text-red-400">{{ $bag('ruleDelete')->first() }}</p>
             @endif
             <div class="md:overflow-x-auto">
-                <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
                     <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                         <tr role="row">
                             <th role="columnheader" class="{{ $th }}">Rule</th>

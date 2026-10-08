@@ -22,14 +22,23 @@ class StaffController extends Controller
     {
         $user = Auth::user();
         $branchId = $user->currentBranchId();
-        $branch = Branch::find($branchId);
-        $hasSuite = $branch?->has_workforce_finance_suite ?? false;
-        $isProfessional = $user->spa?->isProfessional() ?? false;
 
         if (!$branchId) {
             return redirect()->route('branches.index')
                 ->with('error', 'No branch found. Please create a branch first.');
         }
+
+        $branch = Branch::find($branchId);
+        $spa = $user->spa;
+
+        $hasManpower = $spa?->hasFeature('manpower') ?? false;
+        $staffLimit = $spa?->planLimit('staff') ?? 0;
+
+        $activeStaffCount = Staff::query()
+            ->where('spa_id', $user->spa_id)
+            ->where('employment_status', 'active')
+            ->whereNull('deleted_at')
+            ->count();
 
         $staff = Staff::with(['user.roles', 'branch'])
             ->where('spa_id', $user->spa_id)
@@ -37,7 +46,12 @@ class StaffController extends Controller
             ->latest()
             ->get();
 
-        return view('staff.index', compact('staff', 'isProfessional', 'hasSuite'));
+        return view('staff.index', compact(
+            'staff',
+            'hasManpower',
+            'staffLimit',
+            'activeStaffCount'
+        ));
     }
 
     /**
@@ -62,19 +76,24 @@ class StaffController extends Controller
             return back()->with('error', 'No valid branch selected. Please switch to a valid branch and try again.');
         }
 
-        if (in_array($validated['roles'], ['hr', 'finance']) && !($branch?->has_workforce_finance_suite ?? false)) {
-        return back()->with('error', 'HR and Finance accounts require the Workforce & Finance Suite to be enabled on this branch (Professional plan required).');
+        if (
+            in_array($validated['roles'], ['hr', 'finance'], true) &&
+            ! $spa->hasFeature('manpower')
+        ) {
+            return back()->with(
+                'error',
+                'HR and Finance accounts require the Business plan.'
+            );
         }
 
-        // Basic plan: maximum of 10 staff accounts per branch
-        if (!$spa->isProfessional()) {
-            $staffCountForBranch = Staff::where('spa_id', $currentUser->spa_id)
-                ->where('branch_id', $branchId)
-                ->count();
+        if (!$spa->canAddStaff()) {
+            $planName = ucfirst($spa->currentPlan());
+            $staffLimit = $spa->planLimit('staff');
 
-            if ($staffCountForBranch >= 10) {
-                return back()->with('error', 'This branch can only have up to 10 staff accounts on the Basic plan. Upgrade your subscription to add more.');
-            }
+            return back()->with(
+                'error',
+                "Your {$planName} plan allows {$staffLimit} active staff members. Upgrade to add more."
+            );
         }
 
         DB::transaction(function () use ($validated, $currentUser, $branchId) {
@@ -138,8 +157,14 @@ class StaffController extends Controller
 
         $spa = Auth::user()->spa;
 
-        if (in_array($validated['roles'], ['hr', 'finance']) && !($branch?->has_workforce_finance_suite ?? false)) {
-            return back()->with('error', 'HR and Finance roles require the Workforce & Finance Suite to be enabled on this branch.');
+        if (
+            in_array($validated['roles'], ['hr', 'finance'], true) &&
+            ! $spa->hasFeature('manpower')
+        ) {
+            return back()->with(
+                'error',
+                'HR and Finance accounts require the Business plan.'
+            );
         }
 
         try {

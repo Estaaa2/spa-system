@@ -39,17 +39,29 @@ class RolePermissionController extends Controller
 
     private function branchSuiteEnabled(): bool
     {
-        return (bool) ($this->getCurrentBranch()->has_workforce_finance_suite ?? false);
+        /*
+        * Compatibility method for existing callers.
+        * Access is now controlled by spa plan features, not the branch column.
+        */
+        return (bool) auth()->user()?->spa?->hasFeature('manpower');
     }
 
     private function workforceEnabled(): bool
     {
-        return $this->branchSuiteEnabled();
+        $spa = auth()->user()?->spa;
+
+        return $spa !== null
+            && $spa->hasAccess()
+            && $spa->hasFeature('manpower');
     }
 
     private function financeEnabled(): bool
     {
-        return $this->branchSuiteEnabled();
+        $spa = auth()->user()?->spa;
+
+        return $spa !== null
+            && $spa->hasAccess()
+            && $spa->hasFeature('finance');
     }
 
     private function getManageableRoles(): array

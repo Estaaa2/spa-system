@@ -6,11 +6,18 @@
         <i class="text-5xl text-green-500 fa-solid fa-circle-check"></i>
         <h2 class="mt-4 text-2xl font-semibold text-gray-700 dark:text-gray-200">Payment Successful!</h2>
         <p class="mt-2 text-gray-500 dark:text-gray-400">
-            Congratulations! Your spa is now on the Professional tier.
+            @if ($subscription)
+                Your subscription payment was received successfully.
+            @else
+                Your payment was submitted successfully.
+            @endif
         </p>
 
         <div class="flex flex-col-reverse items-center justify-center gap-3 mt-6 sm:flex-row">
-            @if ($subscription && $subscription->payment_status === 'paid')
+            @if ($subscription && (
+                    $subscription->payment_status === 'paid' ||
+                    $subscription->status === 'active'
+                ))
                 <a href="{{ route('owner.subscription.receipt', $subscription->id) }}"
                     class="inline-flex items-center justify-center gap-2 px-6 py-3 text-[#8B7355] border border-[#8B7355] rounded-lg hover:bg-[#8B7355]/5 transition-colors">
                     <i class="text-sm fa-solid fa-download"></i>

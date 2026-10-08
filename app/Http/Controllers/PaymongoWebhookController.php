@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\SubscriptionPaid;
 use App\Models\Booking;
 use App\Models\LeaveRequest;
 use App\Models\OnlineReservationPayment;
@@ -15,7 +14,6 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class PaymongoWebhookController extends Controller
 {
@@ -48,38 +46,98 @@ class PaymongoWebhookController extends Controller
         // =========================
         // 1) SUBSCRIPTION PAYMENTS
         // =========================
-        $subscription = Subscription::where('paymongo_checkout_id', $checkoutId)->first();
+        $subscription = Subscription::where(
+            'paymongo_checkout_id',
+            $checkoutId
+        )->first();
 
         if ($subscription) {
-            if ($subscription->payment_status !== 'paid') {
-                $subscription->update([
-                    'payment_status' => 'paid',
-                    'starts_at'      => now(),
-                    'expires_at'     => now()->addMonth(),
-                    'paymongo_payment_id'   => data_get($payload, 'data.attributes.data.attributes.payments.0.id'),
-                    'payment_method'        => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.source.type'),
-                ]);
-
-                $spa = Spa::with(['branches.profile', 'owner'])->find($subscription->spa_id);
-
-                if ($spa) {
-                    $spa->update(['business_tier' => 'professional']);
-
-                    $ownerEmail = $spa->owner->email ?? null;
-                    if ($ownerEmail) {
-                        try {
-                            Mail::to($ownerEmail)->send(new SubscriptionPaid($spa, $subscription));
-                            Log::info("Subscription email sent to {$ownerEmail}");
-                        } catch (\Exception $e) {
-                            Log::error("Failed to send subscription email: " . $e->getMessage());
-                        }
-                    }
-
-                    Log::info("Spa {$spa->id} upgraded to professional and branches listed");
-                }
+            // PayMongo may retry the same event. Do not process a paid
+            // subscription a second time.
+            if (
+                $subscription->payment_status === 'paid' &&
+                $subscription->status === 'active'
+            ) {
+                return response()->json([
+                    'status' => 'subscription_already_processed',
+                ], 200);
             }
 
-            return response()->json(['status' => 'subscription_processed'], 200);
+            $billingCycle = in_array(
+                $subscription->billing_cycle,
+                ['monthly', 'yearly'],
+                true
+            )
+                ? $subscription->billing_cycle
+                : 'monthly';
+
+            $planKey = in_array(
+                $subscription->business_tier,
+                ['basic', 'premium', 'business'],
+                true
+            )
+                ? $subscription->business_tier
+                : 'basic';
+
+            $plan = config("plans.{$planKey}");
+
+            if (! $plan) {
+                Log::error('Subscription webhook has invalid plan', [
+                    'subscription_id' => $subscription->id,
+                    'plan' => $subscription->business_tier,
+                ]);
+
+                return response()->json([
+                    'status' => 'invalid_subscription_plan',
+                ], 422);
+            }
+
+            $payment = data_get(
+                $payload,
+                'data.attributes.data.attributes.payments.0'
+            );
+
+            $startsAt = now();
+
+            // If this is a renewal while the existing subscription is still
+            // active, extend from its current expiry instead of shortening it.
+            $baseDate = $subscription->expires_at?->isFuture()
+                ? $subscription->expires_at->copy()
+                : $startsAt->copy();
+
+            $expiresAt = $billingCycle === 'yearly'
+                ? $baseDate->addYear()
+                : $baseDate->addMonth();
+
+            $subscription->update([
+                'payment_status' => 'paid',
+                'status' => 'active',
+                'starts_at' => $startsAt,
+                'expires_at' => $expiresAt,
+                'paymongo_payment_id' => data_get($payment, 'id'),
+                'payment_method' => data_get($payment, 'attributes.source.type'),
+            ]);
+
+            $spa = Spa::with(['branches.profile', 'owner'])
+                ->find($subscription->spa_id);
+
+            if ($spa) {
+                $spa->update([
+                    'business_tier' => $planKey,
+                ]);
+
+                Log::info('Spa subscription activated', [
+                    'spa_id' => $spa->id,
+                    'subscription_id' => $subscription->id,
+                    'plan' => $planKey,
+                    'billing_cycle' => $billingCycle,
+                    'expires_at' => $expiresAt->toDateTimeString(),
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'subscription_processed',
+            ], 200);
         }
 
         // =========================
@@ -208,21 +266,49 @@ class PaymongoWebhookController extends Controller
         return response()->json(['status' => 'not_found'], 200);
     }
 
-    private function verifyWebhookSignature(string $payload, ?string $sigHeader): bool
-    {
-        if (! $sigHeader) return false;
-
-        $secret = env('PAYMONGO_WEBHOOK_SECRET');
-
-        preg_match('/t=(\d+)/', $sigHeader, $tMatch);
-        preg_match('/te=([a-f0-9]+)/', $sigHeader, $teMatch);
-
-        if (empty($tMatch[1]) || empty($teMatch[1]) || ! $secret) {
+    private function verifyWebhookSignature(
+        string $payload,
+        ?string $sigHeader
+    ): bool {
+        if (! filled($sigHeader)) {
             return false;
         }
 
-        $computed = hash_hmac('sha256', $tMatch[1] . '.' . $payload, $secret);
+        $secret = env('PAYMONGO_WEBHOOK_SECRET');
 
-        return hash_equals($computed, $teMatch[1]);
+        if (! filled($secret)) {
+            Log::error('PayMongo webhook secret is not configured.');
+
+            return false;
+        }
+
+        preg_match('/(?:^|,)t=([^,]+)/', $sigHeader, $timestampMatch);
+        preg_match('/(?:^|,)te=([^,]+)/', $sigHeader, $testSignatureMatch);
+        preg_match('/(?:^|,)li=([^,]+)/', $sigHeader, $liveSignatureMatch);
+
+        $timestamp = $timestampMatch[1] ?? null;
+
+        $signature = app()->environment('production')
+            ? ($liveSignatureMatch[1] ?? null)
+            : ($testSignatureMatch[1] ?? null);
+
+        if (! filled($timestamp) || ! filled($signature)) {
+            Log::warning('PayMongo webhook signature is incomplete.', [
+                'environment' => app()->environment(),
+            ]);
+
+            return false;
+        }
+
+        $computed = hash_hmac(
+            'sha256',
+            $timestamp . '.' . $payload,
+            $secret
+        );
+
+        return hash_equals(
+            strtolower($computed),
+            strtolower($signature)
+        );
     }
 }

@@ -30,6 +30,14 @@
         'missing_ids' => 'Missing IDs',
     ];
     $shown = $groups->sum(fn ($g) => $g->count());
+
+    $spa = auth()->user()?->spa;
+
+    $hasPayrollAccess = (bool) (
+        $spa
+        && $spa->hasAccess()
+        && $spa->hasFeature('payroll')
+    );
 @endphp
 
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
@@ -67,7 +75,7 @@
             <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Not in Payroll</p>
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
                 <h3 class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">{{ $counts['excluded'] }}</h3>
-                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Home branch has no suite</span>
+                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Payroll access unavailable</span>
             </div>
         </div>
     </div>
@@ -99,16 +107,21 @@
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $branch?->location ?? 'Assign a home branch so this staff member can be paid.' }}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 shrink-0">
-                    @if($branch && !$branch->trashed() && $branch->has_workforce_finance_suite)
-                        <span class="{{ $badgeBase }} bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"><i class="fa-solid fa-star text-[10px]" aria-hidden="true"></i> Suite</span>
+                    @if ($hasPayrollAccess && $branch && ! $branch->trashed())
+                        <span class="{{ $badgeBase }} bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                            <i class="fa-solid fa-money-check-dollar text-[10px]" aria-hidden="true"></i>
+                            Payroll enabled
+                        </span>
                     @else
-                        <span class="{{ $badgeBase }} bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">Not included in payroll</span>
+                        <span class="{{ $badgeBase }} bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                            Payroll unavailable
+                        </span>
                     @endif
                     <span class="text-sm text-gray-500 dark:text-gray-400">{{ $rows->count() }} staff</span>
                 </div>
             </div>
             <div class="md:overflow-x-auto">
-                <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
                     <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                         <tr role="row">
                             <th role="columnheader" class="{{ $th }}">Staff Member</th>

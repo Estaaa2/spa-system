@@ -9,6 +9,7 @@ use App\Models\OperatingHours;
 use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Models\Spa;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +36,15 @@ class FlutterBookingController extends Controller
             'total_amount'       => 'required|numeric',
             'downpayment_amount' => 'required|numeric',
         ]);
+
+        $spa = Spa::find($validated['spa_id']);
+
+        if (! $spa || ! $spa->hasFeature('online_reservation')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Online reservations are not available for this spa. The owner must upgrade to Premium or Business.',
+            ], 422);
+        }
 
         $serviceTypeDb = $validated['service_type'] === 'In-Branch' ? 'in_branch' : 'in_home';
 

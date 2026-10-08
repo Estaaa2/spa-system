@@ -33,7 +33,7 @@
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
     <x-page-header
         title="Subscriptions"
-        subtitle="Professional plan payments made by spas through PayMongo."
+        subtitle="Subscription payments made by spas through PayMongo."
     />
 
     <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

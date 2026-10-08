@@ -33,6 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'enforce.branch' => \App\Http\Middleware\LockBranchForNonOwner::class,
             'force.password.change' => \App\Http\Middleware\ForcePasswordChange::class,
             'branch.permission' => \App\Http\Middleware\EnsureBranchPermission::class,
+            'owner.onboarding' => \App\Http\Middleware\EnsureOwnerOnboardingState::class,
+            'plan' => \App\Http\Middleware\EnsurePlanFeature::class,
+            'spa.access' => \App\Http\Middleware\EnsureSpaAccess::class,
         ]);
 
         $middleware->web(append: [

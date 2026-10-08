@@ -7,20 +7,80 @@
     if ($user?->hasRole('owner')) {
         $branches = $spa?->branches ?? collect();
     } else {
-        $branches = $spa?->branches ? $spa->branches->where('id', $user->branch_id) : collect();
+        $branches = $spa?->branches
+            ? $spa->branches->where('id', $user->branch_id)
+            : collect();
     }
 
-    $firstBranch = $branches->first();
+    $branches = $branches
+        ->sortBy(function ($branch) {
+            return [
+                $branch->is_main ? 0 : 1,
+                strtolower((string) $branch->name),
+            ];
+        })
+        ->values();
+
+    $mainBranch = $branches->firstWhere('is_main', true);
+    $firstBranch = $mainBranch ?? $branches->first();
+
     $currentBranchId = session('current_branch_id');
-    $currentBranch = $branches->firstWhere('id', $currentBranchId) ?? $firstBranch;
+
+    $currentBranch = $branches->firstWhere('id', $currentBranchId)
+        ?? $firstBranch;
 
     $can = fn($permission) => $user?->hasBranchPermission($permission) ?? false;
 
-    $suiteEnabled =
-        ($spa?->business_tier ?? null) === 'professional' &&
-        (bool) ($currentBranch?->has_workforce_finance_suite ?? false);
+    $canInsights = $spa?->hasFeature('insights') ?? false;
+    $canInventoryBasic = $spa?->hasFeature('inventory_basic') ?? false;
+    $canInventoryFull = $spa?->hasFeature('inventory_full') ?? false;
+    $canPayrollPlan = $spa?->hasFeature('payroll') ?? false;
+    $canFinancePlan = $spa?->hasFeature('finance') ?? false;
+    $canProcurementPlan = $spa?->hasFeature('procurement') ?? false;
+    $canManpowerPlan = $spa?->hasFeature('manpower') ?? false;
+    $canBillingPlan = $spa?->hasFeature('billing_page') ?? false;
 
-    $canWorkforceFinanceSuiteSettings = $user?->hasRole('owner') && ($spa?->business_tier ?? null) === 'professional';
+    $canStartTrial = $spa?->canStartTrial() ?? false;
+    $currentPlan = $spa?->currentPlan() ?? 'expired';
+
+    /*
+    * A verified first-time owner has not expired.
+    * They simply have not selected their free trial yet.
+    */
+    if ($canStartTrial) {
+        $currentPlan = 'trial_available';
+    }
+
+    $currentPlanName = match ($currentPlan) {
+        'trial_available' => 'Trial Available',
+        'business' => 'Business',
+        'premium' => 'Premium',
+        'basic' => 'Basic',
+        'expired' => 'Expired',
+        default => ucfirst($currentPlan),
+    };
+
+    $planBadgeClasses = match ($currentPlan) {
+        'trial_available' =>
+            'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+
+        'business' =>
+            'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+
+        'premium' =>
+            'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+
+        'basic' =>
+            'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+
+        default =>
+            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+    };
+
+    $suiteEnabled = $spa?->hasFeature('manpower') ?? false;
+    $canAllBranches = $spa?->hasFeature('all_branches') ?? false;
+
+    $canWorkforceFinanceSuiteSettings = false;
 
     // Same check the role('owner') directive performs, in a form the section wrappers can reuse.
     $isOwner = (bool) ($user?->hasRole('owner') ?? false);
@@ -32,14 +92,18 @@
     $myStaffIds = $user?->spa_id
         ? \App\Models\Staff::withTrashed()->where('user_id', $user->id)->where('spa_id', $user->spa_id)->pluck('id')
         : collect();
-    $canMyPayslips = $myStaffIds->isNotEmpty() && (
+    $canMyPayslips =
+    $myStaffIds->isNotEmpty()
+    && (
         \App\Models\Staff::whereIn('id', $myStaffIds)
             ->where('employment_status', 'active')
-            ->whereHas('branch', fn ($q) => $q->where('has_workforce_finance_suite', true))
+            ->whereHas('branch', fn ($q) => $q->where('spa_id', $user->spa_id))
             ->exists()
         || \App\Models\Payslip::whereIn('staff_id', $myStaffIds)
-            ->whereHas('payrollRun', fn ($q) => $q->where('spa_id', $user->spa_id)
-                ->where('status', \App\Models\PayrollRun::STATUS_RELEASED))
+            ->whereHas('payrollRun', fn ($q) => $q
+                ->where('spa_id', $user->spa_id)
+                ->where('status', \App\Models\PayrollRun::STATUS_RELEASED)
+            )
             ->exists()
     );
 
@@ -108,24 +172,42 @@
 
     // Finance
     $canRevenue = $can('view revenue');
-    $canBilling = $can('view billing') || $can('create billing') || $can('edit billing') || $can('delete billing');
+    $canBilling =
+    $canBillingPlan &&
+    (
+        $can('view billing') ||
+        $can('create billing') ||
+        $can('edit billing') ||
+        $can('delete billing')
+    );
 
     // Vendor bills. IMPORTANT: these permission names must match your seeder and routes.
     $canVendorBills = $can('view vendor bills') || $can('create vendor bills') || $can('edit vendor bills');
 
-    $showFinance = $suiteEnabled && ($canPayroll || $canRevenue || $canBilling || $canVendorBills);
+    $showFinance = $canFinancePlan && (
+        $canRevenue ||
+        $canBilling ||
+        $canVendorBills
+    );
 
     // Procurement
     $canSuppliers = $can('view suppliers');
     $canPurchaseRequests = $can('view purchase requests');
     $canPurchaseOrders = $can('view purchase orders');
 
-    $showProcurement = $canSuppliers || $canPurchaseRequests || $canPurchaseOrders;
+    $showProcurement = $canProcurementPlan && (
+        $canSuppliers ||
+        $canPurchaseRequests ||
+        $canPurchaseOrders
+    );
 
     // Insights
     $canDecisionSupport = $can('view decision support');
     $canReports = $can('view reports');
-    $showInsights = $canDecisionSupport || $canReports;
+    $showInsights = $canInsights && (
+        $canDecisionSupport ||
+        $canReports
+    );
 
     // Inventory
     $canProductInventory =
@@ -139,7 +221,12 @@
     $canViewReplenishment = $can('view replenishment');
     $canViewGoodsReceipts = $user->hasBranchPermission('view goods receipts');
 
-    $showInventory = $canProductInventory || $canProductLogs || $canStockTransfers || $canViewReplenishment || $canViewGoodsReceipts;
+    $showInventory = $canInventoryBasic && (
+        $canProductInventory ||
+        $canProductLogs ||
+        $canViewReplenishment ||
+        ($canInventoryFull && ($canStockTransfers || $canViewGoodsReceipts))
+    );
 
     // Single source for "which collapsible section owns the current route".
     // Consumed twice: by the collapsed-section dot below, and by the sidebar
@@ -313,10 +400,9 @@
                                     @endif
                                 </div>
 
-                                @if (($spa?->business_tier ?? null) === 'professional')
-                                    <span
-                                        class="ml-2 text-[10px] px-2 py-0.5 rounded-full {{ $branch->has_workforce_finance_suite ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' }}">
-                                        {{ $branch->has_workforce_finance_suite ? 'Suite' : 'Basic' }}
+                                @if ($currentPlan !== 'expired')
+                                    <span class="ml-2 px-2 py-0.5 text-[10px] font-semibold rounded-full {{ $planBadgeClasses }}">
+                                        {{ $currentPlanName }}
                                     </span>
                                 @endif
 
@@ -327,7 +413,7 @@
                             </button>
                         @endforeach
 
-                        @if ($canBranches)
+                        @if ($canAllBranches && $canBranches)
                             <div class="px-4 py-2 text-xs text-gray-500 border-t dark:text-gray-400 dark:border-gray-700">
                                 <a href="{{ route('branches.index') }}"
                                     class="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400">
@@ -385,7 +471,14 @@
                                     <i
                                         class="flex-shrink-0 mr-3 text-gray-500 fa-solid fa-location-dot dark:text-gray-400"></i>
                                     <div class="flex-1 min-w-0">
-                                        <p class="font-medium truncate" x-text="selectedBranch"></p>
+                                        <div class="flex items-center min-w-0 gap-2">
+                                            <p class="font-medium truncate" x-text="selectedBranch"></p>
+
+                                            <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full shrink-0 {{ $planBadgeClasses }}">
+                                                {{ $currentPlanName }}
+                                            </span>
+                                        </div>
+
                                         <p class="text-xs text-gray-500 truncate dark:text-gray-400">
                                             {{ $branches->count() }} {{ Str::plural('branch', $branches->count()) }}
                                             available
@@ -460,10 +553,9 @@
                                                 </div>
 
                                                 <div class="flex items-center gap-2">
-                                                    @if (($spa?->business_tier ?? null) === 'professional')
-                                                        <span
-                                                            class="text-[10px] px-2 py-0.5 rounded-full {{ $branch->has_workforce_finance_suite ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' }}">
-                                                            {{ $branch->has_workforce_finance_suite ? 'Suite' : 'Basic' }}
+                                                    @if ($currentPlan !== 'expired')
+                                                        <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full {{ $planBadgeClasses }}">
+                                                            {{ $currentPlanName }}
                                                         </span>
                                                     @endif
 
@@ -476,7 +568,7 @@
                                         @endforeach
                                     </div>
 
-                                    @if ($canBranches)
+                                    @if ($canAllBranches && $canBranches)
                                         <div class="pt-1 mt-1 border-t dark:border-gray-700">
                                             <a href="{{ route('branches.index') }}"
                                                 class="flex items-center justify-center px-4 py-2 text-sm text-center text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700">
@@ -871,7 +963,7 @@
                                     Product Logs
                                 </x-nav-link>
                             @endif
-                            @if ($canViewGoodsReceipts)
+                            @if ($canInventoryFull && $canViewGoodsReceipts)
                                 <x-nav-link
                                     :href="route('inventory.goods-receipts.index')"
                                     :active="request()->routeIs('inventory.goods-receipts.*')"
@@ -879,7 +971,7 @@
                                     Goods Receipts
                                 </x-nav-link>
                             @endif
-                            @if ($canViewReplenishment)
+                            @if ($canInventoryFull && $canViewReplenishment)
                                 <x-nav-link
                                     :href="route('inventory.replenishment.index')"
                                     :active="request()->routeIs('inventory.replenishment.*')"
@@ -887,7 +979,7 @@
                                     Replenishment
                                 </x-nav-link>
                             @endif
-                            @if ($canStockTransfers)
+                            @if ($canInventoryFull && $canStockTransfers)
                                 <x-nav-link :href="route('inventory.transfers')" :active="request()->routeIs('inventory.transfers*')">
                                     Stock Transfers
                                 </x-nav-link>
@@ -967,8 +1059,11 @@
                         </button>
 
                         <div x-show="isOpen('business')" x-collapse id="nav-section-business" class="ml-4 space-y-1">
-                            @if ($canBranches)
-                                <x-nav-link :href="route('branches.index')" :active="request()->routeIs('branches.index')">
+                            @if ($canAllBranches && $canBranches)
+                                <x-nav-link
+                                    :href="route('branches.index')"
+                                    :active="request()->routeIs('branches.index')"
+                                >
                                     All Branches
                                 </x-nav-link>
                             @endif
@@ -984,12 +1079,6 @@
                                     Subscription &amp; Billing
                                 </x-nav-link>
                             @endrole
-
-                            @if ($canWorkforceFinanceSuiteSettings)
-                                <x-nav-link :href="route('owner.workforce-finance-suite.index')" :active="request()->routeIs('owner.workforce-finance-suite.*')">
-                                    Workforce &amp; Finance Suite
-                                </x-nav-link>
-                            @endif
 
                         </div>
                     </div>
