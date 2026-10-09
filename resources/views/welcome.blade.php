@@ -1581,6 +1581,10 @@
                                         <i class="fa-solid fa-calendar-check"></i>
                                         Reserve An Appointment
                                     </button>
+                                    <p id="spaModalNoBookingNote"
+                                        class="hidden px-3 py-2 text-xs text-center text-gray-500 dark:text-gray-400 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
+                                        Online reservation isn't available for this spa right now. Please contact them directly to book.
+                                    </p>
                                 </div>
                             </div>
                         </div>

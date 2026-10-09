@@ -195,6 +195,15 @@ function openSpaModal(spaData) {
     document.getElementById('spaModalPrice').textContent   = spaData.price_note
     ? (spaData.has_promo ? `Starts at ₱${spaData.price_note} — ${spaData.promo_label} running` : `Starts at ₱${spaData.price_note}`)
     : 'Prices vary per treatment';
+
+    // Online reservation gate. The server sends can_book_online per spa;
+    // a missing flag counts as allowed so older payloads keep working.
+    const reserveBtn  = document.getElementById('openBookingModalBtn');
+    const noBookNote  = document.getElementById('spaModalNoBookingNote');
+    const canBookOnline = spaData.can_book_online !== false;
+    reserveBtn?.classList.toggle('hidden', !canBookOnline);
+    noBookNote?.classList.toggle('hidden', canBookOnline);
+
     const hiringBlock = document.getElementById('spaModalHiring');
     const hiringNote   = document.getElementById('spaModalHiringNote');
     const ratingBlock = document.getElementById('spaModalRating');

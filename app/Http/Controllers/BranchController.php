@@ -449,7 +449,11 @@ class BranchController extends Controller
         $profileData = $validator->validated();
         unset($profileData['location_confirmed']);
 
-        $profileData['is_listed'] = $canPubliclyList && $request->boolean('is_listed');
+        $spa = $branch->spa;
+        $canPubliclyList = $spa?->hasFeature('branch_public_listing') ?? false;
+
+        $profileData['is_listed'] =
+            $canPubliclyList && $request->boolean('is_listed');
         $profileData['is_hiring'] = $request->boolean('is_hiring');
         $profileData['hiring_note'] = $profileData['is_hiring']
             ? ($profileData['hiring_note'] ?? null)

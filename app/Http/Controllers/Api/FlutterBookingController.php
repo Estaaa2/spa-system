@@ -42,7 +42,7 @@ class FlutterBookingController extends Controller
         if (! $spa || ! $spa->hasFeature('online_reservation')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Online reservations are not available for this spa. The owner must upgrade to Premium or Business.',
+                'message' => 'Online reservations are not available for this spa right now. Please contact the spa directly.',
             ], 422);
         }
 

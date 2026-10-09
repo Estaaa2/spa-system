@@ -12,6 +12,17 @@ class Spa extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Per-instance cache for the latest paid subscription.
+     *
+     * hasAccess(), hasFeature() and currentPlan() each need it, and the
+     * landing page calls them for every spa, so without this each spa would
+     * trigger the same query several times per request.
+     */
+    private bool $latestPaidSubscriptionLoaded = false;
+
+    private ?Subscription $latestPaidSubscriptionCache = null;
+
     protected $fillable = [
         'owner_id',
         'name',
@@ -72,14 +83,32 @@ class Spa extends Model
      *
      * Expired records are intentionally included because they are needed
      * to calculate the three-day grace period.
+     *
+     * The result is cached on this model instance. Call
+     * forgetSubscriptionCache() after creating or updating a subscription
+     * within the same request.
      */
     public function latestPaidSubscription(): ?Subscription
     {
-        return $this->subscriptions()
+        if ($this->latestPaidSubscriptionLoaded) {
+            return $this->latestPaidSubscriptionCache;
+        }
+
+        $this->latestPaidSubscriptionCache = $this->subscriptions()
             ->where('payment_status', 'paid')
             ->whereIn('business_tier', ['basic', 'premium', 'business'])
             ->latest('id')
             ->first();
+
+        $this->latestPaidSubscriptionLoaded = true;
+
+        return $this->latestPaidSubscriptionCache;
+    }
+
+    public function forgetSubscriptionCache(): void
+    {
+        $this->latestPaidSubscriptionLoaded = false;
+        $this->latestPaidSubscriptionCache = null;
     }
 
     public function canStartTrial(): bool

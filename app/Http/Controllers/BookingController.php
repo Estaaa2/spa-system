@@ -543,6 +543,14 @@ class BookingController extends Controller
             ],
         ]);
 
+        $onlineSpa = \App\Models\Spa::find($validated['spa_id']);
+
+        if (! $onlineSpa || ! $onlineSpa->hasFeature('online_reservation')) {
+            return back()->withErrors([
+                'start_time' => 'Online reservations are not available for this spa right now. Please contact the spa directly.',
+            ])->withInput();
+        }
+
         $branchOk = \App\Models\Branch::where('id', $validated['branch_id'])
             ->where('spa_id', $validated['spa_id'])
             ->exists();

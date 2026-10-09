@@ -11,15 +11,37 @@ use Illuminate\Http\Request;
 
 class LandingController extends Controller
 {
+    /**
+     * A spa is publicly listable when it is verified, has active access,
+     * and its plan includes normal public listing (Basic, Premium, Business).
+     */
+    private function isPubliclyListable(Spa $spa): bool
+    {
+        return $spa->verification_status === 'verified'
+            && $spa->hasAccess()
+            && $spa->hasFeature('branch_public_listing');
+    }
+
+    /**
+     * A spa is Featured only when it is publicly listable AND its plan
+     * includes the separate featured_listing feature (Premium, Business).
+     */
+    private function isFeatured(Spa $spa): bool
+    {
+        return $this->isPubliclyListable($spa)
+            && $spa->hasFeature('featured_listing');
+    }
+
+    private $publicSpaIdsCache = null;
+
     private function publicSpaIds()
     {
-        return Spa::query()
+        // index() and its helpers call this several times per request;
+        // compute it once.
+        return $this->publicSpaIdsCache ??= Spa::query()
             ->where('verification_status', 'verified')
             ->get()
-            ->filter(fn (Spa $spa) =>
-                $spa->hasAccess()
-                && $spa->hasFeature('branch_public_listing')
-            )
+            ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
             ->pluck('id');
     }
 
@@ -112,13 +134,14 @@ class LandingController extends Controller
     {
         $spas = $this->spaSearchQuery($place, $treatment)
             ->get()
-            ->filter(fn (Spa $spa) =>
-                $spa->hasAccess()
-                && $spa->hasFeature('branch_public_listing')
-            )
+            ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
             ->values();
 
-        return $this->buildSpaCards($spas);
+        // Featured spas are shown first in search results.
+        return collect($this->buildSpaCards($spas))
+            ->sortByDesc('is_featured')
+            ->values()
+            ->all();
     }
 
     public function index(Request $request)
@@ -142,7 +165,7 @@ class LandingController extends Controller
         $isSearching = (bool) ($place || $treatment);
         $publicSpaIds = $this->publicSpaIds();
 
-        $allSpas = Spa::with([
+        $eligible = Spa::with([
             'branches' => function ($query) {
                 $query
                     ->whereHas('profile', function ($profileQuery) {
@@ -159,14 +182,19 @@ class LandingController extends Controller
                 });
             })
             ->get()
-            ->filter(fn (Spa $spa) =>
-                $spa->hasAccess()
-                && $spa->hasFeature('branch_public_listing')
-            )
+            ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
             ->values();
 
-        $spas = $allSpas;
-        $basicSpas = collect();
+        // $spas = Featured section (Premium and Business only).
+        $spas = $eligible
+            ->filter(fn (Spa $spa) => $this->isFeatured($spa))
+            ->values();
+
+        // $basicSpas = normal public listing (Basic).
+        // Featured spas are excluded so they don't appear twice.
+        $basicSpas = $eligible
+            ->reject(fn (Spa $spa) => $this->isFeatured($spa))
+            ->values();
 
         $results = $isSearching
             ? $this->unifiedResults($place, $treatment)
@@ -213,12 +241,11 @@ class LandingController extends Controller
         $cards = [];
 
         foreach ($spas as $spa) {
-            if (
-                ! $spa->hasAccess()
-                || ! $spa->hasFeature('branch_public_listing')
-            ) {
+            if (! $this->isPubliclyListable($spa)) {
                 continue;
             }
+
+            $featured = $this->isFeatured($spa);
 
             foreach ($spa->branches as $branch) {
                 $profile = $branch->profile;
@@ -262,8 +289,9 @@ class LandingController extends Controller
                 $cards[] = [
                     'id' => $spa->id,
                     'name' => $spa->name,
-                    'tag' => 'Featured Spa',
-                    'is_featured' => true,
+                    'tag' => $featured ? 'Featured Spa' : 'Spa',
+                    'can_book_online' => $spa->hasFeature('online_reservation'),
+                    'is_featured' => $featured,
                     'branch_id' => $branch->id,
                     'branch_name' => $branch->name,
                     'branch_location' => $branch->location ?? '',
@@ -360,20 +388,18 @@ class LandingController extends Controller
             'subscriptions',
         ])
             ->whereIn('id', $this->publicSpaIds())
-            ->where('verification_status', 'verified')
             ->whereHas('branches', function ($query) use ($branchIds) {
                 $query->whereIn('id', $branchIds);
             })
             ->get()
-            ->filter(fn (Spa $spa) =>
-                $spa->hasAccess()
-                && $spa->hasFeature('branch_public_listing')
-            )
+            ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
             ->values();
 
         $result = [];
 
         foreach ($spas as $spa) {
+            $featured = $this->isFeatured($spa);
+
             foreach ($spa->branches as $branch) {
                 if (! isset($nearby[$branch->id])) {
                     continue;
@@ -394,7 +420,8 @@ class LandingController extends Controller
                     'id' => $spa->id,
                     'name' => $spa->name,
                     'tag' => 'Nearby Spa',
-                    'is_featured' => true,
+                    'can_book_online' => $spa->hasFeature('online_reservation'),
+                    'is_featured' => $featured,
                     'branch_id' => $branch->id,
                     'branch_name' => $branch->name,
                     'branch_location' => $branch->location ?? '',
@@ -436,7 +463,7 @@ class LandingController extends Controller
     {
         $spa = Spa::find($spaId);
 
-        if (! $spa || ! $spa->hasAccess() || ! $spa->hasFeature('branch_public_listing')) {
+        if (! $spa || ! $this->isPubliclyListable($spa)) {
             return response()->json([
                 'total' => 0,
                 'counts' => [],

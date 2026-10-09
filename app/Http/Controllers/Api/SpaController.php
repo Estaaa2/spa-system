@@ -19,6 +19,15 @@ class SpaController extends Controller
             && $spa->hasFeature('branch_public_listing');
     }
 
+        /**
+     * Featured = publicly listed AND plan has featured_listing (Premium, Business).
+     */
+    private function featuredSpa(Spa $spa): bool
+    {
+        return $this->publicSpa($spa)
+            && $spa->hasFeature('featured_listing');
+    }
+
     /**
      * Keep only branches that are explicitly listed publicly.
      */
@@ -90,12 +99,12 @@ class SpaController extends Controller
         $spas = $query->get()
             ->filter(fn (Spa $spa) => $this->publicSpa($spa))
             ->filter(function (Spa $spa) use ($request) {
-                if ($request->has('featured')) {
-                    return $spa->hasFeature('branch_public_listing');
+                                if ($request->has('featured')) {
+                    return $spa->hasFeature('featured_listing');
                 }
 
                 if ($request->has('exclude_featured')) {
-                    return false;
+                    return ! $spa->hasFeature('featured_listing');
                 }
 
                 return true;
@@ -112,7 +121,7 @@ class SpaController extends Controller
         ]);
     }
 
-    /**
+        /**
      * GET /api/featured-spas
      */
     public function featured()
@@ -126,7 +135,7 @@ class SpaController extends Controller
             ])
                 ->where('verification_status', 'verified')
                 ->get()
-                ->filter(fn (Spa $spa) => $this->publicSpa($spa))
+                ->filter(fn (Spa $spa) => $this->featuredSpa($spa))
                 ->values();
 
             $flattenedBranches = [];
@@ -149,6 +158,8 @@ class SpaController extends Controller
                             ? url('storage/' . $profile->cover_image)
                             : '',
                         'tag' => 'Featured Spa',
+                        'is_featured' => true,
+                        'can_book_online' => $spa->hasFeature('online_reservation'),
                         'rating' => 0.0,
                         'reviews' => 0,
                         'price_note' => '',
@@ -245,9 +256,39 @@ class SpaController extends Controller
      *
      * Basic/non-public spas must no longer be exposed by this endpoint.
      */
+        /**
+     * GET /api/spas/other
+     *
+     * Publicly listed spas that are NOT featured (Basic plan).
+     */
     public function getOtherSpas()
     {
-        return response()->json([]);
+        try {
+            $spas = Spa::with([
+                'branches.treatments',
+                'branches.operatingHours',
+                'branches.profile',
+                'subscriptions',
+            ])
+                ->where('verification_status', 'verified')
+                ->get()
+                ->filter(fn (Spa $spa) => $this->publicSpa($spa)
+                    && ! $spa->hasFeature('featured_listing'))
+                ->values();
+
+            $spas->each(fn (Spa $spa) => $this->publicBranches($spa));
+
+            return response()->json(
+                $spas
+                    ->filter(fn (Spa $spa) => $spa->branches->isNotEmpty())
+                    ->map(fn (Spa $spa) => $this->formatSpa($spa))
+                    ->values()
+            );
+        } catch (\Throwable $e) {
+            \Log::error('Error in other spas API: ' . $e->getMessage());
+
+            return response()->json([]);
+        }
     }
 
     /**
@@ -416,6 +457,8 @@ class SpaController extends Controller
                 ? url('storage/' . $profile->cover_image)
                 : '',
             'tag' => 'Verified Spa',
+            'is_featured' => $spa->hasFeature('featured_listing'),
+            'can_book_online' => $spa->hasFeature('online_reservation'),
             'rating' => 0.0,
             'reviews' => 0,
             'price_note' => '',

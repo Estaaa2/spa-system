@@ -217,6 +217,15 @@ class BookingController extends Controller
 
             $user = $request->user();
 
+            $spa = \App\Models\Spa::find($request->spa_id);
+
+            if (! $spa || ! $spa->hasFeature('online_reservation')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Online reservations are not available for this spa right now. Please contact the spa directly.',
+                ], 422);
+            }
+
             $booking = Booking::create([
                 'spa_id'            => $request->spa_id,
                 'branch_id'         => $request->branch_id,
