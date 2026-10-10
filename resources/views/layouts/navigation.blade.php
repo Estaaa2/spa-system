@@ -228,6 +228,36 @@
         ($canInventoryFull && ($canStockTransfers || $canViewGoodsReceipts))
     );
 
+    
+    // ── Branch lock ──────────────────────────────────────────────────────────
+    // A locked branch shows no branch-scoped links. The same rule is enforced
+    // on the server by EnsureBranchOperational, so typing a URL does not work.
+    $branchLockReason = ($spa && $currentBranch && $spa->hasAccess())
+        ? $currentBranch->lockReason()
+        : null;
+
+    $branchLocked = $branchLockReason !== null;
+
+    $branchLockMessage = match ($branchLockReason) {
+        'verification' => 'This branch is locked until an administrator approves its documents.',
+        'documents_expired' => 'This branch is locked because its Business Permit has expired.',
+        'plan_limit' => 'This branch is not covered by your current plan.',
+        default => null,
+    };
+
+    if ($branchLocked) {
+        $canDashboard = false;
+        $canMyPayslips = false;
+        $showOperations = false;
+        $showPeople = false;
+        $showServices = false;
+        $showFinance = false;
+        $showInsights = false;
+        $showProcurement = false;
+        $showInventory = false;
+        $showThisBranch = false;
+    }
+
     // Single source for "which collapsible section owns the current route".
     // Consumed twice: by the collapsed-section dot below, and by the sidebar
     // Alpine component via @json. Never hand-duplicate these route matches.
@@ -611,6 +641,22 @@
                 <p class="px-4 pb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
                     Branch Overview
                 </p>
+                
+                @if ($branchLocked)
+                    <div class="px-4 py-3 mt-1 mb-1 text-sm rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                        <p class="text-yellow-800 dark:text-yellow-200">
+                            <i class="mr-2 fa-solid fa-lock"></i>
+                            {{ $branchLockMessage }}
+                        </p>
+
+                        @role('owner')
+                            <a href="{{ $branchLockReason === 'plan_limit' ? route('owner.subscription.index') : route('owner.spa-profile.edit') }}"
+                                class="inline-flex items-center justify-center w-full px-3 py-2 mt-2 text-xs font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600">
+                                {{ $branchLockReason === 'plan_limit' ? 'View Subscription' : 'Open Branch Documents' }}
+                            </a>
+                        @endrole
+                    </div>
+                @endif
 
                 <div class="space-y-1">
                     <!-- Dashboard -->

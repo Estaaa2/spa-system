@@ -28,7 +28,7 @@ class EnsureCurrentBranch
             $spa = $user->ownedSpas()->first();
 
             if ($spa) {
-                $firstBranch = $spa->branches()->first();
+                $firstBranch = $spa->mainBranch();
 
                 if ($firstBranch) {
                     session(['current_branch_id' => $firstBranch->id]);

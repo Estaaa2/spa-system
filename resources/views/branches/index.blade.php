@@ -227,6 +227,21 @@
                     $removeBlockedReason = $branch->is_main
                         ? 'Main branch — cannot be removed'
                         : 'Has assigned staff — cannot be removed';
+                    
+                    $verificationBadge = match ($branch->verification_status) {
+                        'pending' => [
+                            'label' => 'Under Review',
+                            'class' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                        ],
+                        'rejected' => [
+                            'label' => 'Documents Rejected',
+                            'class' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                        ],
+                        default => [
+                            'label' => 'Documents Required',
+                            'class' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+                        ],
+                    };
                 @endphp
 
                 <div class="p-5 transition-colors border rounded-2xl
@@ -263,6 +278,23 @@
                             </span>
                         @endif
                     </div>
+                    
+                    @if (! $branch->is_main && $branch->verification_status !== 'verified')
+                        <div class="flex flex-wrap items-center justify-between gap-2 mt-4">
+                            <span class="px-2.5 py-1 text-xs font-medium rounded-full {{ $verificationBadge['class'] }}">
+                                {{ $verificationBadge['label'] }}
+                            </span>
+
+                            @role('owner')
+                                @if ($branch->verification_status !== 'pending')
+                                                                        <a href="{{ route('owner.spa-profile.edit', ['branch' => $branch->id]) }}"
+                                        class="text-[11px] font-semibold text-[#8B7355] underline hover:text-[#6F5430]">
+                                        Upload documents
+                                    </a>
+                                @endif
+                            @endrole
+                        </div>
+                    @endif
 
                     {{-- Stats grid — matches roles-permissions mini-stat boxes --}}
                     <div class="grid grid-cols-2 gap-3 mt-5">

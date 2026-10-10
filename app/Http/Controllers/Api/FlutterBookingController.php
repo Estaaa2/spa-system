@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\OnlineReservationPayment;
 use App\Models\OperatingHours;
 use App\Models\Package;
@@ -43,6 +44,22 @@ class FlutterBookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Online reservations are not available for this spa right now. Please contact the spa directly.',
+            ], 422);
+        }
+
+        // The branch must belong to this spa and be approved to operate.
+        $branch = Branch::where('id', $validated['branch_id'])
+            ->where('spa_id', $spa->id)
+            ->first();
+
+        if (
+            $spa->verification_status !== 'verified' ||
+            ! $branch ||
+            ! $branch->isOperational()
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This branch is not accepting online reservations right now. Please contact the spa directly.',
             ], 422);
         }
 

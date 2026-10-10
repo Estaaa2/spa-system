@@ -16,6 +16,10 @@ class EnsureBranchPermission
             abort(403);
         }
 
+        if ($denied = EnsureBranchOperational::denialFor($request)) {
+            return $denied;
+        }
+
         foreach ($permissions as $permission) {
             if ($user->hasBranchPermission($permission)) {
                 return $next($request);

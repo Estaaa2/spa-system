@@ -96,6 +96,183 @@
         @endforeach
     </nav>
 
+    @if ($branchApplications->isNotEmpty())
+        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                    Branch Applications
+                </h2>
+
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Additional branches waiting for document review.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                            <th class="{{ $thClass }}">Branch</th>
+                            <th class="{{ $thClass }}">Spa</th>
+                            <th class="{{ $thClass }}">Owner</th>
+                            <th class="{{ $thClass }}">Submitted</th>
+
+                            @if ($canEdit)
+                                <th class="{{ $thClass }}">Actions</th>
+                            @endif
+                        </tr>
+                    </thead>
+
+                    <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                        @foreach ($branchApplications as $application)
+                            <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
+                                <td class="px-6 py-4">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ $application->name }}
+                                    </p>
+
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $application->location }}
+                                    </p>
+                                </td>
+
+                                <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                    {{ $application->spa?->name ?: '—' }}
+                                </td>
+
+                                <td class="px-6 py-4">
+                                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                                        {{ $application->spa?->owner?->name ?: '—' }}
+                                    </p>
+
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $application->spa?->owner?->email }}
+                                    </p>
+                                </td>
+
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ $application->updated_at?->format('M d, Y') }}
+                                </td>
+
+                                @if ($canEdit)
+                                    <td class="px-6 py-4">
+                                        <button type="button"
+                                            onclick="openSpaModal({{ $application->id }}, 'branch')"
+                                            class="{{ $btn['primary'] }}">
+
+                                            <i class="text-xs fa-solid fa-file-circle-check"
+                                                aria-hidden="true"></i>
+
+                                            Review
+                                        </button>
+                                    </td>
+                                @endif
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @if ($branchApplications->hasPages())
+                <div class="px-4 py-4 border-t border-gray-200 sm:px-6 dark:border-gray-700">
+                    {{ $branchApplications->links() }}
+                </div>
+            @endif
+        </div>
+    @endif
+
+    @if ($documentReviews->isNotEmpty())
+        <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                    Document Reviews
+                </h2>
+
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Renewed or newly uploaded documents of spas and branches that are already verified.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                            <th class="{{ $thClass }}">Document</th>
+                            <th class="{{ $thClass }}">Spa</th>
+                            <th class="{{ $thClass }}">Owner</th>
+                            <th class="{{ $thClass }}">Date in effect</th>
+                            <th class="{{ $thClass }}">Submitted</th>
+
+                            @if ($canEdit)
+                                <th class="{{ $thClass }}">Actions</th>
+                            @endif
+                        </tr>
+                    </thead>
+
+                    <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                        @foreach ($documentReviews as $review)
+                            @php
+                                $reviewSpa = $documentReviewSpas->get($review->spa_id);
+                            @endphp
+
+                            <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
+                                <td class="px-6 py-4">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ $documentLabels[$review->document_type] ?? $review->document_type }}
+                                    </p>
+
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $review->branch?->name ?: 'All branches' }}
+                                    </p>
+                                </td>
+
+                                <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                    {{ $reviewSpa?->name ?: '—' }}
+                                </td>
+
+                                <td class="px-6 py-4">
+                                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                                        {{ $reviewSpa?->owner?->name ?: '—' }}
+                                    </p>
+
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $reviewSpa?->owner?->email }}
+                                    </p>
+                                </td>
+
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ $review->expiry_date?->format('M d, Y') ?: 'None yet' }}
+                                </td>
+
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ $review->updated_at?->format('M d, Y') }}
+                                </td>
+
+                                @if ($canEdit)
+                                    <td class="px-6 py-4">
+                                        <button type="button"
+                                            onclick="openSpaModal({{ $review->id }}, 'document')"
+                                            class="{{ $btn['primary'] }}">
+
+                                            <i class="text-xs fa-solid fa-file-circle-check"
+                                                aria-hidden="true"></i>
+
+                                            Review
+                                        </button>
+                                    </td>
+                                @endif
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @if ($documentReviews->hasPages())
+                <div class="px-4 py-4 border-t border-gray-200 sm:px-6 dark:border-gray-700">
+                    {{ $documentReviews->links() }}
+                </div>
+            @endif
+        </div>
+    @endif
+
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
         <div class="flex flex-col gap-3 px-4 py-4 border-b border-gray-200 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-gray-700">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">
@@ -552,6 +729,49 @@
             'admin.registered-spas.update',
             '__ID__'
         ));
+
+    const ROUTE_BRANCH_EDIT =
+        @json(route(
+            'admin.branch-verifications.edit',
+            '__ID__'
+        ));
+
+    const ROUTE_BRANCH =
+        @json(route(
+            'admin.branch-verifications.update',
+            '__ID__'
+        ));
+
+    const ROUTE_DOCUMENT_EDIT =
+        @json(route(
+            'admin.document-reviews.edit',
+            '__ID__'
+        ));
+
+    const ROUTE_DOCUMENT =
+        @json(route(
+            'admin.document-reviews.update',
+            '__ID__'
+        ));
+
+    // Which routes and title the review dialog uses for each kind.
+    const REVIEW_KINDS = {
+        spa: {
+            edit: ROUTE_EDIT,
+            update: ROUTE_SPA,
+            title: 'Review Spa',
+        },
+        branch: {
+            edit: ROUTE_BRANCH_EDIT,
+            update: ROUTE_BRANCH,
+            title: 'Review Branch',
+        },
+        document: {
+            edit: ROUTE_DOCUMENT_EDIT,
+            update: ROUTE_DOCUMENT,
+            title: 'Review Document',
+        },
+    };
 
     const DOC_LABELS = {
         government_id:
@@ -1105,6 +1325,19 @@
                         required;
                 }
 
+                // Shared documents (Government ID, DTI/SEC) are shown for
+                // reference in a branch review. Their dates are not edited.
+                if (doc.shared) {
+                    label.textContent +=
+                        ' (shared from main branch)';
+
+                    expiryInput.disabled = true;
+                    expiryInput.required = false;
+
+                    expiryInput.dataset
+                        .requiredForApproval = 'false';
+                }
+
                 if (
                     doc.expiry_verified_at
                 ) {
@@ -1229,7 +1462,11 @@
         setRejectMode;
 
     window.openSpaModal =
-        function (id) {
+        function (id, kind) {
+            const review =
+                REVIEW_KINDS[kind] ||
+                REVIEW_KINDS.spa;
+
             const status =
                 el(
                     'spaModalStatus'
@@ -1261,7 +1498,7 @@
             );
 
             fetch(
-                ROUTE_EDIT.replace(
+                review.edit.replace(
                     '__ID__',
                     id
                 ),
@@ -1362,10 +1599,13 @@
                             '';
 
                         form.action =
-                            ROUTE_SPA.replace(
+                            review.update.replace(
                                 '__ID__',
                                 spa.id
                             );
+
+                        el('spaModalTitle').textContent =
+                            review.title;
 
                         renderDocuments(
                             spa.documents ??

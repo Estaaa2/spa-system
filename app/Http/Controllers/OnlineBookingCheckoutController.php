@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\LeaveRequest;
 use App\Models\OnlineReservationPayment;
 use App\Models\OperatingHours;
@@ -41,6 +42,22 @@ class OnlineBookingCheckoutController extends Controller
                 return $this->fail(
                 $request,
                 'Online reservations are not available for this spa right now. Please contact the spa directly.'
+            );
+        }
+
+        // The branch must belong to this spa and be approved to operate.
+        $branch = Branch::where('id', $validated['branch_id'])
+            ->where('spa_id', $spa->id)
+            ->first();
+
+        if (
+            $spa->verification_status !== 'verified' ||
+            ! $branch ||
+            ! $branch->isOperational()
+        ) {
+            return $this->fail(
+                $request,
+                'This branch is not accepting online reservations right now. Please contact the spa directly.'
             );
         }
 
@@ -297,6 +314,22 @@ class OnlineBookingCheckoutController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Online reservations are not available for this spa right now. Please contact the spa directly.',
+            ], 422);
+        }
+
+        // The branch must belong to this spa and be approved to operate.
+        $branch = Branch::where('id', $validated['branch_id'])
+            ->where('spa_id', $spa->id)
+            ->first();
+
+        if (
+            $spa->verification_status !== 'verified' ||
+            ! $branch ||
+            ! $branch->isOperational()
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This branch is not accepting online reservations right now. Please contact the spa directly.',
             ], 422);
         }
 

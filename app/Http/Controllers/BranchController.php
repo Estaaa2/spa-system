@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class BranchController extends Controller
 {
@@ -228,35 +229,56 @@ class BranchController extends Controller
             $wantsMain = true;
         }
 
-        if ($wantsMain) {
-            $spa->branches()->update(['is_main' => false]);
+        
+        if ($wantsMain && !$isFirstBranch) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A new branch can be set as the main branch only after its documents are approved.',
+            ], 422);
         }
 
-        /*
-         * This column remains for compatibility only.
-         * Business/manpower is the real access rule.
-         */
-        $branch = Branch::create([
-            'spa_id' => $spa->id,
-            'name' => $validated['name'],
-            'location' => $validated['location'],
-            'is_main' => $wantsMain,
-            'has_workforce_finance_suite' => $spa->hasFeature('manpower'),
-        ]);
+        $branch = DB::transaction(function () use (
+            $spa,
+            $validated,
+            $wantsMain,
+            $days
+        ) {
+            if ($wantsMain) {
+                $spa->branches()->update(['is_main' => false]);
+            }
 
-        foreach ($validated['hours'] as $index => $hourData) {
-            OperatingHours::create([
-                'branch_id' => $branch->id,
-                'day_of_week' => $hourData['day_of_week'] ?? $days[$index],
-                'opening_time' => $hourData['opening_time'] ?? '09:00',
-                'closing_time' => $hourData['closing_time'] ?? '18:00',
-                'is_closed' => (bool) ($hourData['is_closed'] ?? false),
+            /*
+             * has_workforce_finance_suite remains for compatibility only.
+             * Business/manpower is the real access rule.
+             *
+             * A new branch always starts unverified. It stays blocked
+             * until an administrator approves its documents.
+             */
+            $branch = Branch::create([
+                'spa_id' => $spa->id,
+                'name' => $validated['name'],
+                'location' => $validated['location'],
+                'is_main' => $wantsMain,
+                'has_workforce_finance_suite' => $spa->hasFeature('manpower'),
+                'verification_status' => 'unverified',
             ]);
-        }
+
+            foreach ($validated['hours'] as $index => $hourData) {
+                OperatingHours::create([
+                    'branch_id' => $branch->id,
+                    'day_of_week' => $hourData['day_of_week'] ?? $days[$index],
+                    'opening_time' => $hourData['opening_time'] ?? '09:00',
+                    'closing_time' => $hourData['closing_time'] ?? '18:00',
+                    'is_closed' => (bool) ($hourData['is_closed'] ?? false),
+                ]);
+            }
+
+            return $branch;
+        });
 
         return response()->json([
             'success' => true,
-            'message' => 'Branch created successfully.',
+                        'message' => 'Branch created. Upload its documents in Spa Profile to submit it for review.',
             'branch' => $branch,
         ]);
     }
@@ -292,6 +314,19 @@ class BranchController extends Controller
         $wantsMain = $user->hasRole('owner')
             ? $request->boolean('is_main')
             : (bool) $branch->is_main;
+
+        if (
+            $wantsMain &&
+            !$branch->is_main &&
+            $branch->verification_status !== 'verified'
+        ) {
+            return redirect()
+                ->to(route('branches.edit', $branch->id) . '?tab=general')
+                ->withErrors([
+                    'Only a verified branch can be set as the main branch.',
+                ], 'general')
+                ->withInput();
+        }
 
         if ($wantsMain) {
             Branch::where('spa_id', $spa->id)
@@ -453,7 +488,9 @@ class BranchController extends Controller
         $canPubliclyList = $spa?->hasFeature('branch_public_listing') ?? false;
 
         $profileData['is_listed'] =
-            $canPubliclyList && $request->boolean('is_listed');
+            $canPubliclyList &&
+            $branch->isOperational() &&
+            $request->boolean('is_listed');
         $profileData['is_hiring'] = $request->boolean('is_hiring');
         $profileData['hiring_note'] = $profileData['is_hiring']
             ? ($profileData['hiring_note'] ?? null)

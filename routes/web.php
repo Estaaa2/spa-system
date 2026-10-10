@@ -1,6 +1,8 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\BranchVerificationController;
+use App\Http\Controllers\Admin\DocumentReviewController;
 use App\Http\Controllers\Admin\RegisteredSpaController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
@@ -44,6 +46,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceImportExportController;
 use App\Http\Controllers\StockTransferController;
+use App\Http\Controllers\VerificationDocumentController;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -96,6 +99,14 @@ if (! function_exists('corsResponse')) {
 }
 
 Route::get('/storage/branch_profiles/{filename}', function ($filename) {
+
+    if (
+        str_contains($filename, '..')
+        || str_contains($filename, 'spa-verification-documents')
+    ) {
+        abort(404);
+    }
+
     $fullPath = storage_path('app/public/branch_profiles/' . $filename);
     if (!file_exists($fullPath)) {
         $fullPath = storage_path('app/public/' . $filename);
@@ -114,6 +125,14 @@ Route::get('/storage/branch_profiles/{filename}', function ($filename) {
 })->where('filename', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
 
 Route::get('/storage/{path}', function ($path) {
+
+    if (
+        str_contains($path, '..')
+        || str_contains($path, 'spa-verification-documents')
+    ) {
+        abort(404);
+    }
+
     $fullPath = storage_path('app/public/' . $path);
     if (!file_exists($fullPath)) abort(404);
 
@@ -234,6 +253,7 @@ Route::middleware([
     'force.password.change',
     'owner.onboarding',
     'spa.access',
+    \App\Http\Middleware\EnsureBranchOperational::class,
 ])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('role:owner|manager|therapist|receptionist')
@@ -296,6 +316,7 @@ Route::middleware([
     'verified',
     'force.password.change',
     'spa.access',
+    \App\Http\Middleware\EnsureBranchOperational::class,
 ])->group(function () {
 
     /*
@@ -1101,6 +1122,10 @@ Route::middleware(['auth', 'role:admin'])
             Route::get('/registered-spas/{spa}/edit', [RegisteredSpaController::class, 'edit'])->name('registered-spas.edit');
             Route::put('/registered-spas/{spa}', [RegisteredSpaController::class, 'update'])->name('registered-spas.update');
             Route::delete('/registered-spas/{spa}', [RegisteredSpaController::class, 'destroy'])->name('registered-spas.destroy');
+            Route::get('/branch-verifications/{branch}/edit', [BranchVerificationController::class, 'edit'])->name('branch-verifications.edit');
+            Route::put('/branch-verifications/{branch}', [BranchVerificationController::class, 'update'])->name('branch-verifications.update');
+            Route::get('/document-reviews/{document}/edit', [DocumentReviewController::class, 'edit'])->name('document-reviews.edit');
+            Route::put('/document-reviews/{document}', [DocumentReviewController::class, 'update'])->name('document-reviews.update');
         });
 
         Route::middleware('permission:view registered users')->group(function () {
@@ -1160,6 +1185,7 @@ Route::middleware(['auth', 'role:owner', 'owner.onboarding'])
         Route::patch('/spa-profile', [SpaProfileController::class, 'update'])->name('spa-profile.update');
         Route::post('/spa-profile/documents', [SpaProfileController::class, 'uploadDocument'])->name('spa-profile.documents.upload');
         Route::delete('/spa-profile/documents/{document}', [SpaProfileController::class, 'destroyDocument'])->name('spa-profile.documents.destroy');
+        Route::post('/spa-profile/branches/{branch}/documents', [SpaProfileController::class, 'uploadBranchDocuments'])->name('spa-profile.branches.documents.upload');
 
         // Roles & Permissions
         Route::get('/roles-permissions', [OwnerRolePermissionController::class, 'index'])->name('roles-permissions.index');
@@ -1241,6 +1267,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('branch.permission:edit appointments')
         ->name('reassignment.reject');
 });
+
+
+/*
+|--------------------------------------------------------------------------
+| Verification Documents (private, owner of the spa or admin only)
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/verification-documents/{document}', [VerificationDocumentController::class, 'show'])
+    ->middleware('auth')
+    ->name('verification-documents.show');
 
 /*
 |--------------------------------------------------------------------------

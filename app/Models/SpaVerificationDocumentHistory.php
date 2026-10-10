@@ -8,6 +8,7 @@ class SpaVerificationDocumentHistory extends Model
 {
     protected $fillable = [
         'spa_id',
+        'branch_id',
         'document_type',
         'file_path',
         'file_name',
@@ -38,5 +39,11 @@ class SpaVerificationDocumentHistory extends Model
     public function spa()
     {
         return $this->belongsTo(Spa::class);
+    }
+
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

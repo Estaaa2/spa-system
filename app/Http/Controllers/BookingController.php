@@ -551,11 +551,21 @@ class BookingController extends Controller
             ])->withInput();
         }
 
-        $branchOk = \App\Models\Branch::where('id', $validated['branch_id'])
+        $onlineBranch = \App\Models\Branch::where('id', $validated['branch_id'])
             ->where('spa_id', $validated['spa_id'])
-            ->exists();
+            ->first();
 
-        abort_unless($branchOk, 422, 'Selected branch does not belong to this spa.');
+        abort_unless($onlineBranch, 422, 'Selected branch does not belong to this spa.');
+
+        // The branch must be approved to operate before it takes bookings.
+        if (
+            $onlineSpa->verification_status !== 'verified' ||
+            ! $onlineBranch->isOperational()
+        ) {
+            return back()->withErrors([
+                'start_time' => 'This branch is not accepting online reservations right now. Please contact the spa directly.',
+            ])->withInput();
+        }
 
         $this->syncAutomaticStatuses((int) $validated['spa_id'], (int) $validated['branch_id']);
 

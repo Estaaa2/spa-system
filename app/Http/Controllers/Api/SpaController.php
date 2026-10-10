@@ -29,14 +29,30 @@ class SpaController extends Controller
     }
 
     /**
-     * Keep only branches that are explicitly listed publicly.
+     * Keep only branches that are explicitly listed publicly AND are
+     * operational: approved, inside the plan's branch limit, and without
+     * an expired Business Permit.
      */
     private function publicBranches(Spa $spa): void
     {
         $spa->setRelation(
             'branches',
             $spa->branches
-                ->filter(fn ($branch) => (bool) $branch->profile?->is_listed)
+                ->filter(function ($branch) use ($spa) {
+                    if (! $branch->profile?->is_listed) {
+                        return false;
+                    }
+
+                    $branch->setRelation('spa', $spa);
+
+                    $operational = $branch->isOperational();
+
+                    // Unset again so the spa is not nested inside
+                    // each branch when the response is built.
+                    $branch->unsetRelation('spa');
+
+                    return $operational;
+                })
                 ->values()
         );
     }

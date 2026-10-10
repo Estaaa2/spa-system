@@ -32,6 +32,34 @@ class LandingController extends Controller
             && $spa->hasFeature('featured_listing');
     }
 
+    /**
+     * True when the branch is approved, inside the plan's branch limit,
+     * and its Business Permit has not expired past the grace period.
+     */
+    private function branchIsOperational(Spa $spa, $branch): bool
+    {
+        $branch->setRelation('spa', $spa);
+
+        $operational = $branch->isOperational();
+
+        // Unset again so the spa is not nested inside each branch
+        // when these models are passed to a view or turned into JSON.
+        $branch->unsetRelation('spa');
+
+        return $operational;
+    }
+
+    /** Drops every branch of the spa that the public must not see. */
+    private function keepOperationalBranches(Spa $spa): void
+    {
+        $spa->setRelation(
+            'branches',
+            $spa->branches
+                ->filter(fn ($branch) => $this->branchIsOperational($spa, $branch))
+                ->values()
+        );
+    }
+
     private $publicSpaIdsCache = null;
 
     private function publicSpaIds()
@@ -50,6 +78,8 @@ class LandingController extends Controller
         $publicSpaIds = $this->publicSpaIds();
 
         $branchMatches = function ($query) use ($place, $treatment) {
+            $query->verificationCleared();
+
             $query->whereHas('profile', function ($profileQuery) {
                 $profileQuery->where('is_listed', true);
             });
@@ -105,6 +135,7 @@ class LandingController extends Controller
             ->whereHas('branch.profile', function ($query) {
                 $query->where('is_listed', true);
             })
+            ->whereHas('branch', fn ($query) => $query->verificationCleared())
             ->select('name')
             ->selectRaw('COUNT(*) as cnt')
             ->groupBy('name')
@@ -116,6 +147,7 @@ class LandingController extends Controller
             ->whereHas('branch.profile', function ($query) {
                 $query->where('is_listed', true);
             })
+            ->whereHas('branch', fn ($query) => $query->verificationCleared())
             ->select('name')
             ->selectRaw('COUNT(*) as cnt')
             ->groupBy('name')
@@ -168,6 +200,7 @@ class LandingController extends Controller
         $eligible = Spa::with([
             'branches' => function ($query) {
                 $query
+                    ->verificationCleared()
                     ->whereHas('profile', function ($profileQuery) {
                         $profileQuery->where('is_listed', true);
                     })
@@ -177,12 +210,16 @@ class LandingController extends Controller
         ])
             ->whereIn('id', $publicSpaIds)
             ->whereHas('branches', function ($query) {
-                $query->whereHas('profile', function ($profileQuery) {
-                    $profileQuery->where('is_listed', true);
-                });
+                $query
+                    ->verificationCleared()
+                    ->whereHas('profile', function ($profileQuery) {
+                        $profileQuery->where('is_listed', true);
+                    });
             })
             ->get()
             ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
+            ->each(fn (Spa $spa) => $this->keepOperationalBranches($spa))
+            ->filter(fn (Spa $spa) => $spa->branches->isNotEmpty())
             ->values();
 
         // $spas = Featured section (Premium and Business only).
@@ -251,6 +288,10 @@ class LandingController extends Controller
                 $profile = $branch->profile;
 
                 if (! $profile?->is_listed) {
+                    continue;
+                }
+
+                if (! $this->branchIsOperational($spa, $branch)) {
                     continue;
                 }
 
@@ -383,6 +424,7 @@ class LandingController extends Controller
             'branches' => function ($query) use ($branchIds) {
                 $query
                     ->whereIn('id', $branchIds)
+                    ->verificationCleared()
                     ->with(['profile', 'treatments', 'packages']);
             },
             'subscriptions',
@@ -408,6 +450,10 @@ class LandingController extends Controller
                 $profile = $branch->profile;
 
                 if (! $profile || ! $profile->is_listed) {
+                    continue;
+                }
+
+                if (! $this->branchIsOperational($spa, $branch)) {
                     continue;
                 }
 

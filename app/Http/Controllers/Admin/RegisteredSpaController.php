@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Spa;
+use App\Models\SpaVerificationDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -88,8 +90,60 @@ class RegisteredSpaController extends Controller
             ->groupBy('verification_status')
             ->pluck('total', 'verification_status');
 
+        // Additional branches waiting for review. Main branches are
+        // reviewed together with their spa, so they are not listed here.
+        $branchApplications = Branch::query()
+            ->with('spa.owner')
+            ->where('is_main', false)
+            ->where('verification_status', 'pending')
+            ->whereHas('spa', fn ($query) => $query->where(
+                'verification_status',
+                'verified'
+            ))
+            ->orderBy('updated_at')
+            ->paginate(5, ['*'], 'branch_page')
+            ->withQueryString();
+
+        // Single documents waiting for review on spas and branches that
+        // are ALREADY verified: renewals, replacements, and required
+        // documents that were missing. Documents of a spa or branch that
+        // is still being reviewed are handled by that review instead.
+        $documentReviews = SpaVerificationDocument::query()
+            ->with('branch')
+            ->whereNull('expiry_verified_at')
+            ->whereNull('review_remarks')
+            ->whereIn(
+                'spa_id',
+                Spa::query()
+                    ->where('verification_status', 'verified')
+                    ->select('id')
+            )
+            ->where(function ($query) {
+                $query
+                    ->whereNull('branch_id')
+                    ->orWhereIn(
+                        'branch_id',
+                        Branch::query()
+                            ->where('verification_status', 'verified')
+                            ->select('id')
+                    );
+            })
+            ->orderByDesc('updated_at')
+            ->paginate(5, ['*'], 'document_page')
+            ->withQueryString();
+
+        $documentReviewSpas = Spa::query()
+            ->with('owner')
+            ->whereIn('id', $documentReviews->pluck('spa_id')->unique())
+            ->get()
+            ->keyBy('id');
+
         return view('admin.registered-spas.index', [
             'spas' => $spas,
+            'branchApplications' => $branchApplications,
+            'documentReviews' => $documentReviews,
+            'documentReviewSpas' => $documentReviewSpas,
+            'documentLabels' => self::DOCUMENT_LABELS,
             'q' => $q,
             'status' => $status,
             'statuses' => self::STATUSES,
@@ -117,6 +171,10 @@ class RegisteredSpaController extends Controller
             $plan = 'basic';
         }
 
+        // Only the spa's own documents and its main branch's documents.
+        // Additional branches are reviewed separately.
+        $mainBranchId = $spa->mainBranch()?->id;
+
         return response()->json([
             'spa' => [
                 'id' => $spa->id,
@@ -134,13 +192,18 @@ class RegisteredSpaController extends Controller
                 'verified_by' => $spa->verifier?->name,
 
                 'documents' => $spa->verificationDocuments
+                    ->filter(fn ($document) =>
+                        $document->branch_id === null ||
+                        (int) $document->branch_id === (int) $mainBranchId
+                    )
                     ->map(function ($document) {
                         return [
                             'id' => $document->id,
                             'document_type' => $document->document_type,
                             'file_name' => $document->file_name,
-                            'file_url' => asset(
-                                'storage/' . ltrim($document->file_path, '/')
+                            'file_url' => route(
+                                'verification-documents.show',
+                                $document
                             ),
                             'uploaded_at' => $document->created_at?->format(
                                 'M d, Y h:i A'
@@ -223,6 +286,14 @@ class RegisteredSpaController extends Controller
                 'verified_by' => null,
             ]);
 
+            // The main branch is reviewed together with the spa.
+            $spa->mainBranch()?->update([
+                'verification_status' => 'rejected',
+                'verification_remarks' => $spa->verification_remarks,
+                'verified_at' => null,
+                'verified_by' => null,
+            ]);
+
             return redirect()
                 ->route('admin.registered-spas.index')
                 ->with(
@@ -231,8 +302,19 @@ class RegisteredSpaController extends Controller
                 );
         }
 
+        // Only the spa's own documents and its main branch's documents.
+        // Documents of additional branches are never touched here.
+        $mainBranch = $spa->mainBranch();
+
         $documents = $spa
             ->verificationDocuments()
+            ->where(function ($query) use ($mainBranch) {
+                $query->whereNull('branch_id');
+
+                if ($mainBranch) {
+                    $query->orWhere('branch_id', $mainBranch->id);
+                }
+            })
             ->get();
 
         $uploadedTypes = $documents
@@ -316,6 +398,7 @@ class RegisteredSpaController extends Controller
 
         DB::transaction(function () use (
             $spa,
+            $mainBranch,
             $documents,
             $submittedExpiry
         ) {
@@ -360,6 +443,15 @@ class RegisteredSpaController extends Controller
                 'verification_remarks' => null,
                 'verified_at' => now(),
                 'verified_by' => auth()->id(),
+            ]);
+
+            // The main branch is approved together with the spa.
+            $mainBranch?->update([
+                'verification_status' => 'verified',
+                'verification_remarks' => null,
+                'verified_at' => now(),
+                'verified_by' => auth()->id(),
+                'verification_due_at' => null,
             ]);
         });
 

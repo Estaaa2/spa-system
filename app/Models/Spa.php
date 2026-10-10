@@ -22,6 +22,8 @@ class Spa extends Model
     private bool $latestPaidSubscriptionLoaded = false;
 
     private ?Subscription $latestPaidSubscriptionCache = null;
+    /** Per-instance cache for branchIdsWithinPlanLimit(). */
+    private ?array $branchIdsWithinPlanLimitCache = null;
 
     protected $fillable = [
         'owner_id',
@@ -109,6 +111,7 @@ class Spa extends Model
     {
         $this->latestPaidSubscriptionLoaded = false;
         $this->latestPaidSubscriptionCache = null;
+        $this->branchIdsWithinPlanLimitCache = null;
     }
 
     public function canStartTrial(): bool
@@ -283,6 +286,54 @@ class Spa extends Model
         return $activeBranchCount < $limit;
     }
 
+
+    public function mainBranch(): ?Branch
+    {
+        return $this->branches()
+            ->orderByDesc('is_main')
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * IDs of the branches the current plan covers: the main branch first,
+     * then the oldest branches, up to the plan's branch limit.
+     *
+     * Nothing is stored. After a downgrade the extra branches drop out of
+     * this list, and after an upgrade they come back automatically.
+     */
+    public function branchIdsWithinPlanLimit(): array
+    {
+        if ($this->branchIdsWithinPlanLimitCache !== null) {
+            return $this->branchIdsWithinPlanLimitCache;
+        }
+
+        $limit = $this->hasAccess()
+            ? $this->planLimit('branches')
+            : 0;
+
+        if ($limit <= 0) {
+            return $this->branchIdsWithinPlanLimitCache = [];
+        }
+
+        return $this->branchIdsWithinPlanLimitCache = $this->branches()
+            ->orderByDesc('is_main')
+            ->orderBy('id')
+            ->limit($limit)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    public function isBranchWithinPlanLimit(Branch $branch): bool
+    {
+        return in_array(
+            (int) $branch->id,
+            $this->branchIdsWithinPlanLimit(),
+            true
+        );
+    }
+
     public function canAddStaff(): bool
     {
         if (!$this->hasAccess()) {
@@ -318,14 +369,34 @@ class Spa extends Model
             'government_id',
             'dti_sec',
             'bir_certificate',
+            'business_permit',
         ];
 
+        $mainBranchId = $this->mainBranch()?->id;
+
+        // Count spa-level documents plus the main branch's own documents.
+        // Documents of additional branches must not count for the spa.
         $uploaded = $this->verificationDocuments()
+            ->where(function ($query) use ($mainBranchId) {
+                $query->whereNull('branch_id');
+
+                if ($mainBranchId) {
+                    $query->orWhere('branch_id', $mainBranchId);
+                }
+            })
             ->pluck('document_type')
             ->unique()
             ->toArray();
 
         return count(array_intersect($required, $uploaded)) === count($required);
+    }
+
+
+    /** Documents that belong to the spa itself (Government ID, DTI/SEC). */
+    public function spaDocuments(): HasMany
+    {
+        return $this->verificationDocuments()
+            ->whereNull('branch_id');
     }
 
     private function normalisePlan(?string $plan): string

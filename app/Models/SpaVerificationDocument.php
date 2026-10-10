@@ -9,6 +9,7 @@ class SpaVerificationDocument extends Model
 {
     protected $fillable = [
         'spa_id',
+        'branch_id',
         'document_type',
         'file_path',
         'file_name',
@@ -36,6 +37,30 @@ class SpaVerificationDocument extends Model
     public function spa()
     {
         return $this->belongsTo(Spa::class);
+    }
+
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * True once the admin-confirmed expiry date is more than
+     * $graceDays in the past. Documents with no expiry never expire.
+     */
+    public function isExpiredPastGrace(int $graceDays = 30): bool
+    {
+        if (!$this->expiry_date) {
+            return false;
+        }
+
+        return today()->gt(
+            $this->expiry_date
+                ->copy()
+                ->startOfDay()
+                ->addDays($graceDays)
+        );
     }
 
     public function expiryVerifier()

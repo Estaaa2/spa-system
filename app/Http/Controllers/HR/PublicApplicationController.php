@@ -21,6 +21,13 @@ class PublicApplicationController extends Controller
                 ], 400);
             }
 
+            if (!$branch->isOperational()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This branch is not currently accepting applications.'
+                ], 400);
+            }
+
             $validated = $request->validate([
                 'full_name'                  => 'required|string|max:255',
                 'email'                      => 'required|email|max:255',

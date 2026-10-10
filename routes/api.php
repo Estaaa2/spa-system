@@ -74,6 +74,14 @@ Route::get('/flutter/booking-status', [FlutterBookingController::class, 'checkBo
 Route::get('/test', fn() => response()->json(['status' => 'api works']));
 
 Route::get('/image/{path}', function ($path) {
+
+    if (
+        str_contains($path, '..')
+        || str_contains($path, 'spa-verification-documents')
+    ) {
+        return response()->json(['error' => 'Image not found'], 404);
+    }
+
     $fullPath = storage_path('app/public/' . $path);
 
     if (!file_exists($fullPath)) {

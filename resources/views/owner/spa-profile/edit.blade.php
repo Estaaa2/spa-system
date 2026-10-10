@@ -52,6 +52,7 @@
     $isRejected = $spa->verification_status === 'rejected';
 
     $renewableTypes = [
+        'government_id',
         'dti_sec',
         'business_permit',
     ];
@@ -84,8 +85,14 @@
         ],
     ];
 
+    // Only the spa's own documents and the main branch's documents.
+    // Additional branches are listed in their own section below.
     $documents = $spa
         ->verificationDocuments
+        ->filter(fn ($document) =>
+            $document->branch_id === null ||
+            (int) $document->branch_id === (int) ($mainBranchId ?? 0)
+        )
         ->keyBy('document_type');
 
     $btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-4 py-2 text-sm '
@@ -188,19 +195,25 @@
         <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">
                 Verification Documents
+                @if ($selectedBranch)
+                    — {{ $selectedBranch->name }}
+                @endif
             </h2>
 
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                @if ($isPending)
+                @if ($showBranchDocuments)
+                    Government ID and DTI / SEC are shared from your main branch. This branch needs its own BIR Certificate and Business Permit.
+                @elseif ($isPending)
                     Documents are locked while under review.
                 @elseif ($isVerified)
-                    Renewal becomes available 30 days before the confirmed expiration date.
+                    Renewal becomes available 30 days before the confirmed expiration date. A renewed document is checked by an administrator before its new date applies.
                 @else
                     Upload the required business documents.
                 @endif
             </p>
         </div>
 
+        @if (! $showBranchDocuments)
         <div class="p-4 sm:p-5">
             <div class="p-4 mb-5 text-sm text-blue-800 border border-blue-200 bg-blue-50 rounded-2xl dark:bg-blue-900/10 dark:text-blue-300 dark:border-blue-800">
                 PDF, JPG, JPEG or PNG. Maximum 10 MB.
@@ -230,10 +243,24 @@
                             true
                         );
 
+                        // On a verified spa, a newly uploaded document waits
+                        // for the administrator, who can also send it back.
+                        $reviewRejected =
+                            $isVerified &&
+                            $document &&
+                            filled($document->review_remarks);
+
+                        $awaitingReview =
+                            $isVerified &&
+                            $document &&
+                            !$reviewRejected &&
+                            !$document->expiry_verified_at;
+
                         $renewalEligible =
                             $isVerified &&
                             $isRenewable &&
                             $document &&
+                            $document->expiry_verified_at &&
                             $document->isRenewalDue(
                                 $renewalWindowDays
                             );
@@ -251,7 +278,9 @@
                         if (!$isPending) {
                             if ($isRejected) {
                                 $canUploadDocument = true;
-                            } elseif (!$document && !$isVerified) {
+                            } elseif (!$document) {
+                                $canUploadDocument = true;
+                            } elseif ($reviewRejected) {
                                 $canUploadDocument = true;
                             } elseif ($renewalEligible) {
                                 $canUploadDocument = true;
@@ -324,6 +353,16 @@
                                                         }}
                                                     </p>
                                                 </div>
+                                            @elseif ($reviewRejected)
+                                                <div class="px-3 py-2 border border-red-200 bg-red-50 rounded-xl dark:border-red-800 dark:bg-red-900/10">
+                                                    <p class="text-[11px] text-red-700 dark:text-red-300">
+                                                        Document Review
+                                                    </p>
+
+                                                    <p class="mt-0.5 text-sm font-medium text-red-700 dark:text-red-300">
+                                                        Sent back
+                                                    </p>
+                                                </div>
                                             @else
                                                 <div class="px-3 py-2 border border-amber-200 bg-amber-50 rounded-xl dark:border-amber-800 dark:bg-amber-900/10">
                                                     <p class="text-[11px] text-amber-700 dark:text-amber-300">
@@ -348,13 +387,28 @@
 
                                 @if ($document)
                                     <div class="mt-3">
-                                        <a href="{{ asset('storage/' . $document->file_path) }}"
+                                        <a href="{{ route('verification-documents.show', $document) }}"
                                             target="_blank"
                                             rel="noopener"
                                             class="inline-flex items-center min-h-[44px] text-sm text-blue-600 underline rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:text-blue-400 dark:focus-visible:ring-offset-gray-800">
 
                                             View Document
                                         </a>
+                                    </div>
+                                @endif
+
+                                @if ($reviewRejected)
+                                    <div class="p-4 mt-3 text-sm text-red-800 border border-red-200 bg-red-50 rounded-2xl dark:bg-red-900/10 dark:text-red-300 dark:border-red-800">
+                                        <strong>Admin Remarks:</strong>
+                                        {{ $document->review_remarks }}
+                                    </div>
+                                @elseif ($awaitingReview)
+                                    <div class="p-4 mt-3 text-sm border text-amber-800 border-amber-200 bg-amber-50 rounded-2xl dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+                                        Waiting for administrator review.
+                                        @if ($document->expiry_date)
+                                            Until then, the date already confirmed stays in effect:
+                                            <strong>{{ $document->expiry_date->format('M d, Y') }}</strong>.
+                                        @endif
                                     </div>
                                 @endif
                             </div>
@@ -364,6 +418,8 @@
                                     <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                                         @if ($renewalEligible)
                                             Renew Document
+                                        @elseif ($reviewRejected)
+                                            Replace Document
                                         @elseif ($isRejected && $document)
                                             Replace Document
                                         @else
@@ -456,6 +512,13 @@
                                         Locked while under review.
                                     </p>
                                 </div>
+                            @elseif ($awaitingReview)
+                                <div class="pt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <p class="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                        Locked while under review.
+                                    </p>
+                                </div>
                             @elseif ($isVerified && $isRenewable && $document)
                                 <div class="pt-3 border-t border-gray-200 dark:border-gray-700">
                                     <p class="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -500,6 +563,347 @@
                 @endif
             </form>
         </div>
+        @else
+            @php
+                $branchStatus = match ($selectedBranch->verification_status) {
+                    'verified' => [
+                        'label' => 'Verified',
+                        'badge' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+                    ],
+                    'pending' => [
+                        'label' => 'Under Review',
+                        'badge' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+                    ],
+                    'rejected' => [
+                        'label' => 'Rejected',
+                        'badge' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                    ],
+                    default => [
+                        'label' => 'Documents Required',
+                        'badge' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+                    ],
+                };
+
+                // shared = taken from the main branch, never uploaded here.
+                $branchRows = [
+                    'government_id' => [
+                        'label' => 'Government ID',
+                        'description' => 'Your verified Government ID covers every branch you own.',
+                        'shared' => true,
+                        'expiry' => false,
+                    ],
+                    'dti_sec' => [
+                        'label' => 'DTI / SEC Certificate',
+                        'description' => 'Your DTI or SEC registration is shared with this branch.',
+                        'shared' => true,
+                        'expiry' => false,
+                    ],
+                    'bir_certificate' => [
+                        'label' => 'BIR Certificate of Registration',
+                        'description' => 'Upload the BIR Certificate of Registration issued for this branch.',
+                        'shared' => false,
+                        'expiry' => false,
+                    ],
+                    'business_permit' => [
+                        'label' => 'Business Permit',
+                        'description' => 'Upload the Business Permit issued for this branch\'s location, showing its validity.',
+                        'shared' => false,
+                        'expiry' => true,
+                    ],
+                ];
+
+                $sharedDocuments = $spa
+                    ->verificationDocuments
+                    ->whereNull('branch_id')
+                    ->keyBy('document_type');
+
+                $branchDocuments = $selectedBranch
+                    ->verificationDocuments
+                    ->keyBy('document_type');
+
+                $canUploadBranch = in_array(
+                    $selectedBranch->verification_status,
+                    ['unverified', 'rejected'],
+                    true
+                );
+
+                // An approved branch can still upload one document when it
+                // is missing, was sent back, or is due for renewal.
+                $branchIsVerified =
+                    $selectedBranch->verification_status === 'verified';
+
+                $branchHasUpload = false;
+
+                $branchErrors = $errors->getBag('branchDocuments');
+            @endphp
+
+            <div class="p-4 sm:p-5">
+                <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        {{ $selectedBranch->name }}
+                    </h3>
+
+                    <span class="inline-flex px-2.5 py-1 text-xs font-medium rounded-full {{ $branchStatus['badge'] }}">
+                        {{ $branchStatus['label'] }}
+                    </span>
+                </div>
+
+                @if ($selectedBranch->verification_status === 'rejected' && $selectedBranch->verification_remarks)
+                    <div class="p-4 mt-5 text-sm text-red-800 border border-red-200 bg-red-50 rounded-2xl dark:bg-red-900/10 dark:text-red-300 dark:border-red-800">
+                        <strong>Admin Remarks:</strong>
+                        {{ $selectedBranch->verification_remarks }}
+                    </div>
+                @endif
+
+                @if ($selectedBranch->verification_status !== 'verified' && $selectedBranch->verification_due_at)
+                    <div class="p-4 mt-5 text-sm border text-amber-800 border-amber-200 bg-amber-50 rounded-2xl dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+                        This branch can keep operating until
+                        <strong>{{ $selectedBranch->verification_due_at->format('F d, Y') }}</strong>.
+                        Submit its documents before then to avoid it being locked.
+                    </div>
+                @elseif ($canUploadBranch)
+                    <div class="p-4 mt-5 text-sm border text-amber-800 border-amber-200 bg-amber-50 rounded-2xl dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+                        This branch stays locked until an administrator approves its documents.
+                    </div>
+                @endif
+
+                <div class="p-4 mt-5 mb-5 text-sm text-blue-800 border border-blue-200 bg-blue-50 rounded-2xl dark:bg-blue-900/10 dark:text-blue-300 dark:border-blue-800">
+                    PDF, JPG, JPEG or PNG. Maximum 10 MB.
+                </div>
+
+                <form id="verificationDocumentsForm"
+                    method="POST"
+                    action="{{ route('owner.spa-profile.branches.documents.upload', $selectedBranch) }}"
+                    enctype="multipart/form-data"
+                    class="space-y-5">
+
+                    @csrf
+
+                    @foreach ($branchRows as $type => $meta)
+                        @php
+                            $rowDocument = $meta['shared']
+                                ? $sharedDocuments->get($type)
+                                : $branchDocuments->get($type);
+
+                            $rowErrors = $branchErrors->get(
+                                'branch_' . $selectedBranch->id . '_' . $type
+                            );
+
+                            $rowRejected =
+                                $branchIsVerified &&
+                                !$meta['shared'] &&
+                                $rowDocument &&
+                                filled($rowDocument->review_remarks);
+
+                            $rowAwaiting =
+                                $branchIsVerified &&
+                                !$meta['shared'] &&
+                                $rowDocument &&
+                                !$rowRejected &&
+                                !$rowDocument->expiry_verified_at;
+
+                            $rowRenewalDue =
+                                $branchIsVerified &&
+                                $type === 'business_permit' &&
+                                $rowDocument &&
+                                $rowDocument->expiry_verified_at &&
+                                $rowDocument->isRenewalDue($renewalWindowDays);
+
+                            $rowCanUpload = !$meta['shared'] && (
+                                $canUploadBranch ||
+                                (
+                                    $branchIsVerified &&
+                                    (
+                                        !$rowDocument ||
+                                        $rowRejected ||
+                                        $rowRenewalDue
+                                    )
+                                )
+                            );
+
+                            if ($rowCanUpload) {
+                                $branchHasUpload = true;
+                            }
+                        @endphp
+
+                        <div class="p-4 border rounded-2xl sm:p-5 {{ $rowErrors ? 'border-red-300 dark:border-red-800' : 'border-gray-200 dark:border-gray-700' }}">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {{ $meta['label'] }}
+                                </h3>
+
+                                @if ($meta['shared'])
+                                    <span class="inline-flex px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                        Shared from main branch
+                                    </span>
+                                @elseif ($rowDocument)
+                                    <span class="inline-flex px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                        Uploaded
+                                    </span>
+                                @else
+                                    <span class="inline-flex px-2.5 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+                                        Required
+                                    </span>
+                                @endif
+                            </div>
+
+                            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                {{ $meta['description'] }}
+                            </p>
+
+                            @if ($rowDocument)
+                                <p class="mt-2 text-sm text-gray-700 break-words dark:text-gray-300">
+                                    <span class="font-medium">File:</span>
+                                    {{ $rowDocument->file_name }}
+                                </p>
+
+                                <div class="mt-3">
+                                    <a href="{{ route('verification-documents.show', $rowDocument) }}"
+                                        target="_blank"
+                                        rel="noopener"
+                                        class="inline-flex items-center min-h-[44px] text-sm text-blue-600 underline rounded-xl dark:text-blue-400">
+
+                                        View Document
+                                    </a>
+                                </div>
+
+                                @if ($branchIsVerified && $type === 'business_permit' && $rowDocument->expiry_date)
+                                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                                        <span class="font-medium">Confirmed expiry:</span>
+                                        {{ $rowDocument->expiry_date->format('M d, Y') }}
+                                    </p>
+                                @endif
+
+                                @if ($rowRejected)
+                                    <div class="p-4 mt-3 text-sm text-red-800 border border-red-200 bg-red-50 rounded-2xl dark:bg-red-900/10 dark:text-red-300 dark:border-red-800">
+                                        <strong>Admin Remarks:</strong>
+                                        {{ $rowDocument->review_remarks }}
+                                    </div>
+                                @elseif ($rowAwaiting)
+                                    <div class="p-4 mt-3 text-sm border text-amber-800 border-amber-200 bg-amber-50 rounded-2xl dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+                                        Waiting for administrator review.
+                                        @if ($rowDocument->expiry_date)
+                                            Until then, the date already confirmed stays in effect.
+                                        @endif
+                                    </div>
+                                @endif
+                            @endif
+
+                            @if ($meta['shared'])
+                                <div class="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <p class="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                        Shared from your main branch. No upload needed.
+                                    </p>
+                                </div>
+                            @elseif ($rowCanUpload)
+                                <div class="pt-4 mt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {{ $rowRenewalDue ? 'Renew Document' : ($rowDocument ? 'Replace Document' : 'Upload Document') }}
+                                    </p>
+
+                                    <div class="flex flex-wrap items-center gap-3">
+                                        <input id="document_file_{{ $type }}"
+                                            type="file"
+                                            name="branch_documents[{{ $type }}]"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            class="sr-only"
+                                            data-max-bytes="{{ $maxUploadBytes }}"
+                                            data-status-id="file_label_{{ $type }}"
+                                            data-error-id="file_error_{{ $type }}"
+                                            data-expiry-wrapper-id="expiry_wrapper_{{ $type }}"
+                                            data-expiry-input-id="owner_expiry_{{ $type }}"
+                                            data-picker-label-id="picker_label_{{ $type }}"
+                                            data-picker-text-id="picker_text_{{ $type }}"
+                                            data-expiry-required="{{ $meta['expiry'] ? 'true' : 'false' }}"
+                                            onchange="handleFileChange(this)">
+
+                                        <label id="picker_label_{{ $type }}"
+                                            for="document_file_{{ $type }}"
+                                            class="{{ $btn['upload'] }}">
+
+                                            <i class="text-xs fa-solid fa-arrow-up-from-bracket"
+                                                aria-hidden="true"></i>
+
+                                            <span id="picker_text_{{ $type }}">
+                                                Choose File
+                                            </span>
+                                        </label>
+
+                                        <span id="file_label_{{ $type }}"
+                                            class="text-sm italic text-gray-500 dark:text-gray-400">
+                                            No file chosen
+                                        </span>
+                                    </div>
+
+                                    <p id="file_error_{{ $type }}"
+                                        class="mt-1 text-xs text-red-600 dark:text-red-400 {{ $rowErrors ? '' : 'hidden' }}"
+                                        role="alert">
+
+                                        {{ $rowErrors[0] ?? '' }}
+                                    </p>
+
+                                    @if ($meta['expiry'])
+                                        <div id="expiry_wrapper_{{ $type }}"
+                                            class="hidden mt-4">
+
+                                            <label for="owner_expiry_{{ $type }}"
+                                                class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+
+                                                Expiration Date
+                                                <span class="text-red-600">*</span>
+                                            </label>
+
+                                            <input type="date"
+                                                id="owner_expiry_{{ $type }}"
+                                                name="branch_owner_expiry[{{ $type }}]"
+                                                min="{{ now()->format('Y-m-d') }}"
+                                                class="{{ $inputClass }}">
+
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Enter the date printed on the document.
+                                            </p>
+                                        </div>
+                                    @endif
+                                </div>
+                            @elseif ($selectedBranch->verification_status === 'pending' || $rowAwaiting)
+                                <div class="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <p class="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                        Locked while under review.
+                                    </p>
+                                </div>
+                            @elseif ($rowDocument)
+                                <div class="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <p class="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                        Submitted document is locked.
+                                    </p>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+
+                    @if ($branchHasUpload)
+                        <p id="documents_form_error"
+                            class="hidden text-sm text-red-600 dark:text-red-400"
+                            role="alert"
+                            tabindex="-1">
+                        </p>
+
+                        <div class="flex justify-end pt-2">
+                            <button type="submit"
+                                id="verificationDocumentsSubmitBtn"
+                                data-default-text="Submit Documents"
+                                class="{{ $btn['primary'] }} disabled:opacity-60 disabled:cursor-not-allowed">
+
+                                Submit Documents
+                            </button>
+                        </div>
+                    @endif
+                </form>
+            </div>
+        @endif
     </div>
 </div>
 
