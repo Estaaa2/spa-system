@@ -2586,14 +2586,90 @@
                                     </div>
                                 </div>
 
+                                {{-- Day tabs and time rows are built in welcome.js, so they are
+                                     styled with plain CSS here, not Tailwind classes. --}}
+                                <style>
+                                    .bk-cal-nav {
+                                        display: flex; align-items: center; justify-content: center;
+                                        width: 44px; height: 44px; border-radius: 12px; color: #374151;
+                                    }
+                                    .bk-cal-nav:hover:not(:disabled) { background: rgba(0, 0, 0, .05); }
+                                    .bk-cal-nav:disabled { opacity: .3; cursor: not-allowed; }
+
+                                    .bk-cal-msg { grid-column: 1 / -1; padding: 14px 0; text-align: center; font-size: 13px; color: #6b7280; }
+
+                                    .bk-cal-day {
+                                        position: relative; display: flex; align-items: center; justify-content: center;
+                                        height: 40px; border-radius: 12px; font-size: 14px; color: #374151;
+                                        transition: background-color .15s ease;
+                                    }
+                                    .bk-cal-day:hover:not(:disabled) { background: #F6EFE6; }
+                                    .bk-cal-day:disabled { color: #d1d5db; cursor: default; }
+                                    .bk-cal-day[aria-pressed="true"] { background: #8B7355; color: #fff; font-weight: 700; }
+                                    .bk-cal-dot {
+                                        position: absolute; bottom: 4px; width: 4px; height: 4px;
+                                        border-radius: 9999px; background: #8B7355;
+                                    }
+                                    .bk-cal-day[aria-pressed="true"] .bk-cal-dot { background: #fff; }
+
+                                    .bk-timeline { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; padding-right: 2px; }
+                                    .slot-btn.bk-slot {
+                                        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                                        width: 100%; min-height: 44px; padding: 8px 14px; text-align: left;
+                                    }
+                                    .slot-btn.bk-slot:disabled { color: #6b7280; }
+                                    .bk-slot-time { font-weight: 600; white-space: nowrap; }
+                                    .bk-slot-note { font-size: 11px; text-align: right; }
+
+                                    @media (prefers-color-scheme: dark) {
+                                        .bk-cal-nav { color: #d1d5db; }
+                                        .bk-cal-nav:hover:not(:disabled) { background: rgba(255, 255, 255, .1); }
+                                        .bk-cal-msg { color: #9ca3af; }
+                                        .bk-cal-day { color: #d1d5db; }
+                                        .bk-cal-day:hover:not(:disabled) { background: #374151; }
+                                        .bk-cal-day:disabled { color: #4b5563; }
+                                        .bk-cal-day[aria-pressed="true"] { background: #C4A97D; color: #1f2937; }
+                                        .bk-cal-dot { background: #C4A97D; }
+                                        .bk-cal-day[aria-pressed="true"] .bk-cal-dot { background: #1f2937; }
+                                        .slot-btn.bk-slot:disabled { color: #9ca3af; }
+                                    }
+                                </style>
+
                                 {{-- ============ STEP 2 — DATE & TIME ============ --}}
                                 <div data-booking-step="2" class="hidden">
                                     <div>
-                                        <label
-                                            class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Appointment
-                                            Date</label>
-                                        <input type="date" name="appointment_date" id="bookingDateInput"
-                                            class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        <span class="block text-xs font-semibold text-gray-600 dark:text-gray-300">Appointment
+                                            Date</span>
+
+                                        <div class="flex items-center justify-between mt-2">
+                                            <button type="button" id="bookingCalPrev" class="bk-cal-nav"
+                                                aria-label="Previous month" disabled>
+                                                <i class="text-sm fa-solid fa-chevron-left" aria-hidden="true"></i>
+                                            </button>
+                                            <p id="bookingCalTitle"
+                                                class="text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
+                                            <button type="button" id="bookingCalNext" class="bk-cal-nav"
+                                                aria-label="Next month">
+                                                <i class="text-sm fa-solid fa-chevron-right" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+
+                                        <div class="grid grid-cols-7 mt-1 mb-2">
+                                            @foreach (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $day)
+                                                <div
+                                                    class="py-2 text-xs font-semibold text-center text-gray-400 dark:text-gray-500">
+                                                    {{ $day }}</div>
+                                            @endforeach
+                                        </div>
+                                        <div id="bookingCalGrid" class="grid grid-cols-7 gap-1"></div>
+
+                                        <p class="flex items-center gap-1.5 mt-3 text-[11px] text-gray-500 dark:text-gray-400">
+                                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
+                                            You already have an appointment on this day. Greyed-out days are closed
+                                            or outside the 30-day booking window.
+                                        </p>
+
+                                        <input type="hidden" name="appointment_date" id="bookingDateInput">
                                     </div>
 
                                     <div class="mt-4">
@@ -2606,7 +2682,7 @@
                                                 <i class="fa-solid fa-spinner fa-spin"></i> Checking availability…
                                             </span>
                                         </div>
-                                        <div id="bookingSlotGrid" class="grid grid-cols-3 gap-2 mt-2 sm:grid-cols-4">
+                                        <div id="bookingSlotGrid" class="mt-2 bk-timeline">
                                             <p
                                                 class="col-span-3 py-6 text-sm text-center text-gray-400 dark:text-gray-500 sm:col-span-4">
                                                 Pick a date to see available times.</p>
@@ -2691,10 +2767,49 @@
                                             <span id="recapTotalPrice"
                                                 class="font-medium text-[#3C2F23] dark:text-white"></span>
                                         </div>
-                                        <div class="flex justify-between gap-3">
-                                            <span class="text-gray-500 dark:text-gray-400">Reservation fee (20%)</span>
-                                            <span id="recapDownpayment"
+                                        <fieldset class="pt-2 mt-2 space-y-2 border-t border-black/5 dark:border-white/10">
+                                            <legend class="pt-2 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">
+                                                How would you like to pay?</legend>
+
+                                            <label
+                                                class="flex items-center gap-3 p-3 border border-[#E8DDD0] dark:border-gray-700 rounded-xl cursor-pointer">
+                                                <input type="radio" name="payment_option" value="downpayment" checked
+                                                    class="w-4 h-4 accent-[#8B7355] cursor-pointer flex-shrink-0">
+                                                <span class="flex-1">
+                                                    <span class="block font-medium text-[#3C2F23] dark:text-white">Reservation
+                                                        fee (20%)</span>
+                                                    <span class="block text-xs text-gray-500 dark:text-gray-400">Pay the
+                                                        rest at the spa.</span>
+                                                </span>
+                                                <span id="payOptDownAmount"
+                                                    class="font-semibold text-[#6F5430] dark:text-[#C4A97D]"></span>
+                                            </label>
+
+                                            <label
+                                                class="flex items-center gap-3 p-3 border border-[#E8DDD0] dark:border-gray-700 rounded-xl cursor-pointer">
+                                                <input type="radio" name="payment_option" value="full"
+                                                    class="w-4 h-4 accent-[#8B7355] cursor-pointer flex-shrink-0">
+                                                <span class="flex-1">
+                                                    <span class="block font-medium text-[#3C2F23] dark:text-white">Full
+                                                        payment</span>
+                                                    <span class="block text-xs text-gray-500 dark:text-gray-400">Nothing
+                                                        to pay at the spa.</span>
+                                                </span>
+                                                <span id="payOptFullAmount"
+                                                    class="font-semibold text-[#6F5430] dark:text-[#C4A97D]"></span>
+                                            </label>
+                                        </fieldset>
+
+                                        <div
+                                            class="flex justify-between gap-3 pt-2 mt-2 border-t border-black/5 dark:border-white/10">
+                                            <span class="text-gray-500 dark:text-gray-400">Pay now</span>
+                                            <span id="recapPayNow"
                                                 class="font-semibold text-[#6F5430] dark:text-[#C4A97D]"></span>
+                                        </div>
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-gray-500 dark:text-gray-400">Balance at the spa</span>
+                                            <span id="recapBalance"
+                                                class="font-medium text-[#3C2F23] dark:text-white"></span>
                                         </div>
                                     </div>
 
@@ -3057,8 +3172,9 @@
                                     class="fa-solid fa-circle-check text-[#8B7355] dark:text-[#C4A97D] mt-0.5 flex-shrink-0 text-sm"></i>
                                 <div>
                                     <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">Downpayment</p>
-                                    <p>A 20% non-refundable downpayment is required to confirm your reservation. The
-                                        remaining 80% is payable at the spa on the day of your appointment.</p>
+                                    <p>A 20% non-refundable downpayment is required to confirm your reservation. You
+                                        may pay the remaining 80% at the spa on the day of your appointment, or pay
+                                        the full amount online when you book.</p>
                                 </div>
                             </li>
                             <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40">
@@ -3067,7 +3183,9 @@
                                 <div>
                                     <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">Cancellation</p>
                                     <p>Cancellations must be made at least 24 hours before your appointment. The 20%
-                                        downpayment is non-refundable regardless of cancellation timing.</p>
+                                        downpayment is non-refundable regardless of cancellation timing. If you paid
+                                        in full, the remaining 80% is refunded by the spa directly, at the branch or
+                                        by contacting the spa's phone number. Rescheduling keeps your payment.</p>
                                 </div>
                             </li>
                             <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40">
@@ -3075,8 +3193,9 @@
                                     class="fa-solid fa-circle-check text-[#8B7355] dark:text-[#C4A97D] mt-0.5 flex-shrink-0 text-sm"></i>
                                 <div>
                                     <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">No-Show Policy</p>
-                                    <p>Failure to arrive without prior notice will forfeit your downpayment and may
-                                        result in restricted future bookings on this platform.</p>
+                                    <p>Failure to arrive without prior notice will forfeit your 20% downpayment and may
+                                        result in restricted future bookings on this platform. If you paid in full,
+                                        the remaining 80% is still refundable by the spa directly.</p>
                                 </div>
                             </li>
                         </ul>

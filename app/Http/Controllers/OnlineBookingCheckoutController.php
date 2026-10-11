@@ -21,6 +21,9 @@ use Illuminate\Validation\ValidationException;
 
 class OnlineBookingCheckoutController extends Controller
 {
+
+    private const MAX_ADVANCE_DAYS = 30;
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -32,8 +35,9 @@ class OnlineBookingCheckoutController extends Controller
             'treatment'        => ['required', 'string'],
             'service_type'     => ['required', 'in:in_branch,in_home'],
             'customer_address' => ['nullable', 'string', 'max:1000'],
-            'appointment_date' => ['required', 'date', 'after_or_equal:today'],
+            'appointment_date' => ['required', 'date', 'after_or_equal:today', 'before_or_equal:' . now()->addDays(self::MAX_ADVANCE_DAYS)->toDateString()],
             'start_time'       => ['required'],
+            'payment_option'   => ['nullable', 'in:downpayment,full'],
         ]);
 
         $spa = Spa::find($validated['spa_id']);
@@ -187,8 +191,11 @@ class OnlineBookingCheckoutController extends Controller
         // CREATE PENDING RESERVATION & PAYMONGO CHECKOUT
         // =====================================================
         $downpaymentAmount = round($fullAmount * 0.20, 2);
+        $paymentOption = $validated['payment_option'] ?? 'downpayment';
+        $isFullPayment = $paymentOption === 'full';
+        $amountCharged = $isFullPayment ? round($fullAmount, 2) : $downpaymentAmount;
 
-        $pending = DB::transaction(function () use ($validated, $item, $bookableType, $fullAmount, $downpaymentAmount) {
+        $pending = DB::transaction(function () use ($validated, $item, $bookableType, $fullAmount, $downpaymentAmount, $paymentOption, $amountCharged) {
             return OnlineReservationPayment::create([
                 'user_id'              => Auth::id(),
                 'spa_id'               => $validated['spa_id'],
@@ -202,6 +209,8 @@ class OnlineBookingCheckoutController extends Controller
                 'bookable_name'        => $item->name,
                 'full_amount'          => $fullAmount,
                 'downpayment_amount'   => $downpaymentAmount,
+                'payment_option'       => $paymentOption,
+                'amount_charged'       => $amountCharged,
                 'service_type'         => $validated['service_type'],
                 'appointment_date'     => $validated['appointment_date'],
                 'start_time'           => $validated['start_time'],
@@ -223,14 +232,18 @@ class OnlineBookingCheckoutController extends Controller
                             'send_email_receipt' => true,
                             'show_description'   => true,
                             'show_line_items'    => true,
-                            'description'        => '20% reservation fee for spa appointment',
+                            'description'        => $isFullPayment
+                                ? 'Full payment for spa appointment'
+                                : '20% reservation fee for spa appointment',
                             'line_items'         => [
                                 [
                                     'currency'    => 'PHP',
-                                    'amount'      => (int) round($downpaymentAmount * 100),
-                                    'name'        => $pending->bookable_name . ' Reservation Fee',
+                                    'amount'      => (int) round($amountCharged * 100),
+                                    'name'        => $pending->bookable_name . ($isFullPayment ? ' Full Payment' : ' Reservation Fee'),
                                     'quantity'    => 1,
-                                    'description' => '20% downpayment for appointment reservation',
+                                    'description' => $isFullPayment
+                                        ? 'Full payment for appointment reservation'
+                                        : '20% downpayment for appointment reservation',
                                 ],
                             ],
                             'payment_method_types' => ['gcash', 'paymaya'],
@@ -418,6 +431,8 @@ class OnlineBookingCheckoutController extends Controller
                     'time'      => $slotStart->format('H:i'),
                     'available' => $available,
                     'reason'    => $customerBusy ? 'already_booked' : ($available ? null : 'fully_booked'),
+                    // How many therapists are still free. A count only, no names.
+                    'free'      => max($therapistCount - $overlapping, 0),
                 ];
             }
 
@@ -429,6 +444,44 @@ class OnlineBookingCheckoutController extends Controller
             'opening_time' => $hours->opening_time,
             'closing_time' => $hours->closing_time,
             'slots'        => $slots,
+        ]);
+    }
+
+    /**
+     * GET /bookings/online/available-days
+     * Query: branch_id
+     *
+     * Returns every date a customer may book: from today up to the 30-day
+     * limit, leaving out the days the branch is closed. The booking form's
+     * calendar greys out any date that is not in this list.
+     */
+    public function availableDays(Request $request)
+    {
+        $validated = $request->validate([
+            'branch_id' => ['required', 'exists:branches,id'],
+        ]);
+
+        $today   = Carbon::today();
+        $lastDay = $today->copy()->addDays(self::MAX_ADVANCE_DAYS);
+
+        $hoursByDay = OperatingHours::where('branch_id', $validated['branch_id'])
+            ->get()
+            ->keyBy('day_of_week');
+
+        $dates = [];
+
+        for ($date = $today->copy(); $date->lte($lastDay); $date->addDay()) {
+            $hours = $hoursByDay->get($date->format('l'));
+
+            if ($hours && ! $hours->is_closed) {
+                $dates[] = $date->toDateString();
+            }
+        }
+
+        return response()->json([
+            'dates' => $dates,
+            'first' => $today->toDateString(),
+            'last'  => $lastDay->toDateString(),
         ]);
     }
 

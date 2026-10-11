@@ -209,6 +209,9 @@ class PaymongoWebhookController extends Controller
                         if (! $recommendedTherapist) {
                             throw new \RuntimeException('No therapist available for paid reservation.');
                         }
+                        $totalAmount = (float) $reservation->full_amount;
+                        $amountPaid  = (float) ($reservation->amount_charged ?? $reservation->downpayment_amount);
+                        $balance     = max(round($totalAmount - $amountPaid, 2), 0);
 
                         $booking = Booking::create([
                             'spa_id' => $reservation->spa_id,
@@ -217,10 +220,10 @@ class PaymongoWebhookController extends Controller
                             'created_by_user_id' => null,
                             'booking_source' => 'online',
                             'status' => 'reserved',
-                            'payment_status' => 'partially_paid',
-                            'amount_paid' => $reservation->downpayment_amount,
-                            'total_amount' => $reservation->full_amount,
-                            'balance_amount' => $reservation->full_amount - $reservation->downpayment_amount,
+                            'payment_status' => $balance <= 0 ? 'paid' : 'partially_paid',
+                            'amount_paid' => $amountPaid,
+                            'total_amount' => $totalAmount,
+                            'balance_amount' => $balance,
                             'service_type' => $reservation->service_type,
                             'treatment' => $treatmentCode,
                             'customer_name' => $reservation->customer_name,

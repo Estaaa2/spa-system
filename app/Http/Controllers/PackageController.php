@@ -17,13 +17,12 @@ class PackageController extends Controller
             'included_treatments'   => 'nullable|array',
             'included_treatments.*' => 'exists:treatments,id',
             'description'           => 'nullable|string',
-            'image'                 => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image'                 => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'image_2'               => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'cover'                 => 'nullable|in:1,2',
         ]);
 
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('packages', 'public');
-        }
+        [$imagePath, $imagePath2] = $this->resolveImages($request, 'packages');
 
         $package = Package::create([
             'spa_id'         => auth()->user()->spa_id,
@@ -33,6 +32,7 @@ class PackageController extends Controller
             'price'          => $validated['price'],
             'description'    => $validated['description'] ?? null,
             'image_path'     => $imagePath,
+            'image_path_2'   => $imagePath2,
         ]);
 
         if (!empty($validated['included_treatments'])) {
@@ -54,6 +54,7 @@ class PackageController extends Controller
             'description'          => $package->description,
             'included_treatments'  => $package->treatments->pluck('id'),
             'image_url'            => $package->image_url,
+            'image_url_2'          => $package->image_url_2,
         ]);
     }
 
@@ -66,16 +67,19 @@ class PackageController extends Controller
             'description'           => 'nullable|string',
             'included_treatments'   => 'nullable|array',
             'included_treatments.*' => 'exists:treatments,id',
-            'image'                 => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image'                 => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'image_2'               => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'remove_image'          => 'nullable|boolean',
+            'remove_image_2'        => 'nullable|boolean',
+            'cover'                 => 'nullable|in:1,2',
         ]);
 
-        $imagePath = $package->image_path;
-        if ($request->hasFile('image')) {
-            if ($package->image_path) {
-                Storage::disk('public')->delete($package->image_path);
-            }
-            $imagePath = $request->file('image')->store('packages', 'public');
-        }
+        [$imagePath, $imagePath2] = $this->resolveImages(
+            $request,
+            'packages',
+            $package->image_path,
+            $package->image_path_2
+        );
 
         $package->update([
             'name'           => $validated['name'],
@@ -83,6 +87,7 @@ class PackageController extends Controller
             'price'          => $validated['price'],
             'description'    => $validated['description'] ?? null,
             'image_path'     => $imagePath,
+            'image_path_2'   => $imagePath2,
         ]);
 
         $package->treatments()->sync($validated['included_treatments'] ?? []);
@@ -94,8 +99,10 @@ class PackageController extends Controller
 
     public function destroy(Package $package)
     {
-        if ($package->image_path) {
-            Storage::disk('public')->delete($package->image_path);
+        foreach ([$package->image_path, $package->image_path_2] as $path) {
+            if ($path) {
+                Storage::disk('public')->delete($path);
+            }
         }
 
         $package->delete();
@@ -103,5 +110,48 @@ class PackageController extends Controller
         return redirect()
             ->route('services.index')
             ->with('success', 'Package deleted successfully!');
+    }
+
+    /**
+     * Works out the two image paths after an add or edit.
+     * Each slot: a new upload replaces the old file; otherwise a ticked
+     * "remove" box deletes it; otherwise it is kept as is.
+     * cover=2 swaps the slots, and a lone second image moves up to slot 1,
+     * so image_path is always the cover.
+     */
+    private function resolveImages(Request $request, string $folder, ?string $first = null, ?string $second = null): array
+    {
+        $disk = Storage::disk('public');
+
+        if ($request->hasFile('image')) {
+            if ($first) {
+                $disk->delete($first);
+            }
+            $first = $request->file('image')->store($folder, 'public');
+        } elseif ($request->boolean('remove_image') && $first) {
+            $disk->delete($first);
+            $first = null;
+        }
+
+        if ($request->hasFile('image_2')) {
+            if ($second) {
+                $disk->delete($second);
+            }
+            $second = $request->file('image_2')->store($folder, 'public');
+        } elseif ($request->boolean('remove_image_2') && $second) {
+            $disk->delete($second);
+            $second = null;
+        }
+
+        if ($request->input('cover') === '2' && $first && $second) {
+            [$first, $second] = [$second, $first];
+        }
+
+        if (!$first && $second) {
+            $first = $second;
+            $second = null;
+        }
+
+        return [$first, $second];
     }
 }

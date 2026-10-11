@@ -178,6 +178,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/bookings/online/available-slots', [OnlineBookingCheckoutController::class, 'availableSlots'])
         ->name('bookings.online.available-slots');
 
+    Route::get('/bookings/online/available-days', [OnlineBookingCheckoutController::class, 'availableDays'])
+        ->name('bookings.online.available-days');
+
     Route::get('/bookings/online/payment/success', [OnlineBookingCheckoutController::class, 'success'])
         ->name('bookings.online.payment.success');
 

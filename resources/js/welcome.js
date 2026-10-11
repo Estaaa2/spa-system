@@ -1439,6 +1439,14 @@ const SLOT_REASON_LABELS = {
     already_booked: 'You already have an appointment at this time.',
 };
 
+// Short status shown on each unavailable time row.
+const SLOT_NOTE_LABELS = {
+    fully_booked: 'Booked',
+    past_closing: 'Too close to closing',
+    past: 'Passed',
+    already_booked: 'Your appointment',
+};
+
 function selectSlot(time, btn) {
     if (bookingTimeInput) bookingTimeInput.value = time;
     document.querySelectorAll('#bookingSlotGrid .slot-btn').forEach(b => b.classList.remove('is-selected'));
@@ -1493,9 +1501,23 @@ async function loadAvailableSlots() {
         data.slots.forEach(slot => {
             const slotBtn = document.createElement('button');
             slotBtn.type = 'button';
-            slotBtn.textContent = formatTime12Hour(slot.time);
             slotBtn.dataset.slotTime = slot.time;
-            slotBtn.className = 'slot-btn';
+            slotBtn.className = 'slot-btn bk-slot';
+
+            const timeEl = document.createElement('span');
+            timeEl.className = 'bk-slot-time';
+            timeEl.textContent = formatTime12Hour(slot.time);
+
+            const noteEl = document.createElement('span');
+            noteEl.className = 'bk-slot-note';
+            if (slot.available) {
+                const free = Number(slot.free) || 1;
+                noteEl.textContent = `${free} left ${free === 1 ? 'is' : 'are'} available`;
+            } else {
+                noteEl.textContent = SLOT_NOTE_LABELS[slot.reason] || 'Unavailable';
+            }
+
+            slotBtn.append(timeEl, noteEl);
 
             if (slot.available) {
                 slotBtn.addEventListener('click', () => selectSlot(slot.time, slotBtn));
@@ -1519,6 +1541,138 @@ async function loadAvailableSlots() {
     }
 }
 
+// ── Step 2: month calendar (same look as My Schedule) ───────────────────────
+let bookingCalMonth  = new Date();   // the month on display
+let bookingOpenDates = new Set();    // dates the customer may book
+let bookingCalFirst  = '';           // first bookable date (today)
+let bookingCalLast   = '';           // last bookable date (30 days ahead)
+let bookingMyDates   = new Set();    // days this customer already has an appointment
+
+async function loadBookingCalendar() {
+    const grid     = document.getElementById('bookingCalGrid');
+    const branchId = bookingBranchIdInput?.value;
+
+    if (!grid || !branchId) return;
+
+    grid.innerHTML = '<p class="bk-cal-msg">Loading dates…</p>';
+
+    try {
+        const params = new URLSearchParams({ branch_id: branchId });
+        const response = await fetch(`/bookings/online/available-days?${params.toString()}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        bookingOpenDates = new Set(data.dates || []);
+        bookingCalFirst  = data.first || '';
+        bookingCalLast   = data.last || '';
+
+        // Open on the month of the chosen date, or the current month.
+        const base = bookingDateInput?.value || bookingCalFirst;
+        bookingCalMonth = base ? new Date(base + 'T00:00:00') : new Date();
+        bookingCalMonth.setDate(1);
+
+        renderBookingCalendar();
+    } catch (err) {
+        console.error('Failed to load booking dates:', err);
+        grid.innerHTML = '<p class="bk-cal-msg">Unable to load dates. Please try again.</p>';
+        return;
+    }
+
+    // The customer's own appointments, for the dot. The calendar still works
+    // if this fails.
+    try {
+        const response = await fetch('/my-schedule', { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) return;
+        const bookings = await response.json();
+        if (!Array.isArray(bookings)) return;
+
+        bookingMyDates = new Set(
+            bookings
+                .filter(b => !['cancelled', 'completed'].includes(String(b.status || '').toLowerCase()))
+                .map(b => b.date_raw)
+        );
+        renderBookingCalendar();
+    } catch (err) {
+        console.warn('Could not load your appointments for the calendar:', err);
+    }
+}
+
+function renderBookingCalendar() {
+    const grid  = document.getElementById('bookingCalGrid');
+    const title = document.getElementById('bookingCalTitle');
+    if (!grid) return;
+
+    const year     = bookingCalMonth.getFullYear();
+    const month    = bookingCalMonth.getMonth();
+    const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+    if (title) {
+        title.textContent = bookingCalMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    // The arrows stop at the first and last month that has bookable days.
+    const prevBtn = document.getElementById('bookingCalPrev');
+    const nextBtn = document.getElementById('bookingCalNext');
+    if (prevBtn) prevBtn.disabled = !bookingCalFirst || monthKey <= bookingCalFirst.slice(0, 7);
+    if (nextBtn) nextBtn.disabled = !bookingCalLast || monthKey >= bookingCalLast.slice(0, 7);
+
+    const firstDay    = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const selected    = bookingDateInput?.value || '';
+
+    grid.innerHTML = '';
+    for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${monthKey}-${String(d).padStart(2, '0')}`;
+        const isOpen  = bookingOpenDates.has(dateStr);
+        const isMine  = bookingMyDates.has(dateStr);
+
+        const dayBtn = document.createElement('button');
+        dayBtn.type = 'button';
+        dayBtn.className = 'bk-cal-day';
+        dayBtn.dataset.date = dateStr;
+        dayBtn.textContent = String(d);
+        dayBtn.disabled = !isOpen;
+        dayBtn.setAttribute('aria-pressed', dateStr === selected ? 'true' : 'false');
+
+        const longDate = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric',
+        });
+        dayBtn.setAttribute('aria-label',
+            longDate + (isOpen ? '' : ', not available') + (isMine ? ', you have an appointment' : ''));
+
+        if (isMine) {
+            const dot = document.createElement('span');
+            dot.className = 'bk-cal-dot';
+            dot.setAttribute('aria-hidden', 'true');
+            dayBtn.appendChild(dot);
+        }
+
+        if (isOpen) dayBtn.addEventListener('click', () => selectBookingDay(dateStr));
+
+        grid.appendChild(dayBtn);
+    }
+}
+
+function changeBookingMonth(dir) {
+    bookingCalMonth.setMonth(bookingCalMonth.getMonth() + dir);
+    renderBookingCalendar();
+}
+
+function selectBookingDay(date) {
+    if (bookingDateInput) bookingDateInput.value = date;
+    document.querySelectorAll('#bookingCalGrid .bk-cal-day').forEach(dayBtn => {
+        dayBtn.setAttribute('aria-pressed', dayBtn.dataset.date === date ? 'true' : 'false');
+    });
+    loadAvailableSlots();
+}
+
+document.getElementById('bookingCalPrev')?.addEventListener('click', () => changeBookingMonth(-1));
+document.getElementById('bookingCalNext')?.addEventListener('click', () => changeBookingMonth(1));
 // ── Step 3: recap ────────────────────────────────────────────────────────────
 function buildBookingRecap() {
     const recapServiceEl = document.getElementById('recapService');
@@ -1549,9 +1703,35 @@ function buildBookingRecap() {
         : '—';
 
     const price = checked ? parseFloat(checked.dataset.price || '0') : 0;
-    document.getElementById('recapTotalPrice').textContent = price ? formatPeso(price) : '—';
-    document.getElementById('recapDownpayment').textContent = price ? `${formatPeso(price * 0.2)}` : '—';
+        document.getElementById('recapTotalPrice').textContent = price ? formatPeso(price) : '—';
+    recapPrice = price;
+    updatePaymentRecap();
 }
+
+// Price shown in the recap, kept so the amounts can be redrawn when the
+// customer switches between the reservation fee and full payment.
+let recapPrice = 0;
+
+// Display only. The server works out the real amount from the chosen option.
+function updatePaymentRecap() {
+    const payNowEl = document.getElementById('recapPayNow');
+    if (!payNowEl) return;
+
+    const price       = recapPrice || 0;
+    const downpayment = Math.round(price * 20) / 100;   // 20%, rounded to centavos
+    const isFull      = document.querySelector('input[name="payment_option"]:checked')?.value === 'full';
+    const payNow      = isFull ? price : downpayment;
+    const show        = (amount) => (price ? formatPeso(amount) : '—');
+
+    document.getElementById('payOptDownAmount').textContent = show(downpayment);
+    document.getElementById('payOptFullAmount').textContent = show(price);
+    payNowEl.textContent = show(payNow);
+    document.getElementById('recapBalance').textContent = show(price - payNow);
+}
+
+document.addEventListener('change', (e) => {
+    if (e.target?.name === 'payment_option') updatePaymentRecap();
+});
 
 function openBookingModal() {
     if (!selectedSpa || !bookingModal) return;
@@ -1904,6 +2084,7 @@ document.getElementById('bookingNextBtn')?.addEventListener('click', function ()
     if (currentBookingStep < TOTAL_BOOKING_STEPS) {
         const nextStep = currentBookingStep + 1;
         showBookingStep(nextStep);
+        if (nextStep === 2) loadBookingCalendar();
         if (nextStep === 2 && bookingDateInput?.value) loadAvailableSlots();
     }
 });

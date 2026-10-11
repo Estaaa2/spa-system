@@ -20,9 +20,10 @@ class Treatment extends Model
         'service_type',
         'description',
         'image_path',
+        'image_path_2'
     ];
 
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url','image_url_2'];
 
     public function spa()
     {
@@ -63,6 +64,11 @@ class Treatment extends Model
     public function getImageUrlAttribute()
     {
         return $this->image_path ? asset('storage/' . $this->image_path) : null;
+    }
+
+    public function getImageUrl2Attribute()
+    {
+        return $this->image_path_2 ? asset('storage/' . $this->image_path_2) : null;
     }
 
     protected static function booted()

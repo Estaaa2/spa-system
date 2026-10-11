@@ -398,6 +398,7 @@
                                                     data-service-type="{{ $treatment->service_type }}"
                                                     data-description="{{ $treatment->description }}"
                                                     data-image="{{ $treatment->image_url }}"
+                                                    data-image2="{{ $treatment->image_url_2 }}"
                                                     class="{{ $btn['secondary'] }}">
                                                 <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                                 <span>Edit</span>
@@ -573,6 +574,7 @@
                                                     data-description="{{ $package->description }}"
                                                     data-treatments="{{ $members->pluck('id')->join(',') }}"
                                                     data-image="{{ $package->image_url }}"
+                                                    data-image2="{{ $package->image_url_2 }}"
                                                     class="{{ $btn['secondary'] }}">
                                                 <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                                 <span>Edit</span>
@@ -665,11 +667,7 @@
                     </select>
                 </div>
 
-                <div>
-                    <label for="add_treatment_image" class="{{ $label }}">Image</label>
-                    <input type="file" name="image" id="add_treatment_image" accept="image/*" class="{{ $input }}">
-                    <p class="{{ $hint }}">JPG, PNG or WEBP, max {{ $maxImageMb }}MB.</p>
-                </div>
+                @include('services.partials.image-picker', ['prefix' => 'add_treatment'])
 
                 <div>
                     <label for="add_treatment_description" class="{{ $label }}">Description</label>
@@ -745,13 +743,7 @@
                     </select>
                 </div>
 
-                <div>
-                    <label for="edit_treatment_image_input" class="{{ $label }}">Image</label>
-                    <img id="edit_treatment_image_preview" src="" alt=""
-                         class="hidden object-cover w-20 h-20 mb-2 border border-gray-300 rounded-xl dark:border-gray-600">
-                    <input type="file" name="image" id="edit_treatment_image_input" accept="image/*" class="{{ $input }}">
-                    <p class="{{ $hint }}">Leave blank to keep current image.</p>
-                </div>
+                @include('services.partials.image-picker', ['prefix' => 'edit_treatment'])
 
                 <div>
                     <label for="edit_treatment_description" class="{{ $label }}">Description</label>
@@ -941,11 +933,7 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="add_package_image" class="{{ $label }}">Image</label>
-                    <input type="file" name="image" id="add_package_image" accept="image/*" class="{{ $input }}">
-                    <p class="{{ $hint }}">JPG, PNG or WEBP, max {{ $maxImageMb }}MB.</p>
-                </div>
+                @include('services.partials.image-picker', ['prefix' => 'add_package'])
 
                 <div>
                     <label for="add_package_description" class="{{ $label }}">Description</label>
@@ -1036,13 +1024,7 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="edit_package_image_input" class="{{ $label }}">Image</label>
-                    <img id="edit_package_image_preview" src="" alt=""
-                         class="hidden object-cover w-20 h-20 mb-2 border border-gray-300 rounded-xl dark:border-gray-600">
-                    <input type="file" name="image" id="edit_package_image_input" accept="image/*" class="{{ $input }}">
-                    <p class="{{ $hint }}">Leave blank to keep current image.</p>
-                </div>
+                @include('services.partials.image-picker', ['prefix' => 'edit_package'])
 
                 <div>
                     <label for="edit_package_description" class="{{ $label }}">Description</label>
@@ -1275,6 +1257,145 @@
 
 
     // ════════════════════════════════════════════════════════════════
+    // IMAGE PICKER — two tiles in one row
+    // ════════════════════════════════════════════════════════════════
+    // One picker per form, keyed by its prefix. Empty tile: click opens the
+    // file picker. Filled tile: click selects it and shows the action row.
+    // The server reads image / image_2 / remove_image / remove_image_2 / cover.
+    const imagePickers = {};
+
+    function setupImagePicker(root) {
+        const tiles   = {};
+        const files   = {};
+        const removes = {};
+        [1, 2].forEach(function (slot) {
+            tiles[slot]   = root.querySelector('[data-slot="' + slot + '"]');
+            files[slot]   = root.querySelector('[data-file="' + slot + '"]');
+            removes[slot] = root.querySelector('[data-remove="' + slot + '"]');
+        });
+        const coverInput = root.querySelector('[data-cover]');
+        const actions    = root.querySelector('[data-actions]');
+        const coverBtn   = root.querySelector('[data-action="cover"]');
+
+        const state = {
+            existing: { 1: '', 2: '' },   // URLs already saved on the server
+            fresh:    { 1: '', 2: '' },   // preview URLs of newly picked files
+            selected: null,
+            cover:    1,
+        };
+
+        function urlOf(slot) {
+            return state.fresh[slot] || state.existing[slot];
+        }
+
+        // The cover must be a tile that actually has a photo.
+        function coverSlot() {
+            if (urlOf(state.cover)) return state.cover;
+            const other = state.cover === 1 ? 2 : 1;
+            return urlOf(other) ? other : 1;
+        }
+
+        function clearFresh(slot) {
+            if (state.fresh[slot]) URL.revokeObjectURL(state.fresh[slot]);
+            state.fresh[slot] = '';
+        }
+
+        function render() {
+            if (state.selected !== null && !urlOf(state.selected)) state.selected = null;
+            const cover = coverSlot();
+
+            [1, 2].forEach(function (slot) {
+                const tile  = tiles[slot];
+                const url   = urlOf(slot);
+                const img   = tile.querySelector('img');
+                const plus  = tile.querySelector('i');
+                const badge = tile.querySelector('.svc-img-cover-badge');
+
+                if (url) img.src = url; else img.removeAttribute('src');
+                img.hidden   = !url;
+                plus.hidden  = !!url;
+                badge.hidden = !(url && cover === slot);
+
+                tile.dataset.filled = url ? 'true' : 'false';
+                tile.setAttribute('aria-pressed', state.selected === slot ? 'true' : 'false');
+                tile.setAttribute('aria-label', url
+                    ? 'Image ' + slot + (cover === slot ? ' (cover)' : '') + ', show options'
+                    : 'Add image ' + slot);
+            });
+
+            actions.classList.toggle('hidden', state.selected === null);
+            coverBtn.classList.toggle('hidden', state.selected === null || state.selected === cover);
+            coverInput.value = String(cover);
+        }
+
+        [1, 2].forEach(function (slot) {
+            tiles[slot].addEventListener('click', function () {
+                if (!urlOf(slot)) {
+                    files[slot].click();
+                    return;
+                }
+                state.selected = state.selected === slot ? null : slot;
+                render();
+            });
+
+            files[slot].addEventListener('change', function () {
+                const file = this.files && this.files[0];
+                clearFresh(slot);
+                // An oversized file is cleared (and explained) by the shared
+                // size check further down, so it gets no preview here.
+                if (file && file.size <= MAX_IMAGE_MB * 1024 * 1024) {
+                    state.fresh[slot] = URL.createObjectURL(file);
+                    removes[slot].value = '0';
+                }
+                render();
+            });
+        });
+
+        actions.addEventListener('click', function (e) {
+            const btn  = e.target.closest('[data-action]');
+            const slot = state.selected;
+            if (!btn || slot === null) return;
+
+            if (btn.dataset.action === 'cover') {
+                state.cover = slot;
+                state.selected = null;
+            } else if (btn.dataset.action === 'replace') {
+                files[slot].click();
+                return;
+            } else if (btn.dataset.action === 'remove') {
+                clearFresh(slot);
+                files[slot].value = '';
+                if (state.existing[slot]) {
+                    removes[slot].value = '1';
+                    state.existing[slot] = '';
+                }
+                state.selected = null;
+            }
+            render();
+        });
+
+        imagePickers[root.dataset.imagePicker] = {
+            // Resets the picker and shows the saved images (empty strings for none).
+            load: function (url1, url2) {
+                [1, 2].forEach(function (slot) {
+                    clearFresh(slot);
+                    files[slot].value = '';
+                    removes[slot].value = '0';
+                });
+                state.existing = { 1: url1 || '', 2: url2 || '' };
+                state.selected = null;
+                state.cover = 1;
+                render();
+            },
+        };
+
+        render();
+    }
+
+    document.querySelectorAll('[data-image-picker]').forEach(setupImagePicker);
+
+
+    // ════════════════════════════════════════════════════════════════
     // TREATMENTS
     // ════════════════════════════════════════════════════════════════
     const ADD_TREATMENT_FIELDS = [
@@ -1292,6 +1413,7 @@
         const form = document.getElementById('addTreatmentForm');
         if (form) form.reset();
         clearErrors(ADD_TREATMENT_FIELDS);
+        imagePickers.add_treatment?.load('', '');
         openModalById('addTreatmentModal', '#add_treatment_name');
     }
 
@@ -1328,13 +1450,7 @@
         }
         durationSelect.value = stored;
 
-        const preview = document.getElementById('edit_treatment_image_preview');
-        const imageInput = document.getElementById('edit_treatment_image_input');
-        if (imageInput) imageInput.value = '';
-        if (preview) {
-            preview.src = d.image || '';
-            preview.classList.toggle('hidden', !d.image);
-        }
+        imagePickers.edit_treatment?.load(d.image, d.image2);
 
         openModalById('editTreatmentModal', '#edit_treatment_name');
     }
@@ -1745,6 +1861,7 @@
         setFieldError('add_package_name', 'add_package_name_error', false);
         setFieldError('addIncludedTreatments', 'add_package_treatments_error', false);
         updateAddPackageTotals();
+        imagePickers.add_package?.load('', '');
         openModalById('addPackageModal', '#add_package_name');
     }
 
@@ -1772,13 +1889,7 @@
         if (warning) warning.classList.toggle('hidden', missing.length === 0);
         if (count) count.textContent = String(missing.length);
 
-        const preview = document.getElementById('edit_package_image_preview');
-        const imageInput = document.getElementById('edit_package_image_input');
-        if (imageInput) imageInput.value = '';
-        if (preview) {
-            preview.src = d.image || '';
-            preview.classList.toggle('hidden', !d.image);
-        }
+        imagePickers.edit_package?.load(d.image, d.image2);
 
         openModalById('editPackageModal', '#edit_package_name');
         updateEditPackageTotals();
@@ -1944,6 +2055,48 @@
 
 @media (max-width: 767px) and (prefers-color-scheme: dark) {
     .rt td[data-label]::before { color: #9ca3af; }
+}
+
+/* Image picker tiles. Plain CSS because the filled / selected states are
+   driven by attributes the script sets (data-filled, aria-pressed). */
+.svc-img-tile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 5rem;
+    height: 5rem;
+    padding: 0;
+    overflow: hidden;
+    border: 1px dashed #d1d5db;
+    border-radius: 0.75rem;
+    background: #f9fafb;
+    color: #6b7280;
+    cursor: pointer;
+}
+.svc-img-tile[data-filled="true"] { border-style: solid; }
+.svc-img-tile img { width: 100%; height: 100%; object-fit: cover; }
+.svc-img-tile [hidden] { display: none !important; }
+.svc-img-tile:focus-visible,
+.svc-img-tile[aria-pressed="true"] {
+    outline: 2px solid #8B7355;
+    outline-offset: 2px;
+}
+.svc-img-cover-badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+    .svc-img-tile { border-color: #4b5563; background: #374151; color: #9ca3af; }
+    .svc-img-tile:focus-visible,
+    .svc-img-tile[aria-pressed="true"] { outline-color: #C4A97D; }
 }
 
 /* Invalid-field outline. darkMode is 'media', so there is no .dark class on
