@@ -3,10 +3,10 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\SpaController;
-use App\Http\Controllers\PaymongoWebhookController;
+use App\Http\Middleware\EnsureMobileAccess;
+use App\Http\Controllers\OnlineBookingCheckoutController;
+use App\Http\Controllers\CustomerAppointmentController;
 use App\Http\Controllers\Api\FlutterBookingController;
-use App\Http\Controllers\Api\RatingController;
-use App\Http\Controllers\Api\RescheduleRequestController;
 use App\Http\Controllers\Api\TherapistPerformanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Api\AttendanceController;
@@ -28,14 +28,13 @@ Route::options('/{any}', function () {
         ->header('Access-Control-Max-Age', '86400');
 })->where('any', '.*');
 
-// ── Public endpoints (No authentication needed) ───────────────────────────────
-Route::post('/paymongo/webhook', [PaymongoWebhookController::class, 'handle']);
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',    [AuthController::class, 'login']);
-Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
-Route::post('/resend-otp',   [AuthController::class, 'resendOtp']);
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/reset-password',  [AuthController::class, 'resetPassword']);
+// Auth endpoints are rate-limited per IP. Each prefix keeps its own counter.
+Route::post('/register',        [AuthController::class, 'register'])->middleware('throttle:5,1,api-register');
+Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:10,1,api-login');
+Route::post('/verify-email',    [AuthController::class, 'verifyEmail'])->middleware('throttle:10,1,api-verify');
+Route::post('/resend-otp',      [AuthController::class, 'resendOtp'])->middleware('throttle:3,1,api-resend');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1,api-forgot');
+Route::post('/reset-password',  [AuthController::class, 'resetPassword'])->middleware('throttle:5,1,api-reset');
 
 Route::get('/operating-hours/{branchId}/{day}', function ($branchId, $day) {
         \Log::info('Operating hours called - Branch: ' . $branchId . ', Day: ' . $day);
@@ -65,10 +64,11 @@ Route::get('/spas/other',   [SpaController::class, 'getOtherSpas']);
 Route::get('/featured-spas', [SpaController::class, 'featured']);
 Route::get('/spas',         [SpaController::class, 'index']);
 Route::get('/spas/{id}',    [SpaController::class, 'show'])->whereNumber('id');
-
-// Flutter booking endpoints
-Route::post('/flutter/create-booking', [FlutterBookingController::class, 'createBooking']);
-Route::get('/flutter/booking-status', [FlutterBookingController::class, 'checkBookingStatus']);
+Route::get('/spas/search',             [SpaController::class, 'search']);
+Route::get('/spas/search-suggestions', [SpaController::class, 'searchSuggestions']);
+// Ratings & Reviews through the web's own controller.
+Route::get('/spas/{spaId}/{branchId}/reviews', [\App\Http\Controllers\LandingController::class, 'spaReviews'])
+    ->whereNumber(['spaId', 'branchId']);
 
 // ── Test endpoint ─────────────────────────────────────────────────────────────
 Route::get('/test', fn() => response()->json(['status' => 'api works']));
@@ -99,17 +99,8 @@ Route::get('/image/{path}', function ($path) {
         ->header('Cache-Control', 'public, max-age=3600');
 })->where('path', '.*');
 
-// CORS preflight for reschedule requests (PATCH method)
-Route::options('/reschedule-requests/booking/{bookingId}', function () {
-    return response('', 200)
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization, Origin, Accept')
-        ->header('Access-Control-Allow-Credentials', 'true');
-});
-
 // Protected endpoints (Authentication required)
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me',      [AuthController::class, 'me']);
@@ -117,29 +108,50 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/me/password',    [AuthController::class, 'updatePassword']);
     Route::patch('/profile', [ProfileController::class, 'updateCustomerApi']);
     Route::get('/therapist/attendance', [AttendanceController::class, 'myAttendance']);
+    Route::post('/therapist/attendance/clock-in',  [AttendanceController::class, 'clockIn']);
+    Route::post('/therapist/attendance/clock-out', [AttendanceController::class, 'clockOut']);
+
+    // Leave requests and "can't make it" through the web's own controllers.
+    Route::post('/leave-requests',     [\App\Http\Controllers\LeaveRequestController::class, 'store']);
+    Route::get('/leave-requests/mine', [\App\Http\Controllers\LeaveRequestController::class, 'mine']);
+    Route::get('/leave-requests/{leaveRequest}/affected-bookings', [\App\Http\Controllers\LeaveRequestController::class, 'affectedBookings']);
+    Route::post('/appointments/{booking}/reassignment-requests', [\App\Http\Controllers\ReassignmentRequestController::class, 'store']);
+            // My Payslips: the web's HR\MyPayslipController logic, as JSON.
+    Route::get('/my-payslips', [\App\Http\Controllers\Api\MyPayslipController::class, 'index']);
+    Route::get('/my-payslips/{payslip}', [\App\Http\Controllers\Api\MyPayslipController::class, 'show'])
+            ->whereNumber('payslip');
 
     // Customer bookings (only customers can access)
     Route::middleware(['role:customer'])->group(function () {
-        Route::get('/my-bookings', [BookingController::class, 'myBookings']);
-        Route::post('/bookings',   [BookingController::class, 'store']);
+                // My Appointments and My Schedule through the web's own controller.
+        Route::get('/my-appointments', [CustomerAppointmentController::class, 'appointments']);
+        Route::get('/my-schedule',     [CustomerAppointmentController::class, 'schedule']);
+                // Reschedule through the web's own controller (same rules as the web).
+        Route::post('/reschedule-requests', [\App\Http\Controllers\RescheduleRequestController::class, 'store']);
 
-        Route::get('/reschedule-requests/booking/{bookingId}', [RescheduleRequestController::class, 'show']);
-        Route::post('/reschedule-requests', [RescheduleRequestController::class, 'store']);
+        // Online booking through the web's own controller, so web and mobile
+        // share every rule (price, promo, 30 days, slots, therapists, leave).
+        Route::get('/bookings/online/available-days',  [OnlineBookingCheckoutController::class, 'availableDays']);
+        Route::get('/bookings/online/available-slots', [OnlineBookingCheckoutController::class, 'availableSlots']);
+        Route::post('/bookings/online/checkout',       [OnlineBookingCheckoutController::class, 'store'])->middleware('throttle:10,1,api-checkout');
+        Route::get('/bookings/online/status',          [FlutterBookingController::class, 'reservationStatus']);
+        Route::post('/bookings/online/cancel',         [FlutterBookingController::class, 'cancelReservation']);
+        Route::get('/bookings/online/my-dates',        [FlutterBookingController::class, 'myBookedDates']);
+
     });
 
     // Therapist endpoints (only therapists can access)
     Route::middleware(['role:therapist'])->group(function () {
         Route::get('/assigned-bookings',  [BookingController::class, 'assignedBookings']);
         Route::get('/therapist/schedule', [BookingController::class, 'therapistSchedule']);
-        Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
     });
 });
 
-Route::middleware(['auth:sanctum', 'role:therapist'])->group(function () {
+Route::middleware(['auth:sanctum', EnsureMobileAccess::class, 'role:therapist'])->group(function () {
     Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index']);
 });
 
-Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
-    Route::post('/ratings', [RatingController::class, 'store']);
-    Route::get('/ratings/booking/{bookingId}', [RatingController::class, 'show']);
+Route::middleware(['auth:sanctum', EnsureMobileAccess::class, 'role:customer'])->group(function () {
+    // Rating through the web's own controller: spa + therapist + photos.
+    Route::post('/ratings', [\App\Http\Controllers\RatingController::class, 'store']);
 });

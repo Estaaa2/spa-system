@@ -295,7 +295,11 @@ class OnlineBookingCheckoutController extends Controller
         $checkoutUrl = data_get($checkoutData, 'attributes.checkout_url');
 
         if ($request->expectsJson()) {
-            return response()->json(['checkout_url' => $checkoutUrl]);
+            return response()->json([
+                'checkout_url'   => $checkoutUrl,
+                // The mobile app uses this to check the payment. The web ignores it.
+                'reservation_id' => $pending->id,
+            ]);
         }
 
         return redirect()->away($checkoutUrl);

@@ -328,6 +328,77 @@ class FlutterBookingController extends Controller
         return redirect($flutterWebUrl . '/#/payment-cancel?reservation=' . $reservationId);
     }
 
+        /**
+     * GET /api/bookings/online/status?reservation_id=
+     * Same answer as checkBookingStatus(), but only for the logged-in
+     * customer's own reservation.
+     */
+    public function reservationStatus(Request $request)
+    {
+        $request->validate(['reservation_id' => ['required', 'integer']]);
+
+        $reservation = OnlineReservationPayment::where('id', $request->reservation_id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (! $reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reservation not found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success'            => true,
+            'payment_status'     => $reservation->payment_status,
+            'reservation_status' => $reservation->reservation_status,
+            'payment_option'     => $reservation->payment_option ?? 'downpayment',
+            'amount_charged'     => (float) ($reservation->amount_charged ?? $reservation->downpayment_amount),
+            'booking_id'         => $reservation->booking_id,
+            'booking_created'    => ! is_null($reservation->booking_id),
+        ]);
+    }
+
+    /**
+     * GET /api/bookings/online/my-dates
+     * Dates within the 30-day booking window on which the customer already
+     * has an active booking. The app marks them with a dot on the calendar.
+     */
+    public function myBookedDates(Request $request)
+    {
+        $dates = Booking::withoutGlobalScopes()
+            ->where('customer_user_id', $request->user()->id)
+            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+            ->whereBetween('appointment_date', [
+                today()->toDateString(),
+                today()->addDays(30)->toDateString(),
+            ])
+            ->pluck('appointment_date')
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
+            ->unique()
+            ->values();
+
+        return response()->json(['dates' => $dates]);
+    }
+
+    public function cancelReservation(Request $request)
+    {
+        $request->validate(['reservation_id' => ['required', 'integer']]);
+
+        $updated = OnlineReservationPayment::where('id', $request->reservation_id)
+            ->where('user_id', $request->user()->id)
+            ->where('payment_status', 'pending')
+            ->update([
+                'reservation_status' => 'cancelled',
+                'payment_status'     => 'cancelled',
+            ]);
+
+        return response()->json([
+            'success'   => true,
+            'cancelled' => $updated > 0,
+        ]);
+    }
+
     public function checkBookingStatus(Request $request)
     {
         $request->validate([

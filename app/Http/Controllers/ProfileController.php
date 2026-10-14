@@ -135,7 +135,7 @@ class ProfileController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name'   => 'required|string|max:255',
             'phone'       => ['nullable', 'string', 'regex:/^09\d{9}$/'],
-            'address'     => 'nullable|string|max:1000',
+            'address'     => 'nullable|string|max:255',
             'latitude'    => 'nullable|numeric|between:-90,90',
             'longitude'   => 'nullable|numeric|between:-180,180',
         ], [

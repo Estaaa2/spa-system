@@ -126,7 +126,7 @@ class LandingController extends Controller
             ->whereHas('branches', $branchMatches);
     }
 
-    private function treatmentSuggestions(): array
+    public function treatmentSuggestions(): array
     {
         $publicSpaIds = $this->publicSpaIds();
 

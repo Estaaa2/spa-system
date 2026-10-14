@@ -49,6 +49,9 @@ class BookingController extends Controller
 
         // Get the actual treatment name
         $treatmentName = $this->getTreatmentName($booking->treatment);
+        $reassignment = \App\Models\ReassignmentRequest::where('booking_id', $booking->id)
+            ->latest()
+            ->first();
 
         // Convert UTC to Asia/Manila timezone for display
         $appointmentDate = $booking->appointment_date;
@@ -88,6 +91,13 @@ class BookingController extends Controller
             'balance_amount'   => (float) ($booking->balance_amount ?? 0),
             'payment_status'   => $booking->payment_status ?? 'unpaid',
             'booking_source'   => $booking->booking_source ?? 'mobile',
+            'date_raw'         => $booking->appointment_date?->format('Y-m-d'),
+            // The therapist's latest "can't make it" request for this booking.
+            'reassignment_status'  => $reassignment?->status,
+            'reassignment_pending' => $reassignment?->status === 'pending',
+            'reassignment_rejection_reason' => $reassignment?->status === 'rejected'
+                ? $reassignment->rejection_reason
+                : null,
         ];
     }
 
@@ -118,30 +128,6 @@ class BookingController extends Controller
         }
 
         return 'Spa Treatment';
-    }
-
-    // ── GET /api/my-bookings ──────────────────────────────────────────────
-    public function myBookings(Request $request)
-    {
-        try {
-            $user = $request->user();
-
-            $bookings = Booking::with('branch', 'spa')
-                ->where('customer_user_id', $user->id)
-                ->orderByDesc('appointment_date')
-                ->get();
-
-            return response()->json([
-                'success'  => true,
-                'bookings' => $bookings->map(fn($b) => $this->formatBooking($b))->values(),
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('myBookings error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to load bookings: ' . $e->getMessage()
-            ], 500);
-        }
     }
 
     // ── GET /api/assigned-bookings ────────────────────────────────────────
@@ -193,98 +179,6 @@ class BookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load schedule'
-            ], 500);
-        }
-    }
-
-    // ── POST /api/bookings ────────────────────────────────────────────────
-    public function store(Request $request)
-    {
-        try {
-            $request->validate([
-                'spa_id'           => 'required|exists:spas,id',
-                'branch_id'        => 'required|exists:branches,id',
-                'treatment'        => 'required|string',
-                'service_type'     => 'required|in:In-Branch,Home Service',
-                'appointment_date' => 'required|date|after:today',
-                'start_time'       => 'required|string',
-                'customer_name'    => 'required|string',
-                'customer_email'   => 'required|email',
-                'customer_phone'   => 'required|string',
-                'customer_address' => 'nullable|string',
-                'total_amount'     => 'nullable|numeric',
-            ]);
-
-            $user = $request->user();
-
-            $spa = \App\Models\Spa::find($request->spa_id);
-
-            if (! $spa || ! $spa->hasFeature('online_reservation')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Online reservations are not available for this spa right now. Please contact the spa directly.',
-                ], 422);
-            }
-
-            $booking = Booking::create([
-                'spa_id'            => $request->spa_id,
-                'branch_id'         => $request->branch_id,
-                'customer_user_id'  => $user->id,
-                'created_by_user_id' => $user->id,
-                'booking_source'    => 'mobile',
-                'status'            => 'reserved',
-                'payment_status'    => 'unpaid',
-                'amount_paid'       => 0,
-                'total_amount'      => $request->total_amount ?? 0,
-                'balance_amount'    => $request->total_amount ?? 0,
-                'service_type'      => $request->service_type,
-                'treatment'         => $request->treatment,
-                'customer_name'     => $request->customer_name,
-                'customer_email'    => $request->customer_email,
-                'customer_phone'    => $request->customer_phone,
-                'customer_address'  => $request->customer_address ?? '',
-                'appointment_date'  => $request->appointment_date,
-                'start_time'        => $request->start_time,
-                'end_time'          => $request->end_time ?? '',
-            ]);
-
-            $booking->load('branch', 'spa');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Booking created successfully.',
-                'booking' => $this->formatBooking($booking),
-            ], 201);
-        } catch (\Exception $e) {
-            \Log::error('store booking error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create booking: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    // ── PATCH /api/bookings/{id}/status ───────────────────────────────────
-    public function updateStatus(Request $request, $id)
-    {
-        try {
-            $request->validate([
-                'status' => 'required|in:reserved,confirmed,in_progress,completed,cancelled',
-            ]);
-
-            $booking = Booking::findOrFail($id);
-            $booking->update(['status' => $request->status]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Status updated.',
-                'booking' => $this->formatBooking($booking->fresh('branch', 'spa')),
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('updateStatus error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update status'
             ], 500);
         }
     }
