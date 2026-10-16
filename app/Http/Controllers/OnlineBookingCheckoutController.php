@@ -57,7 +57,8 @@ class OnlineBookingCheckoutController extends Controller
         if (
             $spa->verification_status !== 'verified' ||
             ! $branch ||
-            ! $branch->isOperational()
+            ! $branch->isOperational() ||
+            ! $branch->isReadyForBookings()
         ) {
             return $this->fail(
                 $request,
@@ -342,7 +343,8 @@ class OnlineBookingCheckoutController extends Controller
         if (
             $spa->verification_status !== 'verified' ||
             ! $branch ||
-            ! $branch->isOperational()
+            ! $branch->isOperational() ||
+            ! $branch->isReadyForBookings()
         ) {
             return response()->json([
                 'success' => false,

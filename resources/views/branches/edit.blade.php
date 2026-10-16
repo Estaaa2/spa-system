@@ -58,8 +58,16 @@
 
     // Count the number of days that are open (not closed) in the operating hours. This is used to display the number of open days in the branch overview.
     $openDayCount = $operatingHours->filter(fn($h) => !($h->is_closed ?? false))->count();
-    $isListed     = (bool) optional($branch->profile)->is_listed;
     $canPublicListing = $spa?->hasFeature('branch_public_listing') ?? false;
+
+    // Why this branch cannot be listed right now, or null when it can.
+    // Same rules BranchController::updateProfile() enforces on save.
+    $listingBlocker = ! $branch->isOperational()
+        ? 'This branch must be approved and active before it can be listed publicly.'
+        : $branch->bookingReadinessMessage();
+
+    // "Listed" here means actually visible to customers.
+    $isListed = (bool) optional($branch->profile)->is_listed && ! $listingBlocker;
 @endphp
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -501,7 +509,43 @@
                             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:divide-x sm:divide-gray-100 dark:sm:divide-gray-700">
 
                                 {{-- Public Listing --}}
-                                @if ($canPublicListing)
+                                @if ($canPublicListing && $listingBlocker)
+                                    <div class="sm:pr-6">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div>
+                                                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                                                    Public Listing
+                                                </h2>
+
+                                                <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                                    Shown to customers on the landing page.
+                                                </p>
+                                            </div>
+
+                                            {{-- Disabled: sends 0, so saving can never list it. --}}
+                                            <input type="hidden" name="is_listed" value="0">
+
+                                            <span class="relative inline-flex items-center cursor-not-allowed shrink-0 opacity-60" aria-hidden="true">
+                                                <span class="h-6 bg-gray-200 rounded-full w-11 dark:bg-gray-600"></span>
+                                                <span class="absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full"></span>
+                                            </span>
+                                        </div>
+
+                                        <div class="flex items-start gap-3 px-3 py-3 mt-4 border border-amber-200 rounded-xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800" role="status">
+                                            <i class="mt-0.5 text-amber-600 fa-solid fa-triangle-exclamation dark:text-amber-400" aria-hidden="true"></i>
+
+                                            <div>
+                                                <p class="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                                    This branch can't be listed yet.
+                                                </p>
+
+                                                <p class="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
+                                                    {{ $listingBlocker }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @elseif ($canPublicListing)
                                     <div
                                         class="sm:pr-6"
                                         x-data="{ listed: {{ optional($branch->profile)->is_listed ? 'true' : 'false' }} }"

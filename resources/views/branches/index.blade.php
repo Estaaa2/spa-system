@@ -219,6 +219,10 @@
                 @foreach($branches as $branch)
                 @php
                     $isListed  = (bool) optional($branch->profile)->is_listed;
+
+                    // Needs a therapist and a service before it is shown
+                    // publicly or can take any booking.
+                    $readinessMessage = $branch->bookingReadinessMessage();
                     $isCurrent = session('current_branch_id') == $branch->id;
                     $canRemove = !$branch->is_main && $branch->users_count == 0;
 
@@ -227,7 +231,7 @@
                     $removeBlockedReason = $branch->is_main
                         ? 'Main branch — cannot be removed'
                         : 'Has assigned staff — cannot be removed';
-                    
+
                     $verificationBadge = match ($branch->verification_status) {
                         'pending' => [
                             'label' => 'Under Review',
@@ -278,7 +282,7 @@
                             </span>
                         @endif
                     </div>
-                    
+
                     @if (! $branch->is_main && $branch->verification_status !== 'verified')
                         <div class="flex flex-wrap items-center justify-between gap-2 mt-4">
                             <span class="px-2.5 py-1 text-xs font-medium rounded-full {{ $verificationBadge['class'] }}">
@@ -296,6 +300,13 @@
                         </div>
                     @endif
 
+                    @if ($readinessMessage)
+                        <div class="flex items-start gap-2 p-3 mt-4 text-xs border rounded-xl text-amber-800 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+                            <i class="mt-0.5 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                            <span>{{ $readinessMessage }}</span>
+                        </div>
+                    @endif
+
                     {{-- Stats grid — matches roles-permissions mini-stat boxes --}}
                     <div class="grid grid-cols-2 gap-3 mt-5">
                         <div class="p-3 bg-white border border-gray-200 rounded-xl dark:bg-gray-800 dark:border-gray-700">
@@ -307,10 +318,11 @@
 
                         <div class="p-3 bg-white border border-gray-200 rounded-xl dark:bg-gray-800 dark:border-gray-700">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Public listing</p>
+                            @php $isShown = $isListed && ! $readinessMessage; @endphp
                             <p class="mt-1 text-sm font-semibold flex items-center gap-1.5
-                                {{ $isListed ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500' }}">
-                                <span class="w-1.5 h-1.5 rounded-full inline-block {{ $isListed ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600' }}" aria-hidden="true"></span>
-                                {{ $isListed ? 'Listed' : 'Unlisted' }}
+                                {{ $isShown ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400' }}">
+                                <span class="w-1.5 h-1.5 rounded-full inline-block {{ $isShown ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600' }}" aria-hidden="true"></span>
+                                {{ $isShown ? 'Listed' : ($isListed ? 'Hidden until set up' : 'Unlisted') }}
                             </p>
                         </div>
                     </div>

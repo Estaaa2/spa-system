@@ -241,6 +241,102 @@ class Branch extends Model
         return $this->lockReason() === null;
     }
 
+    // ── Booking readiness ─────────────────────────────────────────────────────
+    //
+    // Separate from isOperational() on purpose: a branch without a therapist
+    // or a service can still be opened by its staff (they need it to add
+    // them), but it must not be listed publicly or take any booking.
+
+    private ?array $bookingReadinessCache = null;
+
+    public function hasActiveTherapist(): bool
+    {
+        return User::role('therapist')
+            ->whereHas('staff', fn ($query) => $query
+                ->where('spa_id', $this->spa_id)
+                ->where('branch_id', $this->id)
+                ->where('employment_status', 'active'))
+            ->exists();
+    }
+
+    /** At least one treatment or package. */
+    public function hasBookableServices(): bool
+    {
+        return Treatment::withoutGlobalScope('spa_branch')
+                ->where('spa_id', $this->spa_id)
+                ->where('branch_id', $this->id)
+                ->exists()
+            || Package::withoutGlobalScope('spa_branch')
+                ->where('spa_id', $this->spa_id)
+                ->where('branch_id', $this->id)
+                ->exists();
+    }
+
+    /**
+     * What this branch still needs before it can be listed or booked.
+     * Values: therapist, services. Empty when it is ready.
+     */
+    public function bookingReadinessIssues(): array
+    {
+        if ($this->bookingReadinessCache !== null) {
+            return $this->bookingReadinessCache;
+        }
+
+        $issues = [];
+
+        if (! $this->hasActiveTherapist()) {
+            $issues[] = 'therapist';
+        }
+
+        if (! $this->hasBookableServices()) {
+            $issues[] = 'services';
+        }
+
+        return $this->bookingReadinessCache = $issues;
+    }
+
+    public function isReadyForBookings(): bool
+    {
+        return $this->bookingReadinessIssues() === [];
+    }
+
+    /** One sentence for the owner and staff, or null when ready. */
+    public function bookingReadinessMessage(): ?string
+    {
+        $labels = [
+            'therapist' => 'at least one active therapist',
+            'services' => 'at least one treatment or package',
+        ];
+
+        $missing = array_map(
+            fn ($issue) => $labels[$issue],
+            $this->bookingReadinessIssues()
+        );
+
+        if ($missing === []) {
+            return null;
+        }
+
+        return 'Add ' . implode(' and ', $missing) .
+            ' to this branch before it can be listed publicly or take bookings.';
+    }
+
+    /** Query filter with the same rule as isReadyForBookings(). */
+    public function scopeReadyForBookings($query)
+    {
+        return $query
+            ->where(fn ($q) => $q
+                ->whereHas('treatments', fn ($t) => $t->withoutGlobalScope('spa_branch'))
+                ->orWhereHas('packages', fn ($p) => $p->withoutGlobalScope('spa_branch')))
+            ->whereIn(
+                'id',
+                Staff::query()
+                    ->where('employment_status', 'active')
+                    ->whereHas('user', fn ($u) => $u->role('therapist'))
+                    ->select('branch_id')
+            );
+    }
+
     public function getUsesWorkforceFinanceSuiteAttribute(): bool
     {
         return (bool) $this->has_workforce_finance_suite;

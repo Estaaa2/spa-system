@@ -40,7 +40,10 @@ class LandingController extends Controller
     {
         $branch->setRelation('spa', $spa);
 
-        $operational = $branch->isOperational();
+        // Approved and allowed to operate, AND it has a therapist and
+        // at least one service, so a customer can actually book it.
+        $operational = $branch->isOperational()
+            && $branch->isReadyForBookings();
 
         // Unset again so the spa is not nested inside each branch
         // when these models are passed to a view or turned into JSON.
@@ -135,7 +138,7 @@ class LandingController extends Controller
             ->whereHas('branch.profile', function ($query) {
                 $query->where('is_listed', true);
             })
-            ->whereHas('branch', fn ($query) => $query->verificationCleared())
+            ->whereHas('branch', fn ($query) => $query->verificationCleared()->readyForBookings())
             ->select('name')
             ->selectRaw('COUNT(*) as cnt')
             ->groupBy('name')
@@ -147,7 +150,7 @@ class LandingController extends Controller
             ->whereHas('branch.profile', function ($query) {
                 $query->where('is_listed', true);
             })
-            ->whereHas('branch', fn ($query) => $query->verificationCleared())
+            ->whereHas('branch', fn ($query) => $query->verificationCleared()->readyForBookings())
             ->select('name')
             ->selectRaw('COUNT(*) as cnt')
             ->groupBy('name')

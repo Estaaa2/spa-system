@@ -85,8 +85,8 @@ class SpaController extends Controller
 
     /**
      * Keep only branches that are explicitly listed publicly AND are
-     * operational: approved, inside the plan's branch limit, and without
-     * an expired Business Permit.
+     * operational: approved, inside the plan's branch limit, without
+     * an expired Business Permit, and with a therapist and a service.
      */
     private function publicBranches(Spa $spa): void
     {
@@ -100,7 +100,9 @@ class SpaController extends Controller
 
                     $branch->setRelation('spa', $spa);
 
-                    $operational = $branch->isOperational();
+                    // Also needs a therapist and a service to be bookable.
+                    $operational = $branch->isOperational()
+                        && $branch->isReadyForBookings();
 
                     // Unset again so the spa is not nested inside
                     // each branch when the response is built.

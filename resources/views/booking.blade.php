@@ -30,6 +30,16 @@
         </div>
     </div>
 
+    @if (! empty($bookingBlocker))
+        <div class="flex items-start gap-3 p-4 text-sm text-red-700 border border-red-200 rounded-2xl bg-red-50 dark:bg-red-900/20 dark:border-red-700 dark:text-red-400" role="alert">
+            <i class="mt-0.5 fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <div>
+                <p class="font-semibold">This branch cannot take bookings yet</p>
+                <p class="mt-1">{{ $bookingBlocker }}</p>
+            </div>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
         <!-- Appointment Summary -->
@@ -402,13 +412,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // check cannot silently undo an earlier failing one.
     // =====================================================
     const blockers = {
+        branchNotReady: @json(! empty($bookingBlocker)), // no therapist or no service yet
         closedDay:      false, // branch closed on the chosen date
         timeOutOfRange: false, // outside operating hours, too far past, or ends after closing
         noTherapist:    false, // availability API returned an empty list for this slot
     };
 
     function syncSubmitState() {
-        submitBtn.disabled = blockers.closedDay || blockers.timeOutOfRange || blockers.noTherapist;
+        submitBtn.disabled = blockers.branchNotReady || blockers.closedDay || blockers.timeOutOfRange || blockers.noTherapist;
     }
 
     // =====================================================
@@ -648,6 +659,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // WALK-IN QUICK FILL
     // =====================================================
     walkinBtn.addEventListener('click', async function () {
+        if (blockers.branchNotReady) return;
+
         dateInput.value = todayString();
         await updateOperatingHours();
 
@@ -916,6 +929,12 @@ document.addEventListener('DOMContentLoaded', function () {
     toggleAddress();
     filterTreatmentOptions();
 
+    if (blockers.branchNotReady) {
+        walkinBtn.disabled = true;
+        walkinBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        syncSubmitState();
+    }
+
     if (dateInput.value) {
         updateOperatingHours().then(() => {
             validateTimeRange();
@@ -930,6 +949,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // FORM SUBMIT GUARD
     // =====================================================
     form.addEventListener('submit', function (e) {
+        if (blockers.branchNotReady) {
+            e.preventDefault();
+            return;
+        }
+
         const timeOk = validateTimeRange();
 
         if (blockers.closedDay) {

@@ -229,7 +229,7 @@ class BranchController extends Controller
             $wantsMain = true;
         }
 
-        
+
         if ($wantsMain && !$isFirstBranch) {
             return response()->json([
                 'success' => false,
@@ -487,9 +487,13 @@ class BranchController extends Controller
         $spa = $branch->spa;
         $canPubliclyList = $spa?->hasFeature('branch_public_listing') ?? false;
 
+        // A branch without a therapist or a service is never listed.
+        $readinessMessage = $branch->bookingReadinessMessage();
+
         $profileData['is_listed'] =
             $canPubliclyList &&
             $branch->isOperational() &&
+            $readinessMessage === null &&
             $request->boolean('is_listed');
         $profileData['is_hiring'] = $request->boolean('is_hiring');
         $profileData['hiring_note'] = $profileData['is_hiring']
@@ -581,7 +585,12 @@ class BranchController extends Controller
                 'branch' => $branch->id,
                 'tab' => 'profile',
             ])
-            ->with('success', 'Public profile updated successfully.');
+            ->with(
+                'success',
+                $request->boolean('is_listed') && $readinessMessage
+                    ? 'Public profile updated. This branch stays unlisted for now. ' . $readinessMessage
+                    : 'Public profile updated successfully.'
+            );
 
         if (! $canPubliclyList) {
             $response->with(

@@ -38,7 +38,10 @@ class BookingController extends Controller
             ->where('branch_id', $branchId)
             ->get();
 
-        return view('booking', compact('therapists', 'treatments', 'packages'));
+        // Shown on the page and used to disable the form.
+        $bookingBlocker = $this->walkInBlocker($spaId, $branchId);
+
+        return view('booking', compact('therapists', 'treatments', 'packages', 'bookingBlocker'));
     }
 
     public function availableTherapists(Request $request)
@@ -52,6 +55,14 @@ class BookingController extends Controller
                 'therapists' => [],
                 'recommended_id' => null,
                 'message' => 'No branch selected.',
+            ], 422);
+        }
+
+        if ($blocker = $this->walkInBlocker($spaId, $branchId)) {
+            return response()->json([
+                'therapists' => [],
+                'recommended_id' => null,
+                'message' => $blocker,
             ], 422);
         }
 
@@ -115,6 +126,10 @@ class BookingController extends Controller
 
         if (!$branchId) {
             return back()->with('error', 'No branch selected.');
+        }
+
+        if ($blocker = $this->walkInBlocker($spaId, $branchId)) {
+            return back()->with('error', $blocker)->withInput();
         }
 
         $this->syncAutomaticStatuses($spaId, $branchId);
@@ -560,7 +575,8 @@ class BookingController extends Controller
         // The branch must be approved to operate before it takes bookings.
         if (
             $onlineSpa->verification_status !== 'verified' ||
-            ! $onlineBranch->isOperational()
+            ! $onlineBranch->isOperational() ||
+            ! $onlineBranch->isReadyForBookings()
         ) {
             return back()->withErrors([
                 'start_time' => 'This branch is not accepting online reservations right now. Please contact the spa directly.',
@@ -716,6 +732,23 @@ class BookingController extends Controller
         ]);
 
         return back()->with('success', 'Appointment status updated successfully.');
+    }
+
+    /**
+     * Why this branch cannot take a walk-in booking, or null when it can.
+     * A branch needs an active therapist and at least one service first.
+     */
+    private function walkInBlocker(?int $spaId, ?int $branchId): ?string
+    {
+        $branch = \App\Models\Branch::query()
+            ->where('spa_id', $spaId)
+            ->find($branchId);
+
+        if (!$branch) {
+            return 'No branch selected.';
+        }
+
+        return $branch->bookingReadinessMessage();
     }
 
     private function resolveDurationMinutes(string $selection): int
