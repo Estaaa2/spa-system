@@ -13,15 +13,15 @@ class SendSubscriptionExpiryReminders extends Command
 {
     protected $signature = 'subscriptions:send-expiry-reminders';
 
-    protected $description = 'Email spa owners whose paid subscription expires in 3 days';
+    protected $description = 'Email spa owners whose paid access ends in 3 days';
 
     public function handle(): int
     {
         $targetDate = now()->addDays(3)->toDateString();
 
+        // Paid periods (not credited to an upgrade) ending in 3 days.
         $subscriptions = Subscription::query()
-            ->where('payment_status', 'paid')
-            ->whereIn('business_tier', ['basic', 'premium', 'business'])
+            ->countable()
             ->whereNotNull('expires_at')
             ->whereNull('expiry_notice_sent_at')
             ->whereDate('expires_at', $targetDate)
@@ -36,10 +36,20 @@ class SendSubscriptionExpiryReminders extends Command
         foreach ($subscriptions as $subscription) {
             $spa = Spa::with('owner')->find($subscription->spa_id);
 
-            if (!$spa || !$spa->owner || !$spa->owner->email) {
+            if (! $spa || ! $spa->owner || ! $spa->owner->email) {
                 Log::warning(
                     "Skipped expiry reminder for subscription #{$subscription->id}: missing spa or owner email"
                 );
+
+                continue;
+            }
+
+            // Already paid for the next period: access does not end, so no
+            // reminder. Mark it so it is not checked again tomorrow.
+            $paidThrough = $spa->paidThroughAt();
+
+            if ($paidThrough && $paidThrough->gt($subscription->expires_at)) {
+                $subscription->update(['expiry_notice_sent_at' => now()]);
 
                 continue;
             }

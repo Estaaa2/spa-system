@@ -1,41 +1,43 @@
 @php
-    $rawPlan = strtolower((string) ($subscription->business_tier ?? 'basic'));
+    $planKey = \App\Models\Spa::normalisePlanKey($subscription->business_tier);
+    $planKey = $planKey === 'expired' ? 'basic' : $planKey;
+    $planConfig = config("plans.{$planKey}", []);
+    $planName = $planConfig['name'] ?? ucfirst($planKey);
 
-    $planName = match ($rawPlan) {
-        'business' => 'Business',
-        'premium', 'professional' => 'Premium',
-        'basic' => 'Basic',
-        default => ucfirst($rawPlan ?: 'Subscription'),
-    };
+    // Built from config/plans.php so the email always matches the plan.
+    $featureLabels = [
+        'insights' => 'Decision support and reports',
+        'all_branches' => 'Multi-branch management',
+        'branch_public_listing' => 'Branch public listing on Levictas',
+        'online_reservation' => 'Customer online reservations',
+        'featured_listing' => 'Featured placement on Levictas',
+        'inventory_full' => 'Full inventory, transfers and goods receiving',
+        'manpower' => 'Hiring, deployment and staff management',
+        'payroll' => 'Payroll and payslips',
+        'finance' => 'Revenue, expenses and vendor bills',
+        'procurement' => 'Suppliers and purchasing',
+    ];
 
-    $planFeatures = match ($planName) {
-        'Business' => [
-            'Branch public listing on Levictas',
-            'Customer online reservations',
-            'Enhanced decision support tools',
-            'Manpower, payroll, finance, and procurement tools',
-            'Up to 5 branches and 20 staff members',
-        ],
+    $planFeatures = collect($planConfig['features'] ?? [])
+        ->map(fn ($feature) => $featureLabels[$feature] ?? null)
+        ->filter()
+        ->values()
+        ->prepend('Appointments, scheduling and services')
+        ->push(sprintf(
+            'Up to %d branches and %d staff members',
+            $planConfig['max_branches'] ?? 0,
+            $planConfig['max_staff'] ?? 0
+        ))
+        ->all();
 
-        'Premium' => [
-            'Branch public listing on Levictas',
-            'Customer online reservations',
-            'Enhanced decision support tools',
-            'Up to 3 branches and 10 staff members',
-        ],
-
-        default => [
-            'Core spa operations',
-            'Service and inventory management',
-            'Branch management',
-            'Up to 1 branch and 5 staff members',
-        ],
-    };
+    $startsLater = $subscription->starts_at?->isFuture() ?? false;
 
     $ownerName = $spa->owner?->name ?? 'Spa Owner';
-    $paidDate = $subscription->starts_at?->format('F d, Y') ?? 'N/A';
+    $paidDate = $subscription->updated_at?->format('F d, Y') ?? 'N/A';
+    $validFrom = $subscription->starts_at?->format('F d, Y') ?? 'N/A';
     $validUntil = $subscription->expires_at?->format('F d, Y') ?? 'N/A';
-    $referenceId = $subscription->paymongo_checkout_id ?: 'N/A';
+    $referenceId = $subscription->paymongo_payment_id ?: ($subscription->paymongo_checkout_id ?: 'N/A');
+    $credit = (float) ($subscription->credit_amount ?? 0);
 @endphp
 
 <!DOCTYPE html>
@@ -71,7 +73,7 @@
 
                         <div style="margin-top:20px;">
                             <span style="background:rgba(255,255,255,0.15); border-radius:50px; padding:8px 22px; font-size:13px; color:#ffffff; font-weight:600; letter-spacing:0.05em;">
-                                ✦ {{ strtoupper($planName) }} PLAN ACTIVATED ✦
+                                ✦ {{ strtoupper($planName) }} PLAN {{ $startsLater ? 'CONFIRMED' : 'ACTIVATED' }} ✦
                             </span>
                         </div>
                     </td>
@@ -85,9 +87,14 @@
                         </p>
 
                         <p style="margin:0; font-size:15px; color:#555555; line-height:1.7;">
-                            Your subscription payment has been received, and your spa's
-                            <strong style="color:#6F5430;">{{ $planName }} plan</strong>
-                            is now active on the Levictas platform.
+                            Your subscription payment has been received.
+                            @if ($startsLater)
+                                Your spa's <strong style="color:#6F5430;">{{ $planName }} plan</strong>
+                                starts on <strong>{{ $validFrom }}</strong>, right after your current access ends.
+                            @else
+                                Your spa's <strong style="color:#6F5430;">{{ $planName }} plan</strong>
+                                is now active on the Levictas platform.
+                            @endif
                         </p>
                     </td>
                 </tr>
@@ -133,6 +140,18 @@
                                             </td>
                                         </tr>
 
+                                        @if ($credit > 0)
+                                            <tr>
+                                                <td style="padding:7px 0; font-size:14px; color:#777777; border-bottom:1px solid #EDE6DD;">
+                                                    Unused Basic Credit
+                                                </td>
+
+                                                <td style="padding:7px 0; font-size:14px; color:#3C2F23; font-weight:600; text-align:right; border-bottom:1px solid #EDE6DD;">
+                                                    −₱{{ number_format($credit, 2) }}
+                                                </td>
+                                            </tr>
+                                        @endif
+
                                         <tr>
                                             <td style="padding:7px 0; font-size:14px; color:#777777; border-bottom:1px solid #EDE6DD;">
                                                 Date Paid
@@ -140,6 +159,16 @@
 
                                             <td style="padding:7px 0; font-size:14px; color:#3C2F23; font-weight:600; text-align:right; border-bottom:1px solid #EDE6DD;">
                                                 {{ $paidDate }}
+                                            </td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="padding:7px 0; font-size:14px; color:#777777; border-bottom:1px solid #EDE6DD;">
+                                                Valid From
+                                            </td>
+
+                                            <td style="padding:7px 0; font-size:14px; color:#3C2F23; font-weight:600; text-align:right; border-bottom:1px solid #EDE6DD;">
+                                                {{ $validFrom }}
                                             </td>
                                         </tr>
 

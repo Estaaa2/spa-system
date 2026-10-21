@@ -57,13 +57,15 @@ class TrialController extends Controller
 
     public function start(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'plan' => ['required', 'in:basic,premium'],
+        // Every trial gives full access, so the plan picked on the old
+        // choose page is ignored and the configured trial plan is used.
+        $request->validate([
+            'plan' => ['nullable', 'in:basic,premium'],
         ]);
 
         $user = $request->user();
 
-        $result = DB::transaction(function () use ($user, $validated): string {
+        $result = DB::transaction(function () use ($user): string {
             $spa = Spa::query()
                 ->whereKey($user->spa_id)
                 ->lockForUpdate()
@@ -84,9 +86,11 @@ class TrialController extends Controller
             $startedAt = now();
 
             $spa->update([
-                'trial_plan' => $validated['plan'],
+                'trial_plan' => config('subscription.trial_plan', 'premium'),
                 'trial_started_at' => $startedAt,
-                'trial_ends_at' => $startedAt->copy()->addMonth(),
+                'trial_ends_at' => $startedAt->copy()->addMonthsNoOverflow(
+                    (int) config('subscription.trial_months', 1)
+                ),
                 'trial_used' => true,
             ]);
 
@@ -114,6 +118,6 @@ class TrialController extends Controller
 
         return redirect()
             ->route('dashboard')
-            ->with('success', 'Your free trial has started. No payment is required.');
+            ->with('success', 'Your free trial has started with full Premium access. No payment is required.');
     }
 }

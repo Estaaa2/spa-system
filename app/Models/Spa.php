@@ -7,21 +7,23 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class Spa extends Model
 {
     use HasFactory, SoftDeletes;
 
     /**
-     * Per-instance cache for the latest paid subscription.
+     * Per-instance cache of every paid subscription row.
      *
-     * hasAccess(), hasFeature() and currentPlan() each need it, and the
-     * landing page calls them for every spa, so without this each spa would
-     * trigger the same query several times per request.
+     * hasAccess(), hasFeature(), currentPlan() and canStartTrial() all read
+     * it, and the landing page calls them for every spa. When the
+     * "subscriptions" relation is already eager-loaded it is reused, so a
+     * listing page costs no extra query per spa.
      */
-    private bool $latestPaidSubscriptionLoaded = false;
+    private ?Collection $paidPeriodsCache = null;
 
-    private ?Subscription $latestPaidSubscriptionCache = null;
     /** Per-instance cache for branchIdsWithinPlanLimit(). */
     private ?array $branchIdsWithinPlanLimitCache = null;
 
@@ -80,144 +82,217 @@ class Spa extends Model
         return $this->belongsTo(User::class, 'verified_by');
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Paid periods
+    |--------------------------------------------------------------------------
+    |
+    | Access is decided by dates, not by the newest row: a paid row counts
+    | from starts_at until expires_at. Rows can be queued (early renewal,
+    | payment during the trial), so the newest row is not always the one in
+    | effect.
+    |
+    */
+
+    /** Every paid row, including ones credited to an upgrade, ordered by start. */
+    public function paidPeriods(): Collection
+    {
+        if ($this->paidPeriodsCache !== null) {
+            return $this->paidPeriodsCache;
+        }
+
+        $rows = $this->relationLoaded('subscriptions')
+            ? $this->subscriptions->where('payment_status', 'paid')
+            : $this->subscriptions()->where('payment_status', 'paid')->get();
+
+        return $this->paidPeriodsCache = $rows
+            ->sortBy(fn (Subscription $row) => [
+                $row->starts_at?->getTimestamp() ?? 0,
+                $row->id,
+            ])
+            ->values();
+    }
+
+    /** Paid rows that still count for access. */
+    public function countablePeriods(): Collection
+    {
+        return $this->paidPeriods()
+            ->filter(fn (Subscription $row) => $row->superseded_at === null)
+            ->values();
+    }
+
     /**
-     * Returns the newest paid subscription record.
+     * Clears the cached rows. Call after creating or updating a
+     * subscription in the same request.
+     */
+    public function forgetSubscriptionCache(): void
+    {
+        $this->paidPeriodsCache = null;
+        $this->branchIdsWithinPlanLimitCache = null;
+        $this->unsetRelation('subscriptions');
+    }
+
+    /** The paid period running right now, or null. */
+    public function currentPeriod(): ?Subscription
+    {
+        return $this->countablePeriods()
+            ->filter(fn (Subscription $row) => $row->isInEffect())
+            ->last();
+    }
+
+    /** Paid periods that start in the future, earliest first. */
+    public function scheduledPeriods(): Collection
+    {
+        return $this->countablePeriods()
+            ->filter(fn (Subscription $row) => $row->isScheduled())
+            ->values();
+    }
+
+    /** The most recent paid period that has already ended, or null. */
+    public function lastEndedPeriod(): ?Subscription
+    {
+        return $this->countablePeriods()
+            ->filter(fn (Subscription $row) =>
+                $row->expires_at !== null && $row->expires_at->lte(now()))
+            ->sortBy(fn (Subscription $row) => $row->expires_at->getTimestamp())
+            ->last();
+    }
+
+    /**
+     * End of all paid time, including queued periods.
+     * Null when nothing is paid, or when a legacy row has no expiry
+     * (check hasUnlimitedPeriod()).
+     */
+    public function paidThroughAt(): ?Carbon
+    {
+        $ends = $this->countablePeriods()
+            ->map(fn (Subscription $row) => $row->expires_at)
+            ->filter();
+
+        return $ends->isEmpty() ? null : $ends->max()->copy();
+    }
+
+    /** Legacy rows without an expiry date grant permanent access. */
+    public function hasUnlimitedPeriod(): bool
+    {
+        return $this->countablePeriods()
+            ->contains(fn (Subscription $row) => $row->expires_at === null);
+    }
+
+    /**
+     * When a newly bought period should start: right after the trial
+     * and after every period already paid for, never in the past.
+     */
+    public function nextPeriodStartsAt(): Carbon
+    {
+        $start = now();
+
+        if ($this->isTrialing() && $this->trial_ends_at->gt($start)) {
+            $start = $this->trial_ends_at->copy();
+        }
+
+        $paidThrough = $this->paidThroughAt();
+
+        if ($paidThrough && $paidThrough->gt($start)) {
+            $start = $paidThrough;
+        }
+
+        return $start;
+    }
+
+    public function hasEverPaid(): bool
+    {
+        return $this->paidPeriods()->isNotEmpty();
+    }
+
+    /**
+     * Newest paid row by id.
      *
-     * Expired records are intentionally included because they are needed
-     * to calculate the three-day grace period.
-     *
-     * The result is cached on this model instance. Call
-     * forgetSubscriptionCache() after creating or updating a subscription
-     * within the same request.
+     * @deprecated Kept for older callers. It is not always the period in
+     *             effect; use currentPeriod() for access decisions.
      */
     public function latestPaidSubscription(): ?Subscription
     {
-        if ($this->latestPaidSubscriptionLoaded) {
-            return $this->latestPaidSubscriptionCache;
-        }
-
-        $this->latestPaidSubscriptionCache = $this->subscriptions()
-            ->where('payment_status', 'paid')
-            ->whereIn('business_tier', ['basic', 'premium', 'business'])
-            ->latest('id')
-            ->first();
-
-        $this->latestPaidSubscriptionLoaded = true;
-
-        return $this->latestPaidSubscriptionCache;
+        return $this->paidPeriods()->sortBy('id')->last();
     }
 
-    public function forgetSubscriptionCache(): void
-    {
-        $this->latestPaidSubscriptionLoaded = false;
-        $this->latestPaidSubscriptionCache = null;
-        $this->branchIdsWithinPlanLimitCache = null;
-    }
-
-    public function canStartTrial(): bool
-    {
-        return $this->verification_status === 'verified'
-            && $this->trial_used === false
-            && $this->latestPaidSubscription() === null;
-    }
-
-    /**
-     * Returns the paid subscription currently determining access.
-     */
+    /** The paid period currently determining access. */
     public function activeSubscription(): ?Subscription
     {
-        $subscription = $this->latestPaidSubscription();
-
-        if (!$subscription) {
-            return null;
-        }
-
-        if ($subscription->expires_at === null) {
-            return $subscription;
-        }
-
-        return $subscription->expires_at->isFuture()
-            ? $subscription
-            : null;
+        return $this->currentPeriod();
     }
 
-    /**
-     * Returns true during an active trial or paid access period.
-     *
-     * The method name is retained for compatibility with existing callers.
-     */
-    public function hasActiveSubscription(): bool
-    {
-        return $this->isTrialing() || $this->hasAccess();
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | Access
+    |--------------------------------------------------------------------------
+    */
 
     /**
-     * The single access rule for a spa.
-     *
-     * Access is available during:
-     * - an active one-time trial;
-     * - an unexpired paid period; or
-     * - the three-day grace period after the paid period ends.
+     * The single access rule for a spa. Access is available during:
+     * - the one-time free trial;
+     * - a paid period in effect; or
+     * - the grace period after the last paid period ended.
      */
     public function hasAccess(): bool
     {
-        if ($this->isTrialing()) {
-            return true;
-        }
-
-        $subscription = $this->latestPaidSubscription();
-
-        if (!$subscription) {
-            return false;
-        }
-
-        if (!$subscription->expires_at) {
-            return true;
-        }
-
-        if ($subscription->expires_at->isFuture()) {
-            return true;
-        }
-
-        return $subscription->expires_at
-            ->copy()
-            ->addDays(3)
-            ->isFuture();
+        return $this->isTrialing()
+            || $this->currentPeriod() !== null
+            || $this->isInGracePeriod();
     }
 
     public function isLocked(): bool
     {
-        return !$this->hasAccess();
+        return ! $this->hasAccess();
     }
 
+    /**
+     * Same as hasAccess().
+     *
+     * @deprecated Name kept for existing callers.
+     */
+    public function hasActiveSubscription(): bool
+    {
+        return $this->hasAccess();
+    }
+
+    /** No trial and no paid period running, but still inside the grace days. */
+    public function isInGracePeriod(): bool
+    {
+        if ($this->isTrialing() || $this->currentPeriod() !== null) {
+            return false;
+        }
+
+        $endsAt = $this->graceEndsAt();
+
+        return $endsAt !== null && $endsAt->isFuture();
+    }
+
+    /** When the grace period after the last ended paid period runs out. */
+    public function graceEndsAt(): ?Carbon
+    {
+        $last = $this->lastEndedPeriod();
+
+        return $last
+            ? $last->expires_at->copy()->addDays((int) config('subscription.grace_days', 3))
+            : null;
+    }
+
+    /** "basic", "premium", or "expired". */
     public function currentPlan(): string
     {
-        $subscription = $this->latestPaidSubscription();
+        $period = $this->currentPeriod();
 
-        if ($subscription) {
-            $plan = $this->normalisePlan($subscription->business_tier);
-
-            if (
-                $subscription->expires_at === null
-                || $subscription->expires_at->isFuture()
-            ) {
-                return $plan;
-            }
+        if ($period) {
+            return self::normalisePlanKey($period->business_tier);
         }
 
         if ($this->isTrialing()) {
-            return $this->normalisePlan($this->trial_plan);
+            return $this->trialPlan();
         }
 
-        if (
-            $subscription
-            && $subscription->expires_at
-            && $subscription->expires_at
-                ->copy()
-                ->addDays(3)
-                ->isFuture()
-        ) {
-            return $this->normalisePlan($subscription->business_tier);
+        if ($this->isInGracePeriod()) {
+            return self::normalisePlanKey($this->lastEndedPeriod()?->business_tier);
         }
 
         return 'expired';
@@ -225,7 +300,7 @@ class Spa extends Model
 
     public function hasFeature(string $feature): bool
     {
-        if (!$this->hasAccess()) {
+        if (! $this->hasAccess()) {
             return false;
         }
 
@@ -244,32 +319,58 @@ class Spa extends Model
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Free trial
+    |--------------------------------------------------------------------------
+    */
+
+    /** Verified, never trialed, never paid. */
+    public function canStartTrial(): bool
+    {
+        return $this->verification_status === 'verified'
+            && $this->trial_used === false
+            && ! $this->hasEverPaid();
+    }
+
     public function isTrialing(): bool
     {
         return $this->trial_used === true
-            && in_array($this->trial_plan, ['basic', 'premium'], true)
             && $this->trial_ends_at !== null
             && $this->trial_ends_at->isFuture();
     }
 
+    /**
+     * The plan the trial runs on. Every trial gives full access, so this
+     * is the configured trial plan; spas.trial_plan is kept only as a
+     * record of what the owner picked under the old rules.
+     */
+    public function trialPlan(): string
+    {
+        $plan = self::normalisePlanKey(config('subscription.trial_plan', 'premium'));
+
+        return $plan === 'expired' ? 'premium' : $plan;
+    }
+
+    /** Whole days left, rounded up (shows 1 on the last day, not 0). */
     public function trialDaysLeft(): int
     {
         if (! $this->isTrialing()) {
             return 0;
         }
 
-        $today = now()->copy()->startOfDay();
-        $trialEndsAt = $this->trial_ends_at->copy()->startOfDay();
-
-        return (int) max(
-            0,
-            $today->diffInDays($trialEndsAt, false)
-        );
+        return self::daysUntil($this->trial_ends_at);
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Plan limits
+    |--------------------------------------------------------------------------
+    */
 
     public function canAddBranch(): bool
     {
-        if (!$this->hasAccess()) {
+        if (! $this->hasAccess()) {
             return false;
         }
 
@@ -285,7 +386,6 @@ class Spa extends Model
 
         return $activeBranchCount < $limit;
     }
-
 
     public function mainBranch(): ?Branch
     {
@@ -336,7 +436,7 @@ class Spa extends Model
 
     public function canAddStaff(): bool
     {
-        if (!$this->hasAccess()) {
+        if (! $this->hasAccess()) {
             return false;
         }
 
@@ -362,6 +462,12 @@ class Spa extends Model
     {
         return $this->hasFeature('manpower');
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Verification documents
+    |--------------------------------------------------------------------------
+    */
 
     public function hasCompleteVerificationDocuments(): bool
     {
@@ -391,7 +497,6 @@ class Spa extends Model
         return count(array_intersect($required, $uploaded)) === count($required);
     }
 
-
     /** Documents that belong to the spa itself (Government ID, DTI/SEC). */
     public function spaDocuments(): HasMany
     {
@@ -399,12 +504,34 @@ class Spa extends Model
             ->whereNull('branch_id');
     }
 
-    private function normalisePlan(?string $plan): string
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Maps any stored plan value to a current plan key.
+     * Legacy "professional" and "business" are now "premium".
+     */
+    public static function normalisePlanKey(?string $plan): string
     {
-        return match ($plan) {
-            'professional' => 'premium',
-            'basic', 'premium', 'business' => $plan,
+        return match (strtolower((string) $plan)) {
+            'basic' => 'basic',
+            'premium', 'professional', 'business' => 'premium',
             default => 'expired',
         };
+    }
+
+    /** Whole days until $date, rounded up; 0 when it has passed. */
+    public static function daysUntil(?Carbon $date): int
+    {
+        if ($date === null) {
+            return 0;
+        }
+
+        $seconds = now()->diffInSeconds($date, false);
+
+        return $seconds <= 0 ? 0 : (int) ceil($seconds / 86400);
     }
 }

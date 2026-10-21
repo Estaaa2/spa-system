@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\SubscriptionPaid;
 use App\Models\Booking;
 use App\Models\LeaveRequest;
 use App\Models\OnlineReservationPayment;
@@ -14,23 +15,39 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Services\Subscription\SubscriptionBilling;
 
 class PaymongoWebhookController extends Controller
 {
+    public function __construct(
+        private readonly SubscriptionBilling $billing,
+    ) {}
+
     public function handle(Request $request)
     {
         $rawPayload = $request->getContent();
         $sigHeader  = $request->header('Paymongo-Signature');
+        $payload    = json_decode($rawPayload, true);
 
-        if (! $this->verifyWebhookSignature($rawPayload, $sigHeader)) {
-            Log::warning('PayMongo webhook: invalid signature');
+        if (! is_array($payload)) {
+            Log::warning('PayMongo webhook: body is not valid JSON');
+            return response()->json(['error' => 'Invalid payload'], 400);
+        }
+
+        // PayMongo signs test events in "te" and live events in "li". Pick
+        // by the event itself, not by APP_ENV, so test keys on the live
+        // server (and live keys anywhere) both verify correctly.
+        $isLive = (bool) data_get($payload, 'data.attributes.livemode', false);
+
+        if (! $this->verifyWebhookSignature($rawPayload, $sigHeader, $isLive)) {
+            Log::warning('PayMongo webhook: invalid signature', ['livemode' => $isLive]);
             return response()->json(['error' => 'Invalid signature'], 401);
         }
 
-        $payload = json_decode($rawPayload, true);
-        $type    = data_get($payload, 'data.attributes.type');
+        $type = data_get($payload, 'data.attributes.type');
 
-        Log::info('PayMongo webhook received', ['type' => $type]);
+        Log::info('PayMongo webhook received', ['type' => $type, 'livemode' => $isLive]);
 
         if ($type !== 'checkout_session.payment.paid') {
             return response()->json(['status' => 'ignored'], 200);
@@ -46,98 +63,47 @@ class PaymongoWebhookController extends Controller
         // =========================
         // 1) SUBSCRIPTION PAYMENTS
         // =========================
-        $subscription = Subscription::where(
-            'paymongo_checkout_id',
-            $checkoutId
-        )->first();
+        $subscription = Subscription::where('paymongo_checkout_id', $checkoutId)->first();
 
         if ($subscription) {
-            // PayMongo may retry the same event. Do not process a paid
-            // subscription a second time.
-            if (
-                $subscription->payment_status === 'paid' &&
-                $subscription->status === 'active'
-            ) {
-                return response()->json([
-                    'status' => 'subscription_already_processed',
-                ], 200);
-            }
+            $payment = data_get($payload, 'data.attributes.data.attributes.payments.0');
 
-            $billingCycle = in_array(
-                $subscription->billing_cycle,
-                ['monthly', 'yearly'],
-                true
-            )
-                ? $subscription->billing_cycle
-                : 'monthly';
-
-            $planKey = in_array(
-                $subscription->business_tier,
-                ['basic', 'premium', 'business'],
-                true
-            )
-                ? $subscription->business_tier
-                : 'basic';
-
-            $plan = config("plans.{$planKey}");
-
-            if (! $plan) {
-                Log::error('Subscription webhook has invalid plan', [
+            try {
+                // Idempotent: a retried event for a paid row changes nothing.
+                // Rows already marked "expired" by the cleanup command are
+                // still activated, because the owner did pay.
+                $activated = $this->billing->activate(
+                    $subscription,
+                    data_get($payment, 'id'),
+                    data_get($payment, 'attributes.source.type')
+                );
+            } catch (\Throwable $e) {
+                Log::error('Subscription webhook activation failed', [
                     'subscription_id' => $subscription->id,
-                    'plan' => $subscription->business_tier,
+                    'checkout_id' => $checkoutId,
+                    'message' => $e->getMessage(),
                 ]);
 
-                return response()->json([
-                    'status' => 'invalid_subscription_plan',
-                ], 422);
+                // 500 makes PayMongo retry the event later.
+                return response()->json(['status' => 'error'], 500);
             }
 
-            $payment = data_get(
-                $payload,
-                'data.attributes.data.attributes.payments.0'
-            );
+            if (! $activated) {
+                return response()->json(['status' => 'subscription_already_processed'], 200);
+            }
 
-            $startsAt = now();
-
-            // If this is a renewal while the existing subscription is still
-            // active, extend from its current expiry instead of shortening it.
-            $baseDate = $subscription->expires_at?->isFuture()
-                ? $subscription->expires_at->copy()
-                : $startsAt->copy();
-
-            $expiresAt = $billingCycle === 'yearly'
-                ? $baseDate->addYear()
-                : $baseDate->addMonth();
-
-            $subscription->update([
-                'payment_status' => 'paid',
-                'status' => 'active',
-                'starts_at' => $startsAt,
-                'expires_at' => $expiresAt,
-                'paymongo_payment_id' => data_get($payment, 'id'),
-                'payment_method' => data_get($payment, 'attributes.source.type'),
+            Log::info('Spa subscription activated', [
+                'spa_id' => $subscription->spa_id,
+                'subscription_id' => $subscription->id,
+                'kind' => $subscription->kind,
+                'plan' => $subscription->business_tier,
+                'starts_at' => $subscription->starts_at?->toDateTimeString(),
+                'expires_at' => $subscription->expires_at?->toDateTimeString(),
             ]);
 
-            $spa = Spa::with(['branches.profile', 'owner'])
-                ->find($subscription->spa_id);
+            $this->sendPaidEmail($subscription);
 
-            if ($spa) {
-                $spa->update([
-                    'business_tier' => $planKey,
-                ]);
-
-                Log::info('Spa subscription activated', [
-                    'spa_id' => $spa->id,
-                    'subscription_id' => $subscription->id,
-                    'plan' => $planKey,
-                    'billing_cycle' => $billingCycle,
-                    'expires_at' => $expiresAt->toDateTimeString(),
-                ]);
-            }
-
-            return response()->json([
-                'status' => 'subscription_processed',
-            ], 200);
+            return response()->json(['status' => 'subscription_processed'], 200);
         }
 
         // =========================
@@ -269,15 +235,41 @@ class PaymongoWebhookController extends Controller
         return response()->json(['status' => 'not_found'], 200);
     }
 
+    /**
+     * Sends the confirmation email. A mail failure must not fail the
+     * webhook, or PayMongo would retry an already-activated payment.
+     */
+    private function sendPaidEmail(Subscription $subscription): void
+    {
+        $spa = Spa::withTrashed()->with('owner')->find($subscription->spa_id);
+        $email = $spa?->owner?->email;
+
+        if (! $email) {
+            return;
+        }
+
+        try {
+            Mail::to($email)->send(new SubscriptionPaid($spa, $subscription));
+        } catch (\Throwable $e) {
+            Log::error('Subscription paid email failed', [
+                'subscription_id' => $subscription->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
     private function verifyWebhookSignature(
         string $payload,
-        ?string $sigHeader
+        ?string $sigHeader,
+        bool $isLive
     ): bool {
         if (! filled($sigHeader)) {
             return false;
         }
 
-        $secret = env('PAYMONGO_WEBHOOK_SECRET');
+        // Each PayMongo webhook has its own secret, so the live webhook's
+        // secret replaces the test one when the site goes live.
+        $secret = (string) config('services.paymongo.webhook_secret');
 
         if (! filled($secret)) {
             Log::error('PayMongo webhook secret is not configured.');
@@ -286,32 +278,23 @@ class PaymongoWebhookController extends Controller
         }
 
         preg_match('/(?:^|,)t=([^,]+)/', $sigHeader, $timestampMatch);
-        preg_match('/(?:^|,)te=([^,]+)/', $sigHeader, $testSignatureMatch);
-        preg_match('/(?:^|,)li=([^,]+)/', $sigHeader, $liveSignatureMatch);
+        preg_match('/(?:^|,)te=([^,]*)/', $sigHeader, $testSignatureMatch);
+        preg_match('/(?:^|,)li=([^,]*)/', $sigHeader, $liveSignatureMatch);
 
         $timestamp = $timestampMatch[1] ?? null;
 
-        $signature = app()->environment('production')
+        $signature = $isLive
             ? ($liveSignatureMatch[1] ?? null)
             : ($testSignatureMatch[1] ?? null);
 
         if (! filled($timestamp) || ! filled($signature)) {
-            Log::warning('PayMongo webhook signature is incomplete.', [
-                'environment' => app()->environment(),
-            ]);
+            Log::warning('PayMongo webhook signature is incomplete.', ['livemode' => $isLive]);
 
             return false;
         }
 
-        $computed = hash_hmac(
-            'sha256',
-            $timestamp . '.' . $payload,
-            $secret
-        );
+        $computed = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
 
-        return hash_equals(
-            strtolower($computed),
-            strtolower($signature)
-        );
+        return hash_equals(strtolower($computed), strtolower($signature));
     }
 }
