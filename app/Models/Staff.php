@@ -17,6 +17,8 @@ class Staff extends Model
         'branch_id',
         'applicant_id',
         'employment_status',
+        'keep_active',
+        'plan_paused_at',
         'hire_date',
         'tin',
         'sss_no',
@@ -32,11 +34,19 @@ class Staff extends Model
     ];
 
     protected $casts = [
+        'keep_active'    => 'boolean',
+        'plan_paused_at' => 'datetime',
         'tin'           => 'encrypted',
         'sss_no'        => 'encrypted',
         'philhealth_no' => 'encrypted',
         'pagibig_no'    => 'encrypted',
     ];
+
+    /** Paused by the system because the spa is over its plan's staff limit. */
+    public function isPlanPaused(): bool
+    {
+        return $this->plan_paused_at !== null;
+    }
 
     public function user()
     {

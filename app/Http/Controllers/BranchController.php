@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\OperatingHours;
+use App\Services\Subscription\PlanLimitEnforcer;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
@@ -249,7 +250,7 @@ class BranchController extends Controller
 
             /*
              * has_workforce_finance_suite remains for compatibility only.
-             * Business/manpower is the real access rule.
+             * The plan's manpower feature (Premium) is the real access rule.
              *
              * A new branch always starts unverified. It stays blocked
              * until an administrator approves its documents.
@@ -595,7 +596,7 @@ class BranchController extends Controller
         if (! $canPubliclyList) {
             $response->with(
                 'upgrade_message',
-                'Public listing is available on Premium and Business plans. Upgrade your plan to list this branch publicly.'
+                'Public listing needs an active plan. Choose a plan to list this branch publicly.'
             );
         }
 
@@ -623,6 +624,14 @@ class BranchController extends Controller
         }
 
         $branch->delete();
+
+        // A freed branch slot can bring a paused branch, and its staff, back.
+        $spa = Auth::user()->spa;
+        $spa?->forgetSubscriptionCache();
+
+        if ($spa) {
+            app(PlanLimitEnforcer::class)->sync($spa);
+        }
 
         return response()->json([
             'success' => true,

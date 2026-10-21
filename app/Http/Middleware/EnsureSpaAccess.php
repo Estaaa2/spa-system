@@ -2,8 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Staff;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureSpaAccess
@@ -24,6 +26,13 @@ class EnsureSpaAccess
 
         if (! $spa || $spa->verification_status !== 'verified') {
             return $next($request);
+        }
+
+        // Staff paused because the spa is over its plan's staff limit are
+        // signed out with a message, the usual "account not active,
+        // contact your admin" pattern. Owners are never paused.
+        if (! $user->hasRole('owner') && self::isPlanPaused($user)) {
+            return self::signOutPaused($request, $spa->name);
         }
 
         if (! $spa->isLocked()) {
@@ -61,5 +70,35 @@ class EnsureSpaAccess
         }
 
         return redirect()->route('spa.locked');
+    }
+
+    public static function isPlanPaused($user): bool
+    {
+        return Staff::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('plan_paused_at')
+            ->whereNull('deleted_at')
+            ->exists();
+    }
+
+    public static function pausedMessage(string $spaName): string
+    {
+        return "Your account is paused because {$spaName} has more staff than its current plan allows. Please contact your spa owner.";
+    }
+
+    private static function signOutPaused(Request $request, string $spaName): Response
+    {
+        $message = self::pausedMessage($spaName);
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message, 'reason' => 'staff_paused'], 423);
+        }
+
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->withErrors(['email' => $message]);
     }
 }

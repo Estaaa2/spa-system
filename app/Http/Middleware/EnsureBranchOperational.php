@@ -72,7 +72,7 @@ class EnsureBranchOperational
                 $branch->name . ' is locked because its Business Permit has expired. Renew it to continue.',
 
             'plan_limit' =>
-                $branch->name . ' is not covered by your current plan. Upgrade your subscription to use it.',
+                $branch->name . ' is paused because your plan covers fewer branches. Choose which branches stay active, or upgrade.',
 
             default =>
                 $branch->name . ' is locked until an administrator approves its documents.',
@@ -90,7 +90,7 @@ class EnsureBranchOperational
             return redirect()
                 ->route(
                     $reason === 'plan_limit'
-                        ? 'owner.subscription.index'
+                        ? 'owner.subscription.limits'
                         : 'owner.spa-profile.edit'
                 )
                 ->with('error', $message);

@@ -1,5 +1,16 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Subscription Rules
+|--------------------------------------------------------------------------
+|
+| Rules shared by the access logic (App\Models\Spa), checkout, the PayMongo
+| webhook and App\Services\Subscription\SubscriptionBilling. Plan prices,
+| limits and features live in config/plans.php.
+|
+*/
+
 return [
     // Plans an owner can buy. Order = display order, lowest first.
     'purchasable_plans' => ['basic', 'premium'],
@@ -29,4 +40,42 @@ return [
     // active by default on an activated PayMongo account. QR Ph and
     // BillEase must be requested from PayMongo before adding them here.
     'payment_methods' => ['gcash', 'paymaya', 'card', 'grab_pay'],
+
+    // Display names for PayMongo source types on receipts and history.
+    'payment_method_labels' => [
+        'gcash' => 'GCash',
+        'paymaya' => 'Maya',
+        'card' => 'Card',
+        'grab_pay' => 'GrabPay',
+        'qrph' => 'QR Ph',
+    ],
+
+    // Days before the free trial ends that the owner is emailed.
+    'trial_reminder_days' => 3,
+
+    // Owner-facing names for the plan feature keys in config/plans.php.
+    'feature_labels' => [
+        'operations' => 'Appointments, walk-ins and daily operations',
+        'services' => 'Treatments, packages and promos',
+        'this_branch' => 'Branch settings and operating hours',
+        'all_branches' => 'Multi-branch management',
+        'spa_profile' => 'Spa profile and business documents',
+        'billing_page' => 'Subscription and billing',
+        'insights' => 'Decision support and reports',
+        'branch_public_listing' => 'Public listing on Levictas',
+        'online_reservation' => 'Customer online reservations',
+        'featured_listing' => 'Featured placement on Levictas',
+        'inventory_basic' => 'Products, stock and inventory logs',
+        'inventory_full' => 'Batches, transfers, replenishment and goods receiving',
+        'manpower' => 'Hiring, interviews and staff deployment',
+        'payroll' => 'Payroll and payslips',
+        'finance' => 'Revenue, expenses and vendor bills',
+        'procurement' => 'Suppliers, purchase requests and orders',
+    ],
+
+    // Shown on every plan: these modules are not plan-gated.
+    'always_included' => [
+        'Scheduling and staff availability',
+        'Attendance and leave requests',
+    ],
 ];

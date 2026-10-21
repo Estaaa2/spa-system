@@ -39,6 +39,8 @@ class Spa extends Model
         'trial_started_at',
         'trial_ends_at',
         'trial_used',
+        'trial_reminder_sent_at',
+        'plan_swap_used_at',
         'payroll_first_cutoff_day',
         'payroll_pay_day_offset',
     ];
@@ -48,6 +50,8 @@ class Spa extends Model
         'trial_started_at' => 'datetime',
         'trial_ends_at' => 'datetime',
         'trial_used' => 'boolean',
+        'trial_reminder_sent_at' => 'datetime',
+        'plan_swap_used_at' => 'datetime',
         'payroll_first_cutoff_day' => 'integer',
         'payroll_pay_day_offset' => 'integer',
     ];
@@ -397,10 +401,11 @@ class Spa extends Model
 
     /**
      * IDs of the branches the current plan covers: the main branch first,
-     * then the oldest branches, up to the plan's branch limit.
+     * then the branches the owner chose to keep (Plan limits page), then the
+     * oldest, up to the plan's branch limit.
      *
-     * Nothing is stored. After a downgrade the extra branches drop out of
-     * this list, and after an upgrade they come back automatically.
+     * Nothing else is stored. After a downgrade the extra branches drop out
+     * of this list, and after an upgrade they come back automatically.
      */
     public function branchIdsWithinPlanLimit(): array
     {
@@ -418,6 +423,7 @@ class Spa extends Model
 
         return $this->branchIdsWithinPlanLimitCache = $this->branches()
             ->orderByDesc('is_main')
+            ->orderByDesc('keep_active')
             ->orderBy('id')
             ->limit($limit)
             ->pluck('id')
@@ -451,6 +457,96 @@ class Spa extends Model
             ->where('employment_status', 'active')
             ->whereNull('deleted_at')
             ->count() < $limit;
+    }
+
+    /** Staff paused because the spa is over its plan's staff limit. */
+    public function planPausedStaffCount(): int
+    {
+        return Staff::query()
+            ->where('spa_id', $this->id)
+            ->whereNotNull('plan_paused_at')
+            ->whereNull('deleted_at')
+            ->count();
+    }
+
+    /** Branches locked because the spa has more branches than its plan allows. */
+    public function branchesOverPlanLimitCount(): int
+    {
+        if (! $this->hasAccess()) {
+            return 0;
+        }
+
+        return max(
+            0,
+            $this->branches()->whereNull('deleted_at')->count() - count($this->branchIdsWithinPlanLimit())
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Plan-limit swaps
+    |--------------------------------------------------------------------------
+    |
+    | When the spa is over its limits, the owner may pause something active
+    | to activate something else once per billing period (or once during the
+    | trial). Without this, paused branches and staff could be rotated in and
+    | out to use more than the plan allows. Filling a genuinely free slot is
+    | not a swap and is always allowed.
+    |
+    */
+
+    /** Start of the period the swap allowance belongs to. */
+    public function planSwapPeriodStart(): ?Carbon
+    {
+        if ($period = $this->currentPeriod()) {
+            return $period->starts_at ?? $period->created_at;
+        }
+
+        if ($this->isTrialing()) {
+            return $this->trial_started_at;
+        }
+
+        if ($this->isInGracePeriod()) {
+            $last = $this->lastEndedPeriod();
+
+            return $last?->starts_at ?? $last?->created_at;
+        }
+
+        return null;
+    }
+
+    public function canSwapPlanSelection(): bool
+    {
+        if ($this->plan_swap_used_at === null) {
+            return true;
+        }
+
+        $start = $this->planSwapPeriodStart();
+
+        return $start === null || $this->plan_swap_used_at->lt($start);
+    }
+
+    /** When the next swap becomes available, or null when one is available now. */
+    public function nextPlanSwapAt(): ?Carbon
+    {
+        if ($this->canSwapPlanSelection()) {
+            return null;
+        }
+
+        if ($period = $this->currentPeriod()) {
+            return $period->expires_at;
+        }
+
+        if ($this->isTrialing()) {
+            return $this->trial_ends_at;
+        }
+
+        return null;
+    }
+
+    public function isOverPlanLimits(): bool
+    {
+        return $this->planPausedStaffCount() > 0 || $this->branchesOverPlanLimitCount() > 0;
     }
 
     /**

@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use App\Services\Subscription\PlanLimitEnforcer;
 use App\Services\Subscription\SubscriptionBilling;
 
 class PaymongoWebhookController extends Controller
@@ -101,6 +102,7 @@ class PaymongoWebhookController extends Controller
                 'expires_at' => $subscription->expires_at?->toDateTimeString(),
             ]);
 
+            $this->applyPlanLimits($subscription);
             $this->sendPaidEmail($subscription);
 
             return response()->json(['status' => 'subscription_processed'], 200);
@@ -233,6 +235,27 @@ class PaymongoWebhookController extends Controller
         ]);
 
         return response()->json(['status' => 'not_found'], 200);
+    }
+
+    /**
+     * Pauses or restores staff for the spa's plan right away (an upgrade
+     * brings paused staff back). Failure must not fail the webhook; the
+     * hourly subscriptions:enforce-limits run catches up.
+     */
+    private function applyPlanLimits(Subscription $subscription): void
+    {
+        try {
+            $spa = Spa::find($subscription->spa_id);
+
+            if ($spa) {
+                app(PlanLimitEnforcer::class)->sync($spa);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Plan limit sync after payment failed', [
+                'subscription_id' => $subscription->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

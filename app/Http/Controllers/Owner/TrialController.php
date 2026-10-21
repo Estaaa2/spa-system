@@ -36,21 +36,17 @@ class TrialController extends Controller
                 );
         }
 
-        return view('owner.trial.choose', [
-            'plans' => collect(['basic', 'premium'])
-                ->mapWithKeys(function (string $plan): array {
-                    $config = config("plans.{$plan}");
+        // The trial plan's details, plus the plans the owner can buy after it.
+        $planKeys = array_unique(array_merge(
+            [config('subscription.trial_plan', 'premium')],
+            config('subscription.purchasable_plans', ['basic', 'premium'])
+        ));
 
-                    return [
-                        $plan => [
-                            'name' => $config['name'],
-                            'monthly_price' => $config['monthly_price'],
-                            'max_branches' => $config['max_branches'],
-                            'max_staff' => $config['max_staff'],
-                            'features' => $config['features'],
-                        ],
-                    ];
-                })
+        return view('owner.trial.choose', [
+            'plans' => collect($planKeys)
+                ->mapWithKeys(fn (string $plan) => [$plan => config("plans.{$plan}")])
+                ->filter(fn ($config) => is_array($config))
+                ->sortBy(fn ($config) => $config['monthly_price'] ?? 0)
                 ->all(),
         ]);
     }

@@ -21,7 +21,7 @@
         $currentPlan = 'premium';
     }
 
-    if (! in_array($currentPlan, ['basic', 'premium', 'business'], true)) {
+    if (! in_array($currentPlan, ['basic', 'premium'], true)) {
         $currentPlan = 'basic';
     }
 
@@ -33,8 +33,11 @@
     $planBadgeClasses = [
         'basic' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
         'premium' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-        'business' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
     ];
+
+    // Branches locked because the spa has more than its plan allows.
+    $branchesOverLimit = $spa->branchesOverPlanLimitCount();
+    $planBranchIds = $spa->branchIdsWithinPlanLimit();
 
     $planBadgeClass = $planBadgeClasses[$currentPlan];
 
@@ -125,6 +128,28 @@
                 <span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold {{ $planBadgeClass }}">
                     {{ ucfirst($currentPlan) }} plan
                 </span>
+            </div>
+        </div>
+    @endif
+
+    @if ($hasAccess && $branchesOverLimit > 0)
+        <div class="p-4 border rounded-2xl border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10" role="status">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
+                        {{ $branchesOverLimit }} Branch{{ $branchesOverLimit === 1 ? '' : 'es' }} Paused
+                    </h2>
+                    <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                        Your {{ ucfirst($currentPlan) }} plan runs {{ $branchLimit }} branches. Paused branches are hidden from customers and their staff are paused. Nothing was deleted.
+                    </p>
+                </div>
+
+                @role('owner')
+                    <a href="{{ route('owner.subscription.limits') }}" class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto">
+                        <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                        Choose Active Branches
+                    </a>
+                @endrole
             </div>
         </div>
     @endif
@@ -271,8 +296,12 @@
                             </div>
                         </div>
 
-                        {{-- Status badge: Main or Currently Viewing --}}
-                        @if($branch->is_main)
+                        {{-- Status badge: Paused, Main or Currently Viewing --}}
+                        @if($hasAccess && ! in_array((int) $branch->id, $planBranchIds, true))
+                            <span class="shrink-0 px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                                Paused (plan limit)
+                            </span>
+                        @elseif($branch->is_main)
                             <span class="shrink-0 px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                                 Main Branch
                             </span>

@@ -20,6 +20,9 @@
     $staffCount = $activeStaffCount
     ?? $staff->where('employment_status', 'active')->count();
 
+    $pausedStaffCount = $pausedStaffCount ?? 0;
+    $isOwner = (bool) ($user?->hasRole('owner') ?? false);
+
     $hasReachedStaffLimit = $staffLimit <= 0 || $staffCount >= $staffLimit;
     $remainingStaffSlots = max($staffLimit - $staffCount, 0);
 
@@ -104,7 +107,7 @@
                 <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Leadership roles</span>
             </div>
         </div>
-        {{-- Business-plan manpower controls HR and Finance role availability. --}}
+        {{-- The Premium plan's manpower feature controls HR and Finance role availability. --}}
         <div class="p-4 border shadow-sm sm:p-5 rounded-2xl
             {{ $hasManpower
                 ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800'
@@ -113,7 +116,7 @@
                 {{ $hasManpower
                     ? 'text-indigo-700 dark:text-indigo-300'
                     : 'text-amber-700 dark:text-amber-300' }}">
-                {{ $hasManpower ? 'Business Roles' : 'Business Feature' }}
+                {{ $hasManpower ? 'Premium Roles' : 'Premium Feature' }}
             </p>
 
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
@@ -128,7 +131,7 @@
                     {{ $hasManpower
                         ? 'text-indigo-700 dark:text-indigo-300'
                         : 'text-amber-700 dark:text-amber-300' }}">
-                    {{ $hasManpower ? 'HR & Finance roles' : 'Business plan required' }}
+                    {{ $hasManpower ? 'HR & Finance roles' : 'Premium plan required' }}
                 </span>
             </div>
         </div>
@@ -162,6 +165,32 @@
                     <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
                     View Plans
                 </a>
+            </div>
+        </div>
+    @endif
+    {{-- Staff paused by the plan limit --}}
+    @if($pausedStaffCount > 0)
+        <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800" role="status">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
+                        {{ $pausedStaffCount }} Staff Paused
+                    </h2>
+                    <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                        Your spa has more staff than the {{ ucfirst($spa?->currentPlan() ?? 'current') }} plan allows.
+                        Paused staff cannot sign in and are not offered for bookings. Nothing was deleted.
+                        @unless($isOwner)
+                            Ask the spa owner to choose who stays active.
+                        @endunless
+                    </p>
+                </div>
+
+                @if($isOwner)
+                    <a href="{{ route('owner.subscription.limits') }}" class="w-full {{ $btn['upgrade'] }} sm:w-auto">
+                        <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+                        Choose Who Stays Active
+                    </a>
+                @endif
             </div>
         </div>
     @endif
@@ -205,7 +234,7 @@
                         @if(!$hasManpower)
                             <div class="px-3 py-2 text-xs rounded-xl bg-amber-50 text-amber-700 sm:text-right dark:bg-amber-900/20 dark:text-amber-300">
                                 <i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>
-                                HR &amp; Finance roles require the Business plan.
+                                HR &amp; Finance roles require the Premium plan.
                             </div>
                         @endif
                         @if($staffLimit > 0 && !$hasReachedStaffLimit)
@@ -310,9 +339,9 @@
                                     <option value="receptionist" {{ old('roles') == 'receptionist' ? 'selected' : '' }}>Receptionist</option>
                                     <option value="manager" {{ old('roles') == 'manager' ? 'selected' : '' }}>Manager</option>
                                 </optgroup>
-                                {{-- HR and Finance roles are available only with the Business plan. --}}
+                                {{-- HR and Finance roles are available only with the Premium plan. --}}
                                 @if($hasManpower)
-                                    <optgroup label="Business Roles">
+                                    <optgroup label="Premium Roles">
                                         <option value="hr" {{ old('roles') === 'hr' ? 'selected' : '' }}>
                                             HR
                                         </option>
@@ -328,7 +357,7 @@
                             @if(!$hasManpower)
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     <i class="fa-solid fa-lock text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                    HR &amp; Finance roles require the Business plan.
+                                    HR &amp; Finance roles require the Premium plan.
                                 </p>
                             @endif
                         </div>
@@ -401,6 +430,11 @@
                                 <div>
                                     <p class="font-medium text-gray-900 dark:text-white">
                                         {{ $displayName }}
+                                        @if($member->plan_paused_at)
+                                            <span class="ml-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                                                Paused (plan limit)
+                                            </span>
+                                        @endif
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
                                         {{ $member->user?->email ?? 'No email' }}
@@ -657,7 +691,7 @@
     // ════════════════════════════════════════════════════════════════
 
     // HR and Finance options are available only when the spa has the
-    // Business-plan manpower feature.
+    // Premium plan's manpower feature.
     function editStaff(staffId, hasManpower, currentRole, staffName) {
         hasManpower = hasManpower === true;
         currentRole = currentRole || '';
@@ -665,7 +699,7 @@
         const sel = role => currentRole === role ? ' selected' : '';
 
         const businessRoleOptions = hasManpower ? `
-            <optgroup label="Business Roles">
+            <optgroup label="Premium Roles">
                 <option value="hr"${sel('hr')}>HR</option>
                 <option value="finance"${sel('finance')}>Finance</option>
             </optgroup>
@@ -690,7 +724,7 @@
                     !hasManpower
                         ? `<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                             <i class="fa-solid fa-lock text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                            HR &amp; Finance roles require the Business plan.
+                            HR &amp; Finance roles require the Premium plan.
                            </p>`
                         : ''
                 }

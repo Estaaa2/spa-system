@@ -82,6 +82,14 @@ class EnsureMobileAccess
             ];
         }
 
+        // Paused because the spa is over its plan's staff limit.
+        if (EnsureSpaAccess::isPlanPaused($user)) {
+            return [
+                'reason'  => 'staff_paused',
+                'message' => EnsureSpaAccess::pausedMessage($spa->name),
+            ];
+        }
+
         $branch = $user->branch_id ? Branch::find($user->branch_id) : null;
 
         if (! $branch) {

@@ -4,25 +4,14 @@
     $planConfig = config("plans.{$planKey}", []);
     $planName = $planConfig['name'] ?? ucfirst($planKey);
 
-    // Built from config/plans.php so the email always matches the plan.
-    $featureLabels = [
-        'insights' => 'Decision support and reports',
-        'all_branches' => 'Multi-branch management',
-        'branch_public_listing' => 'Branch public listing on Levictas',
-        'online_reservation' => 'Customer online reservations',
-        'featured_listing' => 'Featured placement on Levictas',
-        'inventory_full' => 'Full inventory, transfers and goods receiving',
-        'manpower' => 'Hiring, deployment and staff management',
-        'payroll' => 'Payroll and payslips',
-        'finance' => 'Revenue, expenses and vendor bills',
-        'procurement' => 'Suppliers and purchasing',
-    ];
+    // Built from config so the email always matches the plan.
+    $featureLabels = config('subscription.feature_labels', []);
 
     $planFeatures = collect($planConfig['features'] ?? [])
+        ->reject(fn ($feature) => in_array($feature, ['billing_page', 'this_branch', 'spa_profile'], true))
         ->map(fn ($feature) => $featureLabels[$feature] ?? null)
         ->filter()
         ->values()
-        ->prepend('Appointments, scheduling and services')
         ->push(sprintf(
             'Up to %d branches and %d staff members',
             $planConfig['max_branches'] ?? 0,

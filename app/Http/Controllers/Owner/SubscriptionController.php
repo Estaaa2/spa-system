@@ -39,14 +39,11 @@ class SubscriptionController extends Controller
             }
         }
 
+        // Paid periods (including queued and credited ones) and checkouts
+        // still waiting for PayMongo. Failed and abandoned ones are hidden.
         $subscriptionHistory = $spa->subscriptions()
-            ->where(function ($query) {
-                $query
-                    ->where('payment_status', 'paid')
-                    ->orWhereIn('status', ['active', 'cancelled', 'expired']);
-            })
-            ->where('payment_status', '!=', 'expired')
-            ->latest()
+            ->whereIn('payment_status', ['paid', 'pending'])
+            ->latest('id')
             ->get();
 
         return view('owner.subscription.index', [
@@ -228,30 +225,6 @@ class SubscriptionController extends Controller
         session()->forget('pending_subscription_id');
 
         return view('owner.subscription.cancel');
-    }
-
-    /**
-     * Plans are prepaid and never renew on their own, so there is nothing
-     * to cancel. Kept only so the old button keeps working until the
-     * billing page is rebuilt (Phase 4), when this route is removed.
-     *
-     * @deprecated
-     */
-    public function cancelSubscription(): RedirectResponse
-    {
-        $spa = auth()->user()->spa;
-
-        abort_unless($spa, 403);
-
-        $end = $spa->paidThroughAt();
-
-        return redirect()
-            ->route('owner.subscription.index')
-            ->with(
-                'success',
-                'Plans do not renew automatically, so there is nothing to cancel.'
-                . ($end ? ' Your access runs until ' . $end->format('F d, Y') . ' unless you pay for another period.' : '')
-            );
     }
 
     /** @return array{plan: string, billing_cycle: string} */

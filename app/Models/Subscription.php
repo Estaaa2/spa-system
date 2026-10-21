@@ -6,6 +6,20 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * One row = one checkout attempt and, once paid, one prepaid period.
+ *
+ * A paid period counts for access from starts_at until expires_at, unless
+ * superseded_at is set (its remaining value was credited to an upgrade).
+ * Periods can be queued: an early renewal starts when the current period
+ * ends, and a payment made during the free trial starts when the trial ends.
+ *
+ * kind:
+ *   new      first paid period (no earlier paid access)
+ *   renewal  continues or restarts the same plan (including a cycle change)
+ *   upgrade  Basic -> Premium mid-period, priced with credit_amount
+ *   downgrade Premium -> Basic, always queued after current paid access
+ */
 class Subscription extends Model
 {
     use HasFactory;
@@ -78,6 +92,36 @@ class Subscription extends Model
         $notEnded = $this->expires_at === null || $this->expires_at->gt($at);
 
         return $started && $notEnded;
+    }
+
+    /**
+     * One display state for history lists and admin pages:
+     * active, scheduled, ended, credited, pending, failed, expired.
+     */
+    public function state(): string
+    {
+        if ($this->isPaid()) {
+            return match (true) {
+                $this->superseded_at !== null => 'credited',
+                $this->isScheduled() => 'scheduled',
+                $this->isInEffect() => 'active',
+                default => 'ended',
+            };
+        }
+
+        return match ($this->payment_status) {
+            'pending' => 'pending',
+            'expired' => 'expired',
+            default => 'failed',
+        };
+    }
+
+    public function paymentMethodLabel(): string
+    {
+        $method = (string) $this->payment_method;
+
+        return config("subscription.payment_method_labels.{$method}")
+            ?? ($method !== '' ? ucwords(str_replace('_', ' ', $method)) : 'PayMongo');
     }
 
     /** Countable and starting in the future (an early renewal or a payment made during the trial). */

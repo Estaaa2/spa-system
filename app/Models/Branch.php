@@ -17,6 +17,7 @@ class Branch extends Model
         'name',
         'location',
         'is_main',
+        'keep_active',
         'has_workforce_finance_suite',
         'min_daily_wage',
         'wage_order_ref',
@@ -30,6 +31,7 @@ class Branch extends Model
 
     protected $casts = [
         'is_main'                     => 'boolean',
+        'keep_active'                 => 'boolean',
         'has_workforce_finance_suite' => 'boolean',
         'min_daily_wage'              => 'decimal:2',
         'min_wage_effective_from'     => 'date',

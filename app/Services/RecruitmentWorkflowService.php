@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\StaffCredentialsMail;
 use App\Models\Applicant;
 use App\Models\Interview;
+use App\Models\Spa;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -248,6 +249,26 @@ class RecruitmentWorkflowService
             ], true)) {
                 throw ValidationException::withMessages([
                     'staff' => 'The applicant does not have a valid staff position.',
+                ]);
+            }
+
+            // Same plan rules as adding staff by hand (StaffController::store).
+            $spa = Spa::find($applicant->spa_id);
+
+            if (
+                in_array($role, ['hr', 'finance'], true)
+                && ! ($spa?->hasFeature('manpower') ?? false)
+            ) {
+                throw ValidationException::withMessages([
+                    'staff' => 'HR and Finance accounts require the Premium plan.',
+                ]);
+            }
+
+            if (! ($spa?->canAddStaff() ?? false)) {
+                $limit = $spa?->planLimit('staff') ?? 0;
+
+                throw ValidationException::withMessages([
+                    'staff' => "Your plan allows {$limit} active staff members. Upgrade or free a slot before hiring.",
                 ]);
             }
 

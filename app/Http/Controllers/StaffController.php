@@ -8,6 +8,7 @@ use App\Models\Branch;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Mail\StaffCredentialsMail;
+use App\Services\Subscription\PlanLimitEnforcer;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -46,11 +47,15 @@ class StaffController extends Controller
             ->latest()
             ->get();
 
+        // Staff paused because the spa is over its plan's staff limit.
+        $pausedStaffCount = $spa?->planPausedStaffCount() ?? 0;
+
         return view('staff.index', compact(
             'staff',
             'hasManpower',
             'staffLimit',
-            'activeStaffCount'
+            'activeStaffCount',
+            'pausedStaffCount'
         ));
     }
 
@@ -82,7 +87,7 @@ class StaffController extends Controller
         ) {
             return back()->with(
                 'error',
-                'HR and Finance accounts require the Business plan.'
+                'HR and Finance accounts require the Premium plan.'
             );
         }
 
@@ -163,7 +168,7 @@ class StaffController extends Controller
         ) {
             return back()->with(
                 'error',
-                'HR and Finance accounts require the Business plan.'
+                'HR and Finance accounts require the Premium plan.'
             );
         }
 
@@ -191,6 +196,11 @@ class StaffController extends Controller
             }
 
             $staff->delete();
+
+            // A freed slot lets a paused staff member back in.
+            if ($spa = Auth::user()->spa) {
+                app(PlanLimitEnforcer::class)->sync($spa);
+            }
 
             return redirect()
                 ->route('staff.index')
