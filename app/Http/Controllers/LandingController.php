@@ -517,7 +517,7 @@ class LandingController extends Controller
                 'total' => 0,
                 'counts' => [],
                 'reviews' => [],
-                'message' => 'This spa is not currently available for public listing.',
+                'message' => "This spa isn't taking bookings right now.",
             ], 404);
         }
 

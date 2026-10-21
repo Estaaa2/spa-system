@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Subscription Expired')
+@section('title', 'Spa Unavailable')
 
 @section('content')
 <div class="flex min-h-[70vh] items-center justify-center px-4 py-10">
@@ -10,14 +10,23 @@
         </div>
 
         <h1 class="mt-6 text-2xl font-semibold text-gray-900 dark:text-white">
-            Subscription Expired
+            {{ $spaName }} is unavailable right now
         </h1>
 
         <p class="mt-3 text-gray-600 dark:text-gray-300">
-            Your spa's subscription has expired. Please contact the owner.
+            The spa's Levictas plan has ended, so staff can't use Levictas until the owner renews it.
+            Your account and work records are kept. Please contact your spa owner.
         </p>
 
-        <div class="mt-6">
+        <div class="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+            <a
+                href="{{ route('spa.locked') }}"
+                class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#8B7355] px-5 py-2 text-sm font-semibold text-white hover:bg-[#7A6348]"
+            >
+                <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                Check again
+            </a>
+
             <a
                 href="{{ route('profile.edit') }}"
                 class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-300 px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"

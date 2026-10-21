@@ -34,15 +34,6 @@
         'unverified' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
     ];
 
-    $tierClasses = [
-        'basic' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-        'premium' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-        'business' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-
-        // Legacy database value. It is displayed as Premium below.
-        'professional' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    ];
-
     $thClass = 'px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400';
     $badgeClass = 'px-2.5 py-1 text-xs font-medium rounded-full';
     $labelClass = 'block mb-2 text-sm font-medium text-gray-900 dark:text-white';
@@ -335,22 +326,8 @@
                                 </p>
                             </td>
 
-                            @php
-                                $plan = strtolower((string) ($spa->business_tier ?: 'basic'));
-
-                                if ($plan === 'professional') {
-                                    $plan = 'premium';
-                                }
-
-                                if (! in_array($plan, ['basic', 'premium', 'business'], true)) {
-                                    $plan = 'basic';
-                                }
-                            @endphp
-
-                            <td class="px-6 py-4">
-                                <span class="{{ $badgeClass }} {{ $tierClasses[$plan] }}">
-                                    {{ ucfirst($plan) }}
-                                </span>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @include('admin.partials.billing-status', ['spa' => $spa])
                             </td>
 
                             <td class="px-6 py-4">
@@ -461,7 +438,7 @@
                     <dl class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                         @foreach ([
                             'SpaName' => 'Spa name',
-                            'CurrentTier' => 'Business tier',
+                            'CurrentTier' => 'Current plan',
                             'CurrentStatus' => 'Current status',
                             'OwnerName' => 'Owner',
                             'OwnerEmail' => 'Owner email',
@@ -1537,17 +1514,9 @@
                                 spa.name ??
                                 '—',
 
-                            modalCurrentTier: (() => {
-                                const plan = String(spa.business_tier || 'basic').toLowerCase();
-
-                                if (plan === 'professional') {
-                                    return 'Premium';
-                                }
-
-                                return ['basic', 'premium', 'business'].includes(plan)
-                                    ? plan.charAt(0).toUpperCase() + plan.slice(1)
-                                    : 'Basic';
-                            })(),
+                            modalCurrentTier:
+                                spa.plan_summary ??
+                                '—',
 
                             modalCurrentStatus:
                                 verificationStatus

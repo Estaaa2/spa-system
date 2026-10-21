@@ -211,6 +211,7 @@ class SubscriptionBilling
 
             $row->update([
                 'payment_status' => 'paid',
+                'paid_at' => now(),
                 'status' => 'active',
                 'starts_at' => $start,
                 'expires_at' => self::periodEnd($start, $cycle),

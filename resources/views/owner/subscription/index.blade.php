@@ -228,6 +228,61 @@
         </div>
     </section>
 
+    {{-- ── Customer bookings affected by the lock ─────────────────────── --}}
+    @if ($affectedBookingCount > 0)
+        <section class="overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:border-amber-800 dark:bg-gray-800">
+            <div class="flex flex-col gap-3 px-4 py-4 border-b sm:flex-row sm:items-start sm:justify-between sm:px-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                <div class="flex items-start gap-3 text-amber-800 dark:text-amber-300">
+                    <i class="mt-0.5 fa-solid fa-calendar-xmark" aria-hidden="true"></i>
+                    <div>
+                        <h2 class="text-base font-semibold">
+                            {{ $affectedBookingCount }} upcoming customer booking{{ $affectedBookingCount === 1 ? '' : 's' }}
+                            {{ $state === 'grace' ? 'after your spa locks' : 'while your spa is locked' }}
+                        </h2>
+                        <p class="mt-1 text-sm">
+                            @if ($state === 'grace')
+                                These fall on or after {{ $fmt($lockDate) }}. After that, your staff can't sign in to serve them.
+                            @else
+                                Your staff can't sign in to serve them, and customers can't make new online bookings.
+                            @endif
+                            The bookings are not cancelled and customers are not notified by Levictas. Renew, or contact these customers yourself.
+                        </p>
+                    </div>
+                </div>
+
+                <a href="{{ route('owner.subscription.affected-bookings') }}"
+                   class="inline-flex shrink-0 min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[#8B7355] bg-white px-4 py-2 text-sm font-semibold text-[#8B7355] transition hover:bg-[#8B7355]/5 dark:border-[#C4A97D] dark:bg-gray-800 dark:text-[#C4A97D]">
+                    <i class="fa-solid fa-file-csv" aria-hidden="true"></i>
+                    Download list (CSV)
+                </a>
+            </div>
+
+            <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+                @foreach ($affectedBookings as $booking)
+                    <li class="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-900 truncate dark:text-white">{{ $booking->customer_name ?: 'Walk-in customer' }}</p>
+                            <p class="text-xs text-gray-500 truncate dark:text-gray-400">
+                                {{ $booking->branch?->name }}
+                                @if ($booking->customer_phone) · {{ $booking->customer_phone }} @endif
+                            </p>
+                        </div>
+                        <p class="text-xs font-medium text-gray-700 shrink-0 dark:text-gray-300">
+                            {{ $booking->appointment_date?->format('M d, Y') }}
+                            · {{ \Illuminate\Support\Carbon::parse($booking->start_time)->format('h:i A') }}
+                        </p>
+                    </li>
+                @endforeach
+            </ul>
+
+            @if ($affectedBookingCount > $affectedBookings->count())
+                <p class="px-4 py-3 text-xs text-gray-500 border-t border-gray-200 sm:px-6 dark:border-gray-700 dark:text-gray-400">
+                    Showing the first {{ $affectedBookings->count() }}. Download the list to see all {{ $affectedBookingCount }}.
+                </p>
+            @endif
+        </section>
+    @endif
+
     {{-- ── Plan selection ─────────────────────────────────────────────── --}}
     <form id="subscriptionCheckoutForm" action="{{ route('owner.subscription.checkout') }}" method="POST">
         @csrf

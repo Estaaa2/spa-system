@@ -83,15 +83,9 @@ class EnsureOwnerOnboardingState
          * 4. Trial or plan ended -> Subscription & Billing only.
          */
         if ($spa->verification_status === 'verified') {
-            $allowedSubscriptionRoutes = [
-                'owner.subscription.index',
-                'owner.subscription.checkout',
-                'owner.subscription.success',
-                'owner.subscription.cancel',
-                'owner.subscription.cancel-subscription',
-            ];
-
-            $isSubscriptionRoute = in_array($routeName, $allowedSubscriptionRoutes, true)
+            // Every Billing page (plans, checkout, receipts, plan limits,
+            // affected-bookings export) and Spa Profile stay open.
+            $isSubscriptionRoute = $request->routeIs('owner.subscription.*')
                 || $request->routeIs('owner.spa-profile.*');
 
             $isTrialRoute = in_array($routeName, [

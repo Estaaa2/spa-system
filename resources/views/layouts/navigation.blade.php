@@ -43,6 +43,9 @@
     $canStartTrial = $spa?->canStartTrial() ?? false;
     $currentPlan = $spa?->currentPlan() ?? 'expired';
 
+    // trial | active | grace | locked | new (see Spa::billingState()).
+    $billingState = $spa?->billingState() ?? 'new';
+
     /*
     * A verified first-time owner has not expired.
     * They simply have not selected their free trial yet.
@@ -51,31 +54,54 @@
         $currentPlan = 'trial_available';
     }
 
-    $currentPlanName = match ($currentPlan) {
-        'trial_available' => 'Trial Available',
-        'business' => 'Business',
-        'premium' => 'Premium',
-        'basic' => 'Basic',
-        'expired' => 'Expired',
-        default => ucfirst($currentPlan),
+    $currentPlanName = match (true) {
+        $currentPlan === 'trial_available' => 'Trial Available',
+        $currentPlan === 'expired' => 'Expired',
+        $billingState === 'trial' => config("plans.{$currentPlan}.name", ucfirst($currentPlan)) . ' Trial',
+        $billingState === 'grace' => 'Grace Period',
+        default => config("plans.{$currentPlan}.name", ucfirst($currentPlan)),
     };
 
-    $planBadgeClasses = match ($currentPlan) {
-        'trial_available' =>
+    $planBadgeClasses = match (true) {
+        $currentPlan === 'trial_available' =>
             'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
 
-        'business' =>
-            'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+        $billingState === 'grace' =>
+            'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
 
-        'premium' =>
+        $currentPlan === 'premium' =>
             'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
 
-        'basic' =>
+        $currentPlan === 'basic' =>
             'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
 
         default =>
             'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
     };
+
+    // Owner-only reminder above the menu: last week of the trial (when no
+    // paid period is queued yet) and the grace period.
+    $billingNotice = null;
+
+    if ($spa && ($user?->hasRole('owner') ?? false)) {
+        if ($billingState === 'trial' && $spa->scheduledPeriods()->isEmpty() && $spa->trialDaysLeft() <= 7) {
+            $trialDaysLeft = $spa->trialDaysLeft();
+
+            $billingNotice = [
+                'text' => "{$currentPlanName} · {$trialDaysLeft} day" . ($trialDaysLeft === 1 ? '' : 's')
+                    . ' left. Choose a plan before ' . $spa->trial_ends_at->format('M d') . ' to keep your spa running.',
+                'action' => 'Choose a plan',
+            ];
+        } elseif ($billingState === 'grace') {
+            $atRisk = $spa->bookingsAffectedByLock()?->count() ?? 0;
+
+            $billingNotice = [
+                'text' => 'Your plan has ended. Your spa locks on ' . $spa->graceEndsAt()->format('M d')
+                    . ($atRisk > 0 ? " and {$atRisk} upcoming booking" . ($atRisk === 1 ? '' : 's') . ' fall after that.' : '.'),
+                'action' => 'Renew now',
+            ];
+        }
+    }
 
     $suiteEnabled = $spa?->hasFeature('manpower') ?? false;
     $canAllBranches = $spa?->hasFeature('all_branches') ?? false;
@@ -636,6 +662,20 @@
 
             <!-- Navigation -->
             <nav aria-label="Main" class="flex-1 px-4 py-4 overflow-y-auto">
+
+                @if ($billingNotice)
+                    <div class="px-4 py-3 mb-3 text-sm border rounded-lg border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20" role="status">
+                        <p class="text-amber-800 dark:text-amber-200">
+                            <i class="mr-2 fa-solid fa-hourglass-half" aria-hidden="true"></i>
+                            {{ $billingNotice['text'] }}
+                        </p>
+
+                        <a href="{{ route('owner.subscription.index') }}"
+                            class="inline-flex items-center justify-center w-full px-3 py-2 mt-2 text-xs font-medium text-white rounded-lg bg-[#8B7355] hover:bg-[#7A6348]">
+                            {{ $billingNotice['action'] }}
+                        </a>
+                    </div>
+                @endif
 
                 {{-- Everything under this label follows the branch switcher above. --}}
                 <p class="px-4 pb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">

@@ -10,7 +10,9 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SubscriptionController extends Controller
 {
@@ -46,6 +48,10 @@ class SubscriptionController extends Controller
             ->latest('id')
             ->get();
 
+        // In grace or locked: customer bookings on or after the lock date.
+        // They are not cancelled; the owner decides whether to contact them.
+        $affected = $spa->bookingsAffectedByLock();
+
         return view('owner.subscription.index', [
             'spa' => $spa,
             // The paid period in effect now (null during the trial or grace).
@@ -55,6 +61,9 @@ class SubscriptionController extends Controller
             'subscriptionHistory' => $subscriptionHistory,
             'plans' => $plans,
             'quotes' => $quotes,
+            'lockDate' => $spa->lockDate(),
+            'affectedBookingCount' => $affected ? (clone $affected)->count() : 0,
+            'affectedBookings' => $affected ? $affected->with('branch')->take(10)->get() : collect(),
         ]);
     }
 
@@ -182,6 +191,60 @@ class SubscriptionController extends Controller
         session(['pending_subscription_id' => $subscription->id]);
 
         return redirect()->away($checkoutUrl);
+    }
+
+    /**
+     * CSV of the customer bookings affected by the lock, so a locked owner
+     * (who can only open Billing) can still reach those customers.
+     */
+    public function affectedBookingsCsv(): StreamedResponse|RedirectResponse
+    {
+        $spa = auth()->user()->spa;
+
+        abort_unless($spa, 403);
+
+        $affected = $spa->bookingsAffectedByLock();
+
+        if ($affected === null) {
+            return redirect()
+                ->route('owner.subscription.index')
+                ->with('success', 'Your spa is active, so no bookings are affected.');
+        }
+
+        $bookings = $affected->with('branch')->get();
+
+        // Cells starting with these characters run as formulas in Excel.
+        $cell = function ($value): string {
+            $value = (string) $value;
+
+            return $value !== '' && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)
+                ? "'" . $value
+                : $value;
+        };
+
+        $filename = 'affected-bookings-' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($bookings, $cell) {
+            $out = fopen('php://output', 'w');
+
+            fputcsv($out, ['Date', 'Start', 'End', 'Branch', 'Customer', 'Phone', 'Email', 'Service', 'Status']);
+
+            foreach ($bookings as $booking) {
+                fputcsv($out, array_map($cell, [
+                    $booking->appointment_date?->format('Y-m-d'),
+                    $booking->start_time ? Carbon::parse($booking->start_time)->format('h:i A') : '',
+                    $booking->end_time ? Carbon::parse($booking->end_time)->format('h:i A') : '',
+                    $booking->branch?->name,
+                    $booking->customer_name,
+                    $booking->customer_phone,
+                    $booking->customer_email,
+                    $booking->treatment_label,
+                    ucfirst((string) $booking->status),
+                ]));
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function downloadReceipt(Subscription $subscription)

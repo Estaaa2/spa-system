@@ -32,6 +32,7 @@ use App\Http\Controllers\InventoryImportExportController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\OnlineBookingCheckoutController;
+use App\Http\Controllers\Owner\PlanLimitController;
 use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
 use App\Http\Controllers\Owner\SpaProfileController;
 use App\Http\Controllers\Owner\SubscriptionController;
@@ -281,12 +282,12 @@ Route::middleware([
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'spa.access'])->group(function () {
     Route::post('/branch-deployments/{deployment}/staff-respond', [BranchDeploymentController::class, 'staffRespond'])
         ->name('branch-deployments.staff-respond');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'spa.access'])->group(function () {
     Route::post('/branch-deployments/self-request', [BranchDeploymentController::class, 'storeSelf'])
         ->name('branch-deployments.self-request');
     Route::delete('/branch-deployments/{deployment}/self-cancel',[BranchDeploymentController::class, 'selfCancel'])
@@ -1125,6 +1126,8 @@ Route::middleware(['auth', 'role:admin'])
             Route::get('/registered-spas/{spa}/edit', [RegisteredSpaController::class, 'edit'])->name('registered-spas.edit');
             Route::put('/registered-spas/{spa}', [RegisteredSpaController::class, 'update'])->name('registered-spas.update');
             Route::delete('/registered-spas/{spa}', [RegisteredSpaController::class, 'destroy'])->name('registered-spas.destroy');
+            // Testing tool for pilot spas and demos; every use is logged.
+            Route::post('/subscriptions/{spa}/extend-trial', [AdminSubscriptionController::class, 'extendTrial'])->name('subscriptions.extend-trial');
             Route::get('/branch-verifications/{branch}/edit', [BranchVerificationController::class, 'edit'])->name('branch-verifications.edit');
             Route::put('/branch-verifications/{branch}', [BranchVerificationController::class, 'update'])->name('branch-verifications.update');
             Route::get('/document-reviews/{document}/edit', [DocumentReviewController::class, 'edit'])->name('document-reviews.edit');
@@ -1207,7 +1210,10 @@ Route::middleware(['auth', 'role:owner', 'owner.onboarding'])
         Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
         Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
         Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
-        Route::post('/subscription/cancel-subscription', [SubscriptionController::class, 'cancelSubscription'])->name('subscription.cancel-subscription');
+
+        // Plan limits: which branches and staff stay active over the limit
+        Route::get('/subscription/limits', [PlanLimitController::class, 'edit'])->name('subscription.limits');
+        Route::put('/subscription/limits', [PlanLimitController::class, 'update'])->name('subscription.limits.update');
     });
 
 Route::middleware(['auth', 'verified', 'role:owner'])->group(function () {
@@ -1237,7 +1243,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'spa.access'])->group(function () {
     Route::get('/reschedule-requests', [RescheduleRequestController::class, 'index'])
         ->middleware('branch.permission:edit appointments')
         ->name('reschedule.index');
@@ -1257,7 +1263,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'spa.access'])->group(function () {
     Route::get('/reassignment-requests', [ReassignmentRequestController::class, 'index'])
         ->middleware('branch.permission:edit appointments')
         ->name('reassignment.index');

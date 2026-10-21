@@ -6,7 +6,7 @@
 @php
     $canViewSpas = auth()->user()->can('view registered spas');
 
-    $paidPlanCount = $premiumCount + $businessCount;
+    $paidPlanCount = $basicCount + $premiumCount;
 
     $adoptionRate = $totalSpas > 0
         ? round(($paidPlanCount / $totalSpas) * 100)
@@ -19,12 +19,6 @@
     ];
 
     $verificationDefault = 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300';
-
-    $tierClasses = [
-        'basic' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-        'premium' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-        'business' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-    ];
 
     $cardClass = 'overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800';
 
@@ -216,7 +210,7 @@
                     </h2>
 
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Registered spas by current plan
+                        What each spa is on right now
                     </p>
                 </div>
 
@@ -225,7 +219,7 @@
                         href="{{ route('admin.subscriptions.index') }}"
                         class="{{ $linkClass }} shrink-0"
                     >
-                        Payments
+                        Subscriptions
                         <span aria-hidden="true">→</span>
                     </a>
                 @endif
@@ -248,7 +242,7 @@
                         </p>
 
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Entry plan
+                            Paid, running now
                         </p>
                     </div>
 
@@ -266,25 +260,25 @@
                         </p>
 
                         <p class="mt-1 text-xs text-blue-700/80 dark:text-blue-300/80">
-                            Growing businesses
+                            Paid, running now
                         </p>
                     </div>
 
-                    <div class="rounded-xl bg-purple-50 p-4 dark:bg-purple-900/20">
+                    <div class="rounded-xl bg-[#8B7355]/10 p-4 dark:bg-[#C4A97D]/10">
                         <div class="flex items-center justify-between gap-3">
-                            <span class="text-xs font-semibold uppercase tracking-wide text-purple-700 dark:text-purple-300">
-                                Business
+                            <span class="text-xs font-semibold uppercase tracking-wide text-[#6F5430] dark:text-[#C4A97D]">
+                                Free Trial
                             </span>
 
-                            <span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span>
+                            <span class="h-2.5 w-2.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
                         </div>
 
-                        <p class="mt-3 text-2xl font-bold text-purple-700 dark:text-purple-300">
-                            {{ number_format($businessCount) }}
+                        <p class="mt-3 text-2xl font-bold text-[#6F5430] dark:text-[#C4A97D]">
+                            {{ number_format($trialCount) }}
                         </p>
 
-                        <p class="mt-1 text-xs text-purple-700/80 dark:text-purple-300/80">
-                            Advanced operations
+                        <p class="mt-1 text-xs text-[#6F5430]/80 dark:text-[#C4A97D]/80">
+                            Full access, not paid yet
                         </p>
                     </div>
                 </div>
@@ -292,7 +286,7 @@
                 <div>
                     <div class="mb-2 flex items-center justify-between gap-3 text-xs">
                         <span class="font-medium text-gray-700 dark:text-gray-300">
-                            Premium and Business share
+                            Paying spas
                         </span>
 
                         <span class="font-semibold text-[#6F5430] dark:text-[#C4A97D]">
@@ -303,7 +297,7 @@
                     <div
                         class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
                         role="progressbar"
-                        aria-label="Premium and Business plan share"
+                        aria-label="Share of spas on a paid plan"
                         aria-valuenow="{{ $adoptionRate }}"
                         aria-valuemin="0"
                         aria-valuemax="100"
@@ -315,19 +309,25 @@
                     </div>
 
                     <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        {{ number_format($paidPlanCount) }} of {{ number_format($totalSpas) }} registered spas are on Premium or Business.
+                        {{ number_format($paidPlanCount) }} of {{ number_format($totalSpas) }} registered spas are on a paid plan right now.
                     </p>
                 </div>
 
-                <div class="flex items-center justify-between gap-4 border-t border-gray-200 pt-4 text-sm dark:border-gray-700">
-                    <span class="text-gray-500 dark:text-gray-400">
-                        Active paid subscriptions
-                    </span>
+                <dl class="space-y-2 border-t border-gray-200 pt-4 text-sm dark:border-gray-700">
+                    <div class="flex items-center justify-between gap-4">
+                        <dt class="text-gray-500 dark:text-gray-400">In grace period</dt>
+                        <dd class="font-semibold {{ $graceCount > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-900 dark:text-white' }}">
+                            {{ number_format($graceCount) }}
+                        </dd>
+                    </div>
 
-                    <span class="font-semibold text-gray-900 dark:text-white">
-                        {{ number_format($activeSubscriptions) }}
-                    </span>
-                </div>
+                    <div class="flex items-center justify-between gap-4">
+                        <dt class="text-gray-500 dark:text-gray-400">No plan or locked</dt>
+                        <dd class="font-semibold text-gray-900 dark:text-white">
+                            {{ number_format($noPlanCount) }}
+                        </dd>
+                    </div>
+                </dl>
             </div>
         </div>
     </div>
@@ -362,9 +362,8 @@
                     <tr>
                         <th class="{{ $thClass }}">Spa</th>
                         <th class="{{ $thClass }}">Owner</th>
-                        <th class="{{ $thClass }}">Plan</th>
+                        <th class="{{ $thClass }}">Plan &amp; Billing</th>
                         <th class="{{ $thClass }}">Verification</th>
-                        <th class="{{ $thClass }}">Subscription</th>
                         <th class="{{ $thClass }}">Registered</th>
                     </tr>
                 </thead>
@@ -372,21 +371,7 @@
                 <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                     @forelse ($recentSpas as $spa)
                         @php
-                            $subscription = $spa->subscriptions->first();
-
                             $verificationStatus = $spa->verification_status ?: 'unverified';
-
-                            $plan = strtolower((string) ($spa->business_tier ?: 'basic'));
-
-                            if ($plan === 'professional') {
-                                $plan = 'premium';
-                            }
-
-                            if (! in_array($plan, ['basic', 'premium', 'business'], true)) {
-                                $plan = 'basic';
-                            }
-
-                            $planLabel = ucfirst($plan);
                         @endphp
 
                         <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
@@ -412,37 +397,13 @@
                             </td>
 
                             <td class="whitespace-nowrap px-4 py-4 sm:px-6">
-                                <span class="{{ $badgeClass }} {{ $tierClasses[$plan] }}">
-                                    {{ $planLabel }}
-                                </span>
+                                @include('admin.partials.billing-status', ['spa' => $spa])
                             </td>
 
                             <td class="whitespace-nowrap px-4 py-4 sm:px-6">
                                 <span class="{{ $badgeClass }} {{ $verificationClasses[$verificationStatus] ?? $verificationDefault }}">
                                     {{ ucfirst($verificationStatus) }}
                                 </span>
-                            </td>
-
-                            <td class="whitespace-nowrap px-4 py-4 sm:px-6">
-                                @if ($subscription)
-                                    <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                                        Active
-                                    </p>
-
-                                    @if ($subscription->expires_at)
-                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                            Expires {{ $subscription->expires_at->format('M d, Y') }}
-                                        </p>
-                                    @else
-                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                            No expiry recorded
-                                        </p>
-                                    @endif
-                                @else
-                                    <span class="text-sm text-gray-500 dark:text-gray-400">
-                                        None
-                                    </span>
-                                @endif
                             </td>
 
                             <td class="whitespace-nowrap px-4 py-4 text-sm text-gray-500 sm:px-6 dark:text-gray-400">
@@ -458,7 +419,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center">
+                            <td colspan="5" class="px-6 py-12 text-center">
                                 <i class="mb-3 text-4xl text-gray-400 fa-solid fa-spa" aria-hidden="true"></i>
 
                                 <p class="text-sm text-gray-500 dark:text-gray-400">

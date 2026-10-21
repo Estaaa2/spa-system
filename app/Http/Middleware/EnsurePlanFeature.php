@@ -27,6 +27,11 @@ class EnsurePlanFeature
                 ], 402);
             }
 
+            // Staff cannot open Billing; send them to the locked-spa page.
+            if (! $user->hasRole('owner')) {
+                return redirect()->route('spa.locked');
+            }
+
             return redirect()
                 ->route('owner.subscription.index')
                 ->with('error', 'Your subscription or trial has expired. Please renew your plan.');

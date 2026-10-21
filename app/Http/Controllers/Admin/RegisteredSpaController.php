@@ -33,12 +33,6 @@ class RegisteredSpaController extends Controller
         'business_permit' => 'Business Permit',
     ];
 
-    private const PLANS = [
-        'basic',
-        'premium',
-        'business',
-    ];
-
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
@@ -54,7 +48,8 @@ class RegisteredSpaController extends Controller
             : null;
 
         $spas = Spa::query()
-            ->with('owner')
+            // Paid rows drive the plan column (trial, paid, grace, locked).
+            ->with(['owner', 'subscriptions' => fn ($rows) => $rows->where('payment_status', 'paid')])
             ->when(
                 $status !== null,
                 fn ($query) => $query->where(
@@ -148,7 +143,6 @@ class RegisteredSpaController extends Controller
             'status' => $status,
             'statuses' => self::STATUSES,
             'counts' => $counts,
-            'plans' => self::PLANS,
         ]);
     }
 
@@ -160,17 +154,6 @@ class RegisteredSpaController extends Controller
             'verifier',
         ]);
 
-        $plan = strtolower((string) ($spa->business_tier ?: 'basic'));
-
-        // Legacy Professional records are now displayed as Premium.
-        if ($plan === 'professional') {
-            $plan = 'premium';
-        }
-
-        if (! in_array($plan, self::PLANS, true)) {
-            $plan = 'basic';
-        }
-
         // Only the spa's own documents and its main branch's documents.
         // Additional branches are reviewed separately.
         $mainBranchId = $spa->mainBranch()?->id;
@@ -179,7 +162,9 @@ class RegisteredSpaController extends Controller
             'spa' => [
                 'id' => $spa->id,
                 'name' => $spa->name,
-                'business_tier' => $plan,
+                // Read-only. The plan comes from the trial and paid periods;
+                // owners change it from Subscription & Billing.
+                'plan_summary' => $spa->billingSummary(),
                 'verification_status' => $spa->verification_status,
                 'verification_remarks' => $spa->verification_remarks,
 

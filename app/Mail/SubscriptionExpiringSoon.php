@@ -25,14 +25,11 @@ class SubscriptionExpiringSoon extends Mailable
         $this->spa = $spa;
         $this->subscription = $subscription;
 
-        $plan = strtolower((string) $subscription->business_tier);
+        $plan = Spa::normalisePlanKey($subscription->business_tier);
 
-        $this->planName = match ($plan) {
-            'business' => 'Business',
-            'premium', 'professional' => 'Premium',
-            'basic' => 'Basic',
-            default => ucfirst($plan ?: 'Subscription'),
-        };
+        $this->planName = $plan === 'expired'
+            ? 'Subscription'
+            : config("plans.{$plan}.name", 'Subscription');
     }
 
     public function envelope(): Envelope

@@ -11,28 +11,35 @@ class AdminDashboardController extends Controller
 {
     public function index()
     {
-        $totalSpas = Spa::count();
+        $paidRows = fn ($rows) => $rows->where('payment_status', 'paid');
 
-        $basicCount = Spa::where('business_tier', 'basic')->count();
+        // Plans are worked out from paid periods and the trial, not from
+        // spas.business_tier (only a display copy). Each spa needs its paid
+        // rows anyway, so they are loaded once and counted here.
+        $states = Spa::query()
+            ->with(['subscriptions' => $paidRows])
+            ->get()
+            ->map(fn (Spa $spa) => [
+                'state' => $spa->billingState(),
+                'plan' => $spa->currentPlan(),
+            ]);
 
-        $premiumCount = Spa::where(function ($query) {
-            $query
-                ->where('business_tier', 'premium')
-                ->orWhere('business_tier', 'professional');
-        })->count();
+        $totalSpas = $states->count();
+        $isPaidOn = fn (string $plan) => fn ($row) => $row['state'] === 'active' && $row['plan'] === $plan;
 
-        $businessCount = Spa::where('business_tier', 'business')->count();
+        $basicCount = $states->filter($isPaidOn('basic'))->count();
+        $premiumCount = $states->filter($isPaidOn('premium'))->count();
+        $trialCount = $states->where('state', 'trial')->count();
+        $graceCount = $states->where('state', 'grace')->count();
+        $noPlanCount = $states->whereIn('state', ['locked', 'new'])->count();
 
         $totalUsers = User::whereDoesntHave(
             'roles',
             fn ($query) => $query->where('name', 'admin')
         )->count();
 
-        $activeSubscriptions = Subscription::query()
-            ->where('payment_status', 'paid')
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '>', now())
-            ->count();
+        // Spas with a paid period running now.
+        $activeSubscriptions = $basicCount + $premiumCount;
 
         $subscriptionRevenue = Subscription::query()
             ->where('payment_status', 'paid')
@@ -51,13 +58,7 @@ class AdminDashboardController extends Controller
 
         $recentSpas = Spa::with([
             'owner',
-            'subscriptions' => function ($query) {
-                $query
-                    ->where('payment_status', 'paid')
-                    ->whereNotNull('expires_at')
-                    ->where('expires_at', '>', now())
-                    ->latest();
-            },
+            'subscriptions' => $paidRows,
         ])
             ->withCount('branches')
             ->latest()
@@ -68,7 +69,9 @@ class AdminDashboardController extends Controller
             'totalSpas',
             'basicCount',
             'premiumCount',
-            'businessCount',
+            'trialCount',
+            'graceCount',
+            'noPlanCount',
             'totalUsers',
             'activeSubscriptions',
             'subscriptionRevenue',

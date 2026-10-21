@@ -53,6 +53,11 @@ return [
     // Days before the free trial ends that the owner is emailed.
     'trial_reminder_days' => 3,
 
+    // Admin "Extend trial" tool (for pilot spas and test runs). Only spas
+    // that have never paid can be extended, so no paid period is moved.
+    'trial_extension_max_days' => 30,        // per extension
+    'trial_extension_max_total_days' => 60,  // all extensions of one spa
+
     // Owner-facing names for the plan feature keys in config/plans.php.
     'feature_labels' => [
         'operations' => 'Appointments, walk-ins and daily operations',

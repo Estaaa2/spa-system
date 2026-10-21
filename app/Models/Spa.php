@@ -366,6 +366,99 @@ class Spa extends Model
         return self::daysUntil($this->trial_ends_at);
     }
 
+    /** Admin extensions of the free trial, newest first. */
+    public function trialExtensions(): HasMany
+    {
+        return $this->hasMany(TrialExtension::class)->latest('id');
+    }
+
+    /** Total days an admin has added to this spa's trial. */
+    public function extendedTrialDays(): int
+    {
+        return (int) $this->trialExtensions()->sum('days');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Billing state (admin and status displays)
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * One state for status badges:
+     * trial   free trial running
+     * active  a paid period is running
+     * grace   paid time ended, inside the grace days
+     * locked  had a trial or paid before, no access now
+     * new     never started a trial or paid
+     */
+    public function billingState(): string
+    {
+        return match (true) {
+            $this->isTrialing() => 'trial',
+            $this->currentPeriod() !== null => 'active',
+            $this->isInGracePeriod() => 'grace',
+            $this->trial_used === true || $this->hasEverPaid() => 'locked',
+            default => 'new',
+        };
+    }
+
+    /**
+     * When the spa loses access: the grace end while in grace, now when
+     * already locked, null while it has access through a trial or paid time.
+     */
+    public function lockDate(): ?Carbon
+    {
+        return match ($this->billingState()) {
+            'grace' => $this->graceEndsAt(),
+            'locked' => now(),
+            default => null,
+        };
+    }
+
+    /**
+     * Upcoming customer bookings that fall on or after the lock date, so
+     * the owner can contact those customers. Existing bookings are never
+     * cancelled by a lapse. Null when the spa is not lapsing.
+     */
+    public function bookingsAffectedByLock(): ?\Illuminate\Database\Eloquent\Builder
+    {
+        $lockDate = $this->lockDate();
+
+        if ($lockDate === null) {
+            return null;
+        }
+
+        $from = $lockDate->isPast() ? today() : $lockDate->copy()->startOfDay();
+
+        return Booking::query()
+            ->where('spa_id', $this->id)
+            ->whereIn('status', ['reserved', 'pending'])
+            ->whereDate('appointment_date', '>=', $from->toDateString())
+            ->orderBy('appointment_date')
+            ->orderBy('start_time');
+    }
+
+    /**
+     * Plain-text plan line, e.g. "Premium (trial until Nov 15, 2026)" or
+     * "Basic, paid through Dec 01, 2026".
+     */
+    public function billingSummary(): string
+    {
+        $planName = fn (string $key) => config("plans.{$key}.name", ucfirst($key));
+        $date = fn (?Carbon $at) => $at?->format('M d, Y');
+
+        return match ($this->billingState()) {
+            'trial' => sprintf('%s (free trial until %s)', $planName($this->trialPlan()), $date($this->trial_ends_at)),
+            'active' => $this->hasUnlimitedPeriod()
+                ? sprintf('%s, no end date', $planName($this->currentPlan()))
+                : sprintf('%s, paid through %s', $planName($this->currentPlan()), $date($this->paidThroughAt())),
+            'grace' => sprintf('%s, ended %s (grace until %s)', $planName($this->currentPlan()), $date($this->lastEndedPeriod()?->expires_at), $date($this->graceEndsAt())),
+            'locked' => 'No plan (access locked)',
+            default => 'No plan yet',
+        };
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Plan limits

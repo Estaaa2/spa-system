@@ -327,7 +327,7 @@ class SpaController extends Controller
         if (! $this->publicSpa($spa)) {
             return response()->json([
                 'success' => false,
-                'message' => 'This spa is not currently available for public listing.',
+                'message' => "This spa isn't taking bookings right now.",
             ], 404);
         }
 

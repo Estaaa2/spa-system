@@ -37,6 +37,7 @@ class Subscription extends Model
         'paymongo_payment_id',
         'payment_method',
         'payment_status',
+        'paid_at',
         'status',
         'starts_at',
         'expires_at',
@@ -48,6 +49,7 @@ class Subscription extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'credit_amount' => 'decimal:2',
+        'paid_at' => 'datetime',
         'starts_at' => 'datetime',
         'expires_at' => 'datetime',
         'cancelled_at' => 'datetime',
