@@ -220,7 +220,7 @@ class OnlineBookingCheckoutController extends Controller
             ]);
         });
 
-        $secretKey = \App\Support\PayMongo::secretKey();
+        $secretKey = \App\Services\PayMongo::secretKey();
 
         //PAYMONGO API CALL
         try {
@@ -247,7 +247,7 @@ class OnlineBookingCheckoutController extends Controller
                                         : '20% downpayment for appointment reservation',
                                 ],
                             ],
-                            'payment_method_types' => \App\Support\PayMongo::paymentMethods(['gcash', 'paymaya']),
+                            'payment_method_types' => \App\Services\PayMongo::paymentMethods(['gcash', 'paymaya']),
                             'billing' => [
                                 'name'  => $pending->customer_name,
                                 'email' => $pending->customer_email,

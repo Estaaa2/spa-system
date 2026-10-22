@@ -600,7 +600,7 @@
                                         </h2>
 
                                         <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                                            Public listing is available on Premium and Business plans.
+                                            Public listing needs an active Levictas plan.
                                         </p>
 
                                         <div class="flex items-start gap-3 px-3 py-3 mt-4 border border-yellow-200 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800">

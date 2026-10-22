@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Services\Subscription\PlanLimitEnforcer;
 use App\Services\Subscription\SubscriptionBilling;
-use App\Support\PayMongo;
+use App\Services\PayMongo;
 
 class PaymongoWebhookController extends Controller
 {

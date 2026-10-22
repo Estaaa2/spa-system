@@ -123,7 +123,7 @@
                 </h3>
 
                 <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">
-                    Business payroll access
+                    Premium payroll access
                 </span>
             </div>
         </div>
@@ -131,7 +131,7 @@
             <p class="text-xs font-semibold tracking-wide uppercase {{ $missingWage > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400' }}">Missing Min. Wage</p>
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
                 <h3 class="text-2xl font-semibold sm:text-3xl {{ $missingWage > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-900 dark:text-white' }}">{{ $missingWage }}</h3>
-                <span class="text-xs sm:text-sm {{ $missingWage > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400' }}">Suite branches</span>
+                <span class="text-xs sm:text-sm {{ $missingWage > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400' }}">Payroll branches</span>
             </div>
         </div>
         <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
@@ -153,7 +153,7 @@
         <div role="status" class="p-4 border border-purple-200 rounded-2xl bg-purple-50 dark:border-purple-800 dark:bg-purple-900/10">
             <p class="text-sm font-semibold text-purple-900 dark:text-purple-200">
                 <i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>
-                Payroll requires an active Business plan
+                Payroll requires an active Premium plan
             </p>
 
             <p class="mt-2 text-sm text-purple-800 dark:text-purple-300">

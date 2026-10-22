@@ -117,7 +117,7 @@
                     Locked Roles
                 </h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    These roles are unavailable until their matching suite is enabled for this spa.
+                    These roles are available on the Premium plan.
                 </p>
             </div>
 

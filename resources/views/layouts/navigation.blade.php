@@ -106,8 +106,6 @@
     $suiteEnabled = $spa?->hasFeature('manpower') ?? false;
     $canAllBranches = $spa?->hasFeature('all_branches') ?? false;
 
-    $canWorkforceFinanceSuiteSettings = false;
-
     // Same check the role('owner') directive performs, in a form the section wrappers can reuse.
     $isOwner = (bool) ($user?->hasRole('owner') ?? false);
 
@@ -323,7 +321,6 @@
 
         'business' => request()->routeIs('owner.spa-profile.*')
             || request()->routeIs('owner.subscription.*')
-            || request()->routeIs('owner.workforce-finance-suite.*')
             || ($isOwner && request()->routeIs('branches.*')),
     ];
 

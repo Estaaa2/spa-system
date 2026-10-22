@@ -70,7 +70,7 @@
         <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
             <p class="text-sm text-amber-800 dark:text-amber-300">
                 <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                Not included in payroll — {{ $home ? "home branch “{$home->name}” does not have the Workforce & Finance Suite" : 'no home branch is assigned' }}. You can still prepare the setup below.
+                Not included in payroll — {{ $home ? 'the spa does not have an active Premium plan with payroll' : 'no home branch is assigned' }}. You can still prepare the setup below.
             </p>
         </div>
     @endunless

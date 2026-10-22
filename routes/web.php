@@ -36,7 +36,6 @@ use App\Http\Controllers\Owner\PlanLimitController;
 use App\Http\Controllers\Owner\RolePermissionController as OwnerRolePermissionController;
 use App\Http\Controllers\Owner\SpaProfileController;
 use App\Http\Controllers\Owner\SubscriptionController;
-use App\Http\Controllers\Owner\WorkforceFinanceSuiteController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\ProfileController;
@@ -1210,6 +1209,7 @@ Route::middleware(['auth', 'role:owner', 'owner.onboarding'])
         Route::post('/subscription/checkout', [SubscriptionController::class, 'checkout'])->name('subscription.checkout');
         Route::get('/subscription/success', [SubscriptionController::class, 'success'])->name('subscription.success');
         Route::get('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
+        Route::get('/subscription/affected-bookings.csv', [SubscriptionController::class, 'affectedBookingsCsv'])->name('subscription.affected-bookings');
 
         // Plan limits: which branches and staff stay active over the limit
         Route::get('/subscription/limits', [PlanLimitController::class, 'edit'])->name('subscription.limits');
@@ -1217,11 +1217,6 @@ Route::middleware(['auth', 'role:owner', 'owner.onboarding'])
     });
 
 Route::middleware(['auth', 'verified', 'role:owner'])->group(function () {
-    Route::get('/owner/workforce-finance-suite', [WorkforceFinanceSuiteController::class, 'index'])
-        ->name('owner.workforce-finance-suite.index');
-
-    Route::put('/owner/workforce-finance-suite', [WorkforceFinanceSuiteController::class, 'update'])
-        ->name('owner.workforce-finance-suite.update');
     Route::get('/owner/subscription/receipt/{subscription}',[SubscriptionController::class, 'downloadReceipt'])
         ->name('owner.subscription.receipt');
 });

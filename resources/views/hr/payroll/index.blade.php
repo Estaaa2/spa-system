@@ -108,7 +108,7 @@
                 <div>
                     <p class="text-sm font-semibold text-purple-900 dark:text-purple-200">
                         <i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>
-                        Payroll requires an active Business plan
+                        Payroll requires an active Premium plan
                     </p>
 
                     <p class="mt-1 text-sm text-purple-800 dark:text-purple-300">

@@ -323,7 +323,7 @@ final class PayrollRunService
                     if (Decimal::isPositive($b['sum'])) {
                         $warnings[] = new RunWarning(
                             RunWarning::NOT_IN_SUITE_BRANCH,
-                            "{$who}: the spa does not have active Business-plan payroll access — no 13th-month payslip.",
+                            "{$who}: the spa does not have active Premium payroll access — no 13th-month payslip.",
                             $staffId
                         );
                     }
@@ -720,9 +720,9 @@ final class PayrollRunService
     // =====================================================================
 
     /**
-     * Generating or regenerating a run requires active payroll access, using the same gate as
-     * rest of the app uses for the Workforce & Finance Suite (a lapsed subscription
-     * drops the spa to basic but leaves the branch suite flags on). Everything else
+     * Generating or regenerating a run requires active payroll access: the spa must have
+     * access and its plan must include payroll (Premium). The per-branch suite flag is no
+     * longer an access rule; it is only kept in the run snapshot. Everything else
      * keeps working after a downgrade: existing runs can still be approved, finalized
      * and released so wages already computed are paid, and every run and payslip stays
      * readable (payroll records must be kept 3 years — Labor Code IRR Book III, Rule X,
@@ -734,7 +734,7 @@ final class PayrollRunService
     {
         if (!$spa->hasAccess() || !$spa->hasFeature('payroll')) {
             throw new PayrollSetupException(
-                "Spa \"{$spa->name}\" does not have active Business-plan payroll access, so new payroll runs cannot be generated. Existing runs can still be finished and viewed."
+                "Spa \"{$spa->name}\" does not have active Premium payroll access, so new payroll runs cannot be generated. Existing runs can still be finished and viewed."
             );
         }
     }
@@ -1004,7 +1004,7 @@ final class PayrollRunService
             return [
                 'warning' => new RunWarning(
                     RunWarning::NOT_IN_SUITE_BRANCH,
-                    "{$who}: the spa does not have active Business-plan payroll access — not paid by this run.",
+                    "{$who}: the spa does not have active Premium payroll access — not paid by this run.",
                     $id
                 ),
             ];

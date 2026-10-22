@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Services\Subscription\SubscriptionBilling;
-use App\Support\PayMongo;
+use App\Services\PayMongo;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;

@@ -183,7 +183,7 @@ class FlutterBookingController extends Controller
         $successUrl = route('flutter.payment.success', ['reservation' => $pending->id]);
         $cancelUrl  = route('flutter.payment.cancel',  ['reservation' => $pending->id]);
 
-        $secretKey = \App\Support\PayMongo::secretKey();
+        $secretKey = \App\Services\PayMongo::secretKey();
         $response  = Http::withBasicAuth($secretKey, '')
             ->acceptJson()
             ->timeout(30)->post('https://api.paymongo.com/v1/checkout_sessions', [
@@ -205,7 +205,7 @@ class FlutterBookingController extends Controller
                             'quantity'    => 1,
                             'description' => '20% downpayment for appointment reservation',
                         ]],
-                        'payment_method_types' => \App\Support\PayMongo::paymentMethods(['gcash', 'paymaya', 'card']),
+                        'payment_method_types' => \App\Services\PayMongo::paymentMethods(['gcash', 'paymaya', 'card']),
                         'success_url'          => $successUrl, // ✅ Through Laravel first
                         'cancel_url'           => $cancelUrl,  // ✅ Through Laravel first
                         'metadata'             => [
@@ -259,7 +259,7 @@ class FlutterBookingController extends Controller
     public function paymentSuccess(Request $request)
     {
         $reservationId = $request->query('reservation');
-        $flutterWebUrl = env('FLUTTER_WEB_URL', 'http://localhost:5000');
+        $flutterWebUrl = config('services.flutter.web_url');
 
         if (!$reservationId) {
             return redirect($flutterWebUrl . '/#/payment-cancel');
@@ -276,7 +276,7 @@ class FlutterBookingController extends Controller
 
             // Verify with PayMongo
             if ($reservation->paymongo_checkout_session_id) {
-                $secretKey      = \App\Support\PayMongo::secretKey();
+                $secretKey      = \App\Services\PayMongo::secretKey();
                 $verifyResponse = Http::withBasicAuth($secretKey, '')
                     ->acceptJson()
                     ->get('https://api.paymongo.com/v1/checkout_sessions/' . $reservation->paymongo_checkout_session_id);
@@ -315,7 +315,7 @@ class FlutterBookingController extends Controller
     public function paymentCancel(Request $request)
     {
         $reservationId = $request->query('reservation');
-        $flutterWebUrl = env('FLUTTER_WEB_URL', 'http://localhost:5000');
+        $flutterWebUrl = config('services.flutter.web_url');
 
         if ($reservationId) {
             OnlineReservationPayment::where('id', $reservationId)

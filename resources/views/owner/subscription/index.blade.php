@@ -51,11 +51,11 @@
     $alwaysIncluded = config('subscription.always_included', []);
     $basicFeatures = $plans['basic']['features'] ?? [];
 
-    $checkoutMethods = \App\Support\PayMongo::paymentMethods(config('subscription.payment_methods', []));
+    $checkoutMethods = \App\Services\PayMongo::paymentMethods(config('subscription.payment_methods', []));
     $methodLabels = collect($checkoutMethods)
         ->map(fn ($m) => config("subscription.payment_method_labels.{$m}", ucfirst($m)))
         ->implode(', ');
-    $isTestMode = ! \App\Support\PayMongo::isLive();
+    $isTestMode = ! \App\Services\PayMongo::isLive();
 
     $fmt = fn ($date) => $date?->format('F d, Y');
 

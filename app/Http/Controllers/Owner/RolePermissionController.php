@@ -87,7 +87,7 @@ class RolePermissionController extends Controller
             $locked[] = [
                 'name'   => 'hr',
                 'title'  => 'HR',
-                'reason' => 'Locked until the Workforce & Finance Suite is enabled for this branch.',
+                'reason' => 'Available on the Premium plan.',
             ];
         }
 
@@ -95,7 +95,7 @@ class RolePermissionController extends Controller
             $locked[] = [
                 'name'   => 'finance',
                 'title'  => 'Finance',
-                'reason' => 'Locked until the Workforce & Finance Suite is enabled for this branch.',
+                'reason' => 'Available on the Premium plan.',
             ];
         }
 
@@ -276,7 +276,8 @@ class RolePermissionController extends Controller
                 'title'       => 'Attendance & Leave',
                 'description' => 'Manage attendance, leave requests, availability, and workforce presence.',
                 'icon'        => 'fa-solid fa-user-clock',
-                'suite'       => 'workforce',
+                // Attendance and leave are on every plan, so never locked here.
+                'suite'       => null,
             ],
             'hiring' => [
                 'title'       => 'Hiring & Recruitment',
@@ -553,11 +554,11 @@ class RolePermissionController extends Controller
         $lockedSections = collect([
             !$this->workforceEnabled() ? [
                 'title'   => 'Workforce',
-                'message' => 'Attendance, leave, hiring, applicants, interviews, and deployments are locked until the Workforce & Finance Suite is enabled for this branch.',
+                'message' => 'Hiring, applicants, interviews, and deployments permissions are available on the Premium plan.',
             ] : null,
             !$this->financeEnabled() ? [
                 'title'   => 'Finance',
-                'message' => 'Payroll, billing, revenue, and finance permissions are locked until the Workforce & Finance Suite is enabled for this branch.',
+                'message' => 'Payroll, billing, revenue, and finance permissions are available on the Premium plan.',
             ] : null,
         ])->filter()->values();
 

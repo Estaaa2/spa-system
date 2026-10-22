@@ -15,7 +15,7 @@ return [
     */
     /*
      | PayMongo. PAYMONGO_MODE picks which keys every checkout uses
-     | (subscriptions and reservations). Read through App\Support\PayMongo,
+     | (subscriptions and reservations). Read through App\Services\PayMongo,
      | never env(), so `php artisan config:cache` keeps working.
      |
      | Each mode has its own webhook (registered with that mode's key) and so
@@ -38,6 +38,12 @@ return [
             'trim',
             explode(',', (string) env('PAYMONGO_LIVE_METHODS', 'qrph'))
         ))),
+    ],
+
+    // Where the Flutter web app runs. PayMongo returns mobile reservation
+    // payments to Laravel, which then redirects here.
+    'flutter' => [
+        'web_url' => rtrim((string) env('FLUTTER_WEB_URL', 'http://localhost:5000'), '/'),
     ],
 
     'postmark' => [

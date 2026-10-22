@@ -20,8 +20,8 @@ use InvalidArgumentException;
  * Earnings engine facade (Unit 3). Computes; never writes.
  *
  * calculate() returns every earning line for one staff member in one REGULAR run's
- * cutoff, plus is_mwe, days worked, and warnings. Eligibility (active staff, home
- * branch has the Workforce & Finance Suite, profile in period) is the run
+ * cutoff, plus is_mwe, days worked, and warnings. Eligibility (active staff, spa plan
+ * includes payroll, profile in period) is the run
  * generator's job (Unit 4); this class computes for whoever it is given.
  */
 final class EarningsCalculator

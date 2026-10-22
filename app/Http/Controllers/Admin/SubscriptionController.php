@@ -7,7 +7,7 @@ use App\Models\Spa;
 use App\Models\Subscription;
 use App\Models\TrialExtension;
 use App\Services\Subscription\PlanLimitEnforcer;
-use App\Support\PayMongo;
+use App\Services\PayMongo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
