@@ -86,6 +86,13 @@
         subtitle="Free trials, paid periods and PayMongo payments of every spa."
     />
 
+    @unless ($kpis['liveMode'])
+        <div class="flex items-start gap-3 p-3 text-sm text-blue-800 border border-blue-200 rounded-2xl bg-blue-50 dark:border-blue-800 dark:bg-blue-900/10 dark:text-blue-300" role="status">
+            <i class="mt-0.5 fa-solid fa-flask" aria-hidden="true"></i>
+            <p>PayMongo is in <strong>test mode</strong>. Payments use test details and no real money is collected. Set <code>PAYMONGO_MODE=live</code> to charge for real.</p>
+        </div>
+    @endunless
+
     {{-- KPI cards --}}
     <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <div class="{{ $kpiClass }}">
@@ -123,7 +130,7 @@
             </div>
             <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">₱{{ number_format($kpis['revenueTotal'], 0) }}</p>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                ₱{{ number_format($kpis['revenueMonth'], 0) }} paid since {{ now()->startOfMonth()->format('M d') }}
+                ₱{{ number_format($kpis['revenueMonth'], 0) }} paid since {{ now()->startOfMonth()->format('M d') }}{{ $kpis['liveMode'] ? '' : ' · test payments' }}
             </p>
         </div>
 
@@ -377,6 +384,9 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-2.5 py-1 text-xs font-medium rounded-full {{ $stateClass }}">{{ $stateLabel }}</span>
+                                    @unless ($subscription->livemode)
+                                        <span class="ml-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Test</span>
+                                    @endunless
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
                                     @if ($isPaid && $subscription->starts_at)

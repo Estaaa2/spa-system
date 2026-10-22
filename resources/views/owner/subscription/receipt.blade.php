@@ -85,6 +85,10 @@
             text-align: right;
         }
 
+        .credit {
+            color: #15803D;
+        }
+
         .total-row td {
             border-top: 2px solid #2D3748;
             border-bottom: none;
@@ -107,17 +111,28 @@
 
 <body>
     @php
-        $planName = ucfirst($subscription->business_tier ?? 'Basic');
+        $planKey = \App\Models\Spa::normalisePlanKey($subscription->business_tier);
+        $planName = config("plans.{$planKey}.name", ucfirst($planKey));
         $billingCycle = ucfirst($subscription->billing_cycle ?? 'monthly');
+        $credit = (float) $subscription->credit_amount;
+        $listPrice = (float) $subscription->amount + $credit;
         $paymentId = $subscription->paymongo_payment_id
             ?? $subscription->paymongo_checkout_id
             ?? '—';
+        $kindLabel = [
+            'new' => 'New subscription',
+            'renewal' => 'Renewal',
+            'upgrade' => 'Upgrade',
+            'downgrade' => 'Plan change',
+        ][$subscription->kind] ?? 'Subscription';
+        $ownerName = trim(($spa->owner->first_name ?? '') . ' ' . ($spa->owner->last_name ?? ''));
     @endphp
 
+    {{-- Levictas issues the receipt; the spa is the customer. --}}
     <div class="header">
         <div class="brand">
-            <div class="brand-name">{{ $spa->name }}</div>
-            <div class="brand-tagline">SPA | WELLNESS</div>
+            <div class="brand-name">Levictas</div>
+            <div class="brand-tagline">SPA MANAGEMENT PLATFORM</div>
         </div>
 
         <div class="status">
@@ -126,70 +141,68 @@
     </div>
 
     <h1>Subscription Payment Receipt</h1>
+    @unless ($subscription->livemode)
+        <p style="margin: 4px 0 0; color: #1d4ed8; font-weight: bold;">TEST MODE: no real money was charged.</p>
+    @endunless
 
     <p class="subtext">
-        {{ $planName }} Plan · {{ $billingCycle }} Billing
+        {{ $planName }} Plan · {{ $billingCycle }} Billing · {{ $kindLabel }}
     </p>
 
     <table class="details">
         <tr>
             <td class="label">Billed To</td>
             <td class="value">
-                {{ trim(($spa->owner->first_name ?? '') . ' ' . ($spa->owner->last_name ?? '')) }}
+                {{ $spa->name }}
                 <br>
                 <span style="font-weight: normal; color: #718096;">
-                    {{ $spa->owner->email ?? '' }}
+                    {{ $ownerName }}{{ $ownerName && ($spa->owner->email ?? '') ? ' · ' : '' }}{{ $spa->owner->email ?? '' }}
                 </span>
             </td>
         </tr>
 
         <tr>
             <td class="label">Plan</td>
-            <td class="value">
-                {{ $planName }}
-            </td>
+            <td class="value">{{ $planName }} ({{ $billingCycle }})</td>
         </tr>
 
         <tr>
-            <td class="label">Billing Cycle</td>
+            <td class="label">Service Period</td>
             <td class="value">
-                {{ $billingCycle }}
-            </td>
-        </tr>
-
-        <tr>
-            <td class="label">Payment ID</td>
-            <td class="value">
-                {{ $paymentId }}
+                {{ $subscription->starts_at?->format('F d, Y') ?? '—' }}
+                –
+                {{ $subscription->expires_at?->format('F d, Y') ?? '—' }}
             </td>
         </tr>
 
         <tr>
             <td class="label">Payment Date</td>
             <td class="value">
-                {{
-                    $subscription->starts_at?->format('F d, Y h:i A')
-                    ?? $subscription->created_at?->format('F d, Y h:i A')
-                    ?? '—'
-                }}
+                {{ $subscription->updated_at?->format('F d, Y h:i A') ?? '—' }}
             </td>
         </tr>
 
         <tr>
             <td class="label">Payment Method</td>
-            <td class="value">
-                {{ $subscription->payment_method
-                    ? ucfirst($subscription->payment_method)
-                    : 'GCash' }}
-            </td>
+            <td class="value">{{ $subscription->paymentMethodLabel() }}</td>
         </tr>
 
         <tr>
-            <td class="label">Subscription Valid Until</td>
-            <td class="value">
-                {{ $subscription->expires_at?->format('F d, Y') ?? '—' }}
-            </td>
+            <td class="label">Payment ID</td>
+            <td class="value">{{ $paymentId }}</td>
         </tr>
+
+        <tr>
+            <td class="label">Plan Price</td>
+            <td class="value">₱ {{ number_format($listPrice, 2) }}</td>
+        </tr>
+
+        @if ($credit > 0)
+            <tr>
+                <td class="label">Unused Basic Credit</td>
+                <td class="value credit">− ₱ {{ number_format($credit, 2) }}</td>
+            </tr>
+        @endif
 
         <tr class="total-row">
             <td class="label">Total Paid</td>
@@ -200,7 +213,7 @@
     </table>
 
     <div class="footer">
-        This is an official receipt for your subscription payment.
+        Payment processed by PayMongo. This receipt confirms your Levictas subscription payment.
         <br>
         Generated by Levictas · {{ now()->format('F d, Y') }}
     </div>

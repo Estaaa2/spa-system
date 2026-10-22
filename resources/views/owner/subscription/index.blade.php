@@ -51,9 +51,11 @@
     $alwaysIncluded = config('subscription.always_included', []);
     $basicFeatures = $plans['basic']['features'] ?? [];
 
-    $methodLabels = collect(config('subscription.payment_methods', []))
+    $checkoutMethods = \App\Support\PayMongo::paymentMethods(config('subscription.payment_methods', []));
+    $methodLabels = collect($checkoutMethods)
         ->map(fn ($m) => config("subscription.payment_method_labels.{$m}", ucfirst($m)))
         ->implode(', ');
+    $isTestMode = ! \App\Support\PayMongo::isLive();
 
     $fmt = fn ($date) => $date?->format('F d, Y');
 
@@ -462,7 +464,17 @@
 
                     <p class="mt-2 text-xs text-center text-gray-500 dark:text-gray-400">
                         Secure payment by PayMongo: {{ $methodLabels }}.
+                        @if (in_array('qrph', $checkoutMethods, true))
+                            Scan the QR Ph code with GCash, Maya or your bank app.
+                        @endif
                     </p>
+
+                    @if ($isTestMode)
+                        <p class="px-3 py-2 mt-3 text-xs text-center text-blue-800 rounded-xl bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300">
+                            <i class="mr-1 fa-solid fa-flask" aria-hidden="true"></i>
+                            Test mode: PayMongo test payments only. No real money is charged.
+                        </p>
+                    @endif
                 </div>
             </div>
         </section>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Services\Subscription\SubscriptionBilling;
+use App\Support\PayMongo;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
@@ -94,6 +95,7 @@ class SubscriptionController extends Controller
             'billing_cycle' => $quote->cycle,
             'payment_status' => 'pending',
             'status' => 'pending',
+            'livemode' => PayMongo::isLive(),
         ]);
 
         $ownerName = trim(($owner->first_name ?? '') . ' ' . ($owner->last_name ?? ''));
@@ -119,7 +121,7 @@ class SubscriptionController extends Controller
         };
 
         try {
-            $response = Http::withBasicAuth((string) config('services.paymongo.secret_key'), '')
+            $response = Http::withBasicAuth(PayMongo::secretKey(), '')
                 ->timeout(15)
                 ->acceptJson()
                 ->post('https://api.paymongo.com/v1/checkout_sessions', [
@@ -137,7 +139,7 @@ class SubscriptionController extends Controller
                                     'quantity' => 1,
                                 ],
                             ],
-                            'payment_method_types' => config('subscription.payment_methods', ['gcash']),
+                            'payment_method_types' => PayMongo::paymentMethods(config('subscription.payment_methods', ['gcash'])),
                             'billing' => array_filter([
                                 'name' => $ownerName ?: null,
                                 'email' => $owner->email ?? null,

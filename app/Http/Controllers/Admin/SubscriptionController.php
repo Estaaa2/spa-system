@@ -7,6 +7,7 @@ use App\Models\Spa;
 use App\Models\Subscription;
 use App\Models\TrialExtension;
 use App\Services\Subscription\PlanLimitEnforcer;
+use App\Support\PayMongo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -287,10 +288,16 @@ class SubscriptionController extends Controller
             'trialsEnded' => $endedCount,
             'trialsConverted' => $convertedCount,
             'conversionRate' => $endedCount > 0 ? (int) round($convertedCount / $endedCount * 100) : null,
-            'revenueTotal' => (float) Subscription::where('payment_status', 'paid')->sum('amount'),
+            // Only payments made in the current PayMongo mode: test payments
+            // are not real money once the site is live.
+            'revenueTotal' => (float) Subscription::where('payment_status', 'paid')
+                ->where('livemode', PayMongo::isLive())
+                ->sum('amount'),
             'revenueMonth' => (float) Subscription::where('payment_status', 'paid')
+                ->where('livemode', PayMongo::isLive())
                 ->where('paid_at', '>=', $now->copy()->startOfMonth())
                 ->sum('amount'),
+            'liveMode' => PayMongo::isLive(),
             'expiringSoon' => $expiringSoon,
             'inGrace' => $inGrace,
             'locked' => max(0, $lapsed - $inGrace),

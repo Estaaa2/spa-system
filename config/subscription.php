@@ -36,9 +36,9 @@ return [
     // `subscriptions:expire-pending`. A late payment is still honoured.
     'pending_expiry_hours' => 24,
 
-    // PayMongo Checkout methods offered for plan payments. All four are
-    // active by default on an activated PayMongo account. QR Ph and
-    // BillEase must be requested from PayMongo before adding them here.
+    // PayMongo Checkout methods offered for plan payments in TEST mode.
+    // Live mode uses services.paymongo.live_payment_methods instead, because
+    // what a live account may accept depends on its PayMongo business type.
     'payment_methods' => ['gcash', 'paymaya', 'card', 'grab_pay'],
 
     // Display names for PayMongo source types on receipts and history.

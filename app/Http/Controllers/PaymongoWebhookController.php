@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Services\Subscription\PlanLimitEnforcer;
 use App\Services\Subscription\SubscriptionBilling;
+use App\Support\PayMongo;
 
 class PaymongoWebhookController extends Controller
 {
@@ -49,6 +50,15 @@ class PaymongoWebhookController extends Controller
         $type = data_get($payload, 'data.attributes.type');
 
         Log::info('PayMongo webhook received', ['type' => $type, 'livemode' => $isLive]);
+
+        // In live mode a test payment is not real money, so it must never
+        // activate a plan or a reservation. A live payment is always
+        // honoured, even after switching back to test mode for a demo.
+        if (! $isLive && PayMongo::isLive()) {
+            Log::warning('PayMongo webhook: test-mode event ignored while in live mode', ['type' => $type]);
+
+            return response()->json(['status' => 'ignored_test_event'], 200);
+        }
 
         if ($type !== 'checkout_session.payment.paid') {
             return response()->json(['status' => 'ignored'], 200);
@@ -290,12 +300,12 @@ class PaymongoWebhookController extends Controller
             return false;
         }
 
-        // Each PayMongo webhook has its own secret, so the live webhook's
-        // secret replaces the test one when the site goes live.
-        $secret = (string) config('services.paymongo.webhook_secret');
+        // Test and live webhooks are registered separately and each has
+        // its own signing secret.
+        $secret = PayMongo::webhookSecret($isLive);
 
         if (! filled($secret)) {
-            Log::error('PayMongo webhook secret is not configured.');
+            Log::error('PayMongo webhook secret is not configured.', ['livemode' => $isLive]);
 
             return false;
         }

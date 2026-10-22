@@ -43,8 +43,8 @@ return new class extends Migration
                 $table->foreignId('spa_id')->constrained()->cascadeOnDelete();
                 $table->foreignId('admin_id')->nullable()->constrained('users')->nullOnDelete();
                 $table->unsignedSmallInteger('days');
-                $table->timestamp('previous_ends_at')->nullable();
-                $table->timestamp('new_ends_at');
+                $table->dateTime('previous_ends_at')->nullable();
+                $table->dateTime('new_ends_at');
                 $table->string('reason', 500);
                 $table->timestamps();
 

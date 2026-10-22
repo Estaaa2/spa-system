@@ -41,8 +41,10 @@ class AdminDashboardController extends Controller
         // Spas with a paid period running now.
         $activeSubscriptions = $basicCount + $premiumCount;
 
+        // Payments of the current PayMongo mode only (test money is not revenue once live).
         $subscriptionRevenue = Subscription::query()
             ->where('payment_status', 'paid')
+            ->where('livemode', \App\Support\PayMongo::isLive())
             ->sum('amount');
 
         $pendingCount = Spa::where(
