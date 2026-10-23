@@ -40,14 +40,23 @@ class AttendanceController extends Controller
         $canViewRoster   = $user->hasBranchPermission('view attendance');
         $canEditRoster   = $user->hasBranchPermission('edit attendance');
         $canApproveLeave = $user->hasBranchPermission('edit leave requests');
+        $canRequestLeave = $user->hasBranchPermission('create leave requests');
 
-        $date = $request->date ? Carbon::parse($request->date) : today();
+        // The roster is for today or the past; a future date has nothing to show or record.
+        try {
+            $date = $request->date ? Carbon::parse($request->date)->startOfDay() : today();
+        } catch (\Throwable) {
+            $date = today();
+        }
+        if ($date->isFuture()) {
+            $date = today();
+        }
 
         // ── Team roster — only for roles with view attendance ──────────────
         $staffList = collect();
         if ($canViewRoster) {
-            $staffList = Staff::with(['user', 'attendance' => function ($query) use ($date) {
-                $query->whereDate('date', $date);
+            $staffList = Staff::with(['user.roles', 'attendance' => function ($query) use ($date) {
+                $query->whereDate('date', $date)->with('markedBy:id,first_name,middle_name,last_name,suffix');
             }])
                 ->where('spa_id', $spa->id)
                 ->where('branch_id', $branchId)
@@ -78,7 +87,7 @@ class AttendanceController extends Controller
             ->get();
 
         return view('hr.attendance.index', compact(
-            'staffList', 'date', 'canViewRoster', 'canEditRoster', 'canApproveLeave',
+            'staffList', 'date', 'canViewRoster', 'canEditRoster', 'canApproveLeave', 'canRequestLeave',
             'myStaff', 'myToday', 'myHistory', 'myLeaveRequests'
         ));
     }
@@ -178,12 +187,21 @@ class AttendanceController extends Controller
         );
 
         $validated = $request->validate([
-            'date'     => ['required', 'date'],
+            'date'     => ['required', 'date', 'before_or_equal:today'],
             'status'   => ['required', Rule::in(['present', 'late', 'absent', 'on_leave'])],
             'time_in'  => ['nullable', 'date_format:H:i'],
             'time_out' => ['nullable', 'date_format:H:i', 'after:time_in'],
             'remarks'  => ['nullable', 'string', 'max:500'],
+        ], [
+            'date.before_or_equal' => 'Attendance can only be recorded for today or an earlier day.',
+            'time_out.after'       => 'Time out must be later than time in.',
         ]);
+
+        // Absent and on-leave days have no clock times; drop any that were sent.
+        if (in_array($validated['status'], ['absent', 'on_leave'], true)) {
+            $validated['time_in'] = null;
+            $validated['time_out'] = null;
+        }
 
         StaffAttendance::updateOrCreate(
             ['staff_id' => $staff->id, 'date' => $validated['date']],

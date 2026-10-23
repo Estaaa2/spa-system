@@ -259,11 +259,11 @@ Route::middleware([
     \App\Http\Middleware\EnsureBranchOperational::class,
 ])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->middleware('role:owner|manager|therapist|receptionist')
+        ->middleware('role:owner|manager|therapist|receptionist|hr|finance|hr_head|finance_head')
         ->name('dashboard');
 
     Route::get('/dashboard/live-data', [DashboardController::class, 'liveData'])
-        ->middleware('role:owner|manager|therapist|receptionist')
+        ->middleware('role:owner|manager|therapist|receptionist|hr|finance|hr_head|finance_head')
         ->name('dashboard.live-data');
 
     Route::post('/appointments/{booking}/fix-duration', [BookingController::class, 'fixDuration'])

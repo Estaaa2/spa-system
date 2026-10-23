@@ -379,7 +379,12 @@ class PayrollRunServiceTest extends TestCase
         $this->assertThrows(fn () => $this->service->addManualLine($slip, 'ADJ_EARNING', 'x', '1.00', null, $this->owner), ValidationException::class);
     }
 
-    public function test_only_staff_of_suite_branches_with_a_profile_are_paid(): void
+    /**
+     * Since the subscription rework (Phase 8) payroll covers every branch of a spa with
+     * Premium payroll access; the per-branch Workforce & Finance Suite flag no longer
+     * decides who is paid (decided 2026-10-23). Staff without a pay profile still are not.
+     */
+    public function test_every_branch_of_a_premium_spa_is_paid_and_staff_without_a_profile_are_not(): void
     {
         $a = $this->staffA();
         $e = $this->makeStaff('Eli', 'Elsewhere', $this->plainBranch, 'daily', '700.00');
@@ -388,17 +393,17 @@ class PayrollRunServiceTest extends TestCase
 
         $result = $this->service->generateRegular($this->spa, 2026, 9, 1, $this->owner);
 
-        $this->assertSame(1, $result->totals['payslips']);
+        $this->assertSame(2, $result->totals['payslips']);
         $this->assertNotNull($this->payslipFor($result->run, $a));
-        $this->assertFalse(Payslip::where('payroll_run_id', $result->run->id)->where('staff_id', $e->id)->exists());
+        $this->assertNotNull($this->payslipFor($result->run, $e));   // branch flag off, still paid
         $this->assertFalse(Payslip::where('payroll_run_id', $result->run->id)->where('staff_id', $f->id)->exists());
-        $this->assertSame([$e->id], array_map(fn ($w) => $w->staffId, $result->warningsWithCode(RunWarning::NOT_IN_SUITE_BRANCH)));
+        $this->assertSame([], $result->warningsWithCode(RunWarning::NOT_IN_SUITE_BRANCH));
         $this->assertSame([$f->id], array_map(fn ($w) => $w->staffId, $result->warningsWithCode(RunWarning::MISSING_PROFILE)));
 
-        // 13th month follows the same branch rule.
+        // 13th month follows the same rule.
         $this->finalize($result->run);
         $thirteenth = $this->service->generateThirteenthMonth($this->spa, 2026, '2026-12-20', $this->owner);
-        $this->assertSame(1, $thirteenth->totals['payslips']);
+        $this->assertSame(2, $thirteenth->totals['payslips']);
     }
 
     public function test_period_builder_enforces_the_sixteen_day_interval(): void

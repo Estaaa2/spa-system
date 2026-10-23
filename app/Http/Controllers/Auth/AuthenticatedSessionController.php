@@ -99,6 +99,9 @@ class AuthenticatedSessionController extends Controller
             'therapist' => route('dashboard'),
             'hr' => route('hiring.index'),
             'finance' => route('reports.index'),
+            // Central roles start on the dashboard of the branch they report to.
+            'hr_head' => route('dashboard'),
+            'finance_head' => route('dashboard'),
         ];
 
         foreach ($redirectMap as $role => $route) {
