@@ -4,7 +4,14 @@
 @section('content')
 @php
     $user    = auth()->user();
-    $canEdit = $user?->hasBranchPermission('edit payroll') ?? false;
+    // From PayrollSetupController: $canEdit (manage payroll setup), $spaWide, $scopeBranchId.
+    // Spa-wide items (schedule, "All branches" rules) need a spa-wide role; branch-scoped
+    // roles may change only their own branch. The server enforces the same rules.
+    $canEdit         = $canEdit ?? false;
+    $spaWide         = $spaWide ?? false;
+    $canEditSchedule = $canEdit && $spaWide;
+    $canEditBranch   = fn ($branchId) => $canEdit && ($spaWide || (int) $branchId === (int) ($scopeBranchId ?? 0));
+    $canEditRule     = fn ($rule) => $rule->branch_id === null ? $canEditSchedule : $canEditBranch($rule->branch_id);
 
     // ── Tokens — same shapes as appointments.blade.php / staff/index.blade.php ──
     $btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-4 py-2 text-sm '
@@ -220,7 +227,7 @@
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="_modal" value="">
-                    <fieldset @disabled(!$canEdit) class="space-y-4">
+                    <fieldset @disabled(!$canEditSchedule) class="space-y-4">
                         <div>
                             <label for="payroll_first_cutoff_day" class="{{ $labelClass }}">First cutoff ends on day</label>
                             <input type="number" id="payroll_first_cutoff_day" name="payroll_first_cutoff_day" min="1" max="27" required
@@ -242,14 +249,14 @@
                             @endif
                         </div>
                     </fieldset>
-                    @if($canEdit)
+                    @if($canEditSchedule)
                         <div class="flex pt-1 sm:justify-end">
                             <button type="submit" class="w-full {{ $btn['primary'] }} sm:w-auto">
                                 <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save Schedule
                             </button>
                         </div>
                     @else
-                        <p class="text-xs text-gray-500 dark:text-gray-400"><i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>You can view the schedule but not change it.</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400"><i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>You can view the schedule but not change it.{{ $canEdit ? ' It affects every branch, so the HR Head or the owner changes it.' : '' }}</p>
                     @endif
                 </form>
             </div>
@@ -410,9 +417,13 @@
                                 </td>
                                 @if($canEdit)
                                     <td role="cell" data-label="Actions" class="px-6 py-4 rt-actions">
-                                        <button type="button" class="{{ $btn['edit'] }}" data-wage='@json($wageRow)' onclick="openWageModal(this)">
-                                            <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span class="whitespace-nowrap">{{ $b->min_daily_wage === null ? 'Set Rate' : 'Edit' }}</span>
-                                        </button>
+                                        @if($canEditBranch($b->id))
+                                            <button type="button" class="{{ $btn['edit'] }}" data-wage='@json($wageRow)' onclick="openWageModal(this)">
+                                                <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span class="whitespace-nowrap">{{ $b->min_daily_wage === null ? 'Set Rate' : 'Edit' }}</span>
+                                            </button>
+                                        @else
+                                            <span class="text-xs text-gray-500 dark:text-gray-400">—</span>
+                                        @endif
                                     </td>
                                 @endif
                             </tr>
@@ -524,8 +535,8 @@
                         <div>
                             <label for="rc_branch" class="{{ $labelClass }}">Branch</label>
                             <select id="rc_branch" name="branch_id" class="{{ $inputClass }}">
-                                <option value="">All branches</option>
-                                @foreach($branches as $b)
+                                @if($spaWide)<option value="">All branches</option>@endif
+                                @foreach($branches->filter(fn ($b) => $canEditBranch($b->id)) as $b)
                                     <option value="{{ $b->id }}" @selected((string) old('branch_id') === (string) $b->id && !$oldModal)>{{ $b->name }}</option>
                                 @endforeach
                             </select>
@@ -647,7 +658,10 @@
                                 @if($canEdit)
                                     <td role="cell" data-label="Actions" class="px-6 py-4 rt-actions">
                                         <div class="flex flex-wrap gap-2">
-                                            @if($isOpen)
+                                            @unless($canEditRule($r))
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">—</span>
+                                            @endunless
+                                            @if($isOpen && $canEditRule($r))
                                                 <button type="button" class="{{ $btn['edit'] }}" data-rule='@json($rowData)' onclick="openRuleChangeModal(this)">
                                                     <i class="text-xs fa-solid fa-arrows-rotate" aria-hidden="true"></i><span>Change</span>
                                                 </button>
@@ -655,14 +669,14 @@
                                                     <i class="text-xs fa-solid fa-flag-checkered" aria-hidden="true"></i><span>End</span>
                                                 </button>
                                             @endif
-                                            @unless($locked)
+                                            @if(! $locked && $canEditRule($r))
                                                 <button type="button" class="{{ $btn['edit'] }}" data-rule='@json($rowData)' onclick="openRuleEditModal(this)">
                                                     <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span>Edit</span>
                                                 </button>
                                                 <button type="button" class="{{ $btn['remove'] }}" data-rule='@json($rowData)' onclick="openRuleDeleteModal(this)">
                                                     <i class="text-xs fa-solid fa-trash" aria-hidden="true"></i><span>Delete</span>
                                                 </button>
-                                            @endunless
+                                            @endif
                                         </div>
                                     </td>
                                 @endif
@@ -766,8 +780,8 @@
                     <div>
                         <label for="re_branch" class="{{ $labelClass }}">Branch</label>
                         <select id="re_branch" name="branch_id" class="{{ $inputClass }}" data-old="{{ $isOld ? old('branch_id') : '' }}">
-                            <option value="">All branches</option>
-                            @foreach($branches as $b)<option value="{{ $b->id }}">{{ $b->name }}</option>@endforeach
+                            @if($spaWide)<option value="">All branches</option>@endif
+                            @foreach($branches->filter(fn ($b) => $canEditBranch($b->id)) as $b)<option value="{{ $b->id }}">{{ $b->name }}</option>@endforeach
                         </select>
                     </div>
                     <div>

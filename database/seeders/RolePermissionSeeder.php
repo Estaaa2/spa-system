@@ -9,6 +9,82 @@ use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
+    /** Also used by the 2026_10_23 payroll RBAC transition migration. */
+    public const HR_HEAD_PERMISSIONS = [
+        'view business dashboard',
+        'view dashboard kpis',
+
+        'view staff',
+        'create staff',
+        'edit staff',
+        'delete staff',
+
+        'view branches',
+        'view schedule',
+
+        'view attendance',
+        'edit attendance',
+        'view leave requests',
+        'create leave requests',
+        'edit leave requests',
+
+        'view hiring',
+        'create hiring',
+        'edit hiring',
+        'delete hiring',
+
+        'view applications',
+        'edit applications',
+        'delete applications',
+
+        'view interviews',
+        'create interviews',
+        'edit interviews',
+        'delete interviews',
+
+        'view deployments',
+        'create deployments',
+        'delete deployments',
+
+        'view payroll',
+        'manage payroll setup',
+        'prepare payroll runs',
+        'reveal statutory ids',
+
+        'edit own profile',
+    ];
+
+    public const FINANCE_HEAD_PERMISSIONS = [
+        'view business dashboard',
+        'view dashboard kpis',
+        'view dashboard revenue',
+
+        'view branches',
+
+        'view revenue',
+        'view billing',
+        'create billing',
+        'edit billing',
+        'delete billing',
+        'view finance inventory',
+        'edit finance inventory',
+
+        'view vendor bills',
+        'create vendor bills',
+        'match vendor bills',
+        'edit vendor bills',
+
+        'view payroll',
+        'approve payroll runs',
+        'release payroll runs',
+        'reveal statutory ids',
+
+        'view reports',
+        'view decision support',
+
+        'edit own profile',
+    ];
+
     public function run(): void
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
@@ -47,7 +123,7 @@ class RolePermissionSeeder extends Seeder
             'view leave requests',
             'create leave requests',
             'edit leave requests',
-            'delete leave requests',
+            'delete leave requests',   // RETIRED: gates no action. Kept defined, assigned to no role.
 
             // ── Branches ──────────────────────────────────────────────────────
             'view branches',
@@ -148,12 +224,22 @@ class RolePermissionSeeder extends Seeder
             'create interviews',
             'edit interviews',
             'delete interviews',
-            'view payroll',
-            'edit payroll',
             'view deployments',
             'create deployments',
             'approve deployments',
             'delete deployments',
+
+            // ── Payroll (Premium) ─────────────────────────────────────────────
+            // Role defaults: App\Services\Payroll\PayrollPermissions::DEFAULTS.
+            'view payroll',
+            'manage payroll setup',
+            'prepare payroll runs',
+            'approve payroll runs',
+            'release payroll runs',
+            'reveal statutory ids',
+            // RETIRED: split into the permissions above. Kept defined so a lingering
+            // reference cannot throw PermissionDoesNotExist; assigned to no role.
+            'edit payroll',
 
             // ── Finance (Finance Suite) ───────────────────────────────────────
             'view revenue',
@@ -185,6 +271,8 @@ class RolePermissionSeeder extends Seeder
         $customer     = Role::firstOrCreate(['name' => 'customer']);
         $hr           = Role::firstOrCreate(['name' => 'hr']);
         $finance      = Role::firstOrCreate(['name' => 'finance']);
+        $hrHead       = Role::firstOrCreate(['name' => 'hr_head']);
+        $financeHead  = Role::firstOrCreate(['name' => 'finance_head']);
 
         // ── Admin ─────────────────────────────────────────────────────────────
         $admin->syncPermissions([
@@ -227,7 +315,6 @@ class RolePermissionSeeder extends Seeder
             'view leave requests',
             'create leave requests',
             'edit leave requests',
-            'delete leave requests',
 
             'view branches',
             'create branches',
@@ -305,8 +392,9 @@ class RolePermissionSeeder extends Seeder
             'create interviews',
             'edit interviews',
             'delete interviews',
+            // Payroll: view only by default; the owner can grant themselves more
+            // on Roles & Permissions when there is no HR Head / Finance Head.
             'view payroll',
-            'edit payroll',
             'view deployments',
             'create deployments',
             'approve deployments',
@@ -470,7 +558,6 @@ class RolePermissionSeeder extends Seeder
             'view leave requests',
             'create leave requests',
             'edit leave requests',
-            'delete leave requests',
 
             'view hiring',
             'create hiring',
@@ -490,8 +577,10 @@ class RolePermissionSeeder extends Seeder
             'create deployments',
             'delete deployments',
 
+            // Branch HR: own branch only (User::payrollBranchScope()).
             'view payroll',
-            'edit payroll',
+            'manage payroll setup',
+            'reveal statutory ids',
 
             'edit own profile',
         ]);
@@ -517,11 +606,25 @@ class RolePermissionSeeder extends Seeder
             'match vendor bills',
             'edit vendor bills',
 
+            // Branch Finance: own branch rows only.
+            'view payroll',
+
             'view reports',
             'view decision support',
 
             'edit own profile',
         ]);
+
+        // ── HR Head (central) ─────────────────────────────────────────────────
+        // Same people permissions as Branch HR, used on any branch through the
+        // branch switcher, plus payroll preparation for the whole spa.
+        $hrHead->syncPermissions(self::HR_HEAD_PERMISSIONS);
+
+        // ── Finance Head (central) ────────────────────────────────────────────
+        // Same finance permissions as Branch Finance on any branch, plus payroll
+        // approval and release for the whole spa. `view branches` is needed for
+        // the branch switcher route.
+        $financeHead->syncPermissions(self::FINANCE_HEAD_PERMISSIONS);
 
         // ── Customer ──────────────────────────────────────────────────────────
         $customer->syncPermissions([]);

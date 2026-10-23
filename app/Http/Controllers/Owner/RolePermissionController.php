@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\BranchRolePermission;
 use App\Models\User;
+use App\Services\Payroll\PayrollPermissions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -23,6 +24,8 @@ class RolePermissionController extends Controller
         'therapist',
         'hr',
         'finance',
+        'hr_head',
+        'finance_head',
     ];
 
     // ── Branch / suite helpers ────────────────────────────────────────────────
@@ -64,19 +67,73 @@ class RolePermissionController extends Controller
             && $spa->hasFeature('finance');
     }
 
+    private function payrollEnabled(): bool
+    {
+        $spa = auth()->user()?->spa;
+
+        return $spa !== null
+            && $spa->hasAccess()
+            && $spa->hasFeature('payroll');
+    }
+
     private function getManageableRoles(): array
     {
         $roles = ['owner', 'manager', 'receptionist', 'therapist'];
 
         if ($this->workforceEnabled()) {
             $roles[] = 'hr';
+            $roles[] = 'hr_head';
         }
 
         if ($this->financeEnabled()) {
             $roles[] = 'finance';
+            $roles[] = 'finance_head';
         }
 
         return $roles;
+    }
+
+    /**
+     * The branch whose override rows hold this role's choice for this permission.
+     * HR Head / Finance Head work across branches, so all their choices live on the
+     * main branch; the owner's payroll choices too (payroll is spa-wide). Everything
+     * else is per branch, as before. Mirrors User::permissionBranchId().
+     */
+    private function overrideBranch(string $roleName, string $permissionName, Branch $current): Branch
+    {
+        $spaWide = in_array($roleName, PayrollPermissions::HEAD_ROLES, true)
+            || ($roleName === 'owner' && PayrollPermissions::isPayrollPermission($permissionName));
+
+        return $spaWide ? ($this->mainBranch() ?? $current) : $current;
+    }
+
+    private function mainBranch(): ?Branch
+    {
+        return auth()->user()?->spa?->mainBranch();
+    }
+
+    /** Effective overrides for the role as seen from $branch (main-branch rows where they apply). */
+    private function overridesFor(Role $role, Branch $branch, int $spaId): Collection
+    {
+        $local = BranchRolePermission::query()
+            ->where('branch_id', $branch->id)->where('spa_id', $spaId)->where('role_name', $role->name)
+            ->pluck('granted', 'permission_name');
+
+        $main = $this->mainBranch();
+        if (! $main || (int) $main->id === (int) $branch->id) {
+            return $local;
+        }
+
+        $mainRows = BranchRolePermission::query()
+            ->where('branch_id', $main->id)->where('spa_id', $spaId)->where('role_name', $role->name)
+            ->pluck('granted', 'permission_name');
+
+        return $this->editablePermissions()->pluck('name')
+            ->mapWithKeys(function ($name) use ($role, $branch, $main, $local, $mainRows) {
+                $source = (int) $this->overrideBranch($role->name, $name, $branch)->id === (int) $main->id ? $mainRows : $local;
+
+                return $source->has($name) ? [$name => $source->get($name)] : [];
+            });
     }
 
     private function lockedRoles(): array
@@ -86,7 +143,7 @@ class RolePermissionController extends Controller
         if (!$this->workforceEnabled()) {
             $locked[] = [
                 'name'   => 'hr',
-                'title'  => 'HR',
+                'title'  => 'HR and HR Head',
                 'reason' => 'Available on the Premium plan.',
             ];
         }
@@ -94,7 +151,7 @@ class RolePermissionController extends Controller
         if (!$this->financeEnabled()) {
             $locked[] = [
                 'name'   => 'finance',
-                'title'  => 'Finance',
+                'title'  => 'Finance and Finance Head',
                 'reason' => 'Available on the Premium plan.',
             ];
         }
@@ -139,6 +196,10 @@ class RolePermissionController extends Controller
 
             // Deprecated — superseded by the granular 'edit branch general/hours/profile' permissions
             'edit branches',
+
+            // Retired by the payroll RBAC refactor (kept defined, assigned to nobody)
+            'edit payroll',
+            'delete leave requests',
         ];
 
         if (in_array($name, $exactHidden, true)) {
@@ -176,6 +237,10 @@ class RolePermissionController extends Controller
             return false;
         }
 
+        if (($meta['suite'] ?? null) === 'payroll' && !$this->payrollEnabled()) {
+            return false;
+        }
+
         return true;
     }
 
@@ -205,6 +270,12 @@ class RolePermissionController extends Controller
             'edit branch general'               => 'Edit General Information',
             'edit branch hours'                 => 'Edit Operating Hours',
             'edit branch profile'               => 'Edit Public Profile',
+            'view payroll'                      => 'View Payroll',
+            'manage payroll setup'              => 'Manage Payroll Setup',
+            'prepare payroll runs'              => 'Prepare Pay Runs',
+            'approve payroll runs'              => 'Approve Pay Runs',
+            'release payroll runs'              => 'Finalize & Release Pay Runs',
+            'reveal statutory ids'              => 'Reveal Statutory ID Numbers',
         ];
 
         return $explicit[Str::lower($permissionName)] ?? Str::headline($permissionName);
@@ -225,6 +296,12 @@ class RolePermissionController extends Controller
             'edit branch general'               => 'Allows this role to edit the branch general information, such as the branch name.',
             'edit branch hours'                 => 'Allows this role to edit only the branch operating hours (opening and closing times and closed days), separately from the branch name and public profile.',
             'edit branch profile'               => 'Allows this role to edit the branch public profile listing — photos, description, amenities, contact details, and whether the branch is listed publicly.',
+            'view payroll'                      => 'Open pay runs, payslips, payroll setup and staff pay. HR Head, Finance Head and the owner see every branch; other roles see only their own branch\'s staff.',
+            'manage payroll setup'              => 'Change pay profiles, recurring pay items, statutory IDs and branch minimum wages. The pay schedule and commission rules for all branches also need HR Head, Finance Head or owner.',
+            'prepare payroll runs'              => 'Generate, regenerate and delete draft pay runs, and add or remove adjustments. Generating covers every branch, so only HR Head, Finance Head or the owner can do it; other roles can only adjust their own branch\'s payslips.',
+            'approve payroll runs'              => 'Approve a draft pay run or send it back to draft. Needs HR Head, Finance Head or owner. Approving a run you prepared is allowed but shown on the run.',
+            'release payroll runs'              => 'Finalize an approved pay run (locks it) and release payslips to staff. Needs HR Head, Finance Head or owner.',
+            'reveal statutory ids'              => 'Show full SSS, PhilHealth, Pag-IBIG and TIN numbers. Every reveal is logged.',
         ];
 
         $lower = Str::lower(trim($permissionName));
@@ -321,9 +398,15 @@ class RolePermissionController extends Controller
                 'icon'        => 'fa-solid fa-truck-ramp-box',
                 'suite'       => null,
             ],
+            'payroll' => [
+                'title'       => 'Payroll',
+                'description' => 'Pay runs, payroll setup, staff pay and statutory IDs. HR prepares, Finance approves and releases; the owner views by default.',
+                'icon'        => 'fa-solid fa-money-check-dollar',
+                'suite'       => 'payroll',
+            ],
             'finance' => [
                 'title'       => 'Finance',
-                'description' => 'Payroll, billing, revenue, expenses, and financial records.',
+                'description' => 'Billing, revenue, expenses, and financial records.',
                 'icon'        => 'fa-solid fa-wallet',
                 'suite'       => 'finance',
             ],
@@ -354,6 +437,10 @@ class RolePermissionController extends Controller
             // 'revenue' or 'timeline' that would otherwise match other groups.
             Str::contains($name, ['dashboard'])                                          => 'dashboard',
 
+            // Payroll before staff/finance — 'reveal statutory ids' and the payroll
+            // permissions would otherwise fall into other groups.
+            Str::contains($name, ['payroll', 'statutory'])                               => 'payroll',
+
             Str::contains($name, ['appointment', 'booking'])                             => 'appointments',
             Str::contains($name, ['schedule'])                                           => 'schedule',
             Str::contains($name, ['attendance', 'availability', 'leave'])                => 'attendance_leave',
@@ -366,7 +453,7 @@ class RolePermissionController extends Controller
             // contains 'product' and would otherwise land in the inventory group.
             Str::contains($name, ['supplier', 'purchase', 'goods']) => 'procurement',
             Str::contains($name, ['inventory', 'stock', 'product', 'replenishment'])                     => 'inventory',
-            Str::contains($name, ['payroll', 'billing', 'vendor bill', 'revenue', 'expense', 'finance']) => 'finance',
+            Str::contains($name, ['billing', 'vendor bill', 'revenue', 'expense', 'finance']) => 'finance',
             Str::contains($name, ['profile', 'account', 'password'])                    => 'account',
             default                                                                      => 'other',
         };
@@ -381,8 +468,10 @@ class RolePermissionController extends Controller
             'manager'      => ['title' => 'Manager',      'description' => 'Supervises operations, staff flow, and branch activity.',                'icon' => 'fa-solid fa-user-tie'],
             'receptionist' => ['title' => 'Receptionist', 'description' => 'Handles bookings, front-desk flow, and customer records.',               'icon' => 'fa-solid fa-calendar-check'],
             'therapist'    => ['title' => 'Therapist',    'description' => 'Handles personal schedule, appointments, and service delivery.',         'icon' => 'fa-solid fa-spa'],
-            'hr'           => ['title' => 'HR',           'description' => 'Handles hiring, attendance, interviews, and workforce records.',          'icon' => 'fa-solid fa-users-gear'],
-            'finance'      => ['title' => 'Finance',      'description' => 'Handles payroll, billing, revenue, and financial monitoring.',            'icon' => 'fa-solid fa-wallet'],
+            'hr'           => ['title' => 'HR',           'description' => 'Handles hiring, attendance, interviews, and workforce records for this branch.', 'icon' => 'fa-solid fa-users-gear'],
+            'finance'      => ['title' => 'Finance',      'description' => 'Handles billing, revenue, and financial monitoring for this branch.',     'icon' => 'fa-solid fa-wallet'],
+            'hr_head'      => ['title' => 'HR Head',      'description' => 'Central HR for every branch: prepares payroll and manages people records across branches.', 'icon' => 'fa-solid fa-user-tie'],
+            'finance_head' => ['title' => 'Finance Head', 'description' => 'Central finance for every branch: approves and releases payroll, oversees billing and revenue.', 'icon' => 'fa-solid fa-scale-balanced'],
             default        => ['title' => Str::headline($roleName), 'description' => 'Role settings for this branch.', 'icon' => 'fa-solid fa-user-shield'],
         };
     }
@@ -421,11 +510,7 @@ class RolePermissionController extends Controller
     {
         $permissions     = $this->editablePermissions();
         $allowedNames    = $permissions->pluck('name')->values();
-        $branchOverrides = BranchRolePermission::query()
-            ->where('branch_id', $branch->id)
-            ->where('spa_id', $spaId)
-            ->where('role_name', $role->name)
-            ->pluck('granted', 'permission_name');
+        $branchOverrides = $this->overridesFor($role, $branch, $spaId);
 
         $effectivePermissionNames = $this->buildEffectivePermissionNames($role, $allowedNames, $branchOverrides);
         $groupMeta                = $this->permissionGroups();
@@ -504,11 +589,7 @@ class RolePermissionController extends Controller
             ->map(function (Role $role) use ($user, $branch) {
                 $allowedNames = $this->editablePermissions()->pluck('name')->values();
 
-                $branchOverrides = BranchRolePermission::query()
-                    ->where('branch_id', $branch->id)
-                    ->where('spa_id', $user->spa_id)
-                    ->where('role_name', $role->name)
-                    ->pluck('granted', 'permission_name');
+                $branchOverrides = $this->overridesFor($role, $branch, $user->spa_id);
 
                 $effectivePermissionNames = $this->buildEffectivePermissionNames($role, $allowedNames, $branchOverrides);
                 $meta = $this->roleMeta($role->name);
@@ -570,6 +651,8 @@ class RolePermissionController extends Controller
             'summary'              => $built['summary'],
             'lockedSections'       => $lockedSections,
             'roleMeta'             => $this->roleMeta($role->name),
+            'appliesToAllBranches' => in_array($role->name, PayrollPermissions::HEAD_ROLES, true),
+            'payrollAllBranches'   => $role->name === 'owner',
         ]);
     }
 
@@ -592,21 +675,26 @@ class RolePermissionController extends Controller
         $selectedPermissions = collect($validated['permissions'] ?? [])->values();
         $globalPermissions   = $role->permissions->pluck('name')->values();
 
-        // Wipe existing branch overrides for this role, then re-record only deltas
-        BranchRolePermission::query()
-            ->where('branch_id', $branch->id)
-            ->where('spa_id', $user->spa_id)
-            ->where('role_name', $role->name)
-            ->whereIn('permission_name', $allowedPermissionNames)
-            ->delete();
-
+        // Wipe existing overrides for this role, then re-record only deltas. Each
+        // permission is stored on the branch that decides it (overrideBranch): the
+        // main branch for HR Head / Finance Head and for the owner's payroll
+        // permissions, otherwise the branch being edited.
         foreach ($allowedPermissionNames as $permissionName) {
+            $target = $this->overrideBranch($role->name, $permissionName, $branch);
+
+            BranchRolePermission::query()
+                ->where('branch_id', $target->id)
+                ->where('spa_id', $user->spa_id)
+                ->where('role_name', $role->name)
+                ->where('permission_name', $permissionName)
+                ->delete();
+
             $globalHas   = $globalPermissions->contains($permissionName);
             $branchWants = $selectedPermissions->contains($permissionName);
 
             if ($globalHas !== $branchWants) {
                 BranchRolePermission::create([
-                    'branch_id'       => $branch->id,
+                    'branch_id'       => $target->id,
                     'spa_id'          => $user->spa_id,
                     'role_name'       => $role->name,
                     'permission_name' => $permissionName,
@@ -619,6 +707,8 @@ class RolePermissionController extends Controller
 
         return redirect()
             ->route('owner.roles-permissions.edit', $role)
-            ->with('success', "{$role->name} permissions were updated for branch: {$branch->name}");
+            ->with('success', in_array($role->name, PayrollPermissions::HEAD_ROLES, true)
+                ? $this->roleMeta($role->name)['title'] . ' permissions were updated for every branch.'
+                : $this->roleMeta($role->name)['title'] . " permissions were updated for branch: {$branch->name}");
     }
 }

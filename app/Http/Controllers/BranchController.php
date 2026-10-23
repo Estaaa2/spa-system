@@ -25,7 +25,7 @@ class BranchController extends Controller
         }
 
         if (
-            !$user->hasRole('owner') &&
+            !$user->canSwitchBranches() &&
             (int) $branch->id !== (int) $user->branch_id
         ) {
             abort(403, 'You can only manage your own branch.');
@@ -53,7 +53,7 @@ class BranchController extends Controller
 
         if (
             !$ownerOnly &&
-            !$user->hasRole('owner') &&
+            !$user->canSwitchBranches() &&
             (int) $branch->id !== (int) $user->branch_id
         ) {
             return response()->json([
@@ -93,7 +93,7 @@ class BranchController extends Controller
             ->orderByDesc('is_main')
             ->orderBy('name');
 
-        if (! $user->hasRole('owner')) {
+        if (! $user->canSwitchBranches()) {
             $branchesQuery->where('id', $user->branch_id);
         }
 
@@ -655,7 +655,8 @@ class BranchController extends Controller
             ], 403);
         }
 
-        if (!$user->hasRole('owner')) {
+        // The owner, HR Head and Finance Head may switch branches.
+        if (!$user->canSwitchBranches()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Not allowed.',

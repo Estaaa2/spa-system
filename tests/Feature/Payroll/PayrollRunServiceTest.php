@@ -65,6 +65,9 @@ class PayrollRunServiceTest extends TestCase
         $spaId = DB::table('spas')->insertGetId([
             'owner_id' => $this->owner->id, 'name' => 'Test Spa', 'business_tier' => 'professional',
             'payroll_first_cutoff_day' => 15, 'payroll_pay_day_offset' => 5,
+            // Access since the subscription rework: verified spa + a running trial (Premium).
+            'verification_status' => 'verified', 'trial_used' => true,
+            'trial_started_at' => now()->subDays(5), 'trial_ends_at' => now()->addYears(5),
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->spa = Spa::findOrFail($spaId);
@@ -510,7 +513,7 @@ class PayrollRunServiceTest extends TestCase
         $this->staffA();
         $run = $this->service->generateRegular($this->spa, 2026, 9, 1, $this->owner)->run;
 
-        DB::table('spas')->where('id', $this->spa->id)->update(['business_tier' => 'basic']);   // subscription lapsed
+        DB::table('spas')->where('id', $this->spa->id)->update(['trial_ends_at' => now()->subDay()]);   // access lapsed (no trial, no paid period)
         $this->spa->refresh();
 
         $this->assertThrows(fn () => $this->service->generateRegular($this->spa, 2026, 9, 1, $this->owner), PayrollSetupException::class);

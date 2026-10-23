@@ -52,13 +52,13 @@ class PayrollSetupTest extends TestCase
         // The app layout's navigation checks every permission by name.
         $this->seed(\Database\Seeders\RolePermissionSeeder::class);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        Permission::findOrCreate('view payroll', 'web');
-        Permission::findOrCreate('edit payroll', 'web');
-        Role::findOrCreate('hr', 'web')->syncPermissions(['view payroll', 'edit payroll']);
+        // RBAC refactor: the test actor is a spa-wide HR Head holding every payroll
+        // permission (the shape of an owner fallback). The viewer is branch-scoped.
+        Role::findOrCreate('hr_head', 'web')->syncPermissions(\App\Services\Payroll\PayrollPermissions::ALL);
         Role::findOrCreate('payroll-viewer', 'web')->syncPermissions(['view payroll']);
 
         $this->hr = PayrollUserFactory::new()->create(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id]);
-        $this->hr->assignRole('hr');
+        $this->hr->assignRole('hr_head');
         $this->viewer = PayrollUserFactory::new()->create(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id]);
         $this->viewer->assignRole('payroll-viewer');
     }
@@ -176,7 +176,7 @@ class PayrollSetupTest extends TestCase
         $this->branchB->forceFill(['min_daily_wage' => null])->save();
 
         $this->actingAs($this->hr)->get(route('payroll.setup.index', ['tab' => 'wages']))
-            ->assertOk()->assertSee('payroll will not run for this branch', false);
+            ->assertOk()->assertSee('Missing rate', false);
     }
 
     // =====================================================================
@@ -443,11 +443,17 @@ class PayrollSetupTest extends TestCase
         $this->profile();
         $this->staff->forceFill(['tin' => '1', 'sss_no' => '1', 'philhealth_no' => '1', 'pagibig_no' => '1'])->save();
 
-        $this->actingAs($this->viewer)->get(route('payroll.staff.index'))
-            ->assertOk()->assertSee('Zed NoSuite')->assertSee('Not included in payroll');
+        // Since the subscription rework payroll covers every branch of a Premium spa
+        // (no per-branch suite flag), so "Not included in payroll" is no longer shown here.
+        $this->actingAs($this->hr)->get(route('payroll.staff.index'))
+            ->assertOk()->assertSee('Zed NoSuite');
 
-        $this->actingAs($this->viewer)->get(route('payroll.staff.index', ['filter' => 'missing']))
+        $this->actingAs($this->hr)->get(route('payroll.staff.index', ['filter' => 'missing']))
             ->assertOk()->assertSee('Zed NoSuite')->assertDontSee($this->user->email);
+
+        // RBAC refactor: the branch-scoped viewer (Branch A) never sees Branch B's staff.
+        $this->actingAs($this->viewer)->get(route('payroll.staff.index'))
+            ->assertOk()->assertDontSee('Zed NoSuite');
     }
 
     // =====================================================================

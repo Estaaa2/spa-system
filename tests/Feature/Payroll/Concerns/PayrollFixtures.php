@@ -44,9 +44,17 @@ trait PayrollFixtures
     {
         // spas.owner_id is required and users.spa_id is nullable: owner first, then spa.
         $this->admin = PayrollUserFactory::new()->create(['is_owner' => true]);
-        $this->spa = SpaFactory::new()->create(['owner_id' => $this->admin->id]);
-        $this->branchA = BranchFactory::new()->create(['spa_id' => $this->spa->id, 'name' => 'Branch A', 'is_main' => true, 'min_daily_wage' => $homeMinWage]);
-        $this->branchB = BranchFactory::new()->create(['spa_id' => $this->spa->id, 'name' => 'Branch B', 'min_daily_wage' => '650.00']);
+        // Since the subscription rework a spa needs verification and access (trial or
+        // paid period) and branches need verification before any page opens.
+        $this->spa = SpaFactory::new()->create([
+            'owner_id' => $this->admin->id,
+            'verification_status' => 'verified',
+            'trial_used' => true,
+            'trial_started_at' => now()->subDays(5),
+            'trial_ends_at' => now()->addYears(5),
+        ]);
+        $this->branchA = BranchFactory::new()->create(['spa_id' => $this->spa->id, 'name' => 'Branch A', 'is_main' => true, 'min_daily_wage' => $homeMinWage, 'verification_status' => 'verified']);
+        $this->branchB = BranchFactory::new()->create(['spa_id' => $this->spa->id, 'name' => 'Branch B', 'min_daily_wage' => '650.00', 'verification_status' => 'verified']);
 
         $this->admin->forceFill(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id])->save();
         $this->user = PayrollUserFactory::new()->create(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id]);

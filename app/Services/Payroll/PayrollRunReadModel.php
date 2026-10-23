@@ -49,16 +49,19 @@ final class PayrollRunReadModel
     }
 
     /** @return list<array<string, mixed>> */
-    public function runsIndex(Spa $spa, int $year, ?string $type, ?string $status): array
+    public function runsIndex(Spa $spa, int $year, ?string $type, ?string $status, ?int $branchId = null): array
     {
+        // $branchId limits the staff count and totals to one home branch (branch-scoped users).
+        $slips = fn ($q) => $branchId === null ? $q : $q->where('home_branch_id', $branchId);
+
         return PayrollRun::query()
             ->where('spa_id', $spa->id)
             ->whereBetween('period_start', ["{$year}-01-01", "{$year}-12-31"])
             ->when($type, fn ($q) => $q->where('run_type', $type))
             ->when($status, fn ($q) => $q->where('status', $status))
-            ->withCount('payslips')
-            ->withSum('payslips', 'gross_pay')
-            ->withSum('payslips', 'net_pay')
+            ->withCount(['payslips' => $slips])
+            ->withSum(['payslips' => $slips], 'gross_pay')
+            ->withSum(['payslips' => $slips], 'net_pay')
             ->orderByDesc('period_start')
             ->orderByDesc('id')
             ->get()
@@ -77,7 +80,7 @@ final class PayrollRunReadModel
     }
 
     /** @return array{needs_action: int, gross: string, net: string, runs: int} */
-    public function indexSummary(Spa $spa, int $year): array
+    public function indexSummary(Spa $spa, int $year, ?int $branchId = null): array
     {
         $base = PayrollRun::query()->where('spa_id', $spa->id)->whereBetween('period_start', ["{$year}-01-01", "{$year}-12-31"]);
 
@@ -86,6 +89,7 @@ final class PayrollRunReadModel
             ->where('payroll_runs.spa_id', $spa->id)
             ->whereIn('payroll_runs.status', self::PAYABLE)
             ->whereBetween('payroll_runs.period_start', ["{$year}-01-01", "{$year}-12-31"])
+            ->when($branchId !== null, fn ($q) => $q->where('payslips.home_branch_id', $branchId))
             ->selectRaw('COALESCE(SUM(payslips.gross_pay),0) as g, COALESCE(SUM(payslips.net_pay),0) as n')
             ->first();
 
@@ -272,7 +276,7 @@ final class PayrollRunReadModel
             'config_version' => $run->config_version,
             'config_current' => $run->config_version === (string) config('payroll.version'),
             'current_config' => (string) config('payroll.version'),
-            'self_approved'  => $run->approved_by !== null && (int) $run->approved_by === (int) $run->generated_by,
+            'self_approved'  => $this->approverPrepared($run),
             'steps'          => [
                 // generated_by is overwritten on every regeneration; created_at is the first generation.
                 ['key' => 'generated', 'label' => 'Generated', 'by' => $who($run->generated_by),
@@ -282,6 +286,36 @@ final class PayrollRunReadModel
                 ['key' => 'released',  'label' => 'Released',  'by' => $who($run->released_by),  'at' => $when($run->released_at),  'done' => $run->released_at !== null],
             ],
         ];
+    }
+
+    /**
+     * True when the approver also prepared the run: generated it (generated_by is the
+     * last generation) or added any adjustment line on it. Allowed — small spas may
+     * have one person doing both — but shown on the run.
+     */
+    public function approverPrepared(PayrollRun $run): bool
+    {
+        if ($run->approved_by === null) {
+            return false;
+        }
+
+        return (int) $run->approved_by === (int) $run->generated_by
+            || PayslipLine::query()
+                ->whereIn('payslip_id', Payslip::query()->where('payroll_run_id', $run->id)->select('id'))
+                ->where('is_manual', true)
+                ->where('created_by', $run->approved_by)
+                ->exists();
+    }
+
+    /** True when $userId generated the run or added an adjustment on it (for the approve warning). */
+    public function preparedBy(PayrollRun $run, int $userId): bool
+    {
+        return (int) $run->generated_by === $userId
+            || PayslipLine::query()
+                ->whereIn('payslip_id', Payslip::query()->where('payroll_run_id', $run->id)->select('id'))
+                ->where('is_manual', true)
+                ->where('created_by', $userId)
+                ->exists();
     }
 
     /**

@@ -4,7 +4,7 @@
 <div class="p-6 mx-auto space-y-6 max-w-7xl">
     <x-page-header
         title="Edit Role — {{ $roleMeta['title'] }}"
-        subtitle="Update what this role can access for the current branch."
+        :subtitle="($appliesToAllBranches ?? false) ? 'Update what this role can access in every branch.' : 'Update what this role can access for the current branch.'"
     />
 
     {{-- Branch Context Banner --}}
@@ -12,17 +12,26 @@
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-code-branch"></i>
             <span>
-                Editing <strong>{{ $roleMeta['title'] }}</strong> permissions for branch:
-                <strong>{{ $branch->name }}</strong>
-                @if($branch->location)
-                    — {{ $branch->location }}
+                @if($appliesToAllBranches ?? false)
+                    <strong>{{ $roleMeta['title'] }}</strong> works across every branch, so these permissions apply to all branches.
+                @else
+                    Editing <strong>{{ $roleMeta['title'] }}</strong> permissions for branch:
+                    <strong>{{ $branch->name }}</strong>
+                    @if($branch->location)
+                        — {{ $branch->location }}
+                    @endif
                 @endif
             </span>
         </div>
 
-        <span class="text-xs text-blue-500 md:ml-auto dark:text-blue-400">
-            Switch branches from the top navigation to edit another branch.
-        </span>
+        @unless($appliesToAllBranches ?? false)
+            <span class="text-xs text-blue-500 md:ml-auto dark:text-blue-400">
+                Switch branches from the top navigation to edit another branch.
+                @if($payrollAllBranches ?? false)
+                    Payroll permissions apply to every branch.
+                @endif
+            </span>
+        @endunless
     </div>
 
     {{-- Role Summary --}}
@@ -212,7 +221,11 @@
 
         <div class="flex items-center justify-between px-6 py-4 border-t bg-gray-50 rounded-b-2xl dark:bg-gray-900/20 dark:border-gray-700">
             <p class="text-xs text-gray-500 dark:text-gray-400">
-                Saved changes here only affect <strong>{{ $branch->name }}</strong>.
+                @if($appliesToAllBranches ?? false)
+                    Saved changes apply to every branch.
+                @else
+                    Saved changes here only affect <strong>{{ $branch->name }}</strong>{{ ($payrollAllBranches ?? false) ? ' (payroll permissions apply to every branch)' : '' }}.
+                @endif
             </p>
 
             <button type="submit"

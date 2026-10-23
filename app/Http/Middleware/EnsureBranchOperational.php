@@ -17,6 +17,11 @@ class EnsureBranchOperational
         'branch.switch',
         'branch.current',
         'branches.*',
+        // Payroll is spa-wide and payslips are the employee's own records, so a
+        // locked branch must not hide them. The spa-level lock (spa.access) and
+        // the payroll plan check still apply.
+        'payroll.*',
+        'my-payslips.*',
     ];
 
     public function handle(Request $request, Closure $next): Response

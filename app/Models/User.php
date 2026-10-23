@@ -144,8 +144,53 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(PurchaseRequest::class, 'reviewed_by');
     }
 
+    // ── Branch scope ─────────────────────────────────────────────────────────
+
+    /** Owner, HR Head or Finance Head: works across every branch of the spa. */
+    public function isSpaWide(): bool
+    {
+        return $this->hasAnyRole(\App\Services\Payroll\PayrollPermissions::SPA_WIDE_ROLES);
+    }
+
+    /** HR Head or Finance Head (central roles that are not the owner). */
+    public function isHead(): bool
+    {
+        return $this->hasAnyRole(\App\Services\Payroll\PayrollPermissions::HEAD_ROLES);
+    }
+
+    /** Branch switcher: the owner and the central roles. */
+    public function canSwitchBranches(): bool
+    {
+        return $this->isSpaWide();
+    }
+
+    /**
+     * The branch this user's payroll view is limited to: null for spa-wide roles
+     * (every branch), otherwise the home branch. A non-spa-wide account with no
+     * branch gets 0, which matches nothing (never "every branch").
+     */
+    public function payrollBranchScope(): ?int
+    {
+        return $this->isSpaWide() ? null : (int) ($this->branch_id ?? 0);
+    }
+
     public function currentBranchId(): ?int
     {
+        if ($this->isHead()) {
+            $sessionBranchId = session('current_branch_id');
+
+            if ($sessionBranchId && Branch::where('id', $sessionBranchId)->where('spa_id', $this->spa_id)->exists()) {
+                return (int) $sessionBranchId;
+            }
+
+            // A head starts on their home branch (where they report), not the main branch.
+            if ($this->branch_id) {
+                session(['current_branch_id' => $this->branch_id]);
+            }
+
+            return $this->branch_id;
+        }
+
         if ($this->hasRole('owner')) {
             $sessionBranchId = session('current_branch_id');
 
@@ -180,7 +225,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function hasBranchPermission(string $permission): bool
     {
-        $branchId = $this->currentBranchId();
+        $branchId = $this->permissionBranchId($permission);
 
         if (!$branchId) {
             return $this->hasPermissionTo($permission); // fallback to global
@@ -196,6 +241,31 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         return $this->hasPermissionTo($permission); // fall back to global
+    }
+
+    /**
+     * Which branch's Roles & Permissions overrides decide this permission.
+     *
+     * - HR Head / Finance Head: every permission is spa-wide, so it is read from the
+     *   main branch (Roles & Permissions stores their changes there).
+     * - Owner: payroll permissions are read from the main branch (payroll is
+     *   spa-wide); everything else keeps following the branch being viewed.
+     * - Everyone else: their current (home) branch, unchanged.
+     */
+    public function permissionBranchId(string $permission): ?int
+    {
+        $spaWideHere = $this->isHead()
+            || ($this->hasRole('owner') && \App\Services\Payroll\PayrollPermissions::isPayrollPermission($permission));
+
+        if ($spaWideHere && $this->spa_id) {
+            $main = Branch::where('spa_id', $this->spa_id)->orderByDesc('is_main')->orderBy('id')->value('id');
+
+            if ($main) {
+                return (int) $main;
+            }
+        }
+
+        return $this->currentBranchId();
     }
 
     public function generateEmailVerificationOtp(): string

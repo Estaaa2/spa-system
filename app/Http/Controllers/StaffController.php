@@ -8,6 +8,7 @@ use App\Models\Branch;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Mail\StaffCredentialsMail;
+use App\Services\Payroll\PayrollPermissions;
 use App\Services\Subscription\PlanLimitEnforcer;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
@@ -69,7 +70,7 @@ class StaffController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'roles' => 'required|in:therapist,receptionist,manager,hr,finance',
+            'roles' => 'required|in:therapist,receptionist,manager,hr,finance,hr_head,finance_head',
         ]);
 
         $currentUser = Auth::user();
@@ -82,13 +83,17 @@ class StaffController extends Controller
         }
 
         if (
-            in_array($validated['roles'], ['hr', 'finance'], true) &&
+            in_array($validated['roles'], self::PREMIUM_ROLES, true) &&
             ! $spa->hasFeature('manpower')
         ) {
             return back()->with(
                 'error',
                 'HR and Finance accounts require the Premium plan.'
             );
+        }
+
+        if ($error = $this->headRoleError($validated['roles'], null)) {
+            return back()->withInput()->with('error', $error);
         }
 
         if (!$spa->canAddStaff()) {
@@ -140,6 +145,8 @@ class StaffController extends Controller
      */
     public function show(Staff $staff)
     {
+        $this->assertManageable($staff);
+
         return response()->json([
             'name' => $staff->user ? trim($staff->user->first_name . ' ' . $staff->user->last_name) : '',
             'roles' => $staff->user?->getRoleNames()->first() ?? '',
@@ -154,22 +161,25 @@ class StaffController extends Controller
     public function update(Request $request, Staff $staff)
     {
         $validated = $request->validate([
-            'roles' => 'required|in:therapist,receptionist,manager,hr,finance',
+            'roles' => 'required|in:therapist,receptionist,manager,hr,finance,hr_head,finance_head',
         ]);
 
-        $branchId = $staff->branch_id;
-        $branch   = Branch::find($branchId);
+        $this->assertManageable($staff);
 
         $spa = Auth::user()->spa;
 
         if (
-            in_array($validated['roles'], ['hr', 'finance'], true) &&
+            in_array($validated['roles'], self::PREMIUM_ROLES, true) &&
             ! $spa->hasFeature('manpower')
         ) {
             return back()->with(
                 'error',
                 'HR and Finance accounts require the Premium plan.'
             );
+        }
+
+        if ($error = $this->headRoleError($validated['roles'], $staff)) {
+            return back()->with('error', $error);
         }
 
         try {
@@ -190,6 +200,12 @@ class StaffController extends Controller
      */
     public function destroy(Staff $staff)
     {
+        $this->assertManageable($staff);
+
+        if ($this->isHeadAccount($staff) && ! Auth::user()->hasRole('owner')) {
+            return back()->with('error', 'Only the owner can remove an HR Head or Finance Head account.');
+        }
+
         try {
             if ($staff->user) {
                 $staff->user->delete();
@@ -210,5 +226,64 @@ class StaffController extends Controller
                 ->back()
                 ->with('error', 'Error deleting staff: ' . $e->getMessage());
         }
+    }
+
+    // =====================================================================
+    // Access rules
+    // =====================================================================
+
+    /** Roles that need the Premium plan's manpower feature. */
+    private const PREMIUM_ROLES = ['hr', 'finance', 'hr_head', 'finance_head'];
+
+    /**
+     * A staff record can only be read or changed by someone in the same spa. Roles
+     * that are pinned to one branch can only manage that branch's staff; the owner,
+     * HR Head and Finance Head can manage any branch (they switch branches).
+     */
+    private function assertManageable(Staff $staff): void
+    {
+        $user = Auth::user();
+
+        abort_unless((int) $staff->spa_id === (int) $user->spa_id, 404);
+
+        if (! $user->canSwitchBranches()) {
+            abort_unless((int) $staff->branch_id === (int) $user->branch_id, 403, 'You can only manage staff of your own branch.');
+        }
+    }
+
+    private function isHeadAccount(Staff $staff): bool
+    {
+        return (bool) $staff->user?->hasAnyRole(PayrollPermissions::HEAD_ROLES);
+    }
+
+    /**
+     * HR Head / Finance Head rules: only the owner assigns or changes them, and a spa
+     * has at most one active account of each. Returns an error message, or null.
+     */
+    private function headRoleError(string $newRole, ?Staff $staff): ?string
+    {
+        $user = Auth::user();
+        $assigningHead = in_array($newRole, PayrollPermissions::HEAD_ROLES, true);
+        $changingHead = $staff !== null && $this->isHeadAccount($staff)
+            && $staff->user?->getRoleNames()->first() !== $newRole;
+
+        if (($assigningHead || $changingHead) && ! $user->hasRole('owner')) {
+            return 'Only the owner can assign or change the HR Head and Finance Head roles.';
+        }
+
+        if (! $assigningHead) {
+            return null;
+        }
+
+        $taken = Staff::query()
+            ->where('spa_id', $user->spa_id)
+            ->where('employment_status', 'active')
+            ->when($staff, fn ($q) => $q->whereKeyNot($staff->id))
+            ->whereHas('user', fn ($q) => $q->role($newRole))
+            ->exists();
+
+        return $taken
+            ? 'This spa already has an active ' . PayrollPermissions::roleLabel($newRole) . '. Change or remove that account first.'
+            : null;
     }
 }

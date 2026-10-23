@@ -12,7 +12,9 @@ class LockBranchForNonOwner
     {
         $user = Auth::user();
 
-        if ($user && ! $user->hasRole('owner') && $user->branch_id) {
+        // The owner, HR Head and Finance Head switch branches; everyone else is
+        // pinned to their home branch.
+        if ($user && ! $user->canSwitchBranches() && $user->branch_id) {
             session(['current_branch_id' => $user->branch_id]);
         }
 

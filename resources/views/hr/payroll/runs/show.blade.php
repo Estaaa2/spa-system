@@ -34,68 +34,67 @@
     $kindLabels = $D::KIND;
     $isDraft    = $run->isDraft();
     $isThirteenth = $run->run_type === \App\Models\PayrollRun::TYPE_THIRTEENTH_MONTH;
-    $canAdjust  = $canEdit && $isDraft;
+    $canAdjust  = ($perm['adjust'] ?? false) && $isDraft;
     $expandId   = (int) (session('expand') ?? (old('_modal') === 'adjustModal' ? old('_record') : 0));
     $warningCount = collect($warnings)->flatten(1)->count();
     $me = auth()->id();
 
     // ── Step actions: ONE source for button, modal copy and route (emitted to JS via @json) ──
+    // Each step has its own permission (PayrollController passes $perm; the server checks the same).
     $actions = [];
-    if ($canEdit) {
-        if ($run->canRegenerate()) {
-            $actions['regenerate'] = [
-                'label' => 'Regenerate', 'icon' => 'fa-rotate', 'style' => 'edit', 'button' => 'primary',
-                'title' => 'Regenerate this draft?',
-                'body'  => 'Every computed line is rebuilt from current attendance, bookings, pay profiles and rates. Manual adjustment lines are kept. '
-                         . ($isThirteenth ? 'The pay date stays ' . $header['pay_date'] . '.' : 'The dates follow the current pay schedule.'),
-                'confirm' => 'Regenerate', 'url' => route('payroll.runs.regenerate', $run), 'method' => 'POST',
-            ];
-        }
-        if ($run->canApprove()) {
-            $actions['approve'] = [
-                'label' => 'Approve', 'icon' => 'fa-circle-check', 'style' => 'primary', 'button' => 'primary',
-                'title' => 'Approve this run?',
-                'body'  => 'Approving freezes the payslips: no regenerating and no adjustments unless the run is sent back to draft. '
-                         . ($warningCount > 0 ? "There are {$warningCount} warning(s) on this run — review them first. " : '')
-                         . ((int) $run->generated_by === (int) $me ? 'You generated this run; approving it yourself will be shown on the run. ' : '')
-                         . ($header['config_current'] ? '' : "Payroll rates changed since this draft was generated ({$header['config_version']} → {$header['current_config']}); regenerate before approving."),
-                'confirm' => 'Approve Run', 'url' => route('payroll.runs.approve', $run), 'method' => 'POST',
-            ];
-        }
-        if ($run->canDelete()) {
-            $actions['delete'] = [
-                'label' => 'Delete', 'icon' => 'fa-trash', 'style' => 'remove', 'button' => 'remove',
-                'title' => 'Delete this draft run?',
-                'body'  => 'The run, all of its payslips and every manual adjustment line are permanently deleted. Commission for its bookings becomes payable again in a new run.',
-                'confirm' => 'Yes, Delete', 'url' => route('payroll.runs.destroy', $run), 'method' => 'DELETE',
-            ];
-        }
-        if ($run->canSendBack()) {
-            $actions['send_back'] = [
-                'label' => 'Send Back to Draft', 'icon' => 'fa-arrow-rotate-left', 'style' => 'warn', 'button' => 'warn',
-                'title' => 'Send this run back to draft?',
-                'body'  => 'The approval is cleared. The run can then be regenerated or adjusted, and must be approved again before it can be finalized.',
-                'confirm' => 'Send Back', 'url' => route('payroll.runs.send-back', $run), 'method' => 'POST',
-            ];
-        }
-        if ($run->canFinalize()) {
-            $actions['finalize'] = [
-                'label' => 'Finalize', 'icon' => 'fa-lock', 'style' => 'primary', 'button' => 'primary',
-                'title' => 'Finalize this run?',
-                'body'  => 'Finalizing locks the register; later corrections go into a future run as adjustments. This cannot be undone.'
-                         . ($run->cutoff_no === 1 ? ' Cutoff 2 of this month can be generated once this is finalized.' : '')
-                         . ($isThirteenth ? '' : ' Its earnings then count toward the 13th-month basis.'),
-                'confirm' => 'Finalize Run', 'url' => route('payroll.runs.finalize', $run), 'method' => 'POST',
-            ];
-        }
-        if ($run->canRelease()) {
-            $actions['release'] = [
-                'label' => 'Release Payslips', 'icon' => 'fa-paper-plane', 'style' => 'primary', 'button' => 'primary',
-                'title' => 'Release payslips to staff?',
-                'body'  => 'Every staff member on this run will see their payslip under My Payslips. Release after pay has gone out. This cannot be undone.',
-                'confirm' => 'Release', 'url' => route('payroll.runs.release', $run), 'method' => 'POST',
-            ];
-        }
+    if (($perm['prepare_run'] ?? false) && $run->canRegenerate()) {
+        $actions['regenerate'] = [
+            'label' => 'Regenerate', 'icon' => 'fa-rotate', 'style' => 'edit', 'button' => 'primary',
+            'title' => 'Regenerate this draft?',
+            'body'  => 'Every computed line is rebuilt from current attendance, bookings, pay profiles and rates. Manual adjustment lines are kept. '
+                     . ($isThirteenth ? 'The pay date stays ' . $header['pay_date'] . '.' : 'The dates follow the current pay schedule.'),
+            'confirm' => 'Regenerate', 'url' => route('payroll.runs.regenerate', $run), 'method' => 'POST',
+        ];
+    }
+    if (($perm['approve'] ?? false) && $run->canApprove()) {
+        $actions['approve'] = [
+            'label' => 'Approve', 'icon' => 'fa-circle-check', 'style' => 'primary', 'button' => 'primary',
+            'title' => 'Approve this run?',
+            'body'  => 'Approving freezes the payslips: no regenerating and no adjustments unless the run is sent back to draft. '
+                     . ($warningCount > 0 ? "There are {$warningCount} warning(s) on this run — review them first. " : '')
+                     . (($preparedByMe ?? false) ? 'You prepared this run (generated it or added adjustments); approving it yourself will be shown on the run. ' : '')
+                     . ($header['config_current'] ? '' : "Payroll rates changed since this draft was generated ({$header['config_version']} → {$header['current_config']}); regenerate before approving."),
+            'confirm' => 'Approve Run', 'url' => route('payroll.runs.approve', $run), 'method' => 'POST',
+        ];
+    }
+    if (($perm['prepare_run'] ?? false) && $run->canDelete()) {
+        $actions['delete'] = [
+            'label' => 'Delete', 'icon' => 'fa-trash', 'style' => 'remove', 'button' => 'remove',
+            'title' => 'Delete this draft run?',
+            'body'  => 'The run, all of its payslips and every manual adjustment line are permanently deleted. Commission for its bookings becomes payable again in a new run.',
+            'confirm' => 'Yes, Delete', 'url' => route('payroll.runs.destroy', $run), 'method' => 'DELETE',
+        ];
+    }
+    if (($perm['approve'] ?? false) && $run->canSendBack()) {
+        $actions['send_back'] = [
+            'label' => 'Send Back to Draft', 'icon' => 'fa-arrow-rotate-left', 'style' => 'warn', 'button' => 'warn',
+            'title' => 'Send this run back to draft?',
+            'body'  => 'The approval is cleared. The run can then be regenerated or adjusted, and must be approved again before it can be finalized.',
+            'confirm' => 'Send Back', 'url' => route('payroll.runs.send-back', $run), 'method' => 'POST',
+        ];
+    }
+    if (($perm['release'] ?? false) && $run->canFinalize()) {
+        $actions['finalize'] = [
+            'label' => 'Finalize', 'icon' => 'fa-lock', 'style' => 'primary', 'button' => 'primary',
+            'title' => 'Finalize this run?',
+            'body'  => 'Finalizing locks the register; later corrections go into a future run as adjustments. This cannot be undone.'
+                     . ($run->cutoff_no === 1 ? ' Cutoff 2 of this month can be generated once this is finalized.' : '')
+                     . ($isThirteenth ? '' : ' Its earnings then count toward the 13th-month basis.'),
+            'confirm' => 'Finalize Run', 'url' => route('payroll.runs.finalize', $run), 'method' => 'POST',
+        ];
+    }
+    if (($perm['release'] ?? false) && $run->canRelease()) {
+        $actions['release'] = [
+            'label' => 'Release Payslips', 'icon' => 'fa-paper-plane', 'style' => 'primary', 'button' => 'primary',
+            'title' => 'Release payslips to staff?',
+            'body'  => 'Every staff member on this run will see their payslip under My Payslips. Release after pay has gone out. This cannot be undone.',
+            'confirm' => 'Release', 'url' => route('payroll.runs.release', $run), 'method' => 'POST',
+        ];
     }
 
     $manualOptions = [
@@ -127,7 +126,7 @@
                     </span>
                     @if($header['self_approved'])
                         <span class="{{ $badgeBase }} bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300" title="Allowed for small teams; the owner reviews as the compensating control">
-                            <i class="fa-solid fa-user-check text-[10px]" aria-hidden="true"></i> Approved by the person who generated it
+                            <i class="fa-solid fa-user-check text-[10px]" aria-hidden="true"></i> Approved by the person who prepared it
                         </span>
                     @endif
                 </div>
@@ -262,7 +261,7 @@
                     <i class="text-xs fa-solid fa-print" aria-hidden="true"></i> Print Payslips
                 </a>
             @endif
-            @if(count($register['branches']) > 1)
+            @if(! ($branchLocked ?? false) && count($register['branches']) > 1)
                 <form method="GET" action="{{ route('payroll.runs.show', $run) }}" class="flex items-end gap-2" aria-label="Filter by home branch">
                     <div>
                         <label for="f_branch" class="{{ $labelClass }}">Home branch</label>

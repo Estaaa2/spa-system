@@ -4,7 +4,10 @@
     $user = Auth::user();
     $spa = $user?->spa;
 
-    if ($user?->hasRole('owner')) {
+    // The owner, HR Head and Finance Head switch branches; everyone else sees their own.
+    $canSwitchBranches = (bool) ($user?->canSwitchBranches() ?? false);
+
+    if ($canSwitchBranches) {
         $branches = $spa?->branches ?? collect();
     } else {
         $branches = $spa?->branches
@@ -141,8 +144,7 @@
         $can('edit attendance') ||
         $can('view leave requests') ||
         $can('create leave requests') ||
-        $can('edit leave requests') ||
-        $can('delete leave requests');
+        $can('edit leave requests');
 
     $showOperations = $canBooking || $canAppointments || $canSchedule || (!$suiteEnabled && $canAttendanceLeave);
     $canViewPerformance = $user?->hasRole('therapist') ?? false;
@@ -157,11 +159,14 @@
     $canInterviews =
         $can('view interviews') || $can('create interviews') || $can('edit interviews') || $can('delete interviews');
 
-    // Payroll lives in Manpower (Owner/HR); defined here because $showPeople reads it.
-    $canPayroll = $can('view payroll') || $can('edit payroll');
-
     $showPeople =
-        $suiteEnabled && ($canStaffAccounts || $canAttendanceLeave || $canHiring || $canApplicants || $canInterviews || $canPayroll);
+        $suiteEnabled && ($canStaffAccounts || $canHiring || $canApplicants || $canInterviews);
+
+    // Attendance & Payroll (Premium suite). Without the suite, Attendance & Leave stays
+    // in Operations. Every payroll page needs `view payroll`; the pages show only
+    // the actions the user's payroll permissions allow.
+    $canPayroll = $canPayrollPlan && $can('view payroll');
+    $showAttendancePayroll = $suiteEnabled && ($canAttendanceLeave || $canPayroll);
 
     // Services (was "Management")
     $canServices =
@@ -271,7 +276,10 @@
 
     if ($branchLocked) {
         $canDashboard = false;
-        $canMyPayslips = false;
+        // Payroll is spa-wide and payslips are the employee's own records, so both
+        // stay reachable (EnsureBranchOperational::ALWAYS_ALLOWED); attendance does not.
+        $canAttendanceLeave = false;
+        $showAttendancePayroll = $suiteEnabled && $canPayroll;
         $showOperations = false;
         $showPeople = false;
         $showServices = false;
@@ -298,8 +306,11 @@
             || request()->routeIs('interviews.*')
             || request()->routeIs('staff.*')
             || request()->routeIs('deployment.*')
+        ),
+
+        'attendancePayroll' => $suiteEnabled && (
+            request()->routeIs('attendance.*')
             || request()->routeIs('payroll.*')
-            || request()->routeIs('attendance.*')
         ),
 
         'services' => request()->routeIs('services.*')
@@ -410,7 +421,7 @@
         </button>
 
         <!-- Mobile Branch Switcher -->
-        @role('owner')
+        @if ($canSwitchBranches)
             <div class="relative pr-2">
                 <button @click="mobileBranchesOpen = !mobileBranchesOpen"
                     class="flex items-center px-2 space-x-2 text-gray-700 rounded-lg h-11 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -479,12 +490,12 @@
                 </div>
             </div>
         @else
-            {{-- Non-owners have no switcher, so the bar would otherwise be empty. --}}
+            {{-- Roles pinned to one branch have no switcher, so the bar would otherwise be empty. --}}
             <div class="flex items-center min-w-0 gap-2 pr-3">
                 <i class="text-sm text-gray-500 fa-solid fa-location-dot dark:text-gray-400"></i>
                 <span class="text-sm font-medium text-gray-700 truncate dark:text-gray-200">{{ $mobileContextLabel }}</span>
             </div>
-        @endrole
+        @endif
     </div>
 
     <!-- SIDEBAR -->
@@ -815,6 +826,31 @@
                                     Staff Deployment
                                 </x-nav-link>
                             @endif
+                        </div>
+                    </div>
+                @endif
+
+                @if ($showAttendancePayroll)
+                    <div class="mb-1">
+                        <button @click="toggleSection('attendancePayroll')" type="button"
+                            aria-controls="nav-section-attendance-payroll"
+                            :aria-expanded="isOpen('attendancePayroll') ? 'true' : 'false'"
+                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-money-check-dollar w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                Attendance &amp; Payroll
+                            </span>
+                            <span class="flex items-center gap-2">
+                                @if ($activeSection === 'attendancePayroll')
+                                    <span x-show="!isOpen('attendancePayroll')" x-cloak aria-hidden="true"
+                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
+                                @endif
+                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
+                                    :class="isOpen('attendancePayroll') ? 'transform rotate-180' : ''"></i>
+                            </span>
+                        </button>
+
+                        <div x-show="isOpen('attendancePayroll')" x-collapse id="nav-section-attendance-payroll" class="ml-4 space-y-1">
                             @if ($canAttendanceLeave)
                                 <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.*')">
                                     Attendance &amp; Leave
@@ -825,14 +861,13 @@
                                 <x-nav-link :href="route('payroll.index')" :active="request()->routeIs('payroll.index', 'payroll.runs.*', 'payroll.payslips.*', 'payroll.lines.*')">
                                     Payroll
                                 </x-nav-link>
-                                <x-nav-link :href="route('payroll.setup.index')" :active="request()->routeIs('payroll.setup.*')">
-                                    Payroll Setup
-                                </x-nav-link>
                                 <x-nav-link :href="route('payroll.staff.index')" :active="request()->routeIs('payroll.staff.*')">
                                     Staff Pay
                                 </x-nav-link>
+                                <x-nav-link :href="route('payroll.setup.index')" :active="request()->routeIs('payroll.setup.*')">
+                                    Payroll Setup
+                                </x-nav-link>
                             @endif
-
                         </div>
                     </div>
                 @endif

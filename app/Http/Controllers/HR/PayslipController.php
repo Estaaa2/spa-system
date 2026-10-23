@@ -4,6 +4,7 @@ namespace App\Http\Controllers\HR;
 
 use App\Exceptions\PayrollStateException;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\HR\Concerns\AuthorizesPayroll;
 use App\Http\Controllers\HR\Concerns\HandlesPayrollSetupForms;
 use App\Models\PayrollRun;
 use App\Models\Payslip;
@@ -12,6 +13,7 @@ use App\Models\Spa;
 use App\Models\User;
 use App\Services\Payroll\Display\PayslipDocument;
 use App\Services\Payroll\PayrollRunReadModel;
+use App\Services\Payroll\PayrollPermissions as P;
 use App\Services\Payroll\PayrollRunService;
 use App\Services\Payroll\PayrollRunWarnings;
 use Illuminate\Http\RedirectResponse;
@@ -27,11 +29,12 @@ use Illuminate\View\View;
  * Adjustments are the explicit way to handle SIL pay, final-pay extras and
  * corrections (ADJ_EARNING, ADJ_EARNING_NONTAX, ADJ_DEDUCTION); all validation of
  * code/label/amount/note and the recompute is PayrollRunService::addManualLine /
- * removeManualLine (Unit 4). Routes (Unit 7): view with `view payroll`, writes with
- * `edit payroll`.
+ * removeManualLine (Unit 4). Access: view with `view payroll`, adjustments with
+ * `prepare payroll runs`; branch-scoped roles only for their own branch's payslips.
  */
 class PayslipController extends Controller
 {
+    use AuthorizesPayroll;
     use HandlesPayrollSetupForms;
 
     public function __construct(
@@ -44,6 +47,7 @@ class PayslipController extends Controller
     public function show(Payslip $payslip): View
     {
         $run = $this->ownedRun($payslip, $this->currentSpa());
+        $this->abortUnlessBranchInScope($payslip->home_branch_id);
         $parties = $this->read->payslipParties($payslip, $run);
 
         return view('hr.payroll.payslips.show', [
@@ -55,8 +59,9 @@ class PayslipController extends Controller
 
     public function storeLine(Request $request, Payslip $payslip): RedirectResponse
     {
-        $this->authorizeEdit();
+        $this->authorizePayroll(P::PREPARE);
         $run = $this->ownedRun($payslip, $this->currentSpa());
+        $this->abortUnlessBranchInScope($payslip->home_branch_id);
 
         // Shape only; the service owns the business validation (codes, amount > 0, lengths).
         $v = Validator::make($request->all(), [
@@ -89,9 +94,10 @@ class PayslipController extends Controller
 
     public function destroyLine(PayslipLine $line): RedirectResponse
     {
-        $this->authorizeEdit();
+        $this->authorizePayroll(P::PREPARE);
         $payslip = Payslip::query()->findOrFail($line->payslip_id);
         $run = $this->ownedRun($payslip, $this->currentSpa());
+        $this->abortUnlessBranchInScope($payslip->home_branch_id);
 
         try {
             $settlement = $this->service->removeManualLine($line);
@@ -119,16 +125,8 @@ class PayslipController extends Controller
         return $run;
     }
 
-    private function authorizeEdit(): void
-    {
-        abort_unless((bool) Auth::user()?->hasBranchPermission('edit payroll'), 403);
-    }
-
     private function user(): User
     {
-        /** @var User $u */
-        $u = Auth::user();
-
-        return $u;
+        return $this->payrollUser();
     }
 }

@@ -55,13 +55,13 @@ class PayrollRunPagesTest extends TestCase
 
         $this->seed(\Database\Seeders\RolePermissionSeeder::class);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        Permission::findOrCreate('view payroll', 'web');
-        Permission::findOrCreate('edit payroll', 'web');
-        Role::findOrCreate('hr', 'web')->syncPermissions(['view payroll', 'edit payroll']);
+        // RBAC refactor: the test actor is a spa-wide HR Head holding every payroll
+        // permission (the shape of an owner fallback). The viewer is branch-scoped.
+        Role::findOrCreate('hr_head', 'web')->syncPermissions(\App\Services\Payroll\PayrollPermissions::ALL);
         Role::findOrCreate('payroll-viewer', 'web')->syncPermissions(['view payroll']);
 
         $this->hr = PayrollUserFactory::new()->create(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id]);
-        $this->hr->assignRole('hr');
+        $this->hr->assignRole('hr_head');
         $this->viewer = PayrollUserFactory::new()->create(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id]);
         $this->viewer->assignRole('payroll-viewer');
         foreach ([$this->hr, $this->viewer, $this->user] as $u) {
@@ -151,7 +151,7 @@ class PayrollRunPagesTest extends TestCase
             ->assertSee('Branch B')
             ->assertSee(route('payroll.setup.index', ['tab' => 'wages']), false)
             ->assertSee(route('payroll.staff.index', ['filter' => 'no_profile']), false)
-            ->assertSee('1 active staff member(s) have no pay profile');
+            ->assertSee('have no pay profile in effect today');
     }
 
     // =====================================================================
@@ -289,7 +289,7 @@ class PayrollRunPagesTest extends TestCase
 
         $this->actingAs($this->viewer)->get(route('payroll.runs.show', $run))
             ->assertOk()
-            ->assertSee('Approved by the person who generated it')
+            ->assertSee('Approved by the person who prepared it')
             ->assertSee($this->hr->name)
             ->assertDontSee('Add Adjustment');
     }
@@ -347,10 +347,13 @@ class PayrollRunPagesTest extends TestCase
         $run = $this->generateC1();
 
         $owner = PayrollUserFactory::new()->create();
-        $otherSpa = SpaFactory::new()->create(['owner_id' => $owner->id]);
-        $otherBranch = BranchFactory::new()->create(['spa_id' => $otherSpa->id]);
+        $otherSpa = SpaFactory::new()->create([
+            'owner_id' => $owner->id, 'verification_status' => 'verified',
+            'trial_used' => true, 'trial_started_at' => now()->subDay(), 'trial_ends_at' => now()->addYear(),
+        ]);
+        $otherBranch = BranchFactory::new()->create(['spa_id' => $otherSpa->id, 'verification_status' => 'verified']);
         $outsider = PayrollUserFactory::new()->create(['spa_id' => $otherSpa->id, 'branch_id' => $otherBranch->id]);
-        $outsider->assignRole('hr');
+        $outsider->assignRole('hr_head');   // every payroll permission, spa-wide — but another spa
 
         $this->actingAs($outsider)->get(route('payroll.runs.show', $run))->assertNotFound();
         $this->actingAs($outsider)->post(route('payroll.runs.approve', $run))->assertNotFound();

@@ -19,7 +19,7 @@ class RecruitmentWorkflowService
 {
     public function hasSpaWideAccess(User $user): bool
     {
-        return $user->hasRole('owner') || $user->hasRole('hr');
+        return $user->hasAnyRole(['owner', 'hr', 'hr_head']);
     }
 
     public function applicantsFor(User $user): Builder

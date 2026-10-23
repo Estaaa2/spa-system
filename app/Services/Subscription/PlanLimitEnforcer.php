@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\DB;
  */
 class PlanLimitEnforcer
 {
-    public const MANPOWER_ROLES = ['hr', 'finance'];
+    public const MANPOWER_ROLES = ['hr', 'finance', 'hr_head', 'finance_head'];
 
     /**
      * Applies the plan's staff limit to the spa.

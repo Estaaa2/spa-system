@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\HR\Concerns\AuthorizesPayroll;
 use App\Http\Controllers\HR\Concerns\HandlesPayrollSetupForms;
 use App\Models\Branch;
 use App\Models\Spa;
 use App\Models\Staff;
 use App\Models\StaffPayProfile;
 use App\Models\StaffRecurringItem;
+use App\Services\Payroll\PayrollPermissions as P;
 use App\Services\Payroll\PayrollSetupService;
 use App\Services\Payroll\StatutoryCalculator;
 use App\Services\Payroll\Support\Decimal;
@@ -23,11 +25,13 @@ use InvalidArgumentException;
 
 /**
  * Staff pay setup (Unit 5 B): index of active staff and the per-staff page (pay
- * profiles, statutory IDs, recurring items). Spa-wide. Routes (Unit 7): view with
- * `view payroll`, writes with `edit payroll`, via branch.permission.
+ * profiles, statutory IDs, recurring items). Access: view with `view payroll`, writes
+ * with `manage payroll setup`, full ID numbers with `reveal statutory ids`. HR Head,
+ * Finance Head and the owner see every branch; other roles only their own branch's staff.
  */
 class StaffPayProfileController extends Controller
 {
+    use AuthorizesPayroll;
     use HandlesPayrollSetupForms;
 
     public const ID_FIELDS = [
@@ -60,6 +64,7 @@ class StaffPayProfileController extends Controller
             ->with(['user.roles', 'branch' => fn ($q) => $q->withTrashed()])
             ->where('spa_id', $spa->id)
             ->where('employment_status', 'active')
+            ->when($this->payrollScope() !== null, fn ($q) => $q->where('branch_id', $this->payrollScope()))
             ->orderBy('id')
             ->get();
 
@@ -115,7 +120,7 @@ class StaffPayProfileController extends Controller
         $spa = $this->currentSpa();
         $this->assertOwned($staff, $spa);
 
-        $canEdit = Auth::user()?->hasBranchPermission('edit payroll') ?? false;
+        $canEdit = $this->canPayroll(P::MANAGE_SETUP);
         $home = $staff->branch_id ? Branch::withTrashed()->find($staff->branch_id) : null;
         $usage = $this->setup->staffUsage($staff);
 
@@ -153,6 +158,7 @@ class StaffPayProfileController extends Controller
                 && $home !== null
                 && ! $home->trashed(),
             'canEdit'        => $canEdit,
+            'canReveal'      => $this->canPayroll(P::REVEAL_IDS),
             'profiles'       => $profiles,
             'profileUsage'   => $usage['profiles'],
             'wageChecks'     => $wageChecks,
@@ -171,6 +177,7 @@ class StaffPayProfileController extends Controller
 
     public function storeProfile(Request $request, Staff $staff)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
 
         return $this->handleForm($request, 'profileCreate', $this->profileRules($request), function (array $data) use ($staff) {
@@ -186,6 +193,7 @@ class StaffPayProfileController extends Controller
 
     public function updateProfile(Request $request, Staff $staff, StaffPayProfile $profile)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $profile->staff_id === (int) $staff->id, 404);
 
@@ -199,6 +207,7 @@ class StaffPayProfileController extends Controller
 
     public function destroyProfile(Request $request, Staff $staff, StaffPayProfile $profile)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $profile->staff_id === (int) $staff->id, 404);
 
@@ -218,6 +227,7 @@ class StaffPayProfileController extends Controller
      */
     public function updateStatutoryIds(Request $request, Staff $staff)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
         $this->assertOwned($staff, $spa);
 
@@ -256,10 +266,11 @@ class StaffPayProfileController extends Controller
      * Returns the plaintext numbers for the Reveal button. POST (CSRF-protected, never
      * prefetched or cached) and logged: the Data Privacy Act treats government-issued
      * numbers as sensitive personal information (RA 10173 Sec. 3(l)), and access logs
-     * are an expected technical safeguard (Sec. 20). Route: `edit payroll`.
+     * are an expected technical safeguard (Sec. 20). Route: `reveal statutory ids`.
      */
     public function revealStatutoryIds(Request $request, Staff $staff): JsonResponse
     {
+        $this->authorizePayroll(P::REVEAL_IDS);
         $spa = $this->currentSpa();
         $this->assertOwned($staff, $spa);
 
@@ -285,6 +296,7 @@ class StaffPayProfileController extends Controller
 
     public function storeRecurring(Request $request, Staff $staff)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         $kind = $request->input('kind');
 
@@ -312,6 +324,7 @@ class StaffPayProfileController extends Controller
 
     public function stopRecurring(Request $request, Staff $staff, StaffRecurringItem $item)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $item->staff_id === (int) $staff->id, 404);
 
@@ -326,6 +339,7 @@ class StaffPayProfileController extends Controller
 
     public function destroyRecurring(Request $request, Staff $staff, StaffRecurringItem $item)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $item->staff_id === (int) $staff->id, 404);
 
@@ -344,6 +358,7 @@ class StaffPayProfileController extends Controller
     private function assertOwned(Staff $staff, Spa $spa): void
     {
         abort_unless((int) $staff->spa_id === (int) $spa->id, 404);
+        $this->abortUnlessBranchInScope($staff->branch_id);
     }
 
     private function toStaff(Staff $staff, string $section)

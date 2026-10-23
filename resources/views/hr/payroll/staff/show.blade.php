@@ -300,14 +300,18 @@
                 <h2 id="idsTitle" class="text-base font-semibold text-gray-900 dark:text-white">Statutory IDs</h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Stored encrypted. Contributions and tax are computed without them, but remittance needs every number.</p>
             </div>
-            @if($canEdit)
+            @if($canEdit || ($canReveal ?? false))
                 <div class="flex flex-wrap gap-2 shrink-0">
-                    <button type="button" id="revealIds" class="{{ $btn['neutral'] }}" aria-pressed="false" onclick="toggleReveal()">
-                        <i class="text-xs fa-solid fa-eye" aria-hidden="true"></i><span>Reveal</span>
-                    </button>
-                    <button type="button" class="{{ $btn['edit'] }}" onclick="openIdsModal()">
-                        <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span>Edit IDs</span>
-                    </button>
+                    @if($canReveal ?? false)
+                        <button type="button" id="revealIds" class="{{ $btn['neutral'] }}" aria-pressed="false" onclick="toggleReveal()">
+                            <i class="text-xs fa-solid fa-eye" aria-hidden="true"></i><span>Reveal</span>
+                        </button>
+                    @endif
+                    @if($canEdit)
+                        <button type="button" class="{{ $btn['edit'] }}" onclick="openIdsModal()">
+                            <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span>Edit IDs</span>
+                        </button>
+                    @endif
                 </div>
             @endif
         </div>
@@ -318,7 +322,7 @@
                     <dd class="mt-2">
                         @if($i['state'] === 'set')
                             <span class="font-mono text-sm text-gray-900 dark:text-white" data-masked>{{ $i['masked'] }}</span>
-                            @if($canEdit)
+                            @if($canReveal ?? false)
                                 {{-- Filled only by the logged Reveal request; never rendered server-side. --}}
                                 <span class="hidden font-mono text-sm text-gray-900 dark:text-white" data-plain="{{ $attr }}"></span>
                             @endif
@@ -740,6 +744,9 @@
         syncKind(codeSel.dataset.old);
     }
 
+@endif
+
+@if($canReveal ?? false)
     // ── Statutory IDs: masked by default. Reveal asks the server (POST, logged, no-store);
     //    the numbers are dropped from the DOM again on Hide.
     const ROUTE_REVEAL = @json(route('payroll.staff.ids.reveal', $staff));
@@ -774,6 +781,9 @@
         document.querySelectorAll('#ids [data-masked]').forEach(el => el.classList.toggle('hidden', show));
     }
     window.toggleReveal = toggleReveal;
+@endif
+
+@if($canEdit)
 
     // ════════════════════════════════════════════════════════════════
     // SHARED MODAL BEHAVIOUR (same as staff/index.blade.php)

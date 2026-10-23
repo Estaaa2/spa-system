@@ -943,7 +943,7 @@ Route::middleware([
     });
 
     // Attendance & Leave
-    Route::middleware('branch.permission:view attendance,view leave requests,create leave requests,edit leave requests,delete leave requests')->group(function () {
+    Route::middleware('branch.permission:view attendance,view leave requests,create leave requests,edit leave requests')->group(function () {
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     });
 
@@ -971,7 +971,13 @@ Route::middleware([
         Route::post('/leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])->name('leave-requests.reject');
     });
 
-    // Payroll  Owner and HR only, via `view payroll` / `edit payroll`.
+    // Payroll — six permissions (App\Services\Payroll\PayrollPermissions). Routes
+    // check the permission; controllers also check the branch scope: HR Head,
+    // Finance Head and the owner act on every branch, other roles only on their own
+    // branch's staff, and spa-wide actions (generate/approve/finalize/release a run,
+    // the pay schedule, "All branches" commission rules) need a spa-wide role.
+    // Payroll and My Payslips stay reachable on a locked branch
+    // (EnsureBranchOperational::ALWAYS_ALLOWED); the spa-level lock still applies.
     // In each group, static URIs are registered before parameterised ones so a
     // static segment is never captured as a parameter (/payroll/runs/preview must
     // come before /payroll/runs/{run}).
@@ -993,26 +999,47 @@ Route::middleware([
         Route::get('/payroll/staff/{staff}', [StaffPayProfileController::class, 'show'])->name('payroll.staff.show');
     });
 
+    // Prepare: generate / regenerate / delete drafts, manual adjustment lines.
     Route::middleware([
-        'branch.permission:edit payroll',
+        'branch.permission:prepare payroll runs',
+        'plan:payroll',
+    ])->group(function () {
+        Route::post('/payroll/runs', [PayrollController::class, 'store'])->name('payroll.runs.store');
+        Route::post('/payroll/runs/{run}/regenerate', [PayrollController::class, 'regenerate'])->name('payroll.runs.regenerate');
+        Route::delete('/payroll/runs/{run}', [PayrollController::class, 'destroy'])->name('payroll.runs.destroy');
+        Route::post('/payroll/payslips/{payslip}/lines', [PayslipController::class, 'storeLine'])->name('payroll.payslips.lines.store');
+        Route::delete('/payroll/lines/{line}', [PayslipController::class, 'destroyLine'])->name('payroll.lines.destroy');
+    });
+
+    // Approve: approve, send back to draft.
+    Route::middleware([
+        'branch.permission:approve payroll runs',
+        'plan:payroll',
+    ])->group(function () {
+        Route::post('/payroll/runs/{run}/approve', [PayrollController::class, 'approve'])->name('payroll.runs.approve');
+        Route::post('/payroll/runs/{run}/send-back', [PayrollController::class, 'sendBack'])->name('payroll.runs.send-back');
+    });
+
+    // Release: finalize, release payslips.
+    Route::middleware([
+        'branch.permission:release payroll runs',
+        'plan:payroll',
+    ])->group(function () {
+        Route::post('/payroll/runs/{run}/finalize', [PayrollController::class, 'finalize'])->name('payroll.runs.finalize');
+        Route::post('/payroll/runs/{run}/release', [PayrollController::class, 'release'])->name('payroll.runs.release');
+    });
+
+    // Setup: schedule, branch wages, commission rules, staff pay profiles,
+    // recurring items, statutory ID entry.
+    Route::middleware([
+        'branch.permission:manage payroll setup',
         'plan:payroll',
     ])->group(function () {
         // Static
-        Route::post('/payroll/runs', [PayrollController::class, 'store'])->name('payroll.runs.store');
         Route::put('/payroll/setup/schedule', [PayrollSetupController::class, 'updateSchedule'])->name('payroll.setup.schedule');
         Route::post('/payroll/setup/commission-rules', [PayrollSetupController::class, 'storeRule'])->name('payroll.setup.rules.store');
 
-        // Parameterised runs, payslips and manual adjustment lines (Unit 6)
-        Route::post('/payroll/runs/{run}/regenerate', [PayrollController::class, 'regenerate'])->name('payroll.runs.regenerate');
-        Route::delete('/payroll/runs/{run}', [PayrollController::class, 'destroy'])->name('payroll.runs.destroy');
-        Route::post('/payroll/runs/{run}/approve', [PayrollController::class, 'approve'])->name('payroll.runs.approve');
-        Route::post('/payroll/runs/{run}/send-back', [PayrollController::class, 'sendBack'])->name('payroll.runs.send-back');
-        Route::post('/payroll/runs/{run}/finalize', [PayrollController::class, 'finalize'])->name('payroll.runs.finalize');
-        Route::post('/payroll/runs/{run}/release', [PayrollController::class, 'release'])->name('payroll.runs.release');
-        Route::post('/payroll/payslips/{payslip}/lines', [PayslipController::class, 'storeLine'])->name('payroll.payslips.lines.store');
-        Route::delete('/payroll/lines/{line}', [PayslipController::class, 'destroyLine'])->name('payroll.lines.destroy');
-
-        // Parameterised payroll setup and staff pay (Unit 5)
+        // Parameterised
         Route::put('/payroll/setup/branches/{branch}/wage', [PayrollSetupController::class, 'updateBranchWage'])->name('payroll.setup.wages.update');
         Route::put('/payroll/setup/commission-rules/{rule}', [PayrollSetupController::class, 'updateRule'])->name('payroll.setup.rules.update');
         Route::post('/payroll/setup/commission-rules/{rule}/change', [PayrollSetupController::class, 'supersedeRule'])->name('payroll.setup.rules.supersede');
@@ -1022,11 +1049,18 @@ Route::middleware([
         Route::post('/payroll/staff/{staff}/profiles', [StaffPayProfileController::class, 'storeProfile'])->name('payroll.staff.profiles.store');
         Route::put('/payroll/staff/{staff}/profiles/{profile}', [StaffPayProfileController::class, 'updateProfile'])->name('payroll.staff.profiles.update');
         Route::delete('/payroll/staff/{staff}/profiles/{profile}', [StaffPayProfileController::class, 'destroyProfile'])->name('payroll.staff.profiles.destroy');
-        Route::post('/payroll/staff/{staff}/statutory-ids/reveal', [StaffPayProfileController::class, 'revealStatutoryIds'])->name('payroll.staff.ids.reveal');
         Route::put('/payroll/staff/{staff}/statutory-ids', [StaffPayProfileController::class, 'updateStatutoryIds'])->name('payroll.staff.ids.update');
         Route::post('/payroll/staff/{staff}/recurring', [StaffPayProfileController::class, 'storeRecurring'])->name('payroll.staff.recurring.store');
         Route::post('/payroll/staff/{staff}/recurring/{item}/stop', [StaffPayProfileController::class, 'stopRecurring'])->name('payroll.staff.recurring.stop');
         Route::delete('/payroll/staff/{staff}/recurring/{item}', [StaffPayProfileController::class, 'destroyRecurring'])->name('payroll.staff.recurring.destroy');
+    });
+
+    // Reveal full statutory ID numbers (logged).
+    Route::middleware([
+        'branch.permission:reveal statutory ids',
+        'plan:payroll',
+    ])->group(function () {
+        Route::post('/payroll/staff/{staff}/statutory-ids/reveal', [StaffPayProfileController::class, 'revealStatutoryIds'])->name('payroll.staff.ids.reveal');
     });
 
     // My Payslips (Unit 6) identity-based self-service, deliberately not

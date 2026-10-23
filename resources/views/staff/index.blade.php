@@ -32,6 +32,8 @@
         'receptionist' => 0,
         'hr' => 0,
         'finance' => 0,
+        'hr_head' => 0,
+        'finance_head' => 0,
     ];
 
     // One pass over the collection resolves the role for every member and keeps
@@ -44,7 +46,8 @@
             $roleCounts[$role]++;
         }
     }
-    $professionalRolesCount = $roleCounts['hr'] + $roleCounts['finance'];
+    $professionalRolesCount = $roleCounts['hr'] + $roleCounts['finance'] + $roleCounts['hr_head'] + $roleCounts['finance_head'];
+    $headRoles = \App\Services\Payroll\PayrollPermissions::HEAD_ROLES;
 
     // Role badge colours. Hoisted out of the row loop so the array is built once
     // instead of once per staff member. Families follow the canon status palette
@@ -55,6 +58,8 @@
         'receptionist' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
         'hr'           => 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
         'finance'      => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+        'hr_head'      => 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+        'finance_head' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
     ];
     $roleColorFallback = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
 
@@ -349,6 +354,13 @@
                                             Finance
                                         </option>
                                     </optgroup>
+                                    {{-- Central roles: one of each per spa, assigned by the owner only. --}}
+                                    @if($isOwner)
+                                        <optgroup label="All-Branch Roles">
+                                            <option value="hr_head" {{ old('roles') === 'hr_head' ? 'selected' : '' }}>HR Head</option>
+                                            <option value="finance_head" {{ old('roles') === 'finance_head' ? 'selected' : '' }}>Finance Head</option>
+                                        </optgroup>
+                                    @endif
                                 @endif
                             </select>
                             @error('roles')
@@ -445,8 +457,8 @@
                         <td role="cell" data-label="Role" class="px-6 py-4">
                             @if($role)
                                 <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full {{ $colorClass }}">
-                                    {{ ucfirst($role) }}
-                                    @if(in_array($role, ['hr', 'finance']))
+                                    {{ \App\Services\Payroll\PayrollPermissions::roleLabel($role) }}
+                                    @if(in_array($role, ['hr', 'finance', 'hr_head', 'finance_head']))
                                         <i class="fa-solid fa-star text-[10px]" aria-hidden="true"></i>
                                     @endif
                                 </span>
@@ -471,7 +483,7 @@
                         @if($showActions)
                         <td role="cell" data-label="Actions" class="px-6 py-4 rt-actions">
                             <div class="flex flex-wrap gap-2">
-                                @if($canEditStaff)
+                                @if($canEditStaff && ($isOwner || ! in_array($role, $headRoles, true)))
                                 <button
                                     type="button"
                                     onclick='editStaff({{ $member->id }}, {{ $hasManpower ? 'true' : 'false' }}, @json($role), @json($displayName))'
@@ -481,7 +493,7 @@
                                     <span>Edit</span>
                                 </button>
                                 @endif
-                                @if($canDeleteStaff)
+                                @if($canDeleteStaff && ($isOwner || ! in_array($role, $headRoles, true)))
                                 <button
                                     type="button"
                                     onclick='openDeleteModal({{ $member->id }}, @json($shortName))'
@@ -692,6 +704,8 @@
 
     // HR and Finance options are available only when the spa has the
     // Premium plan's manpower feature.
+    const IS_OWNER = @json($isOwner);
+
     function editStaff(staffId, hasManpower, currentRole, staffName) {
         hasManpower = hasManpower === true;
         currentRole = currentRole || '';
@@ -703,6 +717,11 @@
                 <option value="hr"${sel('hr')}>HR</option>
                 <option value="finance"${sel('finance')}>Finance</option>
             </optgroup>
+            ${IS_OWNER ? `
+            <optgroup label="All-Branch Roles">
+                <option value="hr_head"${sel('hr_head')}>HR Head</option>
+                <option value="finance_head"${sel('finance_head')}>Finance Head</option>
+            </optgroup>` : ''}
         ` : '';
 
         // If the member's current role isn't in the list this select can offer,

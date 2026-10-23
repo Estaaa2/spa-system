@@ -5,12 +5,15 @@ namespace App\Http\Controllers\HR;
 use App\Exceptions\PayrollSetupException;
 use App\Exceptions\PayrollStateException;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\HR\Concerns\AuthorizesPayroll;
 use App\Http\Controllers\HR\Concerns\HandlesPayrollSetupForms;
 use App\Models\PayrollRun;
 use App\Models\Spa;
+use App\Models\Staff;
 use App\Models\User;
 use App\Services\Payroll\Display\PayrollDisplay;
 use App\Services\Payroll\PayrollRunReadModel;
+use App\Services\Payroll\PayrollPermissions as P;
 use App\Services\Payroll\PayrollRunService;
 use App\Services\Payroll\PayrollRunWarnings;
 use Illuminate\Http\JsonResponse;
@@ -29,12 +32,15 @@ use InvalidArgumentException;
  * released steps. Spa-wide (consolidated runs, locked data model v3.1).
  *
  * Thin: every calculation and state change is PayrollRunService (Unit 4); reads are
- * PayrollRunReadModel. Routes (Unit 7): pages with `view payroll`, every POST/DELETE
- * with `edit payroll`, via branch.permission. Write actions re-check `edit payroll`
- * as a second line of defence (same check the middleware uses; RBAC is not changed).
+ * PayrollRunReadModel. Access (RBAC refactor): pages need `view payroll`; generate,
+ * regenerate and delete need `prepare payroll runs`; approve and send back need
+ * `approve payroll runs`; finalize and release need `release payroll runs`. A run
+ * always covers every branch, so those actions also need a spa-wide role (owner,
+ * HR Head, Finance Head). Branch-scoped viewers only see their own branch's rows.
  */
 class PayrollController extends Controller
 {
+    use AuthorizesPayroll;
     use HandlesPayrollSetupForms;
 
     public function __construct(
@@ -60,15 +66,20 @@ class PayrollController extends Controller
         $type = in_array($request->query('type'), [PayrollRun::TYPE_REGULAR, PayrollRun::TYPE_THIRTEENTH_MONTH], true) ? $request->query('type') : null;
         $status = array_key_exists((string) $request->query('status'), PayrollDisplay::STATUS) ? $request->query('status') : null;
 
+        $scope = $this->payrollScope();
+
         return view('hr.payroll.index', [
-            'spa'       => $spa,
-            'years'     => $years,
-            'filters'   => ['year' => $year, 'type' => $type, 'status' => $status],
-            'runs'      => $this->read->runsIndex($spa, $year, $type, $status),
-            'summary'   => $this->read->indexSummary($spa, $year),
-            'gaps'      => $this->read->setupGaps($spa),
-            'suggested' => $this->suggestedPeriod($spa),
-            'canEdit'   => $this->canEdit(),
+            'spa'         => $spa,
+            'years'       => $years,
+            'filters'     => ['year' => $year, 'type' => $type, 'status' => $status],
+            'runs'        => $this->read->runsIndex($spa, $year, $type, $status, $scope),
+            'summary'     => $this->read->indexSummary($spa, $year, $scope),
+            'gaps'        => $this->read->setupGaps($spa),
+            'suggested'   => $this->suggestedPeriod($spa),
+            // New Run = generate, which covers every branch.
+            'canEdit'     => $this->canSpaWide(P::PREPARE),
+            'scopeBranch' => $scope === null ? null : \App\Models\Branch::withTrashed()->whereKey($scope)->value('name'),
+            'ownerNotice' => $this->ownerNotice($spa),
         ]);
     }
 
@@ -95,7 +106,7 @@ class PayrollController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeEdit();
+        $this->authorizeSpaWide(P::PREPARE);
         $spa = $this->currentSpa();
 
         $v = Validator::make($request->all(), $this->generateRules($request));
@@ -128,15 +139,22 @@ class PayrollController extends Controller
         $this->assertOwned($run, $spa);
 
         $cached = $this->warnings->get($run);
-        $branchId = $request->integer('branch') ?: null;
+        $scope = $this->payrollScope();
+        $branchId = $this->scopedBranchFilter($request->integer('branch') ?: null);
         $register = $this->read->register($run, $branchId);
-        if ($branchId !== null && ! array_key_exists($branchId, $register['branches'])) {
+        if ($scope === null && $branchId !== null && ! array_key_exists($branchId, $register['branches'])) {
             $branchId = null;
             $register = $this->read->register($run, null);
         }
 
-        $warnings = collect($cached['warnings'] ?? [])
-            ->groupBy(fn (array $w) => PayrollDisplay::warningGroup($w['code']));
+        $warnings = collect($cached['warnings'] ?? []);
+        if ($scope !== null) {
+            // Branch-scoped users see run-level notes and warnings about their own
+            // branch's staff only — warnings name people from every branch.
+            $inScope = Staff::withTrashed()->where('spa_id', $spa->id)->where('branch_id', $scope)->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $warnings = $warnings->filter(fn (array $w) => ($w['staff_id'] ?? null) === null || in_array((int) $w['staff_id'], $inScope, true))->values();
+        }
+        $warnings = $warnings->groupBy(fn (array $w) => PayrollDisplay::warningGroup($w['code']));
 
         return view('hr.payroll.runs.show', [
             'spa'          => $spa,
@@ -147,7 +165,14 @@ class PayrollController extends Controller
             'cached'       => $cached,
             'warnings'     => $warnings,
             'summary'      => $this->read->contributionSummary($spa, $run, $branchId),
-            'canEdit'      => $this->canEdit(),
+            'perm'         => [
+                'prepare_run' => $this->canSpaWide(P::PREPARE),   // regenerate, delete
+                'adjust'      => $this->canPayroll(P::PREPARE),   // rows shown are already in scope
+                'approve'     => $this->canSpaWide(P::APPROVE),   // approve, send back
+                'release'     => $this->canSpaWide(P::RELEASE),   // finalize, release
+            ],
+            'branchLocked' => $scope !== null,
+            'preparedByMe' => $this->read->preparedBy($run, (int) $this->payrollUser()->id),
             'manualCodes'  => PayrollRunService::MANUAL_CODES,
         ]);
     }
@@ -161,9 +186,13 @@ class PayrollController extends Controller
     {
         $this->assertOwned($run, $this->currentSpa());
 
+        $scope = $this->payrollScope();
         $branches = $this->read->register($run, null)['branches'];
-        $branchId = $request->integer('branch') ?: null;
-        if ($branchId !== null && ! array_key_exists($branchId, $branches)) {
+        if ($scope !== null) {
+            $branches = array_intersect_key($branches, [$scope => true]);
+        }
+        $branchId = $this->scopedBranchFilter($request->integer('branch') ?: null);
+        if ($scope === null && $branchId !== null && ! array_key_exists($branchId, $branches)) {
             $branchId = null;
         }
 
@@ -180,7 +209,7 @@ class PayrollController extends Controller
 
     public function regenerate(PayrollRun $run): RedirectResponse
     {
-        $this->authorizeEdit();
+        $this->authorizeSpaWide(P::PREPARE);
         $spa = $this->currentSpa();
         $this->assertOwned($run, $spa);
 
@@ -205,7 +234,7 @@ class PayrollController extends Controller
      */
     public function destroy(PayrollRun $run): RedirectResponse
     {
-        $this->authorizeEdit();
+        $this->authorizeSpaWide(P::PREPARE);
         $this->assertOwned($run, $this->currentSpa());
 
         try {
@@ -231,34 +260,31 @@ class PayrollController extends Controller
         /** The run page shows every saved warning next to the Approve button; the approver is recorded on the run. */
     public function approve(PayrollRun $run): RedirectResponse
     {
-        $this->authorizeEdit();
-        $this->assertOwned($run, $this->currentSpa());
-
-        return $this->step($run, fn (PayrollRun $r, User $u) => $this->service->approve($r, $u), 'Run approved. It can now be finalized, or sent back to draft for changes.');
+        return $this->step($run, P::APPROVE, fn (PayrollRun $r, User $u) => $this->service->approve($r, $u), 'Run approved. It can now be finalized, or sent back to draft for changes.');
     }
 
     public function sendBack(PayrollRun $run): RedirectResponse
     {
-        return $this->step($run, fn (PayrollRun $r, User $u) => $this->service->sendBackToDraft($r, $u), 'Run sent back to draft. The approval was cleared.');
+        return $this->step($run, P::APPROVE, fn (PayrollRun $r, User $u) => $this->service->sendBackToDraft($r, $u), 'Run sent back to draft. The approval was cleared.');
     }
 
     public function finalize(PayrollRun $run): RedirectResponse
     {
-        return $this->step($run, fn (PayrollRun $r, User $u) => $this->service->finalize($r, $u), 'Run finalized. The register is locked; later corrections go into a future run as adjustments.');
+        return $this->step($run, P::RELEASE, fn (PayrollRun $r, User $u) => $this->service->finalize($r, $u), 'Run finalized. The register is locked; later corrections go into a future run as adjustments.');
     }
 
     public function release(PayrollRun $run): RedirectResponse
     {
-        return $this->step($run, fn (PayrollRun $r, User $u) => $this->service->release($r, $u), 'Payslips released. Staff can now see them under My Payslips.');
+        return $this->step($run, P::RELEASE, fn (PayrollRun $r, User $u) => $this->service->release($r, $u), 'Payslips released. Staff can now see them under My Payslips.');
     }
 
     // =====================================================================
     // Internals
     // =====================================================================
 
-    private function step(PayrollRun $run, callable $action, string $message): RedirectResponse
+    private function step(PayrollRun $run, string $permission, callable $action, string $message): RedirectResponse
     {
-        $this->authorizeEdit();
+        $this->authorizeSpaWide($permission);
         $this->assertOwned($run, $this->currentSpa());
 
         try {
@@ -328,21 +354,41 @@ class PayrollController extends Controller
         abort_unless((int) $run->spa_id === (int) $spa->id, 404);
     }
 
-    private function canEdit(): bool
+    /**
+     * Owners are view-only for payroll by default. When the spa has nobody who can
+     * prepare or approve a run, tell the owner how to keep payroll running
+     * (self-grant on Roles & Permissions). Disappears once someone can.
+     *
+     * @return list<string>|null
+     */
+    private function ownerNotice(Spa $spa): ?array
     {
-        return (bool) Auth::user()?->hasBranchPermission('edit payroll');
-    }
+        $user = $this->payrollUser();
+        if (! $user->hasRole('owner')) {
+            return null;
+        }
 
-    private function authorizeEdit(): void
-    {
-        abort_unless($this->canEdit(), 403);
+        $hasActive = fn (string $role) => Staff::query()
+            ->where('spa_id', $spa->id)->where('employment_status', 'active')
+            ->whereHas('user', fn ($q) => $q->role($role))
+            ->exists();
+
+        $missing = [];
+        if (! $this->canPayroll(P::PREPARE) && ! $hasActive(P::ROLE_HR_HEAD)) {
+            $missing[] = 'prepare pay runs (no HR Head)';
+        }
+        if (! $this->canPayroll(P::APPROVE) && ! $hasActive(P::ROLE_FINANCE_HEAD)) {
+            $missing[] = 'approve pay runs (no Finance Head)';
+        }
+        if (! $this->canPayroll(P::RELEASE) && ! $hasActive(P::ROLE_FINANCE_HEAD)) {
+            $missing[] = 'finalize and release pay runs (no Finance Head)';
+        }
+
+        return $missing === [] ? null : $missing;
     }
 
     private function user(): User
     {
-        /** @var User $u */
-        $u = Auth::user();
-
-        return $u;
+        return $this->payrollUser();
     }
 }

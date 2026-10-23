@@ -129,6 +129,38 @@
         </div>
     @endif
 
+    @if (! empty($ownerNotice ?? null))
+        {{-- Owners view payroll by default (adviser requirement); this shows only while nobody can run it. --}}
+        <div role="status" class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                        <i class="mr-1 fa-solid fa-circle-info" aria-hidden="true"></i>
+                        Owners can view payroll but not run it by default
+                    </p>
+                    <p class="mt-1 text-sm text-amber-800 dark:text-amber-300">
+                        Nobody in your spa can {{ implode(', ', $ownerNotice) }}. Add an HR Head and a Finance Head on the Staff page, or give the Owner role these payroll permissions on Roles &amp; Permissions.
+                    </p>
+                </div>
+                @if (Route::has('owner.roles-permissions.index'))
+                    <a href="{{ route('owner.roles-permissions.index') }}" class="{{ $btn['edit'] }} shrink-0">
+                        <i class="text-xs fa-solid fa-user-shield" aria-hidden="true"></i>
+                        Roles &amp; Permissions
+                    </a>
+                @endif
+            </div>
+        </div>
+    @endif
+
+    @if ($scopeBranch ?? null)
+        <div role="note" class="p-4 border border-blue-200 rounded-2xl bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800">
+            <p class="text-sm text-blue-800 dark:text-blue-300">
+                <i class="mr-1 fa-solid fa-code-branch" aria-hidden="true"></i>
+                Staff counts and totals show <strong>{{ $scopeBranch }}</strong> only. Pay runs cover every branch and are prepared by the HR Head.
+            </p>
+        </div>
+    @endif
+
     {{-- Setup gaps --}}
     @if ($hasGaps)
         <div
