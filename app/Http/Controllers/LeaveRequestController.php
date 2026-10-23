@@ -91,6 +91,7 @@ class LeaveRequestController extends Controller
             ->where('spa_id', $user->spa_id)
             ->where('branch_id', $branchId)
             ->where('status', 'pending')
+            ->where('user_id', '!=', $user->id) // nobody reviews their own leave
             ->orderBy('created_at')
             ->get()
             ->map(fn ($r) => $this->formatRequest($r));
@@ -106,7 +107,14 @@ class LeaveRequestController extends Controller
         $user        = Auth::user();
         $canReassign = $user->hasBranchPermission('edit leave requests');
 
-        abort_unless($leaveRequest->user_id === $user->id || $canReassign, 403);
+        $isOwn = (int) $leaveRequest->user_id === (int) $user->id;
+
+        abort_unless($isOwn || $canReassign, 403);
+
+        // A reviewer may only read leave requests of their own spa and current branch.
+        if (! $isOwn) {
+            $this->abortUnlessInReviewerScope($leaveRequest);
+        }
 
         if (!$leaveRequest->user?->hasRole('therapist')) {
             return response()->json([]);
@@ -171,6 +179,12 @@ class LeaveRequestController extends Controller
     // =====================================================
     public function approve(Request $request, LeaveRequest $leaveRequest)
     {
+        $this->abortUnlessInReviewerScope($leaveRequest);
+
+        if ($denied = $this->denyOwnReview($leaveRequest)) {
+            return $denied;
+        }
+
         if (!$leaveRequest->isPending()) {
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
         }
@@ -183,7 +197,16 @@ class LeaveRequestController extends Controller
 
         $resolvedCount = 0;
 
-        DB::transaction(function () use ($leaveRequest, $validated, &$resolvedCount) {
+        $alreadyReviewed = false;
+
+        DB::transaction(function () use ($leaveRequest, $validated, &$resolvedCount, &$alreadyReviewed) {
+            // Re-check under a row lock so two reviewers cannot both approve.
+            $locked = LeaveRequest::whereKey($leaveRequest->getKey())->lockForUpdate()->first();
+            if (!$locked || !$locked->isPending()) {
+                $alreadyReviewed = true;
+                return;
+            }
+
             $leaveRequest->update([
                 'status'      => 'approved',
                 'reviewed_by' => Auth::id(),
@@ -194,8 +217,14 @@ class LeaveRequestController extends Controller
             $this->autoFlagAffectedBookings($leaveRequest);
 
             foreach ($validated['reassignments'] ?? [] as $pick) {
+                // Only bookings of this leave's own therapist, spa and branch can be
+                // reassigned here; any other booking_id in the request is ignored.
                 $reassignment = ReassignmentRequest::where('booking_id', $pick['booking_id'])
                     ->where('status', 'pending')
+                    ->whereHas('booking', fn ($q) => $q
+                        ->where('spa_id', $leaveRequest->spa_id)
+                        ->where('branch_id', $leaveRequest->branch_id)
+                        ->where('therapist_id', $leaveRequest->user_id))
                     ->first();
 
                 if (!$reassignment) {
@@ -204,6 +233,19 @@ class LeaveRequestController extends Controller
 
                 $booking        = $reassignment->booking;
                 $newTherapistId = (int) $pick['new_therapist_id'];
+
+                // The replacement must be an active therapist of the same spa and branch.
+                $eligible = User::role('therapist')
+                    ->whereKey($newTherapistId)
+                    ->whereHas('staff', fn ($q) => $q
+                        ->where('spa_id', $booking->spa_id)
+                        ->where('branch_id', $booking->branch_id)
+                        ->where('employment_status', 'active'))
+                    ->exists();
+
+                if (!$eligible || $newTherapistId === (int) $leaveRequest->user_id) {
+                    continue; // leave it pending — approver resolves manually on Appointments
+                }
 
                 $conflict = Booking::where('id', '!=', $booking->id)
                     ->where('branch_id', $booking->branch_id)
@@ -228,6 +270,10 @@ class LeaveRequestController extends Controller
             }
         });
 
+        if ($alreadyReviewed) {
+            return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
+
         $leaveUser = $leaveRequest->user;
         if ($leaveUser?->email) {
             try {
@@ -250,6 +296,12 @@ class LeaveRequestController extends Controller
     // =====================================================
     public function reject(Request $request, LeaveRequest $leaveRequest)
     {
+        $this->abortUnlessInReviewerScope($leaveRequest);
+
+        if ($denied = $this->denyOwnReview($leaveRequest)) {
+            return $denied;
+        }
+
         $validated = $request->validate([
             'rejection_reason' => ['required', 'string', 'min:5', 'max:500'],
         ]);
@@ -258,12 +310,21 @@ class LeaveRequestController extends Controller
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
         }
 
-        $leaveRequest->update([
-            'status'           => 'rejected',
-            'rejection_reason' => $validated['rejection_reason'],
-            'reviewed_by'      => Auth::id(),
-            'reviewed_at'      => now(),
-        ]);
+        // Conditional update so a request approved a moment ago is not overwritten.
+        $updated = LeaveRequest::whereKey($leaveRequest->getKey())
+            ->where('status', 'pending')
+            ->update([
+                'status'           => 'rejected',
+                'rejection_reason' => $validated['rejection_reason'],
+                'reviewed_by'      => Auth::id(),
+                'reviewed_at'      => now(),
+            ]);
+
+        if ($updated === 0) {
+            return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
+
+        $leaveRequest->refresh();
 
         $leaveUser = $leaveRequest->user;
         if ($leaveUser?->email) {
@@ -342,8 +403,38 @@ class LeaveRequestController extends Controller
     }
 
     // =====================================================
-    // Helper
+    // Helpers
     // =====================================================
+
+    /**
+     * A reviewer acts only on leave requests of their own spa and current branch
+     * (the same scope as the pending queue in index()). Anything else is a 404, so
+     * the response never confirms that another spa's request exists.
+     */
+    private function abortUnlessInReviewerScope(LeaveRequest $leave): void
+    {
+        $user     = Auth::user();
+        $branchId = $user->currentBranchId() ?? $user->branch_id;
+
+        abort_unless(
+            (int) $leave->spa_id === (int) $user->spa_id
+            && (int) $leave->branch_id === (int) $branchId,
+            404
+        );
+    }
+
+    /** Nobody approves or rejects their own leave request. */
+    private function denyOwnReview(LeaveRequest $leave): ?\Illuminate\Http\JsonResponse
+    {
+        if ((int) $leave->user_id !== (int) Auth::id()) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => 'You cannot review your own leave request. Another approver must review it.',
+        ], 403);
+    }
+
     private function formatRequest(LeaveRequest $r): array
     {
         return [
