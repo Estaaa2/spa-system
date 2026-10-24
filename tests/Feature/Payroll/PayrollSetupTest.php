@@ -200,9 +200,9 @@ class PayrollSetupTest extends TestCase
 
         $preview('treatment_'.$t->id)->assertOk()->assertJsonPath('tier', 'branch_default');
 
-        $this->actingAs($this->hr)->post(route('payroll.setup.rules.store'), [
-            'branch_id' => '', 'target_type' => 'treatment', 'target_id' => $t->id, 'method' => 'flat', 'value' => '150', 'effective_from' => '2026-01-01',
-        ])->assertSessionHasNoErrors();
+        // "All branches + this service" is no longer offered (Phase 6, S9), but rules saved
+        // that way before keep their place in the engine's order.
+        $this->rule(['target_type' => 'treatment', 'target_id' => $t->id, 'method' => 'flat', 'value' => '150']);
         $preview('treatment_'.$t->id)->assertJsonPath('tier', 'spa_target')->assertJsonPath('rule.method', 'flat');
 
         $this->actingAs($this->hr)->post(route('payroll.setup.rules.store'), [
@@ -413,19 +413,62 @@ class PayrollSetupTest extends TestCase
         $this->assertSame('123', $this->staff->fresh()->pagibig_no);
     }
 
-    public function test_branch_rule_for_another_branchs_treatment_is_refused(): void
+    public function test_service_rule_is_pinned_to_the_branch_that_sells_it(): void
     {
+        // S9: the branch is taken from the treatment, whatever was submitted
+        // ("All branches", another branch, or a stale form).
         $tB = $this->treatment('1000.00', $this->branchB);
 
-        $this->actingAs($this->hr)->post(route('payroll.setup.rules.store'), [
-            'branch_id' => $this->branchA->id, 'target_type' => 'treatment', 'target_id' => $tB->id,
-            'method' => 'percent', 'value' => '10', 'effective_from' => '2026-01-01',
-        ])->assertSessionHasErrors('target_id', null, 'ruleCreate');
+        foreach (['', $this->branchA->id] as $i => $submitted) {
+            $this->actingAs($this->hr)->post(route('payroll.setup.rules.store'), [
+                'branch_id' => $submitted, 'target_type' => 'treatment', 'target_id' => $tB->id,
+                'method' => 'percent', 'value' => '10', 'effective_from' => $i ? '2027-01-01' : '2026-01-01',
+                'effective_to' => $i ? null : '2026-12-31',
+            ])->assertSessionHasNoErrors();
+        }
 
-        $this->actingAs($this->hr)->post(route('payroll.setup.rules.store'), [
-            'branch_id' => '', 'target_type' => 'treatment', 'target_id' => $tB->id,
-            'method' => 'percent', 'value' => '10', 'effective_from' => '2026-01-01',
+        $rules = CommissionRule::where('target_type', 'treatment')->where('target_id', $tB->id)->get();
+        $this->assertCount(2, $rules);
+        $this->assertTrue($rules->every(fn ($r) => (int) $r->branch_id === $this->branchB->id));
+    }
+
+    public function test_fixing_a_legacy_spa_wide_service_rule_pins_it_too(): void
+    {
+        $t = $this->treatment();
+        $legacy = $this->rule(['target_type' => 'treatment', 'target_id' => $t->id]);
+
+        $this->actingAs($this->hr)->put(route('payroll.setup.rules.update', $legacy), [
+            'branch_id' => '', 'target_type' => 'treatment', 'target_id' => $t->id,
+            'method' => 'percent', 'value' => '11', 'effective_from' => '2026-01-01',
         ])->assertSessionHasNoErrors();
+
+        $this->assertSame($this->branchA->id, (int) $legacy->fresh()->branch_id);
+    }
+
+    public function test_setup_page_shows_phase6_wording(): void
+    {
+        $res = $this->actingAs($this->hr)->get(route('payroll.setup.index'))->assertOk();
+        $res->assertSee('name="payroll_first_cutoff_day" value="15"', false)
+            ->assertSee('name="payroll_first_cutoff_day" value="16"', false)
+            ->assertSee('id="payDayPreview"', false)
+            ->assertDontSee("Calabarzon's current order", false)
+            ->assertDontSee('placeholder="e.g. Wage Order No. IVA-22"', false)
+            ->assertDontSee('VERIFY')
+            ->assertDontSee('Payroll Branches')
+            ->assertDontSee('Days per Year')
+            ->assertSee('1 or 2 rest days', false)
+            // Only three levels while no legacy "all branches + service" rule exists.
+            ->assertDontSee('All branches + this service');
+
+        $t = $this->treatment();
+        $this->rule(['target_type' => 'treatment', 'target_id' => $t->id]);
+        $res = $this->actingAs($this->hr)->get(route('payroll.setup.index', ['tab' => 'commission']))
+            ->assertOk()->assertSee('Fix mistake')->assertSee('New rate from date')
+            // A legacy rule exists, so its level is listed again.
+            ->assertSee('All branches + this service');
+        if ($dir = getenv('RBAC_HTML_DUMP')) {
+            file_put_contents($dir.'/setup_commission_legacy.html', $res->getContent());
+        }
     }
 
     public function test_future_dated_wage_warns_that_it_applies_immediately(): void

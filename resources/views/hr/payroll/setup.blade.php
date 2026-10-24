@@ -49,6 +49,18 @@
     ];
     $lockedClass = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
 
+    // "All branches + this service" is no longer offered: each service belongs to one branch,
+    // so it matched the same bookings as "this branch + this service". Rules created that way
+    // before still work and are still ranked by the engine, so the level is listed only while
+    // such a rule exists.
+    $hasSpaTargetRules = $rules->contains(fn ($r) => $r->branch_id === null && $r->target_type !== \App\Models\CommissionRule::TARGET_DEFAULT);
+    if (! $hasSpaTargetRules) {
+        unset($tierMeta['spa_target']);
+        $n = 0;
+        foreach ($tierMeta as $k => $m) { $tierMeta[$k]['rank'] = ++$n; }   // show 1–3, not 1, 3, 4
+    }
+    $shownTiers = $tierMeta;
+
     // ── Lookups ──
     $branchNames = $branches->pluck('name', 'id')->all();
 
@@ -111,34 +123,19 @@
     </x-page-header>
 
     {{-- Summary cards --}}
-    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-3">
         <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">First Cutoff</p>
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
-                <h3 class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">{{ $spa->payroll_first_cutoff_day }}</h3>
-                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Pay +{{ $spa->payroll_pay_day_offset }} days</span>
-            </div>
-        </div>
-        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Payroll Branches
-            </p>
-
-            <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
-                <h3 class="text-2xl font-semibold text-gray-900 whitespace-nowrap sm:text-3xl dark:text-white">
-                    {{ $payrollBranchCount }}/{{ $branches->count() }}
-                </h3>
-
-                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">
-                    Premium payroll access
-                </span>
+                <h3 class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">Day {{ $spa->payroll_first_cutoff_day }}</h3>
+                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Paid {{ $spa->payroll_pay_day_offset }} day{{ $spa->payroll_pay_day_offset == 1 ? '' : 's' }} after each cutoff</span>
             </div>
         </div>
         <div class="p-4 border shadow-sm sm:p-5 rounded-2xl {{ $missingWage > 0 ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700' }}">
             <p class="text-xs font-semibold tracking-wide uppercase {{ $missingWage > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400' }}">Missing Min. Wage</p>
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
                 <h3 class="text-2xl font-semibold sm:text-3xl {{ $missingWage > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-900 dark:text-white' }}">{{ $missingWage }}</h3>
-                <span class="text-xs sm:text-sm {{ $missingWage > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400' }}">Payroll branches</span>
+                <span class="text-xs sm:text-sm {{ $missingWage > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400' }}">Branch{{ $missingWage == 1 ? '' : 'es' }} without a rate</span>
             </div>
         </div>
         <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
@@ -205,7 +202,7 @@
                 <span class="sm:hidden">{{ $t['short'] }}</span>
                 <span class="hidden sm:inline">{{ $t['long'] }}</span>
                 @if($tabHasErrors)
-                    <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full" title="This section has errors">!</span>
+                    <span class="flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-600 rounded-full" aria-hidden="true">!</span><span class="sr-only">(has errors)</span>
                 @endif
             </button>
         @endforeach
@@ -228,22 +225,40 @@
                     @method('PUT')
                     <input type="hidden" name="_modal" value="">
                     <fieldset @disabled(!$canEditSchedule) class="space-y-4">
-                        <div>
-                            <label for="payroll_first_cutoff_day" class="{{ $labelClass }}">First cutoff ends on day</label>
-                            <input type="number" id="payroll_first_cutoff_day" name="payroll_first_cutoff_day" min="1" max="27" required
-                                   value="{{ old('payroll_first_cutoff_day', $spa->payroll_first_cutoff_day) }}" class="{{ $inputClass }}"
-                                   aria-describedby="cutoffHelp">
+                        @php
+                            $cutoffChoices = [31 - $maxInterval, $maxInterval];   // 15 or 16 (Art. 103: ≤ 16 days per cutoff)
+                            $currentFirst  = (int) old('payroll_first_cutoff_day', $spa->payroll_first_cutoff_day);
+                        @endphp
+                        <fieldset aria-describedby="cutoffHelp">
+                            <legend class="{{ $labelClass }}">First cutoff ends on</legend>
+                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                @foreach($cutoffChoices as $day)
+                                    <label class="flex items-start gap-3 min-h-[44px] p-3 text-sm border border-gray-300 cursor-pointer rounded-xl dark:border-gray-600 has-[:checked]:border-[#8B7355] has-[:checked]:bg-[#8B7355]/10 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-70">
+                                        <input type="radio" name="payroll_first_cutoff_day" value="{{ $day }}" required data-first-cutoff
+                                               @checked($currentFirst === $day)
+                                               class="mt-0.5 w-4 h-4 text-[#8B7355] border-gray-300 focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
+                                        <span>
+                                            <span class="block font-medium text-gray-900 dark:text-white">Day {{ $day }}</span>
+                                            <span class="block text-xs text-gray-500 dark:text-gray-400">Cutoff 1: 1st–{{ $day }}th · Cutoff 2: {{ $day + 1 }}th–end of month</span>
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
                             <p id="cutoffHelp" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Must be day {{ 31 - $maxInterval }} or {{ $maxInterval }} so both cutoffs stay within {{ $maxInterval }} days (Labor Code Art. 103).
+                                Only day {{ 31 - $maxInterval }} or {{ $maxInterval }} keeps both cutoffs within {{ $maxInterval }} days (Labor Code Art. 103).
+                                @unless(in_array($currentFirst, $cutoffChoices, true))
+                                    The saved day ({{ $currentFirst }}) is no longer allowed — choose one of these.
+                                @endunless
                             </p>
                             @if($bag('schedule')->has('payroll_first_cutoff_day'))
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $bag('schedule')->first('payroll_first_cutoff_day') }}</p>
                             @endif
-                        </div>
+                        </fieldset>
                         <div>
                             <label for="payroll_pay_day_offset" class="{{ $labelClass }}">Pay day is this many days after each cutoff ends</label>
                             <input type="number" id="payroll_pay_day_offset" name="payroll_pay_day_offset" min="0" max="{{ $maxInterval }}" required
-                                   value="{{ old('payroll_pay_day_offset', $spa->payroll_pay_day_offset) }}" class="{{ $inputClass }}">
+                                   value="{{ old('payroll_pay_day_offset', $spa->payroll_pay_day_offset) }}" class="{{ $inputClass }}" aria-describedby="payDayPreview">
+                            <p id="payDayPreview" class="mt-1 text-xs text-gray-500 dark:text-gray-400" aria-live="polite"></p>
                             @if($bag('schedule')->has('payroll_pay_day_offset'))
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $bag('schedule')->first('payroll_pay_day_offset') }}</p>
                             @endif
@@ -291,7 +306,7 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div class="grid grid-cols-1 gap-6">
             {{-- Read-only facts --}}
             <div class="{{ $card }}">
                 <div class="{{ $cardHead }}">
@@ -304,35 +319,14 @@
                     <li class="flex gap-3"><i class="mt-0.5 text-gray-400 fa-solid fa-receipt" aria-hidden="true"></i>
                         <span>Commission counts only bookings that are <strong>completed and fully paid</strong>, and only for staff whose pay profile has commission turned on.</span></li>
                     <li class="flex gap-3"><i class="mt-0.5 text-gray-400 fa-solid fa-code-branch" aria-hidden="true"></i>
-                        <span>Only active staff whose <strong>home branch has a minimum wage on file</strong> are included in payroll.</span>
+                        <span>Only active staff whose <strong>home branch has a minimum wage on file</strong> are included in payroll.</span></li>
+                    <li class="flex gap-3"><i class="mt-0.5 text-gray-400 fa-solid fa-calendar-week" aria-hidden="true"></i>
+                        <span>Daily-paid staff need <strong>1 or 2 rest days</strong> a week on their pay profile; monthly-paid staff are paid the same each cutoff.</span></li>
                     <li class="flex gap-3"><i class="mt-0.5 text-gray-400 fa-solid fa-scale-balanced" aria-hidden="true"></i>
                         <span>Withholding tax is computed each cutoff; year-end annualization is done by your bookkeeper.</span></li>
                 </ul>
             </div>
 
-            {{-- Days-per-year factors (replaces the deprecated monthly_rate_divisor — data model v3.1) --}}
-            <div class="{{ $card }}">
-                <div class="{{ $cardHead }}">
-                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Days-per-Year Factors</h2>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Set automatically from each staff member's pay basis and rest days (DOLE Advisory No. 001-10). Nothing to enter here.
-                    </p>
-                </div>
-                <div class="p-4 sm:p-6">
-                    <dl class="divide-y divide-gray-200 dark:divide-gray-700">
-                        @foreach($factors as $f)
-                            <div class="flex items-center justify-between py-2 text-sm">
-                                <dt class="text-gray-600 dark:text-gray-300">{{ $f['label'] }}</dt>
-                                <dd class="font-semibold text-gray-900 dark:text-white">{{ $f['factor'] ?? '—' }}</dd>
-                            </div>
-                        @endforeach
-                    </dl>
-                    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                        Monthly-paid daily rate = monthly rate × 12 ÷ 365. Daily-paid staff must have 1 or 2 rest days a week to be paid.
-                        The 365 factor is marked VERIFY in the rates sheet — confirm with your accountant.
-                    </p>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -343,7 +337,7 @@
         <div class="p-4 border border-blue-200 rounded-2xl bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800">
             <p class="text-sm text-blue-800 dark:text-blue-300">
                 <i class="mr-1 fa-solid fa-circle-info" aria-hidden="true"></i>
-                Calabarzon's current order is <strong>Wage Order No. IVA-22</strong>. The rate depends on each branch's locality and number of workers, so enter the amount that applies to that branch — Levictas does not fill it in for you.
+                Enter the minimum daily wage from the regional wage order that currently covers each branch. The rate depends on the branch's locality, industry and number of workers, so Levictas does not fill it in for you. When a new wage order is issued, update the rate here.
                 Payroll tops up any worked day that pays less than the branch's minimum.
             </p>
         </div>
@@ -361,7 +355,6 @@
                     <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                         <tr role="row">
                             <th role="columnheader" class="{{ $th }}">Branch</th>
-                            <th role="columnheader" class="{{ $th }}">Payroll</th>
                             <th role="columnheader" class="{{ $th }} text-right">Min. Daily Wage</th>
                             <th role="columnheader" class="{{ $th }}">Wage Order</th>
                             <th role="columnheader" class="{{ $th }}">Effective From</th>
@@ -381,38 +374,27 @@
                             <tr role="row" class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
                                 <td role="cell" data-label="Branch" class="px-6 py-4">
                                     <p class="font-medium text-gray-900 dark:text-white">{{ $b->name }}
-                                        @if($b->is_main)<i class="ml-1 text-xs text-amber-500 fa-solid fa-crown" title="Main branch" aria-label="Main branch"></i>@endif
+                                        @if($b->is_main)<span class="ml-1 {{ $badgeBase }} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Main</span>@endif
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $b->location }}</p>
                                 </td>
-                                <td role="cell" data-label="Payroll" class="px-6 py-4">
-                                    <div class="flex flex-wrap gap-1">
-                                        @if ($hasPayrollAccess)
-                                            <span class="{{ $badgeBase }} bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
-                                                <i class="fa-solid fa-money-check-dollar text-[10px]" aria-hidden="true"></i>
-                                                Payroll enabled
-                                            </span>
-                                        @else
-                                            <span class="{{ $badgeBase }} bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                                Payroll unavailable
-                                            </span>
-                                        @endif
-                                        @if($b->min_daily_wage === null)
-                                            <span class="{{ $badgeBase }} bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                                                <i class="fa-solid fa-triangle-exclamation text-[10px]" aria-hidden="true"></i>
-                                                Missing rate — payroll cannot calculate this branch's staff
-                                            </span>
-                                        @endif
-                                    </div>
-                                </td>
                                 <td role="cell" data-label="Min. Daily Wage" class="px-6 py-4 text-sm font-semibold text-right text-gray-900 whitespace-nowrap dark:text-white">
-                                    {{ $b->min_daily_wage !== null ? '₱' . number_format((float) $b->min_daily_wage, 2) : '—' }}
+                                    @if($b->min_daily_wage !== null)
+                                        ₱{{ number_format((float) $b->min_daily_wage, 2) }}
+                                    @else
+                                        <span class="{{ $badgeBase }} bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                                            <i class="fa-solid fa-triangle-exclamation text-[10px]" aria-hidden="true"></i>
+                                            Missing rate
+                                        </span>
+                                        <span class="block mt-1 text-xs font-normal text-red-700 whitespace-normal dark:text-red-300">This branch's staff are not paid until it is set.</span>
+                                    @endif
                                 </td>
                                 <td role="cell" data-label="Wage Order" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{{ $b->wage_order_ref ?? '—' }}</td>
                                 <td role="cell" data-label="Effective From" class="px-6 py-4 text-sm text-gray-700 whitespace-nowrap dark:text-gray-300">
                                     {{ $b->min_daily_wage !== null ? ($b->min_wage_effective_from?->format('M d, Y') ?? '—') : '—' }}
                                     @if($b->min_daily_wage !== null && $b->min_wage_effective_from && $b->min_wage_effective_from->toDateString() > $today)
-                                        <span class="{{ $badgeBase }} mt-1 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" title="Payroll already uses this rate for every day it computes">Future date — already in use</span>
+                                        <span class="{{ $badgeBase }} mt-1 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Starts later</span>
+                                        <span class="block mt-1 text-xs text-gray-500 whitespace-normal dark:text-gray-400">Payroll already uses this rate for every day, including days before it starts.</span>
                                     @endif
                                 </td>
                                 @if($canEdit)
@@ -429,7 +411,7 @@
                             </tr>
                         @empty
                             <tr role="row">
-                                <td role="cell" colspan="{{ $canEdit ? 6 : 5 }}" class="px-6 py-12 text-center text-gray-500 rt-empty dark:text-gray-400">No branches yet.</td>
+                                <td role="cell" colspan="{{ $canEdit ? 5 : 4 }}" class="px-6 py-12 text-center text-gray-500 rt-empty dark:text-gray-400">No branches yet.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -450,7 +432,7 @@
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">For each booking, payroll uses the first rule that matches, in this order, on the appointment date.</p>
                 </div>
                 <ol class="p-4 space-y-2 sm:p-6">
-                    @foreach($tierMeta as $key => $m)
+                    @foreach($shownTiers as $key => $m)
                         <li class="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
                             <span class="flex items-center justify-center w-6 h-6 text-xs font-semibold rounded-full {{ $m['class'] }}">{{ $m['rank'] }}</span>
                             {{ $m['label'] }}
@@ -458,7 +440,7 @@
                     @endforeach
                 </ol>
                 <p class="px-4 pb-4 text-xs text-gray-500 sm:px-6 dark:text-gray-400">
-                    Percent rules apply to the booking total (or the list price when the total is 0). No matching rule means no commission for that booking — payroll lists it as a warning.
+                    A rule for a treatment or package always belongs to the branch that sells it. Percent rules apply to the booking total (or the list price when the total is 0). No matching rule means no commission for that booking — payroll lists it as a warning.
                 </p>
             </div>
 
@@ -526,20 +508,21 @@
             <div class="{{ $card }}">
                 <div class="{{ $cardHead }}">
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Add Commission Rule</h2>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">To change an existing rate, use “Change from date” on that rule instead — it keeps the history. Each treatment or package belongs to one branch, so a service rule only ever applies at the branch that sells it.</p>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">To change an existing rate, use “New rate from date” on that rule instead — it keeps the history. A treatment or package rule is set to the branch that sells it.</p>
                 </div>
                 <form method="POST" action="{{ route('payroll.setup.rules.store') }}" id="ruleCreateForm" class="p-4 space-y-4 sm:p-6" data-rule-form>
                     @csrf
                     <input type="hidden" name="_modal" value="">
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div>
+                        <div data-branch-wrap>
                             <label for="rc_branch" class="{{ $labelClass }}">Branch</label>
-                            <select id="rc_branch" name="branch_id" class="{{ $inputClass }}">
+                            <select id="rc_branch" name="branch_id" class="{{ $inputClass }}" data-branch-select>
                                 @if($spaWide)<option value="">All branches</option>@endif
                                 @foreach($branches->filter(fn ($b) => $canEditBranch($b->id)) as $b)
                                     <option value="{{ $b->id }}" @selected((string) old('branch_id') === (string) $b->id && !$oldModal)>{{ $b->name }}</option>
                                 @endforeach
                             </select>
+                            <p class="hidden mt-1 text-xs text-gray-500 dark:text-gray-400" data-branch-note></p>
                             @if($eb->has('branch_id'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('branch_id') }}</p>@endif
                         </div>
                         <div>
@@ -606,8 +589,8 @@
                 <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
                     <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                         <tr role="row">
-                            <th role="columnheader" class="{{ $th }}">Rule</th>
                             <th role="columnheader" class="{{ $th }}">Applies To</th>
+                            <th role="columnheader" class="{{ $th }}">Priority</th>
                             <th role="columnheader" class="{{ $th }}">Commission</th>
                             <th role="columnheader" class="{{ $th }}">Effective</th>
                             <th role="columnheader" class="{{ $th }}">Status</th>
@@ -630,13 +613,12 @@
                                 ];
                             @endphp
                             <tr role="row" class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
-                                <td role="cell" data-label="Rule" class="px-6 py-4">
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white">#{{ $r->id }}</p>
-                                    <span class="{{ $badgeBase }} mt-1 whitespace-nowrap {{ $tier['class'] }}" title="Priority {{ $tier['rank'] }}">{{ $tier['rank'] }} · {{ $r->branch_id ? 'Branch' : 'Spa-wide' }}</span>
-                                </td>
                                 <td role="cell" data-label="Applies To" class="px-6 py-4">
-                                    <p class="text-sm text-gray-900 dark:text-white">{{ $ruleTarget($r) }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $r->branch_id ? ($branchNames[$r->branch_id] ?? "Branch #{$r->branch_id}") : 'All branches' }}</p>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $ruleTarget($r) }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $r->branch_id ? ($branchNames[$r->branch_id] ?? "Branch #{$r->branch_id}") : 'All branches' }} · Rule #{{ $r->id }}</p>
+                                </td>
+                                <td role="cell" data-label="Priority" class="px-6 py-4">
+                                    <span class="{{ $badgeBase }} whitespace-nowrap {{ $tier['class'] }}">{{ $tier['rank'] }} · {{ $tier['label'] }}</span>
                                 </td>
                                 <td role="cell" data-label="Commission" class="px-6 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap dark:text-white">{{ $ruleValue($r) }}</td>
                                 <td role="cell" data-label="Effective" class="px-6 py-4 text-sm text-gray-700 whitespace-nowrap dark:text-gray-300">
@@ -646,12 +628,13 @@
                                     <div class="flex flex-wrap gap-1">
                                         <span class="{{ $badgeBase }} {{ $ruleStateMeta[$state]['class'] }}">{{ $ruleStateMeta[$state]['label'] }}</span>
                                         @if($locked)
-                                            <span class="{{ $badgeBase }} {{ $lockedClass }}" title="Used by a finalized run through {{ $usage['locked_through'] }}">
+                                            <span class="{{ $badgeBase }} {{ $lockedClass }}">
                                                 <i class="fa-solid fa-lock text-[10px]" aria-hidden="true"></i> Paid through {{ \Illuminate\Support\Carbon::parse($usage['locked_through'])->format('M d') }}
                                             </span>
                                         @endif
                                         @if($usage['pending'] > 0)
-                                            <span class="{{ $badgeBase }} bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" title="Regenerate those drafts after changing this rule">In {{ $usage['pending'] }} draft/approved payslip(s)</span>
+                                            <span class="{{ $badgeBase }} bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">In {{ $usage['pending'] }} unfinalized payslip(s)</span>
+                                            <span class="block w-full text-xs text-gray-500 dark:text-gray-400">Regenerate those runs after changing this rule.</span>
                                         @endif
                                     </div>
                                 </td>
@@ -663,7 +646,7 @@
                                             @endunless
                                             @if($isOpen && $canEditRule($r))
                                                 <button type="button" class="{{ $btn['edit'] }}" data-rule='@json($rowData)' onclick="openRuleChangeModal(this)">
-                                                    <i class="text-xs fa-solid fa-arrows-rotate" aria-hidden="true"></i><span>Change</span>
+                                                    <i class="text-xs fa-solid fa-arrows-rotate" aria-hidden="true"></i><span class="whitespace-nowrap">New rate from date</span>
                                                 </button>
                                                 <button type="button" class="{{ $btn['warn'] }}" data-rule='@json($rowData)' onclick="openRuleEndModal(this)">
                                                     <i class="text-xs fa-solid fa-flag-checkered" aria-hidden="true"></i><span>End</span>
@@ -671,7 +654,7 @@
                                             @endif
                                             @if(! $locked && $canEditRule($r))
                                                 <button type="button" class="{{ $btn['edit'] }}" data-rule='@json($rowData)' onclick="openRuleEditModal(this)">
-                                                    <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span>Edit</span>
+                                                    <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span class="whitespace-nowrap">Fix mistake</span>
                                                 </button>
                                                 <button type="button" class="{{ $btn['remove'] }}" data-rule='@json($rowData)' onclick="openRuleDeleteModal(this)">
                                                     <i class="text-xs fa-solid fa-trash" aria-hidden="true"></i><span>Delete</span>
@@ -731,7 +714,7 @@
                     </div>
                     <div>
                         <label for="wage_ref" class="{{ $labelClass }}">Wage order reference</label>
-                        <input type="text" id="wage_ref" name="wage_order_ref" required maxlength="255" class="{{ $inputClass }}" placeholder="e.g. Wage Order No. IVA-22"
+                        <input type="text" id="wage_ref" name="wage_order_ref" required maxlength="255" class="{{ $inputClass }}" placeholder="e.g. Wage Order No. RB IVA-xx"
                                value="{{ $oldModal === 'wageModal' ? old('wage_order_ref') : '' }}">
                         @if($eb->has('wage_order_ref'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('wage_order_ref') }}</p>@endif
                     </div>
@@ -741,7 +724,7 @@
                                value="{{ $oldModal === 'wageModal' ? old('min_wage_effective_from') : '' }}">
                         @if($eb->has('min_wage_effective_from'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('min_wage_effective_from') }}</p>@endif
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Payroll uses the current amount for every date it computes; finalized runs keep the amount they used.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Payroll keeps one rate per branch and uses it for every day it computes, even days before the effective date. Enter a new rate on the day it takes effect, after generating the cutoffs before it. Finalized runs keep the rate they used.</p>
                 </div>
                 <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
                     <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -768,7 +751,8 @@
                 <input type="hidden" name="_record" id="re_record" value="">
                 <div class="flex items-start justify-between gap-3 {{ $cardHead }}">
                     <div>
-                        <h2 id="ruleEditModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Edit Rule <span id="re_title_id"></span></h2>
+                        <h2 id="ruleEditModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Fix Rule Mistake <span id="re_title_id" class="text-sm font-normal text-gray-500 dark:text-gray-400"></span></h2>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Corrects the rule as if it had always been this way. To change a rate from a date onward, use “New rate from date” instead.</p>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Only rules no finalized payroll has used can be edited.</p>
                     </div>
                     <button type="button" onclick="closeModalById('ruleEditModal')" aria-label="Close dialog"
@@ -779,10 +763,11 @@
                 <div class="grid grid-cols-1 gap-4 px-4 py-6 sm:px-6 md:grid-cols-2">
                     <div>
                         <label for="re_branch" class="{{ $labelClass }}">Branch</label>
-                        <select id="re_branch" name="branch_id" class="{{ $inputClass }}" data-old="{{ $isOld ? old('branch_id') : '' }}">
+                        <select id="re_branch" name="branch_id" class="{{ $inputClass }}" data-branch-select data-old="{{ $isOld ? old('branch_id') : '' }}">
                             @if($spaWide)<option value="">All branches</option>@endif
                             @foreach($branches->filter(fn ($b) => $canEditBranch($b->id)) as $b)<option value="{{ $b->id }}">{{ $b->name }}</option>@endforeach
                         </select>
+                        <p class="hidden mt-1 text-xs text-gray-500 dark:text-gray-400" data-branch-note></p>
                     </div>
                     <div>
                         <label for="re_target_type" class="{{ $labelClass }}">Applies to</label>
@@ -845,7 +830,7 @@
                 <input type="hidden" name="_record" id="rch_record" value="">
                 <div class="flex items-start justify-between gap-3 {{ $cardHead }}">
                     <div>
-                        <h2 id="ruleChangeModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Change Rate From a Date</h2>
+                        <h2 id="ruleChangeModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">New Rate From a Date</h2>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400"><span id="rch_label"></span> — the current rule ends the day before, and a new rule starts on the date you pick.</p>
                     </div>
                     <button type="button" onclick="closeModalById('ruleChangeModal')" aria-label="Close dialog"
@@ -977,8 +962,8 @@ function payrollSetupPage() {
     const TIER_META  = @json($tierMeta);
     const BADGE_BASE = @json($badgeBase);
     const TARGETS = {
-        treatment: @json($liveTreatments->map(fn ($t) => ['id' => $t->id, 'name' => $t->name . ' — ' . ($branchNames[$t->branch_id] ?? 'no branch')])->values()),
-        package:   @json($livePackages->map(fn ($p) => ['id' => $p->id, 'name' => $p->name . ' — ' . ($branchNames[$p->branch_id] ?? 'no branch')])->values()),
+        treatment: @json($liveTreatments->map(fn ($t) => ['id' => $t->id, 'branch_id' => $t->branch_id, 'name' => $t->name . ' — ' . ($branchNames[$t->branch_id] ?? 'no branch')])->values()),
+        package:   @json($livePackages->map(fn ($p) => ['id' => $p->id, 'branch_id' => $p->branch_id, 'name' => $p->name . ' — ' . ($branchNames[$p->branch_id] ?? 'no branch')])->values()),
     };
     const TARGET_NAMES = @json($targetNames);
     const BRANCH_NAMES = @json($branchNames);
@@ -1010,6 +995,31 @@ function payrollSetupPage() {
         const wrap      = form.querySelector('[data-target-wrap]');
         const methodSel = form.querySelector('[data-method]');
         const valLabel  = form.querySelector('[data-value-label]');
+        const branchSel = form.querySelector('[data-branch-select]');
+        const branchNote = form.querySelector('[data-branch-note]');
+
+        // A treatment/package rule always belongs to the branch that sells it (S9).
+        // The select is shown read-only; a disabled select would not submit, so the
+        // other options are disabled instead. The server pins the branch as well.
+        function syncBranch() {
+            if (!branchSel || !typeSel || !idSel) return;
+            const type = typeSel.value;
+            const t = (TARGETS[type] || []).find(x => String(x.id) === String(idSel.value));
+            const lockTo = t && t.branch_id ? String(t.branch_id) : null;
+            if (lockTo && !Array.from(branchSel.options).some(o => o.value === lockTo)) {
+                // Branch is outside the user's list — the server will refuse; leave it free.
+                Array.from(branchSel.options).forEach(o => { o.disabled = false; });
+                if (branchNote) { branchNote.textContent = 'This ' + type + ' is sold at ' + (BRANCH_NAMES[lockTo] || 'another branch') + ', which you cannot set rules for.'; branchNote.classList.remove('hidden'); }
+                return;
+            }
+            Array.from(branchSel.options).forEach(o => { o.disabled = !!lockTo && o.value !== lockTo; });
+            if (lockTo) branchSel.value = lockTo;
+            if (branchNote) {
+                branchNote.textContent = lockTo ? 'Set to ' + (BRANCH_NAMES[lockTo] || 'its branch') + ', the branch that sells this ' + type + '.' : '';
+                branchNote.classList.toggle('hidden', !lockTo);
+            }
+            branchSel.setAttribute('aria-readonly', lockTo ? 'true' : 'false');
+        }
 
         function fillTargets(selected) {
             if (!typeSel || !idSel) return;
@@ -1042,11 +1052,13 @@ function payrollSetupPage() {
             valLabel.textContent = methodSel.value === 'percent' ? 'Percent (0–100)' : 'Amount per booking (₱)';
         }
 
-        if (typeSel) typeSel.addEventListener('change', () => fillTargets(''));
+        if (typeSel) typeSel.addEventListener('change', () => { fillTargets(''); syncBranch(); });
+        if (idSel) idSel.addEventListener('change', syncBranch);
         if (methodSel) methodSel.addEventListener('change', syncMethod);
-        form._fillTargets = fillTargets;
+        form._fillTargets = (sel) => { fillTargets(sel); syncBranch(); };
         form._syncMethod  = syncMethod;
         fillTargets(idSel ? idSel.dataset.old : '');
+        syncBranch();
         syncMethod();
     }
     document.querySelectorAll('[data-rule-form]').forEach(wireRuleForm);
@@ -1266,6 +1278,35 @@ function payrollSetupPage() {
     }
 
     window.openWageModal       = openWageModal;
+    // ════════════════════════════════════════════════════════════════
+    // PAY-DATE PREVIEW (S2) — same arithmetic as PayrollRunService::buildPeriod:
+    // pay date = cutoff end + offset. The saved preview below the form stays the
+    // source of truth; this only answers "what will this change do?" before saving.
+    // ════════════════════════════════════════════════════════════════
+    (function () {
+        const offsetEl = document.getElementById('payroll_pay_day_offset');
+        const out = document.getElementById('payDayPreview');
+        if (!offsetEl || !out) return;
+        const radios = document.querySelectorAll('[data-first-cutoff]');
+        const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        function render() {
+            const checked = document.querySelector('[data-first-cutoff]:checked');
+            const off = parseInt(offsetEl.value, 10);
+            if (!checked || isNaN(off) || off < 0) { out.textContent = ''; return; }
+            const first = parseInt(checked.value, 10);
+            const now = new Date();
+            const y = now.getFullYear(), m = now.getMonth();
+            const end1 = new Date(y, m, first), end2 = new Date(y, m + 1, 0);
+            const pay1 = new Date(end1); pay1.setDate(pay1.getDate() + off);
+            const pay2 = new Date(end2); pay2.setDate(pay2.getDate() + off);
+            out.textContent = 'This month: cutoff ending ' + fmt(end1) + ' is paid ' + fmt(pay1)
+                + '; cutoff ending ' + fmt(end2) + ' is paid ' + fmt(pay2) + '.';
+        }
+        offsetEl.addEventListener('input', render);
+        radios.forEach(r => r.addEventListener('change', render));
+        render();
+    })();
+
     window.openRuleEditModal   = openRuleEditModal;
     window.openRuleChangeModal = openRuleChangeModal;
     window.openRuleEndModal    = openRuleEndModal;

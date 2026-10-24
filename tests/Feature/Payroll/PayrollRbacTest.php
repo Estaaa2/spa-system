@@ -412,8 +412,8 @@ class PayrollRbacTest extends TestCase
         $this->grant('hr', $this->branchB, P::LEGACY_EDIT, false);
         $this->grant('therapist', $this->branchA, 'delete leave requests', true);
 
-        (require base_path('database/migrations/2026_10_23_090000_payroll_rbac_transition.php'))->up();
-        (require base_path('database/migrations/2026_10_23_090000_payroll_rbac_transition.php'))->up();   // idempotent
+        (require base_path('database/migrations/2026_10_23_172235_payroll_rbac_transition.php'))->up();
+        (require base_path('database/migrations/2026_10_23_172235_payroll_rbac_transition.php'))->up();   // idempotent
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $names = fn (string $role) => Role::findByName($role)->permissions()->pluck('name')->all();

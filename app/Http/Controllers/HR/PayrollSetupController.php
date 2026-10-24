@@ -166,8 +166,9 @@ class PayrollSetupController extends Controller
     public function storeRule(Request $request)
     {
         $this->authorizePayroll(P::MANAGE_SETUP);
-        $this->authorizeRuleBranch($request->filled('branch_id') ? (int) $request->input('branch_id') : null);
         $spa = $this->currentSpa();
+        $this->pinServiceBranch($request, $spa, false);
+        $this->authorizeRuleBranch($request->filled('branch_id') ? (int) $request->input('branch_id') : null);
 
         return $this->handleForm($request, 'ruleCreate', $this->ruleRules($spa, $request), function (array $data) use ($spa) {
             $rule = $this->setup->createRule($spa, $this->normalizeTarget($data), Auth::user());
@@ -183,6 +184,7 @@ class PayrollSetupController extends Controller
         $spa = $this->currentSpa();
         $this->assertOwned($rule, $spa);
         $this->authorizeRuleBranch($rule->branch_id);
+        $this->pinServiceBranch($request, $spa, true);
         $this->authorizeRuleBranch($request->filled('branch_id') ? (int) $request->input('branch_id') : null);
 
         return $this->handleForm($request, 'ruleEdit', $this->ruleRules($spa, $request, true), function (array $data) use ($rule) {
@@ -361,6 +363,28 @@ class PayrollSetupController extends Controller
     }
 
     /** @return int|null|false branch id of the target, null if it has none, false if not found */
+    /**
+     * A treatment or package belongs to one branch and bookings only offer the booking
+     * branch's own list, so a rule for it can only ever apply at that branch. The form
+     * locks the Branch field; this does the same server-side so a stale or crafted
+     * "All branches" submit cannot create a new spa-wide service rule (Phase 6, S9).
+     * Runs before authorization, so a branch-scoped user is checked against the
+     * service's branch. Services without a branch keep what was submitted.
+     */
+    private function pinServiceBranch(Request $request, Spa $spa, bool $isEdit): void
+    {
+        $type = $request->input('target_type');
+        $id   = $request->input('target_id');
+        if (! in_array($type, [CommissionRule::TARGET_TREATMENT, CommissionRule::TARGET_PACKAGE], true)
+            || ! is_numeric($id)) {
+            return;
+        }
+        $branch = $this->targetBranchId($spa, $type, (int) $id, $isEdit);
+        if (is_int($branch)) {
+            $request->merge(['branch_id' => $branch]);
+        }
+    }
+
     private function targetBranchId(Spa $spa, string $type, int $id, bool $includeTrashed): int|null|false
     {
         $model = $type === CommissionRule::TARGET_TREATMENT ? Treatment::class : Package::class;
