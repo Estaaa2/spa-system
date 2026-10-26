@@ -247,7 +247,7 @@ final class PayrollRunReadModel
 
         $deadline = $year.'-'.config('payroll.payment_timing.thirteenth_month_deadline');
         if ($payDate > $deadline) {
-            $out['notes'][] = 'This pay date is after '.Carbon::parse($deadline)->format('F j').'. PD 851 and DOLE Labor Advisory 16-25 require 13th-month pay on or before December 24.';
+            $out['notes'][] = 'This pay date is after '.Carbon::parse($deadline)->format('F j').'. PD 851 requires 13th-month pay on or before December 24.';
         }
         $out['notes'][] = 'The amount is 1/12 of basic pay and commission in FINALIZED regular runs of the year. Unfinalized cutoffs are left out; pay any difference later as a non-taxable adjustment.';
 

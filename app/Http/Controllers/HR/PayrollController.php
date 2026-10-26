@@ -71,6 +71,7 @@ class PayrollController extends Controller
         return view('hr.payroll.index', [
             'spa'         => $spa,
             'years'       => $years,
+            'runYears'    => self::runYears(),
             'filters'     => ['year' => $year, 'type' => $type, 'status' => $status],
             'runs'        => $this->read->runsIndex($spa, $year, $type, $status, $scope),
             'summary'     => $this->read->indexSummary($spa, $year, $scope),
@@ -302,11 +303,25 @@ class PayrollController extends Controller
 
         return [
             'run_type'  => ['required', Rule::in([PayrollRun::TYPE_REGULAR, PayrollRun::TYPE_THIRTEENTH_MONTH])],
-            'year'      => ['required', 'integer', 'between:2000,2100'],
+            'year'      => ['required', 'integer', Rule::in(self::runYears())],
             'month'     => $regular ? ['required', 'integer', 'between:1,12'] : ['nullable'],
             'cutoff_no' => $regular ? ['required', 'integer', Rule::in([1, 2])] : ['nullable'],
             'pay_date'  => $regular ? ['nullable'] : ['required', 'date_format:Y-m-d'],
         ];
+    }
+
+    /**
+     * Years a new run can be generated for (R1): this year and last year. Last year
+     * covers the December cutoff 2 generated in early January, and a late 13th-month
+     * run; earlier years and future years are typing mistakes in practice.
+     *
+     * @return list<int>
+     */
+    private static function runYears(): array
+    {
+        $y = (int) now()->format('Y');
+
+        return [$y, $y - 1];
     }
 
     /** @param list<string> $messages */

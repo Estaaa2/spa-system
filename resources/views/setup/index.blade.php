@@ -69,7 +69,7 @@
                     type="text"
                     id="spa_name"
                     name="spa_name"
-                    value="{{ old('spa_name') }}"
+                    value="{{ old('spa_name', $spa?->name) }}"
                     required
                     class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-[#8B7355] focus:outline-none"
                     placeholder="Enter your registered spa name"
@@ -103,7 +103,7 @@
                     type="submit"
                     class="w-full min-h-[44px] bg-gradient-to-r from-[#7A6348] to-[#6F5430] hover:opacity-90 text-white font-medium py-3 px-4 rounded-xl transition-opacity"
                 >
-                    Continue
+                    {{ $spa ? 'Save and Continue' : 'Continue' }}
                 </button>
             </div>
         </form>

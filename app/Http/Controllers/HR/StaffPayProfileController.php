@@ -391,7 +391,7 @@ class StaffPayProfileController extends Controller
         return function ($v) use ($request) {
             $n = count(array_unique((array) $request->input('rest_days', [])));
             if ($request->input('pay_basis') === StaffPayProfile::BASIS_DAILY && ! in_array($n, [1, 2], true)) {
-                $v->errors()->add('rest_days', 'Daily-paid staff need 1 or 2 rest days a week — only those have a DOLE days-per-year factor (313 or 261). Other counts are skipped by payroll.');
+                $v->errors()->add('rest_days', 'Daily-paid staff need 1 or 2 rest days a week.');
             }
             if ($request->input('pay_basis') === StaffPayProfile::BASIS_MONTHLY && ($n < 1 || $n > 6)) {
                 $v->errors()->add('rest_days', 'Choose at least one weekly rest day (Labor Code Art. 91).');
@@ -437,10 +437,10 @@ class StaffPayProfileController extends Controller
 
     /**
      * Non-blocking hints (never reject a save):
-     *  - digit count differs from the commonly published format — UNVERIFIED: no
-     *    agency text read directly; TIN 9 digits + 3- or 5-digit branch code
-     *    (5-digit codes: RMC 36-2026 per secondary sources), SSS 10, PhilHealth 12,
-     *    Pag-IBIG MID 12;
+     *  - digit count differs from the agency format: SSS 10 (SSS form R-3),
+     *    PhilHealth 12 (PhilHealth Claim Form guidelines), Pag-IBIG MID 12 (Member's
+     *    Data Form PFF039), TIN 9 (BIR RMO 23-91) + 3- or 5-digit branch code
+     *    (eBIRForms 7.9.6.0 / RMC 36-2026, as reported by PwC PH — secondary);
      *  - the same number is on file for another active staff member of this spa
      *    (almost always a typing error, and it would misdirect remittances).
      *

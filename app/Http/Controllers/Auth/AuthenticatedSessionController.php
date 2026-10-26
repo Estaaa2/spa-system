@@ -133,7 +133,11 @@ class AuthenticatedSessionController extends Controller
         }
 
         if ($spa->verification_status !== 'verified') {
-            return route('setup.index');
+            // An owner who left at the Documents step ("Save and finish later")
+            // resumes there instead of being walked back through the branch step.
+            return $spa->branches()->exists()
+                ? route('setup.documents')
+                : route('setup.index');
         }
 
         if ($spa->hasAccess()) {

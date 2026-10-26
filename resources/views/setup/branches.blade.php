@@ -76,7 +76,19 @@
                 </div>
             @endif
 
-            @if($branches->isEmpty())
+            @php
+                // Returning from Documents: prefill with the saved branch so typos can be fixed.
+                $savedProfile = $branch?->profile;
+                $savedLocation = $savedProfile?->address ?? $branch?->location;
+                $hasSavedPin = $savedProfile && $savedProfile->latitude !== null && $savedProfile->longitude !== null;
+            @endphp
+
+            @if($branch)
+                <div class="p-3 mb-6 text-sm text-blue-800 border border-blue-200 bg-blue-50 rounded-xl dark:bg-blue-900/10 dark:text-blue-300 dark:border-blue-800">
+                    Your main branch is saved. Fix anything below, or continue if everything is correct.
+                </div>
+            @endif
+
 
                 <form method="POST" action="{{ route('setup.store-branch') }}" id="branchSetupForm" class="space-y-6">
                     @csrf
@@ -102,7 +114,7 @@
                                 type="text"
                                 id="branch_name"
                                 name="branch_name"
-                                value="{{ old('branch_name') }}"
+                                value="{{ old('branch_name', $branch?->name) }}"
                                 required
                                 placeholder="e.g. Imus Main Branch"
                                 class="w-full min-h-[44px] px-3 py-2 text-sm border rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/20 focus:outline-none {{ $errors->has('branch_name') ? 'border-red-400' : 'border-gray-300 dark:border-gray-600' }}"
@@ -136,7 +148,7 @@
                                 type="text"
                                 id="addressSearch"
                                 autocomplete="off"
-                                value="{{ old('location') }}"
+                                value="{{ old('location', $savedLocation) }}"
                                 placeholder="Search subdivision, barangay, street or establishment"
                                 class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/20 focus:outline-none"
                             />
@@ -159,7 +171,7 @@
                             <input
                                 type="text"
                                 id="cityDisplay"
-                                value="{{ old('city') }}"
+                                value="{{ old('city', $savedProfile?->city) }}"
                                 readonly
                                 tabindex="-1"
                                 placeholder="Automatically detected"
@@ -189,11 +201,11 @@
                             </div>
                         </div>
 
-                        <input type="hidden" name="location" id="location" value="{{ old('location') }}">
-                        <input type="hidden" name="city" id="city" value="{{ old('city') }}">
-                        <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude') }}">
-                        <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude') }}">
-                        <input type="hidden" name="location_confirmed" id="location_confirmed" value="{{ old('location_confirmed', '0') }}">
+                        <input type="hidden" name="location" id="location" value="{{ old('location', $savedLocation) }}">
+                        <input type="hidden" name="city" id="city" value="{{ old('city', $savedProfile?->city) }}">
+                        <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude', $savedProfile?->latitude) }}">
+                        <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', $savedProfile?->longitude) }}">
+                        <input type="hidden" name="location_confirmed" id="location_confirmed" value="{{ old('location_confirmed', $hasSavedPin ? '1' : '0') }}">
 
                         @error('location')
                             <p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
@@ -220,67 +232,12 @@
                     <button type="submit"
                         class="w-full min-h-[44px] bg-gradient-to-r from-[#7A6348] to-[#6F5430] text-white text-sm font-semibold py-3 px-4 rounded-xl transition-opacity shadow-sm hover:opacity-90">
 
-                        Save Main Branch
+                        {{ $branch ? 'Save and Continue' : 'Save Main Branch' }}
 
                     </button>
 
                 </form>
 
-            @else
-
-                @php
-                    $branch = $branches->first();
-                @endphp
-
-                <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-
-                    <div class="flex items-start gap-4">
-                        <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-[#8B7355]/10 text-[#6F5430] dark:bg-[#C4A97D]/10 dark:text-[#C4A97D] shrink-0">
-                            <i class="fa-solid fa-location-dot"></i>
-                        </div>
-
-                        <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                                    {{ $branch->name }}
-                                </h3>
-
-                                <span class="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                                    Main Branch
-                                </span>
-                            </div>
-
-                            <p class="mt-1 text-sm text-gray-600 break-words dark:text-gray-400">
-                                {{ optional($branch->profile)->address ?? $branch->location }}
-                            </p>
-
-                            @if(optional($branch->profile)->city)
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {{ $branch->profile->city }}, Cavite
-                                </p>
-                            @endif
-                        </div>
-                    </div>
-
-                    <div class="pt-5 mt-5 border-t border-gray-200 dark:border-gray-700">
-
-                        <div class="p-3 mb-4 text-sm text-blue-800 border border-blue-200 bg-blue-50 rounded-xl dark:bg-blue-900/10 dark:text-blue-300 dark:border-blue-800">
-                            One branch is used during initial setup. Additional branch access can be handled by your subscription rules later.
-                        </div>
-
-                        <a href="{{ route('setup.operating-hours', $branch) }}"
-                            class="inline-flex items-center justify-center w-full min-h-[44px] px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#7A6348] to-[#6F5430] rounded-xl hover:opacity-90">
-
-                            <i class="mr-2 fa-solid fa-clock"></i>
-                            Continue to Operating Hours
-
-                        </a>
-
-                    </div>
-
-                </div>
-
-            @endif
 
         </div>
 
@@ -705,5 +662,4 @@
             }
         }
     </script>
-
 </x-guest-layout>

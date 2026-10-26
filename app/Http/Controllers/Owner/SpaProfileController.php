@@ -153,12 +153,27 @@ class SpaProfileController extends Controller
         $wasVerified =
             $spa->verification_status === 'verified';
 
+        /*
+         * "Save and finish later" from the setup Documents step: keep
+         * whatever was uploaded, then sign the owner out so they can
+         * come back once the physical documents are ready. Only for
+         * spas still in setup (unverified or rejected).
+         */
+        $finishLater =
+            !$wasVerified &&
+            $request->input('intent') === 'later';
+
         $documents = $request->file('documents', []);
 
-        if (
+        $nothingSelected =
             !is_array($documents) ||
-            collect($documents)->filter()->isEmpty()
-        ) {
+            collect($documents)->filter()->isEmpty();
+
+        if ($finishLater && $nothingSelected) {
+            return $this->signOutToFinishLater($request);
+        }
+
+        if ($nothingSelected) {
             return back()->with(
                 'error',
                 'Please select at least one document before submitting for review.'
@@ -462,6 +477,10 @@ class SpaProfileController extends Controller
                 'verified_by' => null,
             ]);
 
+            if ($finishLater) {
+                return $this->signOutToFinishLater($request);
+            }
+
             return back()->with(
                 'success',
                 'Document changes were saved. Upload all required documents before submitting for review.'
@@ -484,6 +503,26 @@ class SpaProfileController extends Controller
             ->with(
                 'success',
                 'Your documents were submitted successfully. An administrator will review them within 24 hours.'
+            );
+    }
+
+    /**
+     * End the session after "Save and finish later". Uploaded documents
+     * are already stored; the next login returns the owner to the
+     * Documents step (AuthenticatedSessionController::ownerRedirectRoute).
+     */
+    private function signOutToFinishLater(Request $request)
+    {
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()
+            ->route('login')
+            ->with(
+                'status',
+                'Your progress is saved. Log in anytime to upload the remaining documents and submit them for review.'
             );
     }
 

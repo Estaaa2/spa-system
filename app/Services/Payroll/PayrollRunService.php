@@ -242,7 +242,7 @@ final class PayrollRunService
             }
             if ($mweCount > 0) {
                 $warnings[] = new RunWarning(RunWarning::UNVERIFIED_RULE,
-                    "{$mweCount} payslip(s) are treated as minimum wage earners: daily rate ≤ home-branch minimum wage (rates sheet §5 — UNVERIFIED test; exempt-component mapping UNVERIFIED).");
+                    "{$mweCount} payslip(s) are treated as minimum wage earners (daily rate at or below the home branch's minimum wage), so no tax is withheld on their basic pay. Check that each of them qualifies.");
             }
 
             return new RunResult($run->refresh(), $regenerated, $this->totals($run), $this->dedupe($this->foldCumulativeAverage($warnings, $names)));
@@ -286,10 +286,10 @@ final class PayrollRunService
             $deadline = "{$year}-".$this->timing('thirteenth_month_deadline');
             if ($payDate > $deadline) {
                 $warnings[] = new RunWarning(RunWarning::PAY_DATE_LATE,
-                    "Pay date {$payDate} is after {$deadline}. PD 851 and DOLE Labor Advisory 16-25 require 13th-month pay on or before December 24, with no deferment.");
+                    'Pay date '.Carbon::parse($payDate)->format('F j, Y').' is after '.Carbon::parse($deadline)->format('F j').'. PD 851 requires 13th-month pay on or before December 24.');
             }
             $warnings[] = new RunWarning(RunWarning::UNVERIFIED_RULE,
-                'No SSS, PhilHealth or Pag-IBIG is computed on the 13th-month run (UNVERIFIED — SSS excludes it per §1 VERIFY, PhilHealth MBS excludes it per §2, Pag-IBIG treatment not confirmed).');
+                'Levictas does not compute SSS, PhilHealth or Pag-IBIG contributions on the 13th-month run.');
             array_push($warnings, ...$this->unfinalizedCutoffWarnings($spa, $year));
 
             $existing = $this->clearComputedLines($run);
@@ -1022,8 +1022,8 @@ final class PayrollRunService
                     $this->calc->eemrFactor($p->payBasis, count($p->restDays), $end);
                 } catch (InvalidArgumentException) {
                     return ['warning' => new RunWarning(RunWarning::MISSING_EEMR_FACTOR, sprintf(
-                        '%s: daily-paid pay profile #%d has %d rest day(s) per week; only 1 or 2 have a DOLE days-per-year factor (rates sheet §10). Fix the profile — not paid.',
-                        $who, $p->id, count($p->restDays),
+                        '%s: not paid — the daily-paid pay profile has %d rest day(s) a week, but daily-paid staff need 1 or 2. Fix it on Staff Pay. [ref: pay profile #%d]',
+                        $who, count($p->restDays), $p->id,
                     ), $id)];
                 }
             }
@@ -1209,7 +1209,7 @@ final class PayrollRunService
             $sid = (int) $sid;
             if (! isset($processed[$sid])) {
                 $warnings[] = new RunWarning(RunWarning::CONTRIBUTIONS_SKIPPED, sprintf(
-                    '%s (staff #%d): paid in cutoff 1 but not in this cutoff. Contributions are computed on cutoff 2 only, so none were computed for %s — yet the full month is due whenever there was pay in the month (rates sheet §13). Settle them manually.',
+                    '%s (staff #%d): paid in cutoff 1 but not in this cutoff. Contributions are computed on cutoff 2 only, so none were computed for %s — yet the full month is due whenever there was pay in the month. Settle them manually.',
                     $names[$sid] ?? "Staff #{$sid}", $sid, $run->period_start->format('F Y'),
                 ), $sid);
             }

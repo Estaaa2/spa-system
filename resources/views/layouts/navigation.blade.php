@@ -162,7 +162,7 @@
     $showPeople =
         $suiteEnabled && ($canStaffAccounts || $canHiring || $canApplicants || $canInterviews);
 
-    // Attendance & Payroll (Premium suite). Without the suite, Attendance & Leave stays
+    // "Time & Pay" section — attendance + payroll (Premium suite). Without the suite, Attendance & Leave stays
     // in Operations. Every payroll page needs `view payroll`; the pages show only
     // the actions the user's payroll permissions allow.
     $canPayroll = $canPayrollPlan && $can('view payroll');
@@ -248,7 +248,7 @@
     $canProductLogs = $can('view product logs');
     $canStockTransfers = $canProductInventory;
     $canViewReplenishment = $can('view replenishment');
-    $canViewGoodsReceipts = $user->hasBranchPermission('view goods receipts');
+    $canViewGoodsReceipts = $can('view goods receipts');
 
     $showInventory = $canInventoryBasic && (
         $canProductInventory ||
@@ -464,14 +464,8 @@
                                     @endif
                                 </div>
 
-                                @if ($currentPlan !== 'expired')
-                                    <span class="ml-2 px-2 py-0.5 text-[10px] font-semibold rounded-full {{ $planBadgeClasses }}">
-                                        {{ $currentPlanName }}
-                                    </span>
-                                @endif
-
                                 <span x-show="selectedBranchId == {{ $branch->id }}"
-                                    class="ml-2 text-blue-600 dark:text-blue-400">
+                                    class="flex-shrink-0 ml-2 text-blue-600 dark:text-blue-400">
                                     <i class="fa-solid fa-check"></i>
                                 </span>
                             </button>
@@ -509,10 +503,11 @@
             <div class="flex-shrink-0 border-b dark:border-gray-700">
                 <div class="flex items-start justify-between gap-2 py-4 pl-6 pr-3 md:pr-6">
                     <a href="{{ $brandHref }}" class="flex items-center flex-1 min-w-0 space-x-3">
-                        <img src="{{ asset('images/1.png') }}" class="h-10 rounded-md" alt="Levictas">
+                        <img src="{{ asset('images/1.png') }}" class="flex-shrink-0 object-cover w-10 h-10 rounded-md" alt="Levictas">
                         <div class="min-w-0">
-                            <span
-                                class="text-2xl font-semibold text-[#8B7355] dark:text-white font-['Playfair_Display']">
+                            {{-- Spa names are user-entered and can be long: cap at two lines instead of pushing the layout. --}}
+                            <span title="{{ $spa?->name ?? 'Spa Management' }}"
+                                class="block text-xl font-semibold leading-tight break-words line-clamp-2 text-[#8B7355] dark:text-white font-['Playfair_Display']">
                                 {{ $spa?->name ?? 'Spa Management' }}
                             </span>
                             <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">SPA | WELLNESS</p>
@@ -535,18 +530,17 @@
                                     <i
                                         class="flex-shrink-0 mr-3 text-gray-500 fa-solid fa-location-dot dark:text-gray-400"></i>
                                     <div class="flex-1 min-w-0">
-                                        <div class="flex items-center min-w-0 gap-2">
-                                            <p class="font-medium truncate" x-text="selectedBranch"></p>
+                                        {{-- Name gets the full first line; the badge sat beside it and cut names to 3 letters. --}}
+                                        <p class="font-medium truncate" x-text="selectedBranch" :title="selectedBranch"></p>
 
+                                        <div class="flex items-center min-w-0 gap-2 mt-0.5">
                                             <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full shrink-0 {{ $planBadgeClasses }}">
                                                 {{ $currentPlanName }}
                                             </span>
+                                            <span class="text-xs text-gray-500 truncate dark:text-gray-400">
+                                                {{ $branches->count() }} {{ Str::plural('branch', $branches->count()) }}
+                                            </span>
                                         </div>
-
-                                        <p class="text-xs text-gray-500 truncate dark:text-gray-400">
-                                            {{ $branches->count() }} {{ Str::plural('branch', $branches->count()) }}
-                                            available
-                                        </p>
                                     </div>
                                 </div>
                                 <i class="flex-shrink-0 ml-2 text-xs transition-transform duration-200 fa-solid fa-chevron-down"
@@ -560,7 +554,7 @@
                                 x-transition:leave="transition ease-in duration-75"
                                 x-transition:leave-start="transform opacity-100 scale-100"
                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                class="absolute left-0 right-0 z-50 mx-6 mt-1 overflow-y-auto origin-top bg-white rounded-lg shadow-lg dark:bg-gray-800 ring-1 ring-black/5 max-h-96">
+                                class="absolute left-0 right-0 z-50 mt-1 overflow-y-auto origin-top bg-white rounded-lg shadow-lg dark:bg-gray-800 ring-1 ring-black/5 max-h-96">
                                 <div class="py-2">
                                     <div
                                         class="flex items-center justify-between px-4 py-2 border-b dark:border-gray-700">
@@ -616,18 +610,11 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="flex items-center gap-2">
-                                                    @if ($currentPlan !== 'expired')
-                                                        <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full {{ $planBadgeClasses }}">
-                                                            {{ $currentPlanName }}
-                                                        </span>
-                                                    @endif
-
-                                                    <span x-show="selectedBranchId == {{ $branch->id }}"
-                                                        class="text-blue-600 dark:text-blue-400">
-                                                        <i class="fa-solid fa-check"></i>
-                                                    </span>
-                                                </div>
+                                                {{-- The plan is spa-wide, so it is shown once on the trigger, not per branch. --}}
+                                                <span x-show="selectedBranchId == {{ $branch->id }}"
+                                                    class="flex-shrink-0 ml-2 text-blue-600 dark:text-blue-400">
+                                                    <i class="fa-solid fa-check"></i>
+                                                </span>
                                             </button>
                                         @endforeach
                                     </div>
@@ -707,23 +694,35 @@
                 @endif
 
                 <div class="space-y-1">
+                    {{-- Top-level links use the section-header box (not x-nav-link, which is styled for
+                         nested sub-links) so their icons and labels line up with the headers below. --}}
+                    @php
+                        $topLinkBase = 'flex items-center w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left transition-colors rounded-lg';
+                        $topLinkIdle = 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700';
+                        $topLinkActive = 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white';
+                    @endphp
+
                     <!-- Dashboard -->
                     @if ($canDashboard)
+                        @php $isActive = request()->routeIs('dashboard'); @endphp
                         <div class="mb-1">
-                            <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                                <i class="fa-solid fa-gauge-high w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Dashboard
-                            </x-nav-link>
+                            <a href="{{ route('dashboard') }}" @if ($isActive) aria-current="page" @endif
+                                class="{{ $topLinkBase }} {{ $isActive ? $topLinkActive : $topLinkIdle }}">
+                                <i class="fa-solid fa-gauge-high w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Dashboard</span>
+                            </a>
                         </div>
                     @endif
 
                     <!-- My Payslips (self-service) -->
                     @if ($canMyPayslips)
+                        @php $isActive = request()->routeIs('my-payslips.*'); @endphp
                         <div class="mb-1">
-                            <x-nav-link :href="route('my-payslips.index')" :active="request()->routeIs('my-payslips.*')">
-                                <i class="fa-solid fa-file-invoice-dollar w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                My Payslips
-                            </x-nav-link>
+                            <a href="{{ route('my-payslips.index') }}" @if ($isActive) aria-current="page" @endif
+                                class="{{ $topLinkBase }} {{ $isActive ? $topLinkActive : $topLinkIdle }}">
+                                <i class="fa-solid fa-file-invoice-dollar w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">My Payslips</span>
+                            </a>
                         </div>
                     @endif
 
@@ -732,12 +731,12 @@
                         <button @click="toggleSection('operations')" type="button"
                             aria-controls="nav-section-operations"
                             :aria-expanded="isOpen('operations') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-calendar-check w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Operations
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-calendar-check w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Operations</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'operations')
                                     {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
                                     <span x-show="!isOpen('operations')" x-cloak aria-hidden="true"
@@ -784,12 +783,12 @@
                         <button @click="toggleSection('people')" type="button"
                             aria-controls="nav-section-people"
                             :aria-expanded="isOpen('people') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-users w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Manpower
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-users w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Manpower</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'people')
                                     {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
                                     <span x-show="!isOpen('people')" x-cloak aria-hidden="true"
@@ -835,12 +834,12 @@
                         <button @click="toggleSection('attendancePayroll')" type="button"
                             aria-controls="nav-section-attendance-payroll"
                             :aria-expanded="isOpen('attendancePayroll') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-money-check-dollar w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Attendance &amp; Payroll
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-money-check-dollar w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Time &amp; Pay</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'attendancePayroll')
                                     <span x-show="!isOpen('attendancePayroll')" x-cloak aria-hidden="true"
                                         class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
@@ -877,12 +876,12 @@
                         <button @click="toggleSection('services')" type="button"
                             aria-controls="nav-section-services"
                             :aria-expanded="isOpen('services') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-spa w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Services
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-spa w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Services</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'services')
                                     {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
                                     <span x-show="!isOpen('services')" x-cloak aria-hidden="true"
@@ -914,12 +913,12 @@
                         <button @click="toggleSection('finance')" type="button"
                             aria-controls="nav-section-finance"
                             :aria-expanded="isOpen('finance') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-wallet w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Finance
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-wallet w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Finance</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'finance')
                                     {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
                                     <span x-show="!isOpen('finance')" x-cloak aria-hidden="true"
@@ -958,12 +957,12 @@
                         <button @click="toggleSection('insights')" type="button"
                             aria-controls="nav-section-insights"
                             :aria-expanded="isOpen('insights') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-chart-line w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Insights
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-chart-line w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Insights</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'insights')
                                     {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
                                     <span x-show="!isOpen('insights')" x-cloak aria-hidden="true"
@@ -995,13 +994,13 @@
                         <button @click="toggleSection('procurement')" type="button"
                             aria-controls="nav-section-procurement"
                             :aria-expanded="isOpen('procurement') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-cart-flatbed w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Procurement
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-cart-flatbed w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Procurement</span>
                             </span>
 
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'procurement')
                                     <span x-show="!isOpen('procurement')" x-cloak aria-hidden="true"
                                         class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
@@ -1051,12 +1050,12 @@
                         <button @click="toggleSection('inventory')" type="button"
                             aria-controls="nav-section-inventory"
                             :aria-expanded="isOpen('inventory') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-boxes-stacked w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Inventory
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-boxes-stacked w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Inventory</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'inventory')
                                     {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
                                     <span x-show="!isOpen('inventory')" x-cloak aria-hidden="true"
@@ -1111,12 +1110,12 @@
                         <button @click="toggleSection('thisBranch')" type="button"
                             aria-controls="nav-section-thisBranch"
                             :aria-expanded="isOpen('thisBranch') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-store w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                This Branch
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-store w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">This Branch</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'thisBranch')
                                     {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
                                     <span x-show="!isOpen('thisBranch')" x-cloak aria-hidden="true"
@@ -1154,18 +1153,16 @@
                     </p>
 
                     <div class="space-y-1">
-
-                @if ($showBusiness)
                     <div class="mb-1">
                         <button @click="toggleSection('business')" type="button"
                             aria-controls="nav-section-business"
                             :aria-expanded="isOpen('business') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] px-4 py-3 font-medium text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center gap-2">
-                                <i class="fa-solid fa-building w-4 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Business
+                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                            <span class="flex items-center min-w-0 gap-2">
+                                <i class="fa-solid fa-building w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span class="min-w-0">Business</span>
                             </span>
-                            <span class="flex items-center gap-2">
+                            <span class="flex items-center flex-shrink-0 gap-2">
                                 @if ($activeSection === 'business')
                                     {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
                                     <span x-show="!isOpen('business')" x-cloak aria-hidden="true"
@@ -1200,7 +1197,6 @@
 
                         </div>
                     </div>
-                @endif
                     </div>
                 @endif
 

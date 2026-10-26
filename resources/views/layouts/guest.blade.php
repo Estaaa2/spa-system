@@ -35,7 +35,7 @@
 
     </head>
 
-    <body class="font-sans antialiased text-gray-900">
+    <body class="font-sans antialiased text-gray-900 bg-gray-900 dark:text-gray-100">
     <div class="relative min-h-screen">
 
         <!-- Background Image -->
@@ -60,8 +60,9 @@
             </div>
 
             <!-- Card Container -->
+            {{-- Pages inside use dark: variants, so the card must switch too or white-on-white text disappears. --}}
             <div
-                class="w-full max-w-md overflow-hidden shadow-3xl bg-white/100 backdrop-blur-md rounded-2xl sm:max-w-xl md:max-w-3xl lg:max-w-4xl"
+                class="w-full max-w-md overflow-hidden bg-white shadow-2xl rounded-2xl sm:max-w-xl md:max-w-3xl lg:max-w-4xl dark:bg-gray-800 dark:ring-1 dark:ring-white/10"
             >
                 {{ $slot }}
             </div>

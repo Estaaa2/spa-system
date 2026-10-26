@@ -200,7 +200,78 @@ class PayrollRunPagesTest extends TestCase
             ->assertSee('Earlier appointment')
             ->assertSee('10% of ₱1,500.00')
             ->assertSee($this->user->name)
-            ->assertSee('Rates version');
+            ->assertDontSee('Rates version');
+    }
+
+    // =====================================================================
+    // Phase 6 step 3 — plain wording (W1–W4, R1, R2)
+    // =====================================================================
+
+    public function test_warnings_use_plain_words_with_the_record_reference_muted(): void
+    {
+        $this->workSeptemberCutoffOne();
+        // Total 0 and a service that no longer exists → no list price → warning.
+        $this->booking('2026-09-04', ['total_amount' => '0.00', 'treatment' => 'treatment_999999']);
+        $run = $this->generateC1();
+
+        $messages = collect(app(PayrollRunWarnings::class)->get($run->fresh())['warnings'] ?? [])->pluck('message')->implode("\n");
+        $this->assertStringContainsString('a deleted treatment has no list price', $messages);
+        $this->assertStringContainsString('[ref: treatment_999999]', $messages);
+        $this->assertStringNotContainsString('total_amount', $messages);
+
+        $res = $this->dumpHtml('run_show_phase6', $this->actingAs($this->hr)->get(route('payroll.runs.show', $run)))->assertOk();
+        $res->assertSee('Ref: treatment_999999')
+            ->assertDontSee('[ref:', false)
+            ->assertDontSee('UNVERIFIED')
+            ->assertDontSee('rates sheet')
+            ->assertDontSee('title="SSS', false)
+            ->assertSee('Legend');
+    }
+
+    public function test_new_run_year_is_this_year_or_last_and_the_server_refuses_others(): void
+    {
+        $this->dumpHtml('payroll_index_phase6', $this->actingAs($this->hr)->get(route('payroll.index')))
+            ->assertOk()
+            ->assertSee('<select', false)
+            ->assertSee('<option value="2025"', false)
+            ->assertDontSee('<option value="2027"', false)
+            ->assertDontSee('type="number"', false)
+            ->assertSee('Due on or before December 24 (PD 851).')
+            ->assertDontSee('Labor Advisory');
+
+        $this->actingAs($this->hr)->from(route('payroll.index'))
+            ->post(route('payroll.runs.store'), ['run_type' => 'regular', 'year' => 2024, 'month' => 9, 'cutoff_no' => 1])
+            ->assertRedirect(route('payroll.index'));
+        $this->assertSame(0, PayrollRun::count());
+    }
+
+    public function test_thirteenth_month_notes_cite_pd_851_only(): void
+    {
+        $res = $this->actingAs($this->hr)->getJson(route('payroll.runs.preview', ['run_type' => 'thirteenth_month', 'year' => 2026, 'pay_date' => '2026-12-28']))
+            ->assertOk();
+        $notes = implode(' ', $res->json('notes'));
+        $this->assertStringContainsString('PD 851 requires', $notes);
+        $this->assertStringNotContainsString('Advisory', $notes);
+    }
+
+    public function test_staff_pay_shows_id_formats_and_plain_rest_day_text(): void
+    {
+        $this->dumpHtml('staff_pay_phase6', $this->actingAs($this->hr)->get(route('payroll.staff.show', $this->staff)))
+            ->assertOk()
+            ->assertSee('10 digits.')
+            ->assertSee('grouped XX-XXXXXXXXX-X')
+            ->assertSee('9 digits, plus a 3- or 5-digit branch code')
+            ->assertSee('data-rest-set', false)
+            ->assertDontSee('DOLE days-per-year');
+    }
+
+    private function dumpHtml(string $name, $res)
+    {
+        if ($dir = getenv('RBAC_HTML_DUMP')) {
+            file_put_contents($dir.'/'.$name.'.html', $res->getContent());
+        }
+
+        return $res;
     }
 
     public function test_generate_validation_and_engine_errors_return_to_the_modal(): void

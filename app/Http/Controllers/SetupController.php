@@ -14,6 +14,17 @@ use Illuminate\View\View;
 
 class SetupController extends Controller
 {
+    /**
+     * Setup answers stay editable until the administrator verifies the
+     * spa (same rule as SpaProfileController::update). Pending spas never
+     * get here: EnsureOwnerOnboardingState signs them out.
+     */
+    private function isSetupEditable(?Spa $spa): bool
+    {
+        return $spa === null
+            || in_array($spa->verification_status, [null, 'unverified', 'rejected'], true);
+    }
+
     public function index(): View|RedirectResponse
     {
         $user = Auth::user();
@@ -22,11 +33,13 @@ class SetupController extends Controller
             return redirect()->route('dashboard');
         }
 
-        if ($user->spa_id) {
-            return redirect()->route('setup.branches');
+        $spa = $user->spa;
+
+        if ($spa && !$this->isSetupEditable($spa)) {
+            return redirect()->route('dashboard');
         }
 
-        return view('setup.index');
+        return view('setup.index', compact('spa'));
     }
 
     public function storeSpa(Request $request): RedirectResponse
@@ -37,8 +50,10 @@ class SetupController extends Controller
             return redirect()->route('dashboard');
         }
 
-        if ($user->spa_id) {
-            return redirect()->route('setup.branches');
+        $spa = $user->spa;
+
+        if ($spa && !$this->isSetupEditable($spa)) {
+            return redirect()->route('dashboard');
         }
 
         $validated = $request->validate([
@@ -46,12 +61,21 @@ class SetupController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('spas', 'name'),
+                Rule::unique('spas', 'name')->ignore($spa?->id),
             ],
         ], [
             'spa_name.required' => 'The spa business name is required.',
             'spa_name.unique' => 'This spa business name is already registered.',
         ]);
+
+        // Returning from a later step to correct the name.
+        if ($spa) {
+            if ($spa->name !== $validated['spa_name']) {
+                $spa->update(['name' => $validated['spa_name']]);
+            }
+
+            return redirect()->route('setup.branches');
+        }
 
         $spa = Spa::create([
             'owner_id' => $user->id,
@@ -73,12 +97,18 @@ class SetupController extends Controller
             return redirect()->route('setup.index');
         }
 
-        $branches = $user->spa
+        if (!$this->isSetupEditable($user->spa)) {
+            return redirect()->route('dashboard');
+        }
+
+        // Setup creates exactly one branch, the main one.
+        $branch = $user->spa
             ->branches()
             ->with('profile')
-            ->get();
+            ->orderByDesc('is_main')
+            ->first();
 
-        return view('setup.branches', compact('branches'));
+        return view('setup.branches', compact('branch'));
     }
 
     public function storeBranch(Request $request): RedirectResponse
@@ -91,14 +121,15 @@ class SetupController extends Controller
 
         $spa = $user->spa;
 
-        if ($spa->branches()->exists()) {
-            return redirect()
-                ->route('setup.branches')
-                ->with(
-                    'error',
-                    'Only one branch can be added during initial setup.'
-                );
+        if (!$this->isSetupEditable($spa)) {
+            return redirect()->route('dashboard');
         }
+
+        // When present, the form edits this branch instead of creating one.
+        $existingBranch = $spa->branches()
+            ->with('profile')
+            ->orderByDesc('is_main')
+            ->first();
 
         $validated = $request->validate([
             'branch_name' => [
@@ -106,7 +137,8 @@ class SetupController extends Controller
                 'string',
                 'max:255',
                 Rule::unique('branches', 'name')
-                    ->where(fn ($query) => $query->where('spa_id', $spa->id)),
+                    ->where(fn ($query) => $query->where('spa_id', $spa->id))
+                    ->ignore($existingBranch?->id),
             ],
             'location' => [
                 'required',
@@ -151,6 +183,33 @@ class SetupController extends Controller
                     'location' => 'The branch location must be within Cavite.',
                 ])
                 ->withInput();
+        }
+
+        // Returning from Documents to correct the branch: update in place.
+        // Operating hours and documents are left untouched.
+        if ($existingBranch) {
+            DB::transaction(function () use (
+                $existingBranch,
+                $validated,
+                $latitude,
+                $longitude
+            ) {
+                $existingBranch->update([
+                    'name' => $validated['branch_name'],
+                    'location' => $validated['location'],
+                ]);
+
+                $existingBranch->profile()->updateOrCreate([], [
+                    'address' => $validated['location'],
+                    'city' => $validated['city'],
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                ]);
+            });
+
+            return redirect()
+                ->route('setup.documents')
+                ->with('success', 'Main branch details saved.');
         }
 
         $branch = DB::transaction(function () use (

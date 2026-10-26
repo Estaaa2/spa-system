@@ -46,9 +46,9 @@
                 <a
                     href="{{ route('setup.branches') }}"
                     aria-label="Back to main branch"
-                    class="absolute left-0 inline-flex items-center min-h-[44px] text-sm text-gray-600 transition-colors hover:text-[#8B7355]"
+                    class="absolute left-0 inline-flex items-center min-h-[44px] text-sm text-gray-600 transition-colors hover:text-[#8B7355] dark:text-gray-400 dark:hover:text-[#C4A97D]"
                 >
-                    <i class="text-3xl fa-solid fa-circle-chevron-left text-[#8B7355]"></i>
+                    <i class="text-3xl fa-solid fa-circle-chevron-left text-[#8B7355] dark:text-[#C4A97D]"></i>
                 </a>
             @endif
 
@@ -256,14 +256,33 @@
                 role="alert"
             ></p>
 
+            {{-- name/value travel with the clicked button; the controller reads "intent". --}}
             <button
                 type="submit"
                 id="uploadDocumentsButton"
+                name="intent"
+                value="submit"
                 class="inline-flex items-center justify-center w-full min-h-[48px] gap-2 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#7A6348] to-[#6F5430] rounded-xl hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed md:col-span-2"
             >
                 <i class="fa-solid fa-paper-plane"></i>
                 Save and Submit for Review
             </button>
+
+            <button
+                type="submit"
+                id="finishLaterButton"
+                name="intent"
+                value="later"
+                class="inline-flex items-center justify-center w-full min-h-[48px] gap-2 px-4 py-3 text-sm font-semibold text-[#6F5430] bg-white border border-[#8B7355]/40 rounded-xl hover:bg-[#8B7355]/5 disabled:opacity-60 disabled:cursor-not-allowed md:col-span-2 dark:bg-transparent dark:text-[#C4A97D] dark:border-[#C4A97D]/40 dark:hover:bg-[#C4A97D]/10"
+            >
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Save and Finish Later
+            </button>
+
+            <p class="text-xs leading-5 text-center text-gray-500 md:col-span-2 dark:text-gray-400">
+                Don't have every document on hand? Save what you have and log in again when you're ready.
+                Your spa stays hidden from customers until it is verified.
+            </p>
 
             <p class="text-xs leading-5 text-center text-gray-500 md:col-span-2 dark:text-gray-400">
                 Valid documents will be preserved even if another selected document fails validation.
@@ -353,10 +372,24 @@
                 'uploadDocumentsButton'
             );
 
+        const finishLaterButton =
+            document.getElementById(
+                'finishLaterButton'
+            );
+
+        const SUBMIT_LABEL =
+            '<i class="fa-solid fa-paper-plane"></i> Save and Submit for Review';
+
+        const LATER_LABEL =
+            '<i class="fa-solid fa-clock-rotate-left"></i> Save and Finish Later';
+
         if (form && submitButton) {
             form.addEventListener(
                 'submit',
                 function (event) {
+                    const isFinishLater =
+                        event.submitter === finishLaterButton;
+
                     const chosen =
                         Array.from(
                             form.querySelectorAll(
@@ -367,7 +400,8 @@
                                 input.files.length > 0;
                         });
 
-                    if (!chosen) {
+                    // "Finish later" with nothing picked just signs the owner out.
+                    if (!chosen && !isFinishLater) {
                         event.preventDefault();
 
                         const error =
@@ -385,10 +419,24 @@
                         return;
                     }
 
-                    submitButton.disabled = true;
+                    const busyButton = isFinishLater
+                        ? finishLaterButton
+                        : submitButton;
 
-                    submitButton.innerHTML =
-                        '<i class="mr-2 fa-solid fa-spinner fa-spin"></i> Saving and Submitting...';
+                    busyButton.innerHTML = isFinishLater
+                        ? '<i class="mr-2 fa-solid fa-spinner fa-spin"></i> Saving...'
+                        : '<i class="mr-2 fa-solid fa-spinner fa-spin"></i> Saving and Submitting...';
+
+                    // Disable on the next tick: a button disabled during the
+                    // submit event is dropped from the form data, and the
+                    // controller needs the clicked button's "intent" value.
+                    setTimeout(function () {
+                        submitButton.disabled = true;
+
+                        if (finishLaterButton) {
+                            finishLaterButton.disabled = true;
+                        }
+                    }, 0);
                 }
             );
         }
@@ -398,9 +446,12 @@
             function () {
                 if (submitButton) {
                     submitButton.disabled = false;
+                    submitButton.innerHTML = SUBMIT_LABEL;
+                }
 
-                    submitButton.innerHTML =
-                        '<i class="fa-solid fa-paper-plane"></i> Save and Submit for Review';
+                if (finishLaterButton) {
+                    finishLaterButton.disabled = false;
+                    finishLaterButton.innerHTML = LATER_LABEL;
                 }
             }
         );

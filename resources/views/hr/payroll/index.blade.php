@@ -626,16 +626,17 @@
                                     Year
                                 </label>
 
-                                <input
-                                    type="number"
+                                @php $regYear = (int) ($reopen ? old('year', $suggested['year']) : $suggested['year']); @endphp
+                                <select
                                     id="nr_year"
                                     name="year"
-                                    min="2000"
-                                    max="2100"
                                     required
                                     class="{{ $inputClass }}"
-                                    value="{{ $reopen ? old('year', $suggested['year']) : $suggested['year'] }}"
                                 >
+                                    @foreach ($runYears as $y)
+                                        <option value="{{ $y }}" @selected($regYear === $y)>{{ $y }}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             <fieldset class="col-span-2">
@@ -673,16 +674,17 @@
                                     Year
                                 </label>
 
-                                <input
-                                    type="number"
+                                @php $y13 = (int) ($reopen && $oldType === 'thirteenth_month' ? old('year', $suggested['thirteenth_year']) : $suggested['thirteenth_year']); @endphp
+                                <select
                                     id="nr_13_year"
                                     name="year"
                                     data-year-13
-                                    min="2000"
-                                    max="2100"
                                     class="{{ $inputClass }}"
-                                    value="{{ $reopen && $oldType === 'thirteenth_month' ? old('year', $suggested['thirteenth_year']) : $suggested['thirteenth_year'] }}"
                                 >
+                                    @foreach ($runYears as $y)
+                                        <option value="{{ $y }}" @selected($y13 === $y)>{{ $y }}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             <div>
@@ -700,8 +702,7 @@
                             </div>
 
                             <p class="col-span-2 text-xs text-gray-500 dark:text-gray-400">
-                                Due on or before December 24
-                                (PD 851; DOLE Labor Advisory 16-25).
+                                Due on or before December 24 (PD 851).
                             </p>
                         </div>
 
