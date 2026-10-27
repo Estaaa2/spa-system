@@ -47,8 +47,9 @@ test('password can be reset with valid token', function () {
         $response = $this->post('/reset-password', [
             'token' => $notification->token,
             'email' => $user->email,
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            // Levictas uses Password::defaults() with mixed case, numbers and symbols.
+            'password' => 'N3w-Passw0rd!',
+            'password_confirmation' => 'N3w-Passw0rd!',
         ]);
 
         $response

@@ -1,7 +1,10 @@
 <?php
 
-it('returns a successful response', function () {
-    $response = $this->get('/');
+use Database\Seeders\RolePermissionSeeder;
 
-    $response->assertStatus(200);
+it('returns a successful response', function () {
+    // The landing page reads roles (e.g. therapists to list), so they must exist.
+    $this->seed(RolePermissionSeeder::class);
+
+    $this->get('/')->assertStatus(200);
 });

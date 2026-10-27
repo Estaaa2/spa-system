@@ -1,15 +1,19 @@
 <?php
 
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
+
+// Updated for Levictas (Phase 7): login sends each role to its own page and refuses
+// unverified accounts (AuthenticatedSessionController::store).
 
 test('login screen can be rendered', function () {
-    $response = $this->get('/login');
-
-    $response->assertStatus(200);
+    $this->get('/login')->assertStatus(200);
 });
 
 test('users can authenticate using the login screen', function () {
+    $this->seed(RolePermissionSeeder::class);
     $user = User::factory()->create();
+    $user->assignRole('therapist');
 
     $response = $this->post('/login', [
         'email' => $user->email,
@@ -18,6 +22,16 @@ test('users can authenticate using the login screen', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('unverified users are logged out with a message', function () {
+    $user = User::factory()->unverified()->create();
+
+    $this->post('/login', ['email' => $user->email, 'password' => 'password'])
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors('email');
+
+    $this->assertGuest();
 });
 
 test('users can not authenticate with invalid password', function () {

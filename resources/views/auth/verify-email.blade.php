@@ -107,7 +107,7 @@
 
             <form
                 method="POST"
-                action="{{ route('verification.otp') }}"
+                action="{{ route('verification.otp.verify') }}"
                 class="space-y-4">
 
                 @csrf

@@ -28,7 +28,9 @@ test('email can be verified', function () {
 
     Event::assertDispatched(Verified::class);
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
-    $response->assertRedirect(route('dashboard', absolute: false).'?verified=1');
+    // Levictas sends each role to its own page; a user without a role lands on the
+    // public page (VerifyEmailController::redirectTo).
+    $response->assertRedirect(route('landing.page'));
 });
 
 test('email is not verified with invalid hash', function () {

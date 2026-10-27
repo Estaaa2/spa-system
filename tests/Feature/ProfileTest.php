@@ -1,85 +1,48 @@
 <?php
 
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Support\Facades\Hash;
+
+// Updated for Levictas (Phase 7). The profile page shows account details read-only and
+// changes the password through PUT /profile/password. The Breeze "update profile" and
+// "delete account" tests were removed: the page has no such forms and DELETE /profile is
+// not routed. PATCH /profile is still routed — see the open issue in the Phase 7 notes.
 
 test('profile page is displayed', function () {
+    $this->seed(RolePermissionSeeder::class);
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->get('/profile');
-
-    $response->assertOk();
+    $this->actingAs($user)->get('/profile')->assertOk();
 });
 
-test('profile information can be updated', function () {
-    $user = User::factory()->create();
+test('password can be changed from the profile page', function () {
+    $user = User::factory()->create(['password_reset_required' => true]);
 
-    $response = $this
-        ->actingAs($user)
-        ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
-    $response
+    $this->actingAs($user)
+        ->from('/profile')
+        ->put(route('profile.password'), [
+            'current_password' => 'password',
+            'password' => 'N3w-Passw0rd!',
+            'password_confirmation' => 'N3w-Passw0rd!',
+        ])
         ->assertSessionHasNoErrors()
-        ->assertRedirect('/profile');
+        ->assertRedirect(route('profile.edit'));
 
     $user->refresh();
-
-    $this->assertSame('Test User', $user->name);
-    $this->assertSame('test@example.com', $user->email);
-    $this->assertNull($user->email_verified_at);
+    expect(Hash::check('N3w-Passw0rd!', $user->password))->toBeTrue();
+    expect((bool) $user->password_reset_required)->toBeFalse();
 });
 
-test('email verification status is unchanged when the email address is unchanged', function () {
+test('the current password is required to change it', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => $user->email,
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/profile');
-
-    $this->assertNotNull($user->refresh()->email_verified_at);
-});
-
-test('user can delete their account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->delete('/profile', [
-            'password' => 'password',
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/');
-
-    $this->assertGuest();
-    $this->assertNull($user->fresh());
-});
-
-test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
+    $this->actingAs($user)
         ->from('/profile')
-        ->delete('/profile', [
-            'password' => 'wrong-password',
-        ]);
-
-    $response
-        ->assertSessionHasErrorsIn('userDeletion', 'password')
-        ->assertRedirect('/profile');
-
-    $this->assertNotNull($user->fresh());
+        ->put(route('profile.password'), [
+            'current_password' => 'wrong-password',
+            'password' => 'N3w-Passw0rd!',
+            'password_confirmation' => 'N3w-Passw0rd!',
+        ])
+        ->assertSessionHasErrors('current_password');
 });

@@ -3,72 +3,33 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <div class="max-w-5xl px-4 py-8 mx-auto dark:bg-gray-800 dark:border-gray-700">
+    <div class="px-4 py-6 sm:px-8 sm:py-8">
 
-        <div class="max-w-3xl mx-auto dark:bg-gray-800 dark:border-gray-700">
+        <div class="max-w-3xl mx-auto">
 
-            <div class="relative mb-8 text-center">
+            <div class="relative mb-6 text-center sm:mb-8">
 
                 <a href="{{ route('setup.index') }}"
-                   class="absolute left-0 inline-flex items-center min-h-[44px] text-sm text-gray-600 hover:text-[#8B7355] dark:text-gray-400 dark:hover:text-[#C4A97D] transition-colors duration-200">
+                   aria-label="Back to business info"
+                   class="absolute top-0 left-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355]/40">
 
-                    <i class="fa-solid fa-circle-chevron-left text-3xl text-[#8B7355]"></i>
+                    <i class="text-2xl sm:text-3xl fa-solid fa-circle-chevron-left text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
 
                 </a>
 
-                <img src="{{ asset('images/1.png') }}" alt="Levictas" class="mx-auto rounded-md h-14"/>
+                <img src="{{ asset('images/1.png') }}" alt="Levictas" class="h-12 mx-auto rounded-md sm:h-14"/>
 
-                <h2 class="mt-5 text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display'] mb-2">
+                <h1 class="mt-4 text-2xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display'] sm:text-3xl">
                     Set Up Your Main Branch
-                </h2>
+                </h1>
 
-                <p class="max-w-2xl mx-auto mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">
+                <p class="max-w-2xl mx-auto mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
                     Add your main branch and confirm its exact location. One branch is included during initial setup.
                 </p>
 
             </div>
 
-            <div class="mb-12">
-                <div class="flex items-center justify-center overflow-x-auto">
-                    <div class="flex items-center min-w-max">
-
-                        <div class="flex items-center">
-                            <div class="flex items-center justify-center w-10 h-10 text-white rounded-full bg-[#8B7355]">
-                                <i class="text-sm leading-none fa-solid fa-check"></i>
-                            </div>
-
-                            <span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Business Info
-                            </span>
-                        </div>
-
-                        <div class="w-16 sm:w-24 h-1 mx-4 rounded bg-[#8B7355]/30"></div>
-
-                        <div class="flex items-center">
-                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-[#8B7355] text-white">
-                                2
-                            </div>
-
-                            <span class="ml-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                Main Branch
-                            </span>
-                        </div>
-
-                        <div class="w-16 h-1 mx-4 bg-gray-200 rounded sm:w-24 dark:bg-gray-700"></div>
-
-                        <div class="flex items-center">
-                            <div class="flex items-center justify-center w-10 h-10 text-gray-400 bg-gray-200 rounded-full dark:bg-gray-700 dark:text-gray-300">
-                                3
-                            </div>
-
-                            <span class="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
-                                Documents
-                            </span>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
+            <x-setup-stepper :current="2" />
 
             @if(session('error'))
                 <div class="p-4 mb-6 text-sm text-red-700 border border-red-200 bg-red-50 rounded-2xl dark:bg-red-900/10 dark:text-red-300 dark:border-red-800">
@@ -253,7 +214,6 @@
             );
 
             const caviteCenter = [14.2456, 120.8786];
-
             const map = L.map('branchMap', {
                 maxBounds: caviteBounds,
                 maxBoundsViscosity: 0.8
@@ -662,4 +622,5 @@
             }
         }
     </script>
+
 </x-guest-layout>

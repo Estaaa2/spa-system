@@ -1459,7 +1459,7 @@ final class PayrollRunService
 
         $who = array_map(fn (int $id): string => (($names[$id] ?? '') ?: 'Staff')." (#{$id})", array_values($ids));
         $rest[] = new RunWarning(RunWarning::CUMULATIVE_AVERAGE, sprintf(
-            '%d payslip(s) receive supplementary pay (e.g. commission) while regular pay is below the withholding level, or supplementary ≥ regular: %s. RR 11-2018 Sec. 2.79(B)(5)(a) prescribes the cumulative average method for them; Levictas withholds per cutoff (locked rule), so a peak-commission cutoff can over-withhold until the year-end annualization refunds it. Decision E is open.',
+            '%d payslip(s) receive supplementary pay (e.g. commission) while regular pay is below the withholding level, or supplementary ≥ regular: %s. RR 11-2018 Sec. 2.79(B)(5)(a) prescribes the cumulative average method for them; Levictas withholds per cutoff instead, so a high-commission cutoff can over-withhold until the year-end annualization refunds it.',
             count($ids), implode(', ', $who),
         ));
 

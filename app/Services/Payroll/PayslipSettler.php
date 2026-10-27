@@ -155,7 +155,7 @@ final class PayslipSettler
 
             if ($this->meetsCumulativeAverageCondition($earnings, (bool) $payslip->is_mwe, $payDate)) {
                 $warnings[] = new RunWarning(RunWarning::CUMULATIVE_AVERAGE, sprintf(
-                    '%s: supplementary pay (e.g. commission) with regular pay below the withholding level, or supplementary ≥ regular. RR 11-2018 Sec. 2.79(B)(5)(a) prescribes the cumulative average method; Levictas withholds per cutoff (locked rule) and the year-end annualization settles the difference.',
+                    '%s: supplementary pay (e.g. commission) with regular pay below the withholding level, or supplementary ≥ regular. RR 11-2018 Sec. 2.79(B)(5)(a) prescribes the cumulative average method; Levictas withholds per cutoff instead and the year-end annualization settles the difference.',
                     $who,
                 ), $staffId);
             }

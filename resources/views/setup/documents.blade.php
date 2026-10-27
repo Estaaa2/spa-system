@@ -4,19 +4,23 @@
         $documentMeta = [
             'government_id' => [
                 'label' => 'Government ID',
-                'description' => 'Upload one valid government-issued ID of the spa owner or authorized representative. Make sure the name and photo are clear and readable.',
+                'hint' => 'Owner or authorized representative. Name and photo must be readable.',
+                'icon' => 'fa-id-card',
             ],
             'dti_sec' => [
                 'label' => 'DTI / SEC Certificate',
-                'description' => 'Upload your DTI Business Name Certificate or SEC Registration Certificate as proof that your spa business is registered.',
+                'hint' => 'DTI Business Name Certificate or SEC Registration Certificate.',
+                'icon' => 'fa-building',
             ],
             'bir_certificate' => [
                 'label' => 'BIR Certificate of Registration',
-                'description' => 'Upload your BIR Certificate of Registration to confirm that your business is registered for tax purposes.',
+                'hint' => 'Proof that the business is registered for tax purposes.',
+                'icon' => 'fa-file-invoice',
             ],
             'business_permit' => [
                 'label' => 'Business Permit',
-                'description' => 'Upload a valid business or mayor\'s permit as proof that the spa is authorized to operate.',
+                'hint' => 'A valid business or mayor\'s permit for this spa.',
+                'icon' => 'fa-store',
             ],
         ];
 
@@ -24,437 +28,370 @@
             ->verificationDocuments
             ->keyBy('document_type');
 
-        $requiredTypes = array_keys($documentMeta);
+        $totalCount = count($documentMeta);
 
-        $hasAllDocuments = collect($requiredTypes)
-            ->every(fn ($type) => $documents->has($type));
+        $readyCount = collect(array_keys($documentMeta))
+            ->filter(fn ($type) => $documents->has($type))
+            ->count();
+
+        // Same rule the script applies: every type covered AND at least one
+        // new file chosen. On first render nothing is chosen yet.
+        $allReady = $readyCount === $totalCount;
+
+        $initialStatus = $allReady
+            ? 'Choose a replacement for the flagged document to resubmit.'
+            : "{$readyCount} of {$totalCount} ready. Finish later saves your files and signs you out.";
 
         $maxUploadBytes = 10 * 1024 * 1024;
 
         $isRejected = $spa->verification_status === 'rejected';
     @endphp
 
-    <div class="max-w-3xl px-4 py-8 mx-auto">
+    {{-- max-md:pb-28 keeps the last row clear of the fixed mobile action bar. --}}
+    <div class="px-4 py-6 sm:px-8 sm:py-8 max-md:pb-28">
+        <div class="max-w-3xl mx-auto">
 
-        <div class="relative mb-8 text-center">
-
-            @php
-                $branch = $spa->branches()->first();
-            @endphp
-
-            @if($branch)
+            <div class="relative mb-6 text-center sm:mb-8">
                 <a
                     href="{{ route('setup.branches') }}"
                     aria-label="Back to main branch"
-                    class="absolute left-0 inline-flex items-center min-h-[44px] text-sm text-gray-600 transition-colors hover:text-[#8B7355] dark:text-gray-400 dark:hover:text-[#C4A97D]"
+                    class="absolute top-0 left-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355]/40"
                 >
-                    <i class="text-3xl fa-solid fa-circle-chevron-left text-[#8B7355] dark:text-[#C4A97D]"></i>
+                    <i class="text-2xl sm:text-3xl fa-solid fa-circle-chevron-left text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
                 </a>
-            @endif
 
-            <img
-                src="{{ asset('images/1.png') }}"
-                alt="Levictas"
-                class="mx-auto rounded-md h-14"
-            >
+                <img
+                    src="{{ asset('images/1.png') }}"
+                    alt="Levictas"
+                    class="h-12 mx-auto rounded-md sm:h-14"
+                >
 
-            <h2 class="mt-5 text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
-                Business Verification
-            </h2>
+                <h1 class="mt-4 text-2xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display'] sm:text-3xl">
+                    Business Verification
+                </h1>
 
-            <p class="max-w-2xl mx-auto mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
-                Upload the required documents so the platform administrator can review and verify your spa business.
-            </p>
+                <p class="max-w-2xl mx-auto mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                    Upload these documents so an administrator can verify your spa.
+                    It stays hidden from customers until it is verified.
+                </p>
+            </div>
+
+            <x-setup-stepper :current="3" />
 
             @if($isRejected)
-                <div class="p-4 mt-6 text-left border border-red-200 rounded-2xl bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-                    <div class="flex items-start gap-3">
-                        <i class="mt-0.5 text-red-600 fa-solid fa-circle-exclamation dark:text-red-300"></i>
+                <div class="flex items-start gap-3 p-4 mb-5 border border-red-200 rounded-2xl bg-red-50 dark:border-red-800 dark:bg-red-900/20" role="status">
+                    <i class="mt-0.5 text-red-600 fa-solid fa-circle-exclamation dark:text-red-300" aria-hidden="true"></i>
 
-                        <div>
-                            <h3 class="text-sm font-semibold text-red-800 dark:text-red-200">
-                                Your document submission was rejected
-                            </h3>
+                    <div class="min-w-0 text-sm leading-6">
+                        <p class="font-semibold text-red-800 dark:text-red-200">
+                            Your submission was sent back
+                        </p>
 
-                            <p class="mt-1 text-sm leading-6 text-red-700 dark:text-red-300">
-                                Replace the incorrect document, then click
-                                <strong>Save and Submit for Review</strong>.
+                        @if($spa->verification_remarks)
+                            <p class="text-red-700 dark:text-red-300">
+                                <span class="font-medium">Administrator remarks:</span>
+                                {{ $spa->verification_remarks }}
                             </p>
+                        @endif
 
-                            @if($spa->verification_remarks)
-                                <p class="mt-3 text-sm leading-6 text-red-800 dark:text-red-200">
-                                    <span class="font-semibold">
-                                        Administrator remarks:
-                                    </span>
-
-                                    {{ $spa->verification_remarks }}
-                                </p>
-                            @endif
-                        </div>
+                        <p class="text-red-700 dark:text-red-300">
+                            Replace the incorrect document, then submit again.
+                        </p>
                     </div>
                 </div>
             @endif
 
-        </div>
+            <form
+                id="setupDocumentsForm"
+                method="POST"
+                action="{{ route('owner.spa-profile.documents.upload') }}"
+                enctype="multipart/form-data"
+            >
+                @csrf
 
-        <div class="mb-10">
-            <div class="flex items-center justify-center overflow-x-auto">
-                <div class="flex items-center min-w-max">
+                <div class="flex items-center justify-between gap-3 mb-2">
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
+                        Required documents
+                    </h2>
 
-                    <div class="flex items-center">
-                        <div class="flex items-center justify-center w-10 h-10 text-white rounded-full bg-[#8B7355]">
-                            <i class="text-sm fa-solid fa-check"></i>
-                        </div>
-
-                        <span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Business Info
-                        </span>
-                    </div>
-
-                    <div class="w-16 h-1 mx-4 rounded sm:w-24 bg-[#8B7355]/30"></div>
-
-                    <div class="flex items-center">
-                        <div class="flex items-center justify-center w-10 h-10 text-white rounded-full bg-[#8B7355]">
-                            <i class="text-sm fa-solid fa-check"></i>
-                        </div>
-
-                        <span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Main Branch
-                        </span>
-                    </div>
-
-                    <div class="w-16 h-1 mx-4 rounded sm:w-24 bg-[#8B7355]/30"></div>
-
-                    <div class="flex items-center">
-                        <div class="flex items-center justify-center w-10 h-10 text-white rounded-full bg-[#8B7355]">
-                            3
-                        </div>
-
-                        <span class="ml-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Documents
-                        </span>
-                    </div>
-
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        PDF, JPG or PNG · max 10 MB each
+                    </p>
                 </div>
-            </div>
-        </div>
 
-        @if($hasAllDocuments)
-            <div class="p-5 mb-5 border border-amber-200 bg-amber-50 rounded-2xl dark:border-amber-800 dark:bg-amber-900/10">
-                <div class="flex items-start gap-3">
-                    <div class="flex items-center justify-center w-10 h-10 bg-white text-amber-600 rounded-xl shrink-0 dark:bg-gray-800 dark:text-amber-400">
-                        <i class="fa-solid fa-file-circle-check"></i>
-                    </div>
+                <ul role="list" class="overflow-hidden bg-white border border-gray-200 divide-y divide-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 dark:divide-gray-700">
+                    @foreach($documentMeta as $type => $meta)
+                        @php
+                            $document = $documents->get($type);
+                            $fieldName = 'documents.' . $type;
+                            $hasError = $errors->has($fieldName);
 
-                    <div>
-                        <h3 class="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                            Documents ready for administrator review
-                        </h3>
+                            $defaultFileText = $document
+                                ? 'Current file: ' . $document->file_name
+                                : 'No file uploaded yet';
 
-                        <p class="mt-1 text-sm leading-6 text-amber-700 dark:text-amber-300">
-                            All required documents are uploaded. Review your files, then submit them for administrator review.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        @else
-            <div class="p-4 mb-5 text-sm text-blue-800 border border-blue-200 bg-blue-50 rounded-xl dark:border-blue-800 dark:bg-blue-900/10 dark:text-blue-300">
-                Accepted formats: PDF, JPG, JPEG and PNG. Maximum file size is 10 MB per document.
-            </div>
-        @endif
+                            [$pillText, $pillClass] = match (true) {
+                                $hasError => ['Needs attention', 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'],
+                                (bool) $document => ['Uploaded', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'],
+                                default => ['Required', 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
+                            };
+                        @endphp
 
-        <form
-            id="setupDocumentsForm"
-            method="POST"
-            action="{{ route('owner.spa-profile.documents.upload') }}"
-            enctype="multipart/form-data"
-            class="grid grid-cols-1 gap-4 md:grid-cols-2"
-        >
-            @csrf
+                        <li class="p-4 sm:p-5 {{ $hasError ? 'bg-red-50/60 dark:bg-red-900/10' : '' }}">
+                            <div class="flex items-start gap-3 sm:gap-4">
 
-            @foreach($documentMeta as $type => $meta)
-                @php
-                    $document = $documents->get($type);
-                    $fieldName = 'documents.' . $type;
-                    $hasError = $errors->has($fieldName);
-                @endphp
+                                <div class="items-center justify-center hidden w-10 h-10 sm:flex shrink-0 rounded-xl bg-[#8B7355]/10 text-[#6F5430] dark:bg-[#C4A97D]/10 dark:text-[#C4A97D]">
+                                    <i class="fa-solid {{ $meta['icon'] }}" aria-hidden="true"></i>
+                                </div>
 
-                <div class="h-full p-4 bg-white border rounded-2xl sm:p-5 dark:bg-gray-800 {{ $hasError ? 'border-red-300 dark:border-red-800' : 'border-gray-200 dark:border-gray-700' }}">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                                            {{ $meta['label'] }}
+                                        </h3>
 
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                                    {{ $meta['label'] }}
-                                </h3>
+                                        <span data-pill="default" class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full {{ $pillClass }}">
+                                            {{ $pillText }}
+                                        </span>
 
-                                @if($document)
-                                    <span class="inline-flex px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                                        Uploaded
-                                    </span>
-                                @else
-                                    <span class="inline-flex px-2.5 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
-                                        Required
-                                    </span>
-                                @endif
+                                        <span data-pill="chosen" class="hidden px-2 py-0.5 text-xs font-medium rounded-full bg-[#8B7355]/10 text-[#6F5430] dark:bg-[#C4A97D]/15 dark:text-[#C4A97D]">
+                                            Ready to upload
+                                        </span>
+                                    </div>
+
+                                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                        {{ $meta['hint'] }}
+                                    </p>
+
+                                    @if($document?->review_remarks)
+                                        <p class="mt-1 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                                            <span class="font-medium">Sent back:</span>
+                                            {{ $document->review_remarks }}
+                                        </p>
+                                    @endif
+
+                                    <p
+                                        id="file_label_{{ $type }}"
+                                        class="mt-2 text-xs text-gray-700 break-all dark:text-gray-300"
+                                    >
+                                        {{ $defaultFileText }}
+                                    </p>
+
+                                    <p
+                                        id="file_error_{{ $type }}"
+                                        class="mt-1 text-xs leading-5 text-red-600 dark:text-red-400 {{ $hasError ? '' : 'hidden' }}"
+                                        role="alert"
+                                    >
+                                        {{ $errors->first($fieldName) }}
+                                    </p>
+                                </div>
+
+                                <div class="shrink-0">
+                                    <input
+                                        id="document_{{ $type }}"
+                                        type="file"
+                                        name="documents[{{ $type }}]"
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        class="sr-only peer"
+                                        aria-describedby="file_label_{{ $type }} file_error_{{ $type }}"
+                                        data-max-bytes="{{ $maxUploadBytes }}"
+                                        data-has-document="{{ $document ? '1' : '0' }}"
+                                        data-default-text="{{ $defaultFileText }}"
+                                        data-label-id="file_label_{{ $type }}"
+                                        data-error-id="file_error_{{ $type }}"
+                                    >
+
+                                    <label
+                                        for="document_{{ $type }}"
+                                        class="inline-flex items-center justify-center gap-2 min-h-[44px] px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 cursor-pointer rounded-xl hover:bg-gray-50 peer-focus-visible:ring-2 peer-focus-visible:ring-[#8B7355]/40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                                    >
+                                        <i class="fa-solid fa-arrow-up-from-bracket" aria-hidden="true"></i>
+                                        {{ $document ? 'Replace' : 'Choose' }}
+                                        <span class="sr-only">{{ $meta['label'] }}</span>
+                                    </label>
+                                </div>
+
                             </div>
-                        </div>
+                        </li>
+                    @endforeach
+                </ul>
 
-                        <div class="shrink-0">
-                            <input
-                                id="document_{{ $type }}"
-                                type="file"
-                                name="documents[{{ $type }}]"
-                                accept=".pdf,.jpg,.jpeg,.png"
-                                class="sr-only"
-                                data-max-bytes="{{ $maxUploadBytes }}"
-                                data-label-id="file_label_{{ $type }}"
-                                data-error-id="file_error_{{ $type }}"
-                            >
+                {{--
+                    Below md this bar is fixed to the viewport (thumb zone); from md up
+                    it sits in normal flow, where the whole step fits on one screen.
+                    position:fixed works only while no ancestor (guest layout card)
+                    has a transform or backdrop-filter — keep it that way.
+                    DOM order stays rows-then-actions, so tab order is unchanged.
+                --}}
+                <div class="fixed inset-x-0 bottom-0 z-30 px-4 py-3 bg-white border-t border-gray-200 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] dark:bg-gray-800 dark:border-gray-700 md:static md:z-auto md:p-0 md:mt-6 md:bg-transparent md:border-0 md:shadow-none md:dark:bg-transparent">
+                    <div class="max-w-3xl mx-auto">
+                        <p
+                            id="documentsStatus"
+                            aria-live="polite"
+                            class="mb-2 text-xs text-center text-gray-600 md:mb-3 md:text-sm dark:text-gray-300"
+                        >
+                            {{ $initialStatus }}
+                        </p>
 
-                            <label
-                                for="document_{{ $type }}"
-                                class="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 cursor-pointer rounded-xl hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        {{-- name/value travel with the clicked button; the controller reads "intent". --}}
+                        <div class="grid grid-cols-2 gap-2 md:gap-3">
+                            <button
+                                type="submit"
+                                id="finishLaterButton"
+                                name="intent"
+                                value="later"
+                                class="inline-flex items-center justify-center w-full min-h-[48px] gap-2 px-3 py-3 text-sm font-semibold text-[#6F5430] bg-white border border-[#8B7355]/40 rounded-xl hover:bg-[#8B7355]/5 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-transparent dark:text-[#C4A97D] dark:border-[#C4A97D]/40 dark:hover:bg-[#C4A97D]/10"
                             >
-                                <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                                {{ $document ? 'Replace' : 'Choose File' }}
-                            </label>
+                                <i class="hidden fa-solid fa-clock-rotate-left sm:inline" aria-hidden="true"></i>
+                                Finish later
+                            </button>
+
+                            <button
+                                type="submit"
+                                id="uploadDocumentsButton"
+                                name="intent"
+                                value="submit"
+                                @disabled(true)
+                                class="inline-flex items-center justify-center w-full min-h-[48px] gap-2 px-3 py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#7A6348] to-[#6F5430] rounded-xl hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <i class="hidden fa-solid fa-paper-plane sm:inline" aria-hidden="true"></i>
+                                Submit for review
+                            </button>
                         </div>
                     </div>
-
-                    <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
-                        {{ $meta['description'] }}
-                    </p>
-
-                    @if($document)
-                        <p class="mt-3 text-sm text-gray-700 break-all dark:text-gray-300">
-                            <span class="font-medium">Current file:</span>
-                            {{ $document->file_name }}
-                        </p>
-                    @endif
-
-                    <p
-                        id="file_label_{{ $type }}"
-                        class="mt-3 text-xs italic text-gray-500 dark:text-gray-400"
-                    >
-                        No new file chosen
-                    </p>
-
-                    <p
-                        id="file_error_{{ $type }}"
-                        class="mt-1 text-xs text-red-600 dark:text-red-400 {{ $hasError ? '' : 'hidden' }}"
-                        role="alert"
-                    >
-                        {{ $errors->first($fieldName) }}
-                    </p>
                 </div>
-            @endforeach
+            </form>
 
-            <p
-                id="documentsFormError"
-                class="hidden text-sm text-red-600 dark:text-red-400 md:col-span-2"
-                role="alert"
-            ></p>
-
-            {{-- name/value travel with the clicked button; the controller reads "intent". --}}
-            <button
-                type="submit"
-                id="uploadDocumentsButton"
-                name="intent"
-                value="submit"
-                class="inline-flex items-center justify-center w-full min-h-[48px] gap-2 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#7A6348] to-[#6F5430] rounded-xl hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed md:col-span-2"
-            >
-                <i class="fa-solid fa-paper-plane"></i>
-                Save and Submit for Review
-            </button>
-
-            <button
-                type="submit"
-                id="finishLaterButton"
-                name="intent"
-                value="later"
-                class="inline-flex items-center justify-center w-full min-h-[48px] gap-2 px-4 py-3 text-sm font-semibold text-[#6F5430] bg-white border border-[#8B7355]/40 rounded-xl hover:bg-[#8B7355]/5 disabled:opacity-60 disabled:cursor-not-allowed md:col-span-2 dark:bg-transparent dark:text-[#C4A97D] dark:border-[#C4A97D]/40 dark:hover:bg-[#C4A97D]/10"
-            >
-                <i class="fa-solid fa-clock-rotate-left"></i>
-                Save and Finish Later
-            </button>
-
-            <p class="text-xs leading-5 text-center text-gray-500 md:col-span-2 dark:text-gray-400">
-                Don't have every document on hand? Save what you have and log in again when you're ready.
-                Your spa stays hidden from customers until it is verified.
-            </p>
-
-            <p class="text-xs leading-5 text-center text-gray-500 md:col-span-2 dark:text-gray-400">
-                Valid documents will be preserved even if another selected document fails validation.
-            </p>
-        </form>
-
+        </div>
     </div>
 
-    <style>
-        @media (prefers-reduced-motion: reduce) {
-            #uploadDocumentsButton {
-                transition: none !important;
-            }
-        }
-    </style>
-
     <script>
-        document
-            .querySelectorAll(
-                '#setupDocumentsForm input[type="file"]'
-            )
-            .forEach(function (input) {
-                input.addEventListener(
-                    'change',
-                    function () {
-                        const label =
-                            document.getElementById(
-                                input.dataset.labelId
-                            );
+        (function () {
+            const form = document.getElementById('setupDocumentsForm');
 
-                        const error =
-                            document.getElementById(
-                                input.dataset.errorId
-                            );
+            if (!form) {
+                return;
+            }
 
-                        const file =
-                            input.files &&
-                            input.files[0];
+            const inputs = Array.from(
+                form.querySelectorAll('input[type="file"]')
+            );
 
-                        error.textContent = '';
-                        error.classList.add('hidden');
+            const submitButton = document.getElementById('uploadDocumentsButton');
+            const finishLaterButton = document.getElementById('finishLaterButton');
+            const status = document.getElementById('documentsStatus');
 
-                        if (!file) {
-                            label.textContent =
-                                'No new file chosen';
+            const SUBMIT_LABEL = submitButton.innerHTML;
+            const LATER_LABEL = finishLaterButton.innerHTML;
+            const TOTAL = inputs.length;
 
-                            return;
-                        }
+            function hasChosenFile(input) {
+                return !!(input.files && input.files.length > 0);
+            }
 
-                        const maxBytes =
-                            parseInt(
-                                input.dataset.maxBytes,
-                                10
-                            );
+            function setPill(input, chosen) {
+                const row = input.closest('li');
 
-                        if (file.size > maxBytes) {
-                            input.value = '';
+                row.querySelector('[data-pill="default"]')
+                    .classList.toggle('hidden', chosen);
 
-                            label.textContent =
-                                'No new file chosen';
+                row.querySelector('[data-pill="chosen"]')
+                    .classList.toggle('hidden', !chosen);
+            }
 
-                            error.textContent =
-                                '"' +
-                                file.name +
-                                '" exceeds the 10 MB maximum file size.';
+            // Submit needs every type covered (stored or chosen) and at least one
+            // new file, which mirrors SpaProfileController::uploadDocument.
+            function updateStatus() {
+                let ready = 0;
+                let chosen = 0;
 
-                            error.classList.remove(
-                                'hidden'
-                            );
+                inputs.forEach(function (input) {
+                    const picked = hasChosenFile(input);
 
-                            return;
-                        }
-
-                        label.textContent =
-                            file.name;
+                    if (picked) {
+                        chosen++;
                     }
-                );
+
+                    if (picked || input.dataset.hasDocument === '1') {
+                        ready++;
+                    }
+                });
+
+                const complete = ready === TOTAL;
+
+                submitButton.disabled = !(complete && chosen > 0);
+
+                if (!complete) {
+                    status.textContent =
+                        ready + ' of ' + TOTAL +
+                        ' ready. Finish later saves your files and signs you out.';
+                } else if (chosen > 0) {
+                    status.textContent =
+                        'All ' + TOTAL + ' documents ready. Submit to send them for review.';
+                } else {
+                    status.textContent =
+                        'Choose a replacement for the flagged document to resubmit.';
+                }
+            }
+
+            inputs.forEach(function (input) {
+                input.addEventListener('change', function () {
+                    const label = document.getElementById(input.dataset.labelId);
+                    const error = document.getElementById(input.dataset.errorId);
+                    const file = input.files && input.files[0];
+
+                    error.textContent = '';
+                    error.classList.add('hidden');
+
+                    if (file && file.size > parseInt(input.dataset.maxBytes, 10)) {
+                        input.value = '';
+                        error.textContent = '"' + file.name + '" exceeds the 10 MB maximum file size.';
+                        error.classList.remove('hidden');
+                    }
+
+                    const picked = hasChosenFile(input);
+
+                    label.textContent = picked
+                        ? 'Selected: ' + input.files[0].name +
+                            (input.dataset.hasDocument === '1' ? ' (replaces current file)' : '')
+                        : input.dataset.defaultText;
+
+                    setPill(input, picked);
+                    updateStatus();
+                });
             });
 
-        const form =
-            document.getElementById(
-                'setupDocumentsForm'
-            );
+            form.addEventListener('submit', function (event) {
+                const isFinishLater = event.submitter === finishLaterButton;
+                const busyButton = isFinishLater ? finishLaterButton : submitButton;
 
-        const submitButton =
-            document.getElementById(
-                'uploadDocumentsButton'
-            );
+                busyButton.innerHTML =
+                    '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Saving...';
 
-        const finishLaterButton =
-            document.getElementById(
-                'finishLaterButton'
-            );
+                // Disable on the next tick: a button disabled during the submit
+                // event is dropped from the form data, and the controller needs
+                // the clicked button's "intent" value.
+                setTimeout(function () {
+                    submitButton.disabled = true;
+                    finishLaterButton.disabled = true;
+                }, 0);
+            });
 
-        const SUBMIT_LABEL =
-            '<i class="fa-solid fa-paper-plane"></i> Save and Submit for Review';
+            // Restores the buttons when the page comes back from the bfcache.
+            window.addEventListener('pageshow', function () {
+                submitButton.innerHTML = SUBMIT_LABEL;
+                finishLaterButton.innerHTML = LATER_LABEL;
+                finishLaterButton.disabled = false;
 
-        const LATER_LABEL =
-            '<i class="fa-solid fa-clock-rotate-left"></i> Save and Finish Later';
+                inputs.forEach(function (input) {
+                    setPill(input, hasChosenFile(input));
+                });
 
-        if (form && submitButton) {
-            form.addEventListener(
-                'submit',
-                function (event) {
-                    const isFinishLater =
-                        event.submitter === finishLaterButton;
+                updateStatus();
+            });
 
-                    const chosen =
-                        Array.from(
-                            form.querySelectorAll(
-                                'input[type="file"]'
-                            )
-                        ).some(function (input) {
-                            return input.files &&
-                                input.files.length > 0;
-                        });
-
-                    // "Finish later" with nothing picked just signs the owner out.
-                    if (!chosen && !isFinishLater) {
-                        event.preventDefault();
-
-                        const error =
-                            document.getElementById(
-                                'documentsFormError'
-                            );
-
-                        error.textContent =
-                            'Choose at least one document before submitting for review.';
-
-                        error.classList.remove(
-                            'hidden'
-                        );
-
-                        return;
-                    }
-
-                    const busyButton = isFinishLater
-                        ? finishLaterButton
-                        : submitButton;
-
-                    busyButton.innerHTML = isFinishLater
-                        ? '<i class="mr-2 fa-solid fa-spinner fa-spin"></i> Saving...'
-                        : '<i class="mr-2 fa-solid fa-spinner fa-spin"></i> Saving and Submitting...';
-
-                    // Disable on the next tick: a button disabled during the
-                    // submit event is dropped from the form data, and the
-                    // controller needs the clicked button's "intent" value.
-                    setTimeout(function () {
-                        submitButton.disabled = true;
-
-                        if (finishLaterButton) {
-                            finishLaterButton.disabled = true;
-                        }
-                    }, 0);
-                }
-            );
-        }
-
-        window.addEventListener(
-            'pageshow',
-            function () {
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = SUBMIT_LABEL;
-                }
-
-                if (finishLaterButton) {
-                    finishLaterButton.disabled = false;
-                    finishLaterButton.innerHTML = LATER_LABEL;
-                }
-            }
-        );
+            updateStatus();
+        })();
     </script>
 
 </x-guest-layout>
