@@ -5,7 +5,10 @@ namespace Tests\Feature\Payroll;
 use App\Models\PayrollRun;
 use App\Models\Spa;
 use App\Models\User;
+use Database\Seeders\PayrollTestAccountsRemoveSeeder;
+use Database\Seeders\PayrollTestAccountsResetSeeder;
 use Database\Seeders\PayrollTestAccountsSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -17,6 +20,7 @@ use Tests\TestCase;
 class TestAccountsSeederTest extends TestCase
 {
     use RefreshDatabase;
+    use Concerns\PayrollFixtures;
 
     protected function setUp(): void
     {
@@ -87,5 +91,52 @@ class TestAccountsSeederTest extends TestCase
         $this->assertGreaterThan(0, $run->payslips()->count());
         $this->assertStringContainsString('Manager B', $messages);            // no pay profile
         $this->assertStringContainsString('Test Branch B', $messages);        // branch without a minimum wage
+    }
+
+    public function test_remove_and_reset_touch_only_the_test_spa(): void
+    {
+        // Someone else's data in the same database: a spa with a payroll run, a rule,
+        // a pay profile, attendance and a booking.
+        $this->makeWorld();
+        $this->profile();
+        $this->percentRule();
+        $this->attend('2026-09-02');
+        $this->booking('2026-09-03');
+        $this->payrollRun('2026-09-01', '2026-09-15', 1);
+        $other = [
+            'users' => DB::table('users')->where('spa_id', $this->spa->id)->count(),
+            'staff' => DB::table('staff')->where('spa_id', $this->spa->id)->count(),
+            'runs'  => DB::table('payroll_runs')->where('spa_id', $this->spa->id)->count(),
+            'rules' => DB::table('commission_rules')->where('spa_id', $this->spa->id)->count(),
+            'roles' => DB::table('model_has_roles')->count() - DB::table('model_has_roles')
+                ->whereIn('model_id', User::where('email', 'like', '%@levictas.test')->pluck('id'))->count(),
+        ];
+
+        // Use the test spa the way a tester would: generate and release a run.
+        $hrHead = $this->account('hr.head@levictas.test');
+        $this->actingAs($hrHead)->post(route('payroll.runs.store'), ['run_type' => 'regular', 'year' => 2026, 'month' => 9, 'cutoff_no' => 1]);
+        $testSpaId = Spa::where('name', PayrollTestAccountsSeeder::SPA_NAME)->value('id');
+        $run = PayrollRun::where('spa_id', $testSpaId)->firstOrFail();
+        foreach (['approve', 'finalize', 'release'] as $step) {
+            $this->actingAs($this->account('finance.head@levictas.test'))->post(route('payroll.runs.'.$step, $run));
+        }
+        $this->assertSame('released', $run->fresh()->status);
+
+        $this->seed(PayrollTestAccountsRemoveSeeder::class);
+
+        $this->assertFalse(DB::table('spas')->where('name', PayrollTestAccountsSeeder::SPA_NAME)->exists());
+        $this->assertSame(0, User::withTrashed()->where('email', 'like', '%@levictas.test')->count());
+        $this->assertSame(0, DB::table('payroll_runs')->where('spa_id', $testSpaId)->count());
+        $this->assertSame($other['users'], DB::table('users')->where('spa_id', $this->spa->id)->count());
+        $this->assertSame($other['staff'], DB::table('staff')->where('spa_id', $this->spa->id)->count());
+        $this->assertSame($other['runs'], DB::table('payroll_runs')->where('spa_id', $this->spa->id)->count());
+        $this->assertSame($other['rules'], DB::table('commission_rules')->where('spa_id', $this->spa->id)->count());
+        $this->assertSame($other['roles'], DB::table('model_has_roles')->count());
+
+        // Reset seeds a clean copy again.
+        $this->seed(PayrollTestAccountsResetSeeder::class);
+        $this->assertSame(12, User::where('email', 'like', '%@levictas.test')->count());
+        $this->assertSame(0, PayrollRun::where('spa_id', Spa::where('name', PayrollTestAccountsSeeder::SPA_NAME)->value('id'))->count());
+        $this->assertSame($other['runs'], DB::table('payroll_runs')->where('spa_id', $this->spa->id)->count());
     }
 }

@@ -436,10 +436,10 @@ class PayrollRbacTest extends TestCase
     {
         $page = fn (User $u) => $this->actingAs($u)->get(route('payroll.index'))->assertOk();
 
-        $page($this->finHead)->assertSee('Attendance &amp; Payroll', false)
+        $page($this->finHead)->assertSee('Time &amp; Pay', false)
             ->assertSee(route('payroll.staff.index'), false)
             ->assertDontSee(route('attendance.index'), false);
-        $page($this->hrA)->assertSee('Attendance &amp; Payroll', false)
+        $page($this->hrA)->assertSee('Time &amp; Pay', false)
             ->assertSee(route('attendance.index'), false)
             ->assertSee(route('payroll.setup.index'), false);
         $this->actingAs($this->therapistA)->get(route('my-payslips.index'))->assertOk()
