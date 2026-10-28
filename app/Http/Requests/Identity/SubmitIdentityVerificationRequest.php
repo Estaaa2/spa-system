@@ -13,6 +13,9 @@ use Illuminate\Validation\Rule;
  */
 class SubmitIdentityVerificationRequest extends FormRequest
 {
+    /** Web form errors show inside their own card on the profile page (JSON is unaffected). */
+    protected $errorBag = 'identity';
+
     public function authorize(): bool
     {
         return $this->user()?->can('submit-identity-verification') ?? false;

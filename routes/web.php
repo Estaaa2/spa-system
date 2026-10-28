@@ -27,6 +27,7 @@ use App\Http\Controllers\HR\PayrollSetupController;
 use App\Http\Controllers\HR\PayslipController;
 use App\Http\Controllers\HR\PublicApplicationController;
 use App\Http\Controllers\HR\StaffPayProfileController;
+use App\Http\Controllers\IdentityVerificationController;
 use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
@@ -194,10 +195,6 @@ Route::middleware(['auth'])->group(function () {
 Route::get('/reschedule-requests/booking/{bookingId}', [RescheduleRequestController::class, 'status'])
     ->middleware('auth')
     ->name('reschedule.flutter.status');
-
-Route::patch('/profile', [ProfileController::class, 'update'])
-    ->middleware('auth')
-    ->name('profile.update');
 
 /*
 |--------------------------------------------------------------------------
@@ -1288,8 +1285,21 @@ Route::get('/verification-documents/{document}', [VerificationDocumentController
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update'); // phone only
     Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
+
+    // Profile photo and identity verification (route names stay under profile.*
+    // so ForcePasswordChange still lets a temporary-password user reach them).
+    Route::post('/profile/photo', [ProfilePhotoController::class, 'update'])
+        ->middleware('throttle:10,1')
+        ->name('profile.photo.update');
+    Route::delete('/profile/photo', [ProfilePhotoController::class, 'destroy'])
+        ->name('profile.photo.destroy');
+    Route::post('/profile/identity-verification', [IdentityVerificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('profile.identity.store');
+    Route::delete('/profile/identity-verification', [IdentityVerificationController::class, 'withdraw'])
+        ->name('profile.identity.withdraw');
 
     // Profile photos are on the private disk; who may see one: IdentityPolicy::viewPhoto.
     Route::get('/profile-photos/{user}', [ProfilePhotoController::class, 'show'])

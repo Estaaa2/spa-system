@@ -34,6 +34,13 @@ return [
     'consent_version' => '2026-10-28',
 
     /*
+     * Where staff send questions or requests about their verification data
+     * (access, correction, deletion). Shown in the consent notice. Set
+     * IDENTITY_PRIVACY_CONTACT in .env, e.g. privacy@levictas.lukew.cz.
+     */
+    'privacy_contact' => env('IDENTITY_PRIVACY_CONTACT'),
+
+    /*
      * Disk for every file in this feature. "local" is storage/app/private,
      * which has no public URL. Files are only streamed by authorized
      * controllers.

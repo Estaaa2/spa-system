@@ -7,6 +7,9 @@ use Illuminate\Foundation\Http\FormRequest;
 /** Upload or replace the signed-in user's profile photo (Phase 2 web, Phase 6/7 API). */
 class UpdateProfilePhotoRequest extends FormRequest
 {
+    /** Web form errors show inside their own card on the profile page (JSON is unaffected). */
+    protected $errorBag = 'photo';
+
     public function authorize(): bool
     {
         return $this->user() !== null;

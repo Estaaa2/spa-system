@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\IdentityVerification;
+use App\Services\Identity\IdentityVerificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
@@ -17,26 +20,37 @@ class ProfileController extends Controller
     private const CAVITE_LNG_MIN = 120.620;
     private const CAVITE_LNG_MAX = 121.100;
 
-    // Display the profile edit form.
-    public function edit(Request $request): View
+    // Staff/owner/admin profile page: photo, account details, identity
+    // verification (treatment providers only) and password.
+    public function edit(Request $request, IdentityVerificationService $identity): View
     {
+        $user = $request->user()->loadMissing(['staff', 'latestIdentityVerification', 'branch', 'roles']);
+        $canVerify = Gate::allows('submit-identity-verification');
+        $latest = $user->latestIdentityVerification;
+
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user'               => $user,
+            'canVerify'          => $canVerify,
+            'identityState'      => $canVerify ? $identity->stateFor($user) : null,
+            'latestVerification' => $latest,
+            'photoLocked'        => $user->isIdentityVerified() || ($latest?->status === IdentityVerification::STATUS_PENDING),
+            'idTypes'            => config('identity.id_types', []),
+            'uploadMaxMb'        => (int) round(config('identity.upload.max_kb', 5120) / 1024),
+            'uploadMimes'        => config('identity.upload.mimes', []),
+            'privacyContact'     => config('identity.privacy_contact'),
+            'consentVersion'     => config('identity.consent_version'),
         ]);
     }
 
-    // Update the user's profile information.
+    // PATCH /profile — phone number only (decision Q25). Name and email are
+    // managed by the spa; the legal name is part of identity verification.
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $request->user()->forceFill([
+            'phone' => $request->validated('phone') ?: null,
+        ])->save();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
-
-        $request->user()->save();
-
-        return Redirect::route('profile.edit')->with('success', 'Profile updated successfully!');
+        return Redirect::to(route('profile.edit').'#account')->with('success', 'Phone number saved.');
     }
 
     // Delete the user's account.

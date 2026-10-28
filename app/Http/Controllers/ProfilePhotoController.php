@@ -2,18 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Identity\UpdateProfilePhotoRequest;
 use App\Models\User;
 use App\Services\Identity\IdentityVerificationService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * GET /profile-photos/{user}?v=…  — streams a profile photo from the private disk.
+ * Profile photos (private disk).
  *
- * Who may see it: IdentityPolicy::viewPhoto. Anyone else gets 404, so the route
- * does not reveal which accounts have a photo. Uploading and removing are
- * Phase 2 (staff profile page) and use IdentityVerificationService.
+ * GET    /profile-photos/{user}?v=…  stream a photo; who may see it: IdentityPolicy::viewPhoto.
+ *                                    Anyone else gets 404, so the route does not reveal
+ *                                    which accounts have a photo.
+ * POST   /profile/photo              upload or replace your own photo
+ * DELETE /profile/photo              remove your own photo (refused while verified or pending)
  */
 class ProfilePhotoController extends Controller
 {
@@ -37,5 +42,33 @@ class ProfilePhotoController extends Controller
             'Cache-Control'          => 'private, max-age=86400',
             'X-Content-Type-Options' => 'nosniff',
         ], 'inline');
+    }
+
+    public function update(UpdateProfilePhotoRequest $request): RedirectResponse
+    {
+        try {
+            $result = $this->identity->updateProfilePhoto($request->user(), $request->file('photo'));
+        } catch (ValidationException $e) {
+            throw $e->errorBag('photo')->redirectTo(route('profile.edit').'#photo');
+        }
+
+        $message = match (true) {
+            $result['was_verified']       => 'Photo updated. Because your photo changed, verify your identity again to keep receiving online home-service bookings.',
+            $result['pending_superseded'] => 'Photo updated. Your verification request was closed because the photo changed. Please submit it again.',
+            default                       => 'Profile photo updated.',
+        };
+
+        return redirect()->to(route('profile.edit').'#photo')->with('success', $message);
+    }
+
+    public function destroy(Request $request): RedirectResponse
+    {
+        try {
+            $this->identity->removeProfilePhoto($request->user());
+        } catch (ValidationException $e) {
+            throw $e->errorBag('photo')->redirectTo(route('profile.edit').'#photo');
+        }
+
+        return redirect()->to(route('profile.edit').'#photo')->with('success', 'Profile photo removed.');
     }
 }

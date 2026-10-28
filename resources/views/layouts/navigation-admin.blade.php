@@ -178,7 +178,8 @@
                     <a href="{{ route('profile.edit') }}"
                        @if (request()->routeIs('profile.*')) aria-current="page" @endif
                        class="flex items-center flex-1 min-w-0 gap-3 px-2 py-1.5 -mx-1 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('profile.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                        <i class="flex-shrink-0 text-gray-500 fa-solid fa-user-gear dark:text-gray-400"></i>
+                        {{-- Profile photo, or initials when there is none. --}}
+                            <x-avatar :user="Auth::user()" size="sm" />
                         <span class="flex-1 min-w-0">
                             <span class="block text-sm font-medium text-gray-800 truncate dark:text-white">{{ Auth::user()->name }}</span>
                             <span class="block text-xs text-gray-500 truncate dark:text-gray-400">{{ Auth::user()->email }}</span>

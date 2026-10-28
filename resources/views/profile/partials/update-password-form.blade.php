@@ -1,79 +1,63 @@
-<section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-            {{ __('Update Password') }}
-        </h2>
+{{-- Change password. Same route and fields as before; restyled to the staff canon. Variables: $mustChangePassword. --}}
+<div id="password"
+     class="overflow-hidden bg-white border border-gray-200 shadow-sm scroll-mt-6 rounded-2xl dark:bg-gray-800 dark:border-gray-700
+            {{ $mustChangePassword ? 'ring-2 ring-amber-400 dark:ring-amber-600' : '' }}">
+    <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white">Change Password</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Use a long password that you don't use anywhere else.</p>
+    </div>
 
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {{ __('Ensure your account is using a long, random password to stay secure.') }}
-        </p>
-    </header>
-
-    <form method="post" action="{{ route('profile.password') }}" class="mt-6 space-y-6">
+    <form method="POST" action="{{ route('profile.password') }}" class="px-4 py-6 space-y-4 sm:px-6" data-submit-once>
         @csrf
-        @method('put')
+        @method('PUT')
 
-        <div>
-            <x-input-label for="update_password_current_password" :value="__('Current Password')" />
-            <x-text-input id="update_password_current_password" name="current_password" type="password" class="block w-full mt-1" autocomplete="current-password" />
-            <x-input-error :messages="$errors->updatePassword->get('current_password')" class="mt-2" />
-        </div>
-
-        <div>
-            <x-input-label for="update_password_password" :value="__('New Password')" />
-            <div class="relative">
-                <x-text-input id="update_password_password" name="password" type="password" class="block w-full pr-10 mt-1" autocomplete="new-password" />
-                <button type="button"
-                        class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 mt-1 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
-                        data-target="update_password_password"
-                        aria-label="Show password"
-                        tabindex="-1">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
+        @foreach ([
+            ['current_password', 'update_password_current_password', 'Current password', 'current-password'],
+            ['password', 'update_password_password', 'New password', 'new-password'],
+            ['password_confirmation', 'update_password_password_confirmation', 'Confirm new password', 'new-password'],
+        ] as [$name, $id, $label, $autocomplete])
+            <div>
+                <label for="{{ $id }}" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">{{ $label }}</label>
+                <div class="relative sm:max-w-md">
+                    <input id="{{ $id }}" name="{{ $name }}" type="password" autocomplete="{{ $autocomplete }}" required
+                           @if ($errors->has($name)) aria-invalid="true" aria-describedby="{{ $id }}_error" @endif
+                           class="w-full min-h-[44px] pl-3 pr-12 py-2 text-sm border rounded-xl dark:bg-gray-700 dark:text-white {{ $errors->has($name) ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600' }}">
+                    <button type="button"
+                            class="toggle-password absolute inset-y-0 right-0 inline-flex items-center justify-center min-w-[44px] text-gray-500 rounded-r-xl hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            data-target="{{ $id }}"
+                            aria-label="Show password">
+                        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                    </button>
+                </div>
+                @if ($errors->has($name))
+                    <p id="{{ $id }}_error" class="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{{ $errors->first($name) }}</p>
+                @endif
             </div>
-            <x-input-error :messages="$errors->updatePassword->get('password')" class="mt-2" />
-        </div>
+        @endforeach
 
-        <div>
-            <x-input-label for="update_password_password_confirmation" :value="__('Confirm Password')" />
-            <div class="relative">
-                <x-text-input id="update_password_password_confirmation" name="password_confirmation" type="password" class="block w-full pr-10 mt-1" autocomplete="new-password" />
-                <button type="button"
-                        class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 mt-1 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
-                        data-target="update_password_password_confirmation"
-                        aria-label="Show password"
-                        tabindex="-1">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
-            </div>
-            <x-input-error :messages="$errors->updatePassword->get('password_confirmation')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+        <div class="flex justify-end pt-2">
+            <button type="submit"
+                    class="inline-flex items-center gap-2 min-h-[44px] rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348]">
+                <i class="fa-solid fa-key" aria-hidden="true"></i>
+                <span data-busy-label="Saving…">Save new password</span>
+            </button>
         </div>
     </form>
+</div>
 
-    <script>
-        document.querySelectorAll('.toggle-password:not([data-bound])').forEach(function (btn) {
-            btn.setAttribute('data-bound', 'true');
-            btn.addEventListener('click', function () {
-                const target = document.getElementById(btn.dataset.target);
-                const icon = btn.querySelector('i');
-                if (!target) return;
+<script>
+    document.querySelectorAll('.toggle-password:not([data-bound])').forEach(function (btn) {
+        btn.setAttribute('data-bound', 'true');
+        btn.addEventListener('click', function () {
+            const target = document.getElementById(btn.dataset.target);
+            const icon = btn.querySelector('i');
+            if (!target) return;
 
-                if (target.type === 'password') {
-                    target.type = 'text';
-                    icon.classList.remove('fa-eye');
-                    icon.classList.add('fa-eye-slash');
-                    btn.setAttribute('aria-label', 'Hide password');
-                } else {
-                    target.type = 'password';
-                    icon.classList.remove('fa-eye-slash');
-                    icon.classList.add('fa-eye');
-                    btn.setAttribute('aria-label', 'Show password');
-                }
-            });
+            const show = target.type === 'password';
+            target.type = show ? 'text' : 'password';
+            icon.classList.toggle('fa-eye', !show);
+            icon.classList.toggle('fa-eye-slash', show);
+            btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
         });
-    </script>
-</section>
+    });
+</script>
