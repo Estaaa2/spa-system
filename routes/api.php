@@ -73,31 +73,8 @@ Route::get('/spas/{spaId}/{branchId}/reviews', [\App\Http\Controllers\LandingCon
 // ── Test endpoint ─────────────────────────────────────────────────────────────
 Route::get('/test', fn() => response()->json(['status' => 'api works']));
 
-Route::get('/image/{path}', function ($path) {
-
-    if (
-        str_contains($path, '..')
-        || str_contains($path, 'spa-verification-documents')
-    ) {
-        return response()->json(['error' => 'Image not found'], 404);
-    }
-
-    $fullPath = storage_path('app/public/' . $path);
-
-    if (!file_exists($fullPath)) {
-        return response()->json(['error' => 'Image not found'], 404);
-    }
-
-    $file = file_get_contents($fullPath);
-    $mimeType = mime_content_type($fullPath);
-
-    return response($file, 200)
-        ->header('Content-Type', $mimeType)
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Authorization')
-        ->header('Cache-Control', 'public, max-age=3600');
-})->where('path', '.*');
+// Public images only (allowlist in PublicFileController).
+Route::get('/image/{path}', [\App\Http\Controllers\PublicFileController::class, 'image'])->where('path', '.*');
 
 // Protected endpoints (Authentication required)
 Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function () {
@@ -106,7 +83,7 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
     Route::get('/me',      [AuthController::class, 'me']);
     Route::put('/me',             [AuthController::class, 'updateProfile']);
     Route::put('/me/password',    [AuthController::class, 'updatePassword']);
-    Route::patch('/profile', [ProfileController::class, 'updateCustomerApi']);
+    Route::patch('/profile', [ProfileController::class, 'updateCustomerApi'])->middleware('role:customer');
     Route::get('/therapist/attendance', [AttendanceController::class, 'myAttendance']);
     Route::post('/therapist/attendance/clock-in',  [AttendanceController::class, 'clockIn']);
     Route::post('/therapist/attendance/clock-out', [AttendanceController::class, 'clockOut']);

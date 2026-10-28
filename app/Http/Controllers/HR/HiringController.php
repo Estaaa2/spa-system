@@ -62,7 +62,7 @@ class HiringController extends Controller
         if ($request->hasFile('resume')) {
             $validated['resume_path'] = $request
                 ->file('resume')
-                ->store('resumes', 'public');
+                ->store('resumes', 'local'); // private disk: personal data
         }
 
         unset($validated['resume']);
@@ -104,14 +104,19 @@ class HiringController extends Controller
             'Resume not found.'
         );
 
+        // Résumés live on the private disk. The public disk is only checked
+        // for files uploaded before `php artisan storage:privatize` was run.
+        $disk = Storage::disk('local')->exists($applicant->resume_path)
+            ? Storage::disk('local')
+            : Storage::disk('public');
+
         abort_unless(
-            Storage::disk('public')->exists($applicant->resume_path),
+            $disk->exists($applicant->resume_path),
             404,
             'Resume file not found.'
         );
 
-        $absolutePath = Storage::disk('public')
-            ->path($applicant->resume_path);
+        $absolutePath = $disk->path($applicant->resume_path);
 
         $extension = strtolower(
             pathinfo(
@@ -132,8 +137,7 @@ class HiringController extends Controller
             'Unsupported resume file.'
         );
 
-        $mimeType = Storage::disk('public')
-            ->mimeType($applicant->resume_path);
+        $mimeType = $disk->mimeType($applicant->resume_path);
 
         $safeName = preg_replace(
             '/[^A-Za-z0-9\-_]/',

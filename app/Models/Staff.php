@@ -17,6 +17,7 @@ class Staff extends Model
         'branch_id',
         'applicant_id',
         'employment_status',
+        'performs_treatments',
         'keep_active',
         'plan_paused_at',
         'hire_date',
@@ -35,6 +36,7 @@ class Staff extends Model
 
     protected $casts = [
         'keep_active'    => 'boolean',
+        'performs_treatments' => 'boolean',
         'plan_paused_at' => 'datetime',
         'tin'           => 'encrypted',
         'sss_no'        => 'encrypted',

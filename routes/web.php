@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\BranchVerificationController;
 use App\Http\Controllers\Admin\DocumentReviewController;
+use App\Http\Controllers\Admin\IdentityVerificationFileController;
 use App\Http\Controllers\Admin\RegisteredSpaController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
@@ -39,6 +40,8 @@ use App\Http\Controllers\Owner\SubscriptionController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PaymongoWebhookController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProfilePhotoController;
+use App\Http\Controllers\PublicFileController;
 use App\Http\Controllers\ReassignmentRequestController;
 use App\Http\Controllers\RescheduleRequestController;
 use App\Http\Controllers\ReplenishmentController;
@@ -89,64 +92,14 @@ Route::options('/{any}', function () {
         ->header('Access-Control-Max-Age', '86400');
 })->where('any', '.*');
 
-if (! function_exists('corsResponse')) {
-    function corsResponse($response)
-    {
-        return $response->header('Access-Control-Allow-Origin', '*')
-                       ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-                       ->header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Token-Auth, Authorization, Origin, Accept');
-    }
-}
-
-Route::get('/storage/branch_profiles/{filename}', function ($filename) {
-
-    if (
-        str_contains($filename, '..')
-        || str_contains($filename, 'spa-verification-documents')
-    ) {
-        abort(404);
-    }
-
-    $fullPath = storage_path('app/public/branch_profiles/' . $filename);
-    if (!file_exists($fullPath)) {
-        $fullPath = storage_path('app/public/' . $filename);
-        if (!file_exists($fullPath)) {
-            abort(404);
-        }
-    }
-
-    $file = file_get_contents($fullPath);
-    $mimeType = mime_content_type($fullPath);
-
-    return corsResponse(response($file, 200)
-        ->header('Content-Type', $mimeType)
-        ->header('Content-Length', filesize($fullPath))
-        ->header('Cache-Control', 'public, max-age=3600'));
-})->where('filename', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
-
-Route::get('/storage/{path}', function ($path) {
-
-    if (
-        str_contains($path, '..')
-        || str_contains($path, 'spa-verification-documents')
-    ) {
-        abort(404);
-    }
-
-    $fullPath = storage_path('app/public/' . $path);
-    if (!file_exists($fullPath)) abort(404);
-
-    $file = file_get_contents($fullPath);
-    $mimeType = mime_content_type($fullPath);
-
-    return corsResponse(response($file, 200)
-        ->header('Content-Type', $mimeType)
-        ->header('Content-Length', filesize($fullPath))
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept')
-        ->header('Cache-Control', 'public, max-age=3600'));
-})->where('path', '.*')->withoutMiddleware(['auth', 'auth:sanctum']);
+// Public images (branch photos, treatment/package images, review photos) by
+// allowlist. Sensitive files are on the private disk and never served here.
+// /storage/{path} itself is Laravel's signed route for the private disk
+// ("storage.local", config/filesystems.php serve => true); existing files under
+// /storage are served directly by the web server through the public/storage symlink.
+Route::get('/storage/branch_profiles/{filename}', [PublicFileController::class, 'branchProfile'])
+    ->where('filename', '.*')
+    ->withoutMiddleware(['auth', 'auth:sanctum']);
 
 // Add these for the redirect callbacks
 Route::get('/flutter/payment/success', [FlutterBookingController::class, 'paymentSuccess'])
@@ -231,7 +184,9 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth'])->group(function () {
+    // Customers only: staff names are managed by the spa (identity decision Q9).
     Route::patch('/customer/profile', [ProfileController::class, 'updateCustomer'])
+        ->middleware('role:customer')
         ->name('customer.profile.update');
 });
 
@@ -1171,6 +1126,14 @@ Route::middleware(['auth', 'role:admin'])
             Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
         });
 
+        // Staff identity verification files (ID, selfie, submitted photo). Every
+        // view is logged. The review page itself comes in Phase 3.
+        Route::middleware('permission:verify staff identity')->group(function () {
+            Route::get('/identity-verifications/{verification}/files/{file}', [IdentityVerificationFileController::class, 'show'])
+                ->whereIn('file', ['id', 'selfie', 'photo'])
+                ->name('identity-verifications.files.show');
+        });
+
         Route::middleware('permission:edit registered users')->group(function () {
             Route::put('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.updateRole');
         });
@@ -1327,6 +1290,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
+
+    // Profile photos are on the private disk; who may see one: IdentityPolicy::viewPhoto.
+    Route::get('/profile-photos/{user}', [ProfilePhotoController::class, 'show'])
+        ->whereNumber('user')
+        ->name('profile-photos.show');
 });
 
 Route::get('/web-api/spas/nearby', [LandingController::class, 'nearbySpasList']);

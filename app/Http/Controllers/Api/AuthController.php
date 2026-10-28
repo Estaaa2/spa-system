@@ -303,6 +303,20 @@ class AuthController extends Controller
             'longitude'   => 'nullable|numeric',
         ]);
 
+        // Staff names are managed by the spa and are part of identity
+        // verification (decision Q9). The app may resend the same name; only
+        // an actual change is refused.
+        if (! $user->hasRole('customer')) {
+            foreach (['first_name', 'middle_name', 'last_name'] as $field) {
+                if ((string) $request->input($field) !== (string) $user->{$field}) {
+                    return response()->json([
+                        'message' => 'Your name is managed by your spa. Ask your manager to change it.',
+                        'errors'  => [$field => ['Your name is managed by your spa. Ask your manager to change it.']],
+                    ], 422);
+                }
+            }
+        }
+
         $user->update([
             'first_name'  => $request->first_name,
             'middle_name' => $request->middle_name,

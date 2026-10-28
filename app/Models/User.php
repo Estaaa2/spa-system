@@ -4,8 +4,11 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Services\Identity\IdentityVerificationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -51,7 +54,17 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'remember_token',
         'email_verification_otp_hash',
+        'profile_photo_path',   // private-disk path; use profilePhotoUrl()
     ];
+
+    /** Fields that make up the legal name an admin verified against the ID. */
+    public const LEGAL_NAME_FIELDS = ['first_name', 'middle_name', 'last_name', 'suffix'];
+
+    /**
+     * Set while saving when the legal name changed; read by the "updated" hook.
+     * Not an attribute (never saved or serialized).
+     */
+    public bool $identityNameChanged = false;
 
     /**
      * Get the attributes that should be cast.
@@ -68,7 +81,39 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verification_otp_expires_at' => 'datetime',
             'email_verification_otp_sent_at' => 'datetime',
             'email_verification_otp_attempts' => 'integer',
+            'profile_photo_updated_at' => 'datetime',
+            'identity_verified_at' => 'datetime',
         ];
+    }
+
+    /**
+     * A change to the legal name clears verified status (decision Q9): the admin
+     * approved a specific name against the ID. Covers every route that edits a
+     * name (staff edit by the owner, /api/me, customer profile, tinker).
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (User $user) {
+            if (! $user->isDirty(self::LEGAL_NAME_FIELDS)) {
+                return;
+            }
+
+            $user->identityNameChanged = true;
+
+            if ($user->getOriginal('identity_verified_at') !== null) {
+                $user->identity_verified_at = null;
+            }
+        });
+
+        static::updated(function (User $user) {
+            if (! $user->identityNameChanged) {
+                return;
+            }
+
+            $user->identityNameChanged = false;
+
+            app(IdentityVerificationService::class)->supersedeAfterNameChange($user);
+        });
     }
 
     /**
@@ -132,6 +177,87 @@ class User extends Authenticatable implements MustVerifyEmail
     public function staff()
     {
         return $this->hasOne(\App\Models\Staff::class, 'user_id');
+    }
+
+    // ── Identity verification & profile photo ────────────────────────────────
+
+    public function identityVerifications(): HasMany
+    {
+        return $this->hasMany(IdentityVerification::class);
+    }
+
+    public function latestIdentityVerification(): HasOne
+    {
+        return $this->hasOne(IdentityVerification::class)->latestOfMany();
+    }
+
+    /**
+     * In the pool of people who can be assigned treatments (decision Q1): the
+     * therapist role, or any staff member the owner marked "Performs treatments".
+     * Branch, spa and employment status are checked by the caller.
+     */
+    public function isTreatmentProvider(): bool
+    {
+        return $this->hasRole('therapist')
+            || (bool) $this->staff?->performs_treatments;
+    }
+
+    /** Query form of isTreatmentProvider(). */
+    public function scopeTreatmentProviders(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereHas('roles', fn ($r) => $r->where('name', 'therapist'))
+                ->orWhereHas('staff', fn ($s) => $s->where('performs_treatments', true));
+        });
+    }
+
+    /** Approved and nothing has changed since (photo, legal name, consent). */
+    public function isIdentityVerified(): bool
+    {
+        return $this->identity_verified_at !== null;
+    }
+
+    public function scopeIdentityVerified(Builder $query): Builder
+    {
+        return $query->whereNotNull('identity_verified_at');
+    }
+
+    public function hasProfilePhoto(): bool
+    {
+        return $this->profile_photo_path !== null;
+    }
+
+    /**
+     * Authorized URL of the profile photo, or null (show initials instead).
+     * The "v" parameter changes with every new photo so caches never show an old one.
+     */
+    public function profilePhotoUrl(): ?string
+    {
+        if (! $this->hasProfilePhoto()) {
+            return null;
+        }
+
+        return route('profile-photos.show', [
+            'user' => $this->id,
+            'v'    => $this->profile_photo_updated_at?->timestamp ?? 0,
+        ]);
+    }
+
+    /** One or two letters for the avatar fallback. */
+    public function initials(): string
+    {
+        $letters = collect([$this->first_name, $this->last_name])
+            ->filter()
+            ->map(fn ($part) => mb_strtoupper(mb_substr(trim($part), 0, 1)))
+            ->implode('');
+
+        return $letters !== '' ? $letters : '?';
+    }
+
+    /** First, middle, last name and suffix as shown on an ID. */
+    public function legalName(): string
+    {
+        return $this->name;
     }
 
     public function requestedPurchaseRequests()

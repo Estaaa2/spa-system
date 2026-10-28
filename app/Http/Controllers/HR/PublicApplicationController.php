@@ -46,7 +46,7 @@ class PublicApplicationController extends Controller
                 'emergency_contact_phone'    => 'nullable|string|max:20',
             ]);
 
-            $resumePath = $request->file('resume')->store('resumes', 'public');
+            $resumePath = $request->file('resume')->store('resumes', 'local'); // private disk: personal data
 
             unset($validated['resume']);
 

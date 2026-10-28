@@ -211,6 +211,7 @@ class RolePermissionSeeder extends Seeder
             'edit system roles',
             'edit admin profile',
             'manage system settings',
+            'verify staff identity',   // approve/reject staff ID + selfie (platform admin only)
 
             // ── HR (Workforce Suite) ──────────────────────────────────────────
             'view hiring',
@@ -288,6 +289,7 @@ class RolePermissionSeeder extends Seeder
             'edit system roles',
             'edit admin profile',
             'manage system settings',
+            'verify staff identity',
         ]);
 
         // ── Owner ─────────────────────────────────────────────────────────────
