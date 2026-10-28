@@ -14,6 +14,8 @@ use Database\Factories\BranchFactory;
 use Database\Factories\PayrollUserFactory;
 use Database\Factories\SpaFactory;
 use Database\Factories\StaffFactory;
+use Database\Seeders\IdentityVerificationTestRemoveSeeder;
+use Database\Seeders\IdentityVerificationTestResetSeeder;
 use Database\Seeders\IdentityVerificationTestSeeder;
 use Database\Seeders\PayrollTestAccountsRemoveSeeder;
 use Database\Seeders\PayrollTestAccountsSeeder;
@@ -377,7 +379,84 @@ class IdentityVerificationTest extends TestCase
         $this->assertSame(0, IdentityVerification::count());
     }
 
+    public function test_remove_seeder_deletes_only_the_identity_test_accounts(): void
+    {
+        $this->seed(PayrollTestAccountsSeeder::class);
+        $this->seed(IdentityVerificationTestSeeder::class);
+
+        $vera = User::where('email', 'idv.vera@levictas.test')->firstOrFail();
+        $photo = $vera->profile_photo_path;
+        $otherUsers = User::whereNotIn('email', IdentityVerificationTestSeeder::emails())->count();
+        $booking = Booking::create([
+            'spa_id' => $vera->spa_id, 'branch_id' => $vera->branch_id, 'therapist_id' => $vera->id,
+            'status' => 'reserved', 'service_type' => 'in_home', 'treatment' => 'treatment_1',
+            'booking_source' => 'walk_in', 'customer_name' => 'Kept booking',
+            'appointment_date' => today()->addDay()->toDateString(), 'start_time' => '10:00:00', 'end_time' => '11:00:00',
+        ]);
+
+        $this->seed(IdentityVerificationTestRemoveSeeder::class);
+
+        $this->assertSame(0, User::withTrashed()->whereIn('email', IdentityVerificationTestSeeder::emails())->count());
+        $this->assertSame(0, IdentityVerification::count());
+        $this->assertSame(0, Staff::whereIn('user_id', [$vera->id])->count());
+        $this->assertSame($otherUsers, User::count());                 // nothing else removed
+        $this->assertNull($booking->fresh()->therapist_id);           // booking kept, unassigned
+        Storage::disk('local')->assertMissing($photo);
+        $this->assertSame(0, DB::table('model_has_roles')->where('model_id', $vera->id)->count());
+
+        $this->seed(IdentityVerificationTestRemoveSeeder::class);       // second run: nothing to do
+    }
+
+    public function test_remove_seeder_stops_when_a_payslip_points_at_a_demo_staff(): void
+    {
+        $this->seed(PayrollTestAccountsSeeder::class);
+        $this->seed(IdentityVerificationTestSeeder::class);
+
+        $vera = Staff::whereHas('user', fn ($q) => $q->where('email', 'idv.vera@levictas.test'))->firstOrFail();
+        $hr = User::where('email', 'hr.head@levictas.test')->firstOrFail();
+        $runId = $this->insertMinimal('payroll_runs', ['spa_id' => $vera->spa_id, 'generated_by' => $hr->id, 'run_type' => 'regular']);
+        $this->insertMinimal('payslips', ['payroll_run_id' => $runId, 'staff_id' => $vera->id, 'home_branch_id' => $vera->branch_id, 'snapshot' => '{}']);
+
+        $this->seed(IdentityVerificationTestRemoveSeeder::class);
+
+        $this->assertSame(8, User::whereIn('email', IdentityVerificationTestSeeder::emails())->count());
+    }
+
+    public function test_reset_seeder_gives_a_fresh_copy(): void
+    {
+        $this->seed(PayrollTestAccountsSeeder::class);
+        $this->seed(IdentityVerificationTestSeeder::class);
+        $rey = User::where('email', 'idv.rey@levictas.test')->firstOrFail();
+        $rey->forceFill(['identity_verified_at' => now()])->saveQuietly();   // a test change
+
+        $this->seed(IdentityVerificationTestResetSeeder::class);
+
+        $fresh = User::where('email', 'idv.rey@levictas.test')->firstOrFail();
+        $this->assertNotSame($rey->id, $fresh->id);
+        $this->assertSame('rejected', $this->service->stateFor($fresh));
+        $this->assertSame(8, User::whereIn('email', IdentityVerificationTestSeeder::emails())->count());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /** Inserts a row with the given values and placeholders for other required columns. */
+    private function insertMinimal(string $table, array $row): int
+    {
+        foreach (DB::getSchemaBuilder()->getColumns($table) as $column) {
+            if ($column['nullable'] || $column['default'] !== null || $column['auto_increment'] || array_key_exists($column['name'], $row)) {
+                continue;
+            }
+
+            $type = strtolower($column['type_name']);
+            $row[$column['name']] = match (true) {
+                str_contains($type, 'date') || str_contains($type, 'time') => now()->toDateString(),
+                str_contains($type, 'char') || str_contains($type, 'text') => 'x',
+                default => 0,
+            };
+        }
+
+        return (int) DB::table($table)->insertGetId($row);
+    }
 
     private function expectValidation(callable $call): void
     {

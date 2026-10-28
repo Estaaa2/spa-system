@@ -26,14 +26,16 @@ use Illuminate\Support\Str;
  * accounts and the reserved @levictas.test domain. Photos, IDs and selfies are
  * generated placeholder images that say SAMPLE; no real person or document.
  *
- * PayrollTestAccountsRemoveSeeder removes these accounts with the rest of the
- * test spa (their verification rows go with them); `php artisan identity:purge`
- * then deletes the leftover image files.
+ * Remove or redo only these 8 accounts (nothing else is touched):
+ *   php artisan db:seed --class=IdentityVerificationTestRemoveSeeder
+ *   php artisan db:seed --class=IdentityVerificationTestResetSeeder
+ * PayrollTestAccountsRemoveSeeder also removes them with the rest of the test
+ * spa; `php artisan identity:purge` then deletes the leftover image files.
  */
 class IdentityVerificationTestSeeder extends Seeder
 {
     /** key => [role, first, last, state, performs_treatments, has_photo] */
-    private const PEOPLE = [
+    public const PEOPLE = [
         'vera'  => ['therapist',    'Vera',  'Verified',            'approved',             false, true],
         'paolo' => ['therapist',    'Paolo', 'Photo Only',          'not_started',          false, true],
         'pia'   => ['therapist',    'Pia',   'Pending',             'pending',              false, true],
@@ -43,6 +45,12 @@ class IdentityVerificationTestSeeder extends Seeder
         'rhea'  => ['receptionist', 'Rhea',  'Reception Therapist', 'approved',             true,  true],
         'nico'  => ['therapist',    'Nico',  'No Photo',            'not_started',          false, false],
     ];
+
+    /** Exact emails of the accounts this seeder creates (used by the remove seeder). */
+    public static function emails(): array
+    {
+        return array_map(fn (string $key) => "idv.{$key}@levictas.test", array_keys(self::PEOPLE));
+    }
 
     /** @var list<array{0: string, 1: string, 2: string}> */
     private array $accountTable = [];
@@ -63,8 +71,8 @@ class IdentityVerificationTestSeeder extends Seeder
             return;
         }
 
-        if (User::where('email', 'like', 'idv.%@levictas.test')->exists()) {
-            $this->command?->warn('The identity test accounts already exist. Run PayrollTestAccountsResetSeeder, then this seeder, for a clean copy.');
+        if (User::withTrashed()->whereIn('email', self::emails())->exists()) {
+            $this->command?->warn('The identity test accounts already exist. For a fresh copy of only these accounts, run: php artisan db:seed --class=IdentityVerificationTestResetSeeder');
 
             return;
         }

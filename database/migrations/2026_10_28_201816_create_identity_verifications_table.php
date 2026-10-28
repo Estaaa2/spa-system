@@ -13,6 +13,13 @@ use Illuminate\Support\Facades\Schema;
  * Rows are deleted with the user account (decision Q21).
  *
  * identity_file_views records every time an admin opened an ID or selfie.
+ *
+ * Every timestamp is nullable on purpose. On MySQL/MariaDB with
+ * explicit_defaults_for_timestamp=OFF (XAMPP's default), a NOT NULL timestamp
+ * gets either an automatic ON UPDATE CURRENT_TIMESTAMP (the first one, which
+ * would silently rewrite consent_given_at on every update) or the invalid
+ * default '0000-00-00' (error 1067 under strict mode). The service always sets
+ * these values, so NULL never happens in practice.
  */
 return new class extends Migration
 {
@@ -38,11 +45,11 @@ return new class extends Migration
             $table->string('name_reviewed');
 
             $table->string('consent_version', 40);
-            $table->timestamp('consent_given_at');
+            $table->timestamp('consent_given_at')->nullable();
             $table->string('consent_channel', 10)->default('web'); // web | api
             $table->timestamp('consent_withdrawn_at')->nullable();
 
-            $table->timestamp('submitted_at');
+            $table->timestamp('submitted_at')->nullable();
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('reviewed_at')->nullable();
             $table->text('rejection_reason')->nullable();
@@ -60,7 +67,7 @@ return new class extends Migration
             $table->foreignId('viewer_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('file', 10); // id | selfie | photo
             $table->string('ip', 45)->nullable();
-            $table->timestamp('viewed_at');
+            $table->timestamp('viewed_at')->nullable();
 
             $table->index(['identity_verification_id', 'viewed_at']);
         });
