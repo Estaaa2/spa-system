@@ -4,7 +4,7 @@
             {{ $mustChangePassword ? 'ring-2 ring-amber-400 dark:ring-amber-600' : '' }}">
     <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Change Password</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400">Use a long password that you don't use anywhere else.</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">At least 8 characters, with uppercase and lowercase letters, a number and a symbol. Don't reuse a password from another site.</p>
     </div>
 
     <form method="POST" action="{{ route('profile.password') }}" class="px-4 py-6 space-y-4 sm:px-6" data-submit-once>

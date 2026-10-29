@@ -6,6 +6,11 @@
     $pendingSpaCount = $adminUser?->can('view registered spas')
         ? \App\Models\Spa::where('verification_status', 'pending')->count()
         : 0;
+
+    // Staff identity verifications waiting for review.
+    $pendingIdentityCount = $adminUser?->can('verify staff identity')
+        ? \App\Models\IdentityVerification::pending()->count()
+        : 0;
 @endphp
 
 <style>
@@ -136,6 +141,19 @@
                                         class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                                         {{ $pendingSpaCount }}<span class="sr-only"> pending verification</span>
                                     </span>
+                                @endif
+                            </x-nav-link>
+                        </div>
+                    @endcan
+
+                    @can('verify staff identity')
+                        <div class="mb-1">
+                            <x-nav-link :href="route('admin.identity-verifications.index')" :active="request()->routeIs('admin.identity-verifications.*')">
+                                <i class="fa-solid fa-id-card w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
+                                ID Reviews
+                                @if ($pendingIdentityCount > 0)
+                                    {{-- inline-flex keeps the badge in one piece next to the longer label --}}
+                                    <span class="inline-flex items-center ml-2 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{{ $pendingIdentityCount }}<span class="sr-only"> waiting for review</span></span>
                                 @endif
                             </x-nav-link>
                         </div>

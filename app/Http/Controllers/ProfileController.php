@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -53,38 +54,28 @@ class ProfileController extends Controller
         return Redirect::to(route('profile.edit').'#account')->with('success', 'Phone number saved.');
     }
 
-    // Delete the user's account.
-    public function destroy(Request $request): RedirectResponse
-    {
-        $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
-        ]);
-
-        $user = $request->user();
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
-    }
-
     public function password(Request $request): RedirectResponse
     {
+        // Same rules as registration and the mobile app (AppServiceProvider:
+        // 8+ characters, upper and lower case, a number and a symbol).
         $request->validate([
-            'current_password'      => ['required', 'current_password'],
-            'password'              => ['required', 'min:8', 'confirmed'],
+            'current_password' => ['required', 'current_password'],
+            'password'         => ['required', Password::defaults(), 'confirmed'],
         ]);
 
         $user = $request->user();
+
+        // Same as the API: a temporary password can't be "changed" to itself.
+        if (Hash::check($request->password, $user->password)) {
+            return back()->withErrors([
+                'password' => 'Your new password must be different from your current password.',
+            ]);
+        }
 
         $user->update([
             'password'                => Hash::make($request->password),
-            'temp_password'           => null,       // 👈 clear temp password
-            'password_reset_required' => false,       // 👈 unlock dashboard access
+            'temp_password'           => null,    // clear the temporary password
+            'password_reset_required' => false,   // unlock the rest of the system
         ]);
 
         return redirect()->route('profile.edit')

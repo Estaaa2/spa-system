@@ -362,9 +362,24 @@ class IdentityVerificationService
         });
     }
 
-    /** Audit trail for every time an admin opens a file. */
+    /**
+     * Audit trail for every time an admin opens a file. Repeat loads of the
+     * same file by the same admin within 10 minutes (page reload, zoom view)
+     * count as one viewing, so the log stays readable.
+     */
     public function recordFileView(IdentityVerification $verification, User $viewer, string $file, ?string $ip): void
     {
+        $recent = IdentityFileView::query()
+            ->where('identity_verification_id', $verification->id)
+            ->where('viewer_id', $viewer->id)
+            ->where('file', $file)
+            ->where('viewed_at', '>=', now()->subMinutes(10))
+            ->exists();
+
+        if ($recent) {
+            return;
+        }
+
         IdentityFileView::create([
             'identity_verification_id' => $verification->id,
             'viewer_id'                => $viewer->id,

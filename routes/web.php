@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\BranchVerificationController;
 use App\Http\Controllers\Admin\DocumentReviewController;
+use App\Http\Controllers\Admin\IdentityVerificationController as AdminIdentityVerificationController;
 use App\Http\Controllers\Admin\IdentityVerificationFileController;
 use App\Http\Controllers\Admin\RegisteredSpaController;
 use App\Http\Controllers\Admin\RolePermissionController;
@@ -1126,6 +1127,17 @@ Route::middleware(['auth', 'role:admin'])
         // Staff identity verification files (ID, selfie, submitted photo). Every
         // view is logged. The review page itself comes in Phase 3.
         Route::middleware('permission:verify staff identity')->group(function () {
+            Route::get('/identity-verifications', [AdminIdentityVerificationController::class, 'index'])
+                ->name('identity-verifications.index');
+            Route::get('/identity-verifications/{verification}', [AdminIdentityVerificationController::class, 'show'])
+                ->whereNumber('verification')
+                ->name('identity-verifications.show');
+            Route::post('/identity-verifications/{verification}/approve', [AdminIdentityVerificationController::class, 'approve'])
+                ->whereNumber('verification')
+                ->name('identity-verifications.approve');
+            Route::post('/identity-verifications/{verification}/reject', [AdminIdentityVerificationController::class, 'reject'])
+                ->whereNumber('verification')
+                ->name('identity-verifications.reject');
             Route::get('/identity-verifications/{verification}/files/{file}', [IdentityVerificationFileController::class, 'show'])
                 ->whereIn('file', ['id', 'selfie', 'photo'])
                 ->name('identity-verifications.files.show');
