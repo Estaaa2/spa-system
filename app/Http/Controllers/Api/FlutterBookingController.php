@@ -291,6 +291,11 @@ class FlutterBookingController extends Controller
                         if (!$reservation->booking_id) {
                             try {
                                 $this->createBookingFromReservation($reservation);
+
+                                // Same confirmation email as the webhook sends.
+                                if ($bookingId = $reservation->fresh()->booking_id) {
+                                    app(\App\Services\Bookings\BookingNotifier::class)->confirmed(Booking::find($bookingId));
+                                }
                             } catch (\Throwable $e) {
                                 Log::error('Fallback booking creation failed in paymentSuccess', [
                                     'reservation_id' => $reservation->id,

@@ -73,7 +73,9 @@ class IdentityVerificationTestRemoveSeeder extends Seeder
         if ($blockers !== []) {
             $this->command?->error('Nothing was removed. These records still point at the identity test accounts:');
             $this->command?->table(['Table', 'Rows'], $blockers);
-            $this->command?->line('Delete those records (e.g. the payroll run that includes these staff), or reset all test data:');
+            $this->command?->line('If you ran HomeVisitTestSeeder, remove its data first: php artisan db:seed --class=HomeVisitTestRemoveSeeder');
+            $this->command?->line('(IdentityVerificationTestResetSeeder does that for you.)');
+            $this->command?->line('Otherwise delete those records (e.g. the payroll run that includes these staff), or reset all test data:');
             $this->command?->line('  php artisan db:seed --class=PayrollTestAccountsResetSeeder');
             $this->command?->line('  php artisan db:seed --class=IdentityVerificationTestSeeder');
 

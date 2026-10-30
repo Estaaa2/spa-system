@@ -33,5 +33,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('submit-identity-verification', [IdentityPolicy::class, 'submit']);
         Gate::define('review-identity-verifications', [IdentityPolicy::class, 'review']);
         Gate::define('view-profile-photo', [IdentityPolicy::class, 'viewPhoto']);
+        // Therapist pages: therapist role or "Performs treatments" (decision Q1b/Q44).
+        Gate::define('act-as-treatment-provider', fn (\App\Models\User $user) => $user->isTreatmentProvider());
     }
 }

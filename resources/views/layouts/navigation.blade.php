@@ -147,7 +147,8 @@
         $can('edit leave requests');
 
     $showOperations = $canBooking || $canAppointments || $canSchedule || (!$suiteEnabled && $canAttendanceLeave);
-    $canViewPerformance = $user?->hasRole('therapist') ?? false;
+    // Therapists, and staff marked "Performs treatments" (decision Q44).
+    $canViewPerformance = $user?->isTreatmentProvider() ?? false;
 
     // People
     $canStaffAccounts = $can('view staff') || $can('create staff') || $can('edit staff') || $can('delete staff');

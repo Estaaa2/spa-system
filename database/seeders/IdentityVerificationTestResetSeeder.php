@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
  * removes them (IdentityVerificationTestRemoveSeeder), then seeds them again
  * (IdentityVerificationTestSeeder). Nothing else in the database changes.
  *
+ * The home-visit test bookings (HomeVisitTestSeeder) point at Vera, so if they
+ * exist they are reset too: removed first, seeded again at the end.
+ *
  *   php artisan db:seed --class=IdentityVerificationTestResetSeeder
  */
 class IdentityVerificationTestResetSeeder extends Seeder
@@ -22,6 +25,18 @@ class IdentityVerificationTestResetSeeder extends Seeder
             return;
         }
 
+        $hadHomeVisits = DB::table('users')->where('email', HomeVisitTestSeeder::CUSTOMER_EMAIL)->exists();
+
+        if ($hadHomeVisits) {
+            $this->call(HomeVisitTestRemoveSeeder::class);
+
+            if (DB::table('users')->where('email', HomeVisitTestSeeder::CUSTOMER_EMAIL)->exists()) {
+                $this->command?->error('The home-visit test data could not be removed (see above), so the identity accounts were not reset.');
+
+                return;
+            }
+        }
+
         $this->call(IdentityVerificationTestRemoveSeeder::class);
 
         if (DB::table('users')->whereIn('email', IdentityVerificationTestSeeder::emails())->exists()) {
@@ -31,5 +46,9 @@ class IdentityVerificationTestResetSeeder extends Seeder
         }
 
         $this->call(IdentityVerificationTestSeeder::class);
+
+        if ($hadHomeVisits) {
+            $this->call(HomeVisitTestSeeder::class);
+        }
     }
 }

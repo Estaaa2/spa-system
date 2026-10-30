@@ -13,7 +13,7 @@ class CustomerAppointmentController extends Controller
     {
         $user = Auth::user();
 
-        $bookings = Booking::with(['spa', 'branch', 'therapist', 'latestRescheduleRequest', 'rating'])
+        $bookings = Booking::with(['spa', 'branch.profile', 'therapist', 'latestRescheduleRequest', 'rating'])
             ->where('customer_user_id', $user->id)
             ->orderBy('appointment_date', 'desc')
             ->get()
@@ -26,7 +26,7 @@ class CustomerAppointmentController extends Controller
     {
         $user = Auth::user();
 
-        $bookings = Booking::with(['spa', 'branch', 'therapist', 'rating'])
+        $bookings = Booking::with(['spa', 'branch.profile', 'therapist', 'rating'])
             ->where('customer_user_id', $user->id)
             ->whereIn('status', ['reserved', 'pending', 'ongoing'])
             ->where('appointment_date', '>=', now()->toDateString())
@@ -88,6 +88,41 @@ class CustomerAppointmentController extends Controller
             'reschedule_pending' => $b->latestRescheduleRequest?->isPending() ?? false,
             'has_rating'         => $hasRating,
             'rating_value'       => $ratingValue,
+        ] + $this->therapistCard($b);
+    }
+
+    /**
+     * Who is coming, and the arrival code (staff verification D6, D7).
+     *
+     * therapist_card  photo, name, verified badge — upcoming or running bookings
+     *                 only (the photo route allows exactly those)
+     * arrival_code    online home service, not yet arrived; this is the only place
+     *                 (besides the customer's email) where the code is ever sent
+     */
+    private function therapistCard(Booking $b): array
+    {
+        $active = in_array($b->status, Booking::ACTIVE_STATUSES, true)
+            && ! $b->appointment_date->isBefore(today());
+        $isHome = $b->requiresArrivalCode();
+
+        if ($active && $isHome) {
+            $b->ensureArrivalCode();
+        }
+
+        $therapist = $b->therapist;
+
+        return [
+            'is_home_service'      => $isHome,
+            'therapist_assigned'   => $therapist !== null,
+            'therapist_card'       => $active && $therapist ? [
+                'name'      => trim($therapist->first_name.' '.$therapist->last_name),
+                'initials'  => $therapist->initials(),
+                'photo_url' => $therapist->profilePhotoUrl(),
+                'verified'  => $therapist->isIdentityVerified(),
+            ] : null,
+            'arrival_code'         => $active && $isHome && ! $b->isArrivalConfirmed() ? $b->arrival_code : null,
+            'arrival_confirmed_at' => $b->arrival_confirmed_at?->format('g:i A'),
+            'branch_phone'         => $b->branch?->profile?->phone,
         ];
     }
 }

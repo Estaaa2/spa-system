@@ -249,6 +249,9 @@
         </div>
     @endif
 
+    {{-- Online home-service visits and the arrival code (staff verification Phase 5). --}}
+    @include('partials.home-visits')
+
     @include('appointments.partials.reassignment-requests-modal')
 
     @if($canRequestReassignment)

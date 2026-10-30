@@ -39,7 +39,74 @@ class Booking extends Model
         'appointment_date' => 'date',
         'start_time' => 'string',
         'end_time' => 'string',
+        'arrival_code' => 'encrypted',
+        'arrival_attempts' => 'integer',
+        'arrival_locked_at' => 'datetime',
+        'arrival_confirmed_at' => 'datetime',
     ];
+
+    /**
+     * The arrival code is for the customer only (staff verification D7). Hidden
+     * so it can never reach a staff-facing JSON response by accident.
+     */
+    protected $hidden = [
+        'arrival_code',
+    ];
+
+    /** Statuses where the booking is still coming up or running. */
+    public const ACTIVE_STATUSES = ['reserved', 'pending', 'ongoing'];
+
+    protected static function booted(): void
+    {
+        // Every online home-service booking gets a 4-digit arrival code (Q41).
+        static::saving(function (Booking $booking) {
+            if ($booking->requiresArrivalCode() && blank($booking->arrival_code)) {
+                $booking->arrival_code = self::newArrivalCode();
+            }
+        });
+
+        // Q43: tell the customer when their therapist is assigned or changed,
+        // so the photo they check at the door is the right one.
+        static::updated(function (Booking $booking) {
+            if (! $booking->wasChanged('therapist_id') || ! $booking->therapist_id) {
+                return;
+            }
+
+            $wasUnassigned = $booking->getOriginal('therapist_id') === null;
+
+            \Illuminate\Support\Facades\DB::afterCommit(fn () => app(\App\Services\Bookings\BookingNotifier::class)
+                ->therapistChanged($booking->fresh(), $wasUnassigned));
+        });
+    }
+
+    public static function newArrivalCode(): string
+    {
+        return str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+    }
+
+    /** Online + home service: the customer gets an arrival code (D2, D7). */
+    public function requiresArrivalCode(): bool
+    {
+        return $this->booking_source === 'online' && $this->service_type === 'in_home';
+    }
+
+    /** Creates the code for older bookings made before this feature. */
+    public function ensureArrivalCode(): void
+    {
+        if ($this->requiresArrivalCode() && blank($this->arrival_code)) {
+            $this->forceFill(['arrival_code' => self::newArrivalCode()])->saveQuietly();
+        }
+    }
+
+    public function isArrivalConfirmed(): bool
+    {
+        return $this->arrival_confirmed_at !== null;
+    }
+
+    public function arrivalConfirmedBy()
+    {
+        return $this->belongsTo(User::class, 'arrival_confirmed_by');
+    }
 
     public function creator()
     {

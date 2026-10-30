@@ -298,6 +298,15 @@ Route::middleware([
         Route::put('/appointments/{booking}', [BookingController::class, 'update'])->name('appointments.update');
     });
 
+    // Arrival code for online home service (staff verification, Phase 5).
+    // Identity-based: only the assigned therapist, checked in ArrivalService.
+    Route::post('/appointments/{booking}/arrival', [\App\Http\Controllers\ArrivalController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('appointments.arrival');
+    Route::post('/appointments/{booking}/arrival/manual', [\App\Http\Controllers\ArrivalController::class, 'manual'])
+        ->middleware('branch.permission:edit appointments')
+        ->name('appointments.arrival.manual');
+
     Route::middleware('branch.permission:delete appointments')->group(function () {
         Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
     });
@@ -462,8 +471,9 @@ Route::middleware([
         Route::delete('/staff/{staff}', [StaffController::class, 'destroy'])->name('staff.destroy');
     });
 
-    // Therapist Performance
-    Route::middleware(['auth', 'verified', 'role:therapist'])->group(function () {
+    // Therapist Performance: anyone who performs treatments (therapist role or
+    // "Performs treatments" on their staff record, decision Q1b/Q44).
+    Route::middleware(['auth', 'verified', 'can:act-as-treatment-provider'])->group(function () {
         Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index'])
             ->name('therapist.performance');
     });

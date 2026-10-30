@@ -218,6 +218,12 @@ class PaymongoWebhookController extends Controller
 
                     return response()->json(['status' => 'error'], 500);
                 }
+
+                // Confirmation with the therapist card and, for home service, the
+                // arrival code (staff verification D6/D7). Never fails the webhook.
+                if ($bookingId = $reservation->fresh()->booking_id) {
+                    app(\App\Services\Bookings\BookingNotifier::class)->confirmed(Booking::find($bookingId));
+                }
             }
 
             return response()->json(['status' => 'reservation_processed'], 200);

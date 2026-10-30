@@ -88,6 +88,9 @@
     {{-- Identity verification reminder (treatment providers who still need to act). --}}
     @include('partials.identity-reminder')
 
+    {{-- Online home-service visits and the arrival code (staff verification Phase 5). --}}
+    @include('partials.home-visits')
+
     @if($pendingDeploymentResponse)
     <div id="deployment-response-card" class="overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800/40">
         <div class="flex items-center gap-3 px-6 py-4 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50/60 dark:bg-amber-900/10">

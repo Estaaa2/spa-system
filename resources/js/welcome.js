@@ -2344,13 +2344,17 @@ function renderTab(tab) {
                 </div>
                 <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600 dark:text-gray-400">
                     <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.treatment)}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.therapist)}</div>
+                    <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.therapist)}${b.therapist_card && b.therapist_card.verified ? ' <span class="font-semibold text-emerald-800 dark:text-emerald-300" title="Identity verified">✓</span>' : ''}</div>
                     <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355] dark:text-[#C4A97D]"></i> ${b.date}</div>
                     <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
                 </div>
                 ${b.reschedule_status === 'pending' ? `
                 <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
+                </div>` : ''}
+                ${b.arrival_code ? `
+                <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <i class="fa-solid fa-key"></i> Home service: open for your therapist's photo and arrival code
                 </div>` : ''}
             </div>
             ${canRate ? `
@@ -2660,7 +2664,7 @@ function openBookingDetailsModal(booking) {
     document.getElementById('detailDate').textContent      = booking.date;
     document.getElementById('detailTime').textContent      =
         `${formatTime(booking.start_time)} – ${formatTime(booking.end_time)}`;
-    document.getElementById('detailTherapist').textContent = booking.therapist;
+    renderDetailTherapist(booking);
 
     const statusEl = document.getElementById('detailStatus');
     statusEl.textContent = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
@@ -2705,6 +2709,59 @@ function openBookingDetailsModal(booking) {
 
     document.getElementById('bookingDetailsModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+}
+
+// Therapist card + arrival code in Booking Details (staff verification D6, D7).
+// The markup lives in welcome.blade.php, so Tailwind sees every class.
+function renderDetailTherapist(booking) {
+    const card     = booking.therapist_card || null;
+    const nameEl   = document.getElementById('detailTherapist');
+    const photo    = document.getElementById('detailTherapistPhoto');
+    const initials = document.getElementById('detailTherapistInitials');
+    const icon     = document.getElementById('detailTherapistIcon');
+    const badge    = document.getElementById('detailTherapistVerified');
+    const note     = document.getElementById('detailTherapistNote');
+    // Toggles 'hidden' and, for flex items, the display class with it.
+    const show     = (el, on, display = null) => {
+        if (!el) return;
+        el.classList.toggle('hidden', !on);
+        if (display) el.classList.toggle(display, on);
+    };
+
+    nameEl.textContent = card ? card.name : (booking.therapist || 'Not Assigned');
+
+    const hasPhoto = !!(card && card.photo_url);
+    if (hasPhoto) {
+        photo.src = card.photo_url;
+        photo.alt = `Photo of ${card.name}`;
+    } else {
+        photo.removeAttribute('src');
+    }
+    show(photo, hasPhoto);
+    initials.textContent = card ? (card.initials || '') : '';
+    show(initials, !!card && !hasPhoto, 'inline-flex');
+    show(icon, !card, 'flex');
+    show(badge, !!(card && card.verified), 'inline-flex');
+
+    const active = ['reserved', 'pending', 'ongoing'].includes(booking.status);
+    note.textContent = (active && !booking.therapist_assigned)
+        ? 'Your therapist will be shown once the branch assigns one.'
+        : '';
+    show(note, note.textContent !== '');
+
+    // Home service only.
+    const arrival  = document.getElementById('detailArrival');
+    const codeWrap = document.getElementById('detailArrivalCodeWrap');
+    const done     = document.getElementById('detailArrivalDone');
+    show(arrival, booking.is_home_service && active);
+
+    document.getElementById('detailArrivalPhone').textContent =
+        booking.branch_phone ? `, and call the branch at ${booking.branch_phone}` : ', and call the branch';
+    document.getElementById('detailArrivalCode').textContent = booking.arrival_code || '';
+    show(codeWrap, !!booking.arrival_code);
+
+    done.textContent = booking.arrival_confirmed_at ? `Arrival confirmed at ${booking.arrival_confirmed_at}.` : '';
+    show(done, !!booking.arrival_confirmed_at);
 }
 
 function closeBookingDetailsModal() {

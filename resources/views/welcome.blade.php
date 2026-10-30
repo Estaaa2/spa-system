@@ -683,18 +683,40 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Therapist -->
+                        <!-- Therapist (staff verification D6). Filled by openBookingDetailsModal(). -->
                         <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                            <div
+                            <div id="detailTherapistIcon"
                                 class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
                                 <i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                             </div>
-                            <div>
+                            {{-- Photo, or initials when there is none --}}
+                            <img id="detailTherapistPhoto" alt="" class="hidden flex-shrink-0 object-cover w-16 h-16 rounded-full ring-2 ring-white dark:ring-gray-800">
+                            <span id="detailTherapistInitials" aria-hidden="true"
+                                class="hidden flex-shrink-0 items-center justify-center w-16 h-16 rounded-full bg-[#8B7355] text-white text-xl font-semibold"></span>
+                            <div class="min-w-0">
                                 <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Therapist
                                 </p>
                                 <p id="detailTherapist" class="text-sm font-semibold text-[#3C2F23] dark:text-white">
                                 </p>
+                                <span id="detailTherapistVerified"
+                                    class="hidden mt-1 items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                    <i class="fa-solid fa-shield-halved"></i> Identity verified
+                                </span>
+                                <p id="detailTherapistNote" class="hidden mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
                             </div>
+                        </div>
+                        <!-- Home service: check the person, then give the code (D7) -->
+                        <div id="detailArrival" class="hidden p-3 rounded-xl ring-1 bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800">
+                            <p class="text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+                                <strong>When your therapist arrives,</strong> check that they are the person in the photo.
+                                If not, don't let them in<span id="detailArrivalPhone"></span>.
+                            </p>
+                            <div id="detailArrivalCodeWrap" class="hidden mt-3">
+                                <p class="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider">Arrival code</p>
+                                <p id="detailArrivalCode" class="mt-0.5 text-3xl font-bold tracking-[0.4em] text-[#3C2F23] dark:text-white font-mono"></p>
+                                <p class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">If they match, tell them this code. Only you have it.</p>
+                            </div>
+                            <p id="detailArrivalDone" class="hidden mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300"></p>
                         </div>
                         <!-- Status -->
                         <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
