@@ -66,6 +66,9 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public bool $identityNameChanged = false;
 
+    /** Set with $identityNameChanged when the name change ended a verification. */
+    public bool $identityLostByNameChange = false;
+
     /**
      * Get the attributes that should be cast.
      *
@@ -102,6 +105,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
             if ($user->getOriginal('identity_verified_at') !== null) {
                 $user->identity_verified_at = null;
+                $user->identityLostByNameChange = true;
             }
         });
 
@@ -110,9 +114,11 @@ class User extends Authenticatable implements MustVerifyEmail
                 return;
             }
 
+            $lost = $user->identityLostByNameChange;
             $user->identityNameChanged = false;
+            $user->identityLostByNameChange = false;
 
-            app(IdentityVerificationService::class)->supersedeAfterNameChange($user);
+            app(IdentityVerificationService::class)->supersedeAfterNameChange($user, $lost);
         });
     }
 

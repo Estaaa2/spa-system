@@ -251,6 +251,9 @@
                 treatment: currentReassignment.treatment_code,
                 appointment_date: currentReassignment.appointment_date_raw,
                 start_time: currentReassignment.start_time,
+                // Leaves this booking out of the busy check, and for online
+                // home service lists identity-verified therapists only.
+                booking_id: currentReassignment.booking_id,
             });
             const res  = await fetch(`{{ route('booking.available-therapists') }}?${params}`, {
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -260,7 +263,9 @@
             const available = (data.therapists || []).filter(t => Number(t.id) !== Number(currentReassignment.old_therapist_id));
 
             if (!available.length) {
-                select.innerHTML = '<option value="">No therapist available for this slot</option>';
+                select.innerHTML = data.verified_only
+                    ? '<option value="">No verified therapist is free for this home-service slot</option>'
+                    : '<option value="">No therapist available for this slot</option>';
                 document.getElementById('reassign_review_hint').classList.remove('hidden');
                 return;
             }

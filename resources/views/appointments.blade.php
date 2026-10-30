@@ -199,6 +199,56 @@
         </div>
     </div>
 
+    {{-- ── Paid online bookings with no therapist yet (staff verification, decision Q17) ── --}}
+    @if($canEdit && ($unassignedBookings ?? collect())->isNotEmpty())
+        <div class="overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
+            <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-4 border-b sm:px-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                <div>
+                    <h2 class="text-base font-semibold text-amber-900 dark:text-amber-200">No Therapist Assigned</h2>
+                    <p class="text-sm text-amber-700 dark:text-amber-300">
+                        These were paid online, but nobody suitable was free when the payment came in. Choose a therapist with Edit.
+                        Home service needs a verified therapist.
+                    </p>
+                </div>
+                <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    {{ $unassignedBookings->count() }} to assign
+                </span>
+            </div>
+            <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+                @foreach($unassignedBookings as $booking)
+                    <li class="flex flex-col gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm">
+                            <p class="font-medium text-gray-900 dark:text-white">{{ $booking->customer_name ?? 'Customer' }} · {{ $booking->treatment_label }}</p>
+                            <p class="text-gray-500 dark:text-gray-400">
+                                {{ $booking->appointment_date?->format('M d, Y') }},
+                                {{ \Carbon\Carbon::parse($booking->start_time)->format('h:i A') }}
+                                · {{ $booking->service_type_label }}
+                            </p>
+                        </div>
+                        <button type="button"
+                                onclick="openEditModal(this)"
+                                data-id="{{ $booking->id }}"
+                                data-customer-name="{{ $booking->customer_name }}"
+                                data-customer-email="{{ $booking->customer_email }}"
+                                data-customer-phone="{{ $booking->customer_phone }}"
+                                data-customer-address="{{ $booking->customer_address }}"
+                                data-service-type="{{ $booking->service_type }}"
+                                data-treatment="{{ $booking->treatment }}"
+                                data-therapist-id=""
+                                data-branch-id="{{ $booking->branch_id }}"
+                                data-source="{{ $booking->booking_source }}"
+                                data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
+                                data-start-time="{{ $booking->start_time }}"
+                                data-status="{{ $booking->status }}"
+                                class="{{ $btn['process'] }}">
+                            <i class="fa-solid fa-user-plus" aria-hidden="true"></i>Assign therapist
+                        </button>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @include('appointments.partials.reassignment-requests-modal')
 
     @if($canRequestReassignment)
@@ -319,6 +369,7 @@
                                                     data-treatment="{{ $booking->treatment }}"
                                                     data-therapist-id="{{ $booking->therapist_id }}"
                                                     data-branch-id="{{ $booking->branch_id }}"
+                                                    data-source="{{ $booking->booking_source }}"
                                                     data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
                                                     data-start-time="{{ $booking->start_time }}"
                                                     data-status="{{ $booking->status }}"
@@ -418,6 +469,7 @@
                                                     data-treatment="{{ $booking->treatment }}"
                                                     data-therapist-id="{{ $booking->therapist_id }}"
                                                     data-branch-id="{{ $booking->branch_id }}"
+                                                    data-source="{{ $booking->booking_source }}"
                                                     data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
                                                     data-start-time="{{ $booking->start_time }}"
                                                     data-status="{{ $booking->status }}"
@@ -718,11 +770,16 @@
                                 class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="">— No Therapist Assigned —</option>
                             @foreach($therapists as $therapist)
-                                <option value="{{ $therapist->id }}" data-branch="{{ $therapist->branch_id }}">
+                                <option value="{{ $therapist->id }}" data-branch="{{ $therapist->branch_id }}"
+                                        data-verified="{{ $therapist->isIdentityVerified() ? '1' : '0' }}"
+                                        data-name="{{ $therapist->name }}">
                                     {{ $therapist->name }}
                                 </option>
                             @endforeach
                         </select>
+                        <p id="edit_therapist_hint" class="hidden mt-1 text-xs text-amber-700 dark:text-amber-300">
+                            This is an online home-service booking, so only identity-verified therapists can be chosen.
+                        </p>
                     </div>
                 </div>
                 <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
@@ -1031,6 +1088,8 @@
             opt.hidden = opt.dataset.branch != d.branchId;
         });
         therapistSelect.value = d.therapistId || '';
+        editBookingSource = d.source || '';
+        syncEditTherapistRule();
 
         // Always re-lock the phone field for each newly opened booking, so a
         // previously-unlocked phone from a different customer's edit session
@@ -1047,6 +1106,26 @@
         document.getElementById('editForm').action = routeFor(ROUTE_UPDATE, d.id);
         openModal('editModal', '#edit_service_type');
     }
+
+    // Online home service needs an identity-verified therapist (staff
+    // verification, D2). The server enforces it; this only marks the choices.
+    let editBookingSource = '';
+
+    function syncEditTherapistRule() {
+        const select = document.getElementById('edit_therapist_id');
+        const needsVerified = editBookingSource === 'online'
+            && document.getElementById('edit_service_type').value === 'in_home';
+
+        Array.from(select.options).forEach(opt => {
+            if (opt.value === '') return;
+            const unverified = opt.dataset.verified !== '1';
+            opt.disabled = needsVerified && unverified;
+            opt.textContent = opt.dataset.name + (needsVerified && unverified ? ' (not verified)' : '');
+        });
+        document.getElementById('edit_therapist_hint')?.classList.toggle('hidden', !needsVerified);
+    }
+
+    document.getElementById('edit_service_type')?.addEventListener('change', syncEditTherapistRule);
 
     function validateEditPhone() {
         const phoneInput = document.getElementById('edit_customer_phone');
@@ -1300,6 +1379,7 @@
             data-treatment="${esc(b.treatment)}"
             data-therapist-id="${b.therapist_id ?? ''}"
             data-branch-id="${b.branch_id ?? ''}"
+            data-source="${esc(b.booking_source ?? '')}"
             data-appointment-date="${esc(b.appointment_date_raw)}"
             data-start-time="${esc(b.start_time)}"
             data-status="${b.status}"

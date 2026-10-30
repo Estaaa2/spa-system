@@ -1051,6 +1051,38 @@ const bookingForm          = document.querySelector('#bookingModal form');
 const TOTAL_BOOKING_STEPS = 3;
 let currentBookingStep    = 1;
 
+// Whether the selected branch can take online home service at all (staff
+// verification, decision Q35b). null = not known yet, so nothing is blocked
+// until the server answers; checkout re-checks either way.
+let homeServiceAvailable = null;
+let homeServiceMessage   = '';
+
+async function loadHomeServiceAvailability(branchId) {
+    homeServiceAvailable = null;
+    homeServiceMessage   = '';
+    if (!branchId) return;
+
+    try {
+        const params = new URLSearchParams({ branch_id: branchId });
+        const response = await fetch(`/bookings/online/available-days?${params.toString()}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+
+        // Ignore a late answer for a branch the customer already left.
+        if (String(bookingBranchIdInput?.value) !== String(branchId)) return;
+
+        homeServiceAvailable = data.home_service_available !== false;
+        homeServiceMessage   = data.home_service_message || '';
+
+        // A treatment may already be picked: refresh its options.
+        if (getCheckedTreatmentInput()) populateServiceTypeOptions();
+    } catch (err) {
+        console.warn('Could not check home-service availability:', err);
+    }
+}
+
 function openTermsModal() {
     document.getElementById('termsModal').classList.remove('hidden');
 }
@@ -1404,6 +1436,16 @@ function populateServiceTypeOptions() {
         serviceTypeSelect.value = 'in_branch';
         serviceTypeSelect.disabled = true;
         if (serviceTypeHint) serviceTypeHint.textContent = 'This treatment is only offered in-branch.';
+    } else if (serviceType === 'in_branch_and_home' && homeServiceAvailable === false) {
+        // No verified therapist at this branch: offer In-Branch and say why.
+        serviceTypeSelect.innerHTML = `
+            <option value="in_branch">In-Branch</option>
+            <option value="in_home" disabled>Home Service (not available)</option>
+        `;
+        serviceTypeSelect.value = 'in_branch';
+        serviceTypeSelect.disabled = false;
+        if (serviceTypeHint) serviceTypeHint.textContent = homeServiceMessage
+            || 'Home service isn\'t available at this branch right now. Choose In-Branch, or try another branch.';
     } else if (serviceType === 'in_branch_and_home') {
         serviceTypeSelect.innerHTML = `
             <option value="">Select service type</option>
@@ -1434,6 +1476,7 @@ function formatTime12Hour(time) {
 
 const SLOT_REASON_LABELS = {
     fully_booked: 'Fully booked — all therapists are assigned during this time.',
+    no_verified_therapist: 'Home service needs a verified therapist, and none is free at this time. Try another time, or choose In-Branch.',
     past_closing: 'This service would end after closing.',
     past: 'This time has already passed today.',
     already_booked: 'You already have an appointment at this time.',
@@ -1442,6 +1485,7 @@ const SLOT_REASON_LABELS = {
 // Short status shown on each unavailable time row.
 const SLOT_NOTE_LABELS = {
     fully_booked: 'Booked',
+    no_verified_therapist: 'No home-service therapist',
     past_closing: 'Too close to closing',
     past: 'Passed',
     already_booked: 'Your appointment',
@@ -1479,6 +1523,8 @@ async function loadAvailableSlots() {
             branch_id: branchId,
             treatment: checked.value,
             appointment_date: date,
+            // Home service only counts identity-verified therapists.
+            service_type: serviceTypeSelect?.value || 'in_branch',
         });
 
         const response = await fetch(`/bookings/online/available-slots?${params.toString()}`, {
@@ -1529,6 +1575,16 @@ async function loadAvailableSlots() {
 
             grid.appendChild(slotBtn);
         });
+
+        // One line saying why, when home-service times are closed only because
+        // no verified therapist is free (decision Q35). Same message style as
+        // the other grid notes, so no new CSS is needed.
+        if (data.slots.some(slot => slot.reason === 'no_verified_therapist')) {
+            const note = document.createElement('p');
+            note.className = 'col-span-3 py-6 text-sm text-center text-gray-400 dark:text-gray-500 sm:col-span-4';
+            note.textContent = SLOT_REASON_LABELS.no_verified_therapist;
+            grid.prepend(note);
+        }
 
         legend?.classList.remove('hidden');
         legend?.classList.add('flex');
@@ -1750,6 +1806,7 @@ function openBookingModal() {
     const today = getTodayLocal();
     if (bookingDateInput) bookingDateInput.min = today;
 
+    loadHomeServiceAvailability(selectedSpa.branch_id);
     populateTreatmentsForSelectedBranch();
     showBookingStep(1);
 
@@ -2077,6 +2134,10 @@ serviceListContainer?.addEventListener('change', function (e) {
 });
 
 serviceTypeSelect?.addEventListener('change', toggleAddressField);
+// Home service counts only verified therapists, so the times can differ.
+serviceTypeSelect?.addEventListener('change', () => {
+    if (bookingDateInput?.value && getCheckedTreatmentInput()) loadAvailableSlots();
+});
 bookingDateInput?.addEventListener('change', loadAvailableSlots);
 
 document.getElementById('bookingNextBtn')?.addEventListener('click', function () {

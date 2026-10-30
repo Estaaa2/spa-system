@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\Bookings\TherapistAssigner;
 use Illuminate\Support\Facades\Mail;
 use App\Services\Subscription\PlanLimitEnforcer;
 use App\Services\Subscription\SubscriptionBilling;
@@ -148,45 +149,27 @@ class PaymongoWebhookController extends Controller
                             ->addMinutes($durationMinutes)
                             ->format('H:i:s');
 
-                        $therapists = User::role('therapist')
-                        ->whereHas('staff', function ($q) use ($reservation) {
-                            $q->where('spa_id', $reservation->spa_id)
-                                ->where('branch_id', $reservation->branch_id)
-                                ->where('employment_status', 'active');
-                        })
-                        ->orderBy('first_name')  // ← use your actual column name
-                        ->get();
-
-                        $busyIds = Booking::query()
-                            ->where('spa_id', $reservation->spa_id)
-                            ->where('branch_id', $reservation->branch_id)
-                            ->where('appointment_date', $reservation->appointment_date)
-                            ->whereIn('therapist_id', $therapists->pluck('id'))
-                            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-                            ->where(function ($q) use ($reservation, $endTime) {
-                                $q->where('start_time', '<', $endTime)
-                                ->where('end_time', '>', $reservation->start_time);
-                            })
-                            ->pluck('therapist_id')
-                            ->unique();
-
-                        // ON-LEAVE: exclude therapists with approved leave covering
-                        // the reservation's date — a slot held for 15 minutes could
-                        // otherwise still confirm into a therapist who went on leave
-                        // in the meantime.
-                        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate(
+                        // Shared rule (TherapistAssigner): least busy free therapist;
+                        // verified only for home service (D2). If nobody can take it,
+                        // the paid booking is still created, without a therapist, and
+                        // the branch assigns one from Appointments (decision Q17).
+                        // Throwing here used to lose the booking after payment.
+                        $recommendedTherapist = app(TherapistAssigner::class)->pick(
                             (int) $reservation->spa_id,
                             (int) $reservation->branch_id,
-                            (string) $reservation->appointment_date
+                            Carbon::parse($reservation->appointment_date)->toDateString(),
+                            Carbon::parse($reservation->start_time)->format('H:i'),
+                            Carbon::parse($endTime)->format('H:i'),
+                            TherapistAssigner::requiresVerified('online', $reservation->service_type)
                         );
 
-                        $recommendedTherapist = $therapists
-                            ->reject(fn ($therapist) => $busyIds->contains($therapist->id) || in_array($therapist->id, $onLeaveIds))
-                            ->first();
-
                         if (! $recommendedTherapist) {
-                            throw new \RuntimeException('No therapist available for paid reservation.');
+                            Log::warning('Paid reservation booked without a therapist; the branch must assign one.', [
+                                'reservation_id' => $reservation->id,
+                                'service_type'   => $reservation->service_type,
+                            ]);
                         }
+
                         $totalAmount = (float) $reservation->full_amount;
                         $amountPaid  = (float) ($reservation->amount_charged ?? $reservation->downpayment_amount);
                         $balance     = max(round($totalAmount - $amountPaid, 2), 0);
@@ -211,7 +194,7 @@ class PaymongoWebhookController extends Controller
                             'appointment_date' => $reservation->appointment_date,
                             'start_time' => $reservation->start_time,
                             'end_time' => $endTime,
-                            'therapist_id' => $recommendedTherapist->id,
+                            'therapist_id' => $recommendedTherapist?->id,
                         ]);
 
                         $reservation->update([

@@ -4,13 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Branch;
-use App\Models\LeaveRequest;
 use App\Models\OnlineReservationPayment;
 use App\Models\OperatingHours;
 use App\Models\Package;
 use App\Models\Treatment;
-use App\Models\User;
 use App\Models\Spa;
+use App\Services\Bookings\TherapistAssigner;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
@@ -24,13 +23,21 @@ class OnlineBookingCheckoutController extends Controller
 
     private const MAX_ADVANCE_DAYS = 30;
 
+    /** Shown wherever home service has no verified therapist (decision Q35). */
+    public const NO_VERIFIED_MESSAGE = 'Home service needs a verified therapist, and none is free at this time. Try another time, or choose In-Branch.';
+
+    public function __construct(private TherapistAssigner $assigner)
+    {
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
             'spa_id'           => ['required', 'exists:spas,id'],
             'branch_id'        => ['required', 'exists:branches,id'],
-            'customer_name'    => ['required', 'string', 'max:255'],
-            'customer_email'   => ['required', 'email', 'max:255'],
+            // customer_name / customer_email may still be posted (web form, app)
+            // but are ignored: they are copied from the signed-in account below,
+            // so the booking always carries the account's verified email (Q12).
             'customer_phone'   => ['required', 'string', 'regex:/^09\d{9}$/'],
             'treatment'        => ['required', 'string'],
             'service_type'     => ['required', 'in:in_branch,in_home'],
@@ -70,6 +77,10 @@ class OnlineBookingCheckoutController extends Controller
             return $this->fail($request, 'Home address is required for home service bookings.');
         }
 
+        $customer = Auth::user();
+        $validated['customer_name'] = trim($customer->first_name.' '.$customer->last_name);
+        $validated['customer_email'] = $customer->email;
+
         // Resolve treatment or package
         [$type, $id] = explode('_', $validated['treatment']);
 
@@ -89,6 +100,11 @@ class OnlineBookingCheckoutController extends Controller
             $bookableType = 'package';
         } else {
             return $this->fail($request, 'Invalid service selected.');
+        }
+
+        // Same rule as staff booking: an in-branch-only treatment can't be booked as home service.
+        if ($validated['service_type'] === 'in_home' && $bookableType === 'treatment' && $item->service_type === 'in_branch_only') {
+            return $this->fail($request, 'This treatment is only available in-branch.');
         }
 
         $fullAmount = (float) $item->price;
@@ -146,46 +162,20 @@ class OnlineBookingCheckoutController extends Controller
         }
 
         // =====================================================
-        // THERAPIST AVAILABILITY VALIDATION
+        // THERAPIST AVAILABILITY (shared rule, TherapistAssigner)
         // =====================================================
-        $therapists = User::role('therapist')
-            ->whereHas('staff', function ($q) use ($validated) {
-                $q->where('spa_id', $validated['spa_id'])
-                  ->where('branch_id', $validated['branch_id'])
-                  ->where('employment_status', 'active');
-            })
-            ->get();
+        // Only checks that someone can take it; the therapist is assigned when
+        // the payment is confirmed (PaymongoWebhookController). Home service
+        // needs an identity-verified therapist (D2).
+        $isHome = $validated['service_type'] === 'in_home';
+        $capacity = $this->assigner
+            ->day((int) $validated['spa_id'], (int) $validated['branch_id'], $validated['appointment_date'])
+            ->capacityBetween($start->format('H:i'), $endTime, $isHome);
 
-        if ($therapists->isEmpty()) {
-            return $this->fail($request, 'No therapists are available at this branch.');
-        }
-
-        $busyIds = Booking::query()
-            ->where('spa_id', $validated['spa_id'])
-            ->where('branch_id', $validated['branch_id'])
-            ->where('appointment_date', $validated['appointment_date'])
-            ->whereIn('therapist_id', $therapists->pluck('id'))
-            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-            ->where(function ($q) use ($validated, $endTime) {
-                $q->where('start_time', '<', $endTime)
-                  ->where('end_time', '>', $validated['start_time']);
-            })
-            ->pluck('therapist_id')
-            ->unique();
-
-        // ON-LEAVE: exclude therapists with approved leave covering this date.
-        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate(
-            (int) $validated['spa_id'],
-            (int) $validated['branch_id'],
-            $validated['appointment_date']
-        );
-
-        $availableTherapists = $therapists->reject(
-            fn($t) => $busyIds->contains($t->id) || in_array($t->id, $onLeaveIds)
-        );
-
-        if ($availableTherapists->isEmpty()) {
-            return $this->fail($request, 'All therapists are fully booked for the selected date and time. Please choose a different time slot.');
+        if ($capacity < 1) {
+            return $this->fail($request, $isHome
+                ? self::NO_VERIFIED_MESSAGE
+                : 'All therapists are fully booked for the selected date and time. Please choose a different time slot.');
         }
 
         // =====================================================
@@ -324,7 +314,12 @@ class OnlineBookingCheckoutController extends Controller
             'branch_id'        => ['required', 'exists:branches,id'],
             'treatment'        => ['required', 'string'],
             'appointment_date' => ['required', 'date'],
+            // Optional so older app builds keep working; they get in-branch counts
+            // and checkout re-checks home service anyway.
+            'service_type'     => ['nullable', 'in:in_branch,in_home'],
         ]);
+
+        $isHome = ($validated['service_type'] ?? null) === 'in_home';
 
         $spa = Spa::find($validated['spa_id']);
 
@@ -374,23 +369,9 @@ class OnlineBookingCheckoutController extends Controller
         $opening = Carbon::parse($hours->opening_time);
         $closing = Carbon::parse($hours->closing_time);
 
-        $therapistCount = User::role('therapist')
-            ->whereHas('staff', fn ($q) => $q->where('spa_id', $validated['spa_id'])
-                ->where('branch_id', $validated['branch_id'])
-                ->where('employment_status', 'active'))
-            ->count();
-
-        // Same table, same statuses store() already checks — every candidate
-        // slot below is evaluated independently against this full list, not
-        // derived relative to the previous booking, so a wide-open block
-        // doesn't get silently truncated to "only the next available slot".
-        $bookingWindows = Booking::query()
-            ->where('spa_id', $validated['spa_id'])
-            ->where('branch_id', $validated['branch_id'])
-            ->where('appointment_date', $validated['appointment_date'])
-            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-            ->get(['start_time', 'end_time'])
-            ->map(fn ($b) => [Carbon::parse($b->start_time), Carbon::parse($b->end_time)]);
+        // Who is free is decided by the shared rule (pool, bookings, leave,
+        // Schedule availability, and verified-only for home service).
+        $day = $this->assigner->day((int) $validated['spa_id'], (int) $validated['branch_id'], $validated['appointment_date']);
 
         // Same-customer windows — used only to grey out times the logged-in
         // customer already has booked (anywhere at this branch, on this
@@ -418,27 +399,29 @@ class OnlineBookingCheckoutController extends Controller
             } elseif ($isToday && $slotStart->lte($now)) {
                 $slots[] = ['time' => $slotStart->format('H:i'), 'available' => false, 'reason' => 'past'];
             } else {
-                // Every active therapist can only be in one non-overlapping
-                // booking at a time (enforced when bookings are created), so
-                // counting overlapping windows is equivalent to counting
-                // distinct busy therapists — the same invariant store()
-                // already relies on via $busyIds->unique().
-                $overlapping = $bookingWindows->filter(
-                    fn ($w) => $slotStart->lt($w[1]) && $slotEnd->gt($w[0])
-                )->count();
+                $from = $slotStart->format('H:i');
+                $to   = $slotEnd->format('H:i');
+                $free = $day->capacityBetween($from, $to, $isHome);
 
                 $customerBusy = $customerBookingWindows->contains(
                     fn ($w) => $slotStart->lt($w[1]) && $slotEnd->gt($w[0])
                 );
 
-                $available = ($therapistCount - $overlapping) > 0 && !$customerBusy;
+                // Home service with nobody verified free, while someone unverified
+                // is: say why, instead of a plain "fully booked" (Q35).
+                $reason = match (true) {
+                    $customerBusy => 'already_booked',
+                    $free > 0     => null,
+                    $isHome && $day->capacityBetween($from, $to) > 0 => 'no_verified_therapist',
+                    default       => 'fully_booked',
+                };
 
                 $slots[] = [
                     'time'      => $slotStart->format('H:i'),
-                    'available' => $available,
-                    'reason'    => $customerBusy ? 'already_booked' : ($available ? null : 'fully_booked'),
-                    // How many therapists are still free. A count only, no names.
-                    'free'      => max($therapistCount - $overlapping, 0),
+                    'available' => $free > 0 && ! $customerBusy,
+                    'reason'    => $reason,
+                    // How many more bookings fit. A count only, no names.
+                    'free'      => $free,
                 ];
             }
 
@@ -447,6 +430,7 @@ class OnlineBookingCheckoutController extends Controller
 
         return response()->json([
             'closed'       => false,
+            'home_service_available' => $day->hasVerifiedMember(),
             'opening_time' => $hours->opening_time,
             'closing_time' => $hours->closing_time,
             'slots'        => $slots,
@@ -466,6 +450,8 @@ class OnlineBookingCheckoutController extends Controller
         $validated = $request->validate([
             'branch_id' => ['required', 'exists:branches,id'],
         ]);
+
+        $branch = Branch::find($validated['branch_id']);
 
         $today   = Carbon::today();
         $lastDay = $today->copy()->addDays(self::MAX_ADVANCE_DAYS);
@@ -488,6 +474,10 @@ class OnlineBookingCheckoutController extends Controller
             'dates' => $dates,
             'first' => $today->toDateString(),
             'last'  => $lastDay->toDateString(),
+            // Q35b: false when no therapist at this branch is identity-verified,
+            // so the form turns the Home Service option off with a reason.
+            'home_service_available' => $this->assigner->branchHasVerifiedProvider((int) $branch->spa_id, (int) $branch->id),
+            'home_service_message'   => 'Home service isn\'t available at this branch right now, because none of its therapists is verified yet. Choose In-Branch, or try another branch.',
         ]);
     }
 

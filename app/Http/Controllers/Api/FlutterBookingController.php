@@ -446,36 +446,17 @@ class FlutterBookingController extends Controller
             // ✅ treatment column must be "treatment_5" or "package_3" format
             $treatmentCode = $reservation->bookable_type . '_' . $reservation->bookable_id;
 
-            // Find least-busy available therapist (same logic as BookingController)
-            $therapists = User::role('therapist')
-                ->whereHas('staff', function ($q) use ($reservation) {
-                    $q->where('spa_id', $reservation->spa_id)
-                      ->where('branch_id', $reservation->branch_id)
-                      ->where('employment_status', 'active');
-                })
-                ->orderBy('first_name')
-                ->get();
-
-            $busyIds = Booking::query()
-                ->where('spa_id', $reservation->spa_id)
-                ->where('branch_id', $reservation->branch_id)
-                ->where('appointment_date', $reservation->appointment_date)
-                ->whereIn('therapist_id', $therapists->pluck('id'))
-                ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-                ->where(function ($q) use ($reservation, $endTime) {
-                    $q->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $reservation->start_time);
-                })
-                ->pluck('therapist_id')
-                ->unique();
-
-            $assignedTherapist = $therapists
-                ->reject(fn($t) => $busyIds->contains($t->id))
-                ->first();
-
-            if (!$assignedTherapist) {
-                throw new \RuntimeException('No therapist available for this reservation.');
-            }
+            // Shared rule with the webhook (TherapistAssigner): least busy, leave
+            // and Schedule availability respected, verified only for home service.
+            // Nobody free: booked without a therapist for the branch to assign (Q17).
+            $assignedTherapist = app(\App\Services\Bookings\TherapistAssigner::class)->pick(
+                (int) $reservation->spa_id,
+                (int) $reservation->branch_id,
+                Carbon::parse($reservation->appointment_date)->toDateString(),
+                Carbon::parse($reservation->start_time)->format('H:i'),
+                Carbon::parse($endTime)->format('H:i'),
+                \App\Services\Bookings\TherapistAssigner::requiresVerified('online', $reservation->service_type)
+            );
 
             $booking = Booking::create([
                 'spa_id'             => $reservation->spa_id,
@@ -497,7 +478,7 @@ class FlutterBookingController extends Controller
                 'appointment_date'   => $reservation->appointment_date,
                 'start_time'         => $reservation->start_time,
                 'end_time'           => $endTime,                    // ✅ recalculated
-                'therapist_id'       => $assignedTherapist->id,
+                'therapist_id'       => $assignedTherapist?->id,
             ]);
 
             $reservation->update([

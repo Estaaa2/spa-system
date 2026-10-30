@@ -375,6 +375,19 @@
                         </div>
                     </div>
 
+                    {{-- Q37: for small spas where e.g. the receptionist also gives treatments. --}}
+                    <div id="addPerformsWrapper" class="{{ old('roles', 'therapist') === 'therapist' ? 'hidden' : '' }}">
+                        <label class="flex items-start gap-3 p-3 border border-gray-200 cursor-pointer rounded-xl dark:border-gray-700">
+                            <input type="hidden" name="performs_treatments" value="0">
+                            <input type="checkbox" name="performs_treatments" value="1" @checked(old('performs_treatments'))
+                                   class="mt-0.5 w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
+                            <span class="text-sm">
+                                <span class="font-medium text-gray-900 dark:text-white">Also performs treatments</span>
+                                <span class="block text-xs text-gray-500 dark:text-gray-400">Can be assigned appointments like a therapist. To receive online home-service bookings, they verify their identity on their profile.</span>
+                            </span>
+                        </label>
+                    </div>
+
                     <div class="flex pt-1 sm:justify-end">
                         <button type="submit" id="addStaffSubmit" class="w-full {{ $btn['primary'] }} sm:w-auto">
                             <i id="addStaffIcon" class="fa-solid fa-user-plus" aria-hidden="true"></i>
@@ -467,6 +480,26 @@
                                     No role
                                 </span>
                             @endif
+                            {{-- Treatment providers: verified status for online home service (Q36).
+                                 Only Verified / Not verified; reasons stay between the staff member and the admin. --}}
+                            @if($role === 'therapist' || $member->performs_treatments)
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    @if($role !== 'therapist')
+                                        <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">Performs treatments</span>
+                                    @endif
+                                    @if($member->user?->isIdentityVerified())
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                              title="Can receive online home-service bookings">
+                                            <i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Verified
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                                              title="Won't be assigned online home-service bookings until verified">
+                                            Not verified
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
                         </td>
                         <td role="cell" data-label="Assigned Branch" class="px-6 py-4">
                             @if($member->branch)
@@ -486,7 +519,7 @@
                                 @if($canEditStaff && ($isOwner || ! in_array($role, $headRoles, true)))
                                 <button
                                     type="button"
-                                    onclick='editStaff({{ $member->id }}, {{ $hasManpower ? 'true' : 'false' }}, @json($role), @json($displayName))'
+                                    onclick='editStaff({{ $member->id }}, {{ $hasManpower ? 'true' : 'false' }}, @json($role), @json($displayName), {{ $member->performs_treatments ? 'true' : 'false' }})'
                                     class="{{ $btn['edit'] }}"
                                 >
                                     <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i>
@@ -706,7 +739,7 @@
     // Premium plan's manpower feature.
     const IS_OWNER = @json($isOwner);
 
-    function editStaff(staffId, hasManpower, currentRole, staffName) {
+    function editStaff(staffId, hasManpower, currentRole, staffName, performsTreatments) {
         hasManpower = hasManpower === true;
         currentRole = currentRole || '';
 
@@ -748,7 +781,23 @@
                         : ''
                 }
             </div>
+            <div id="editPerformsWrapper" class="${currentRole === 'therapist' ? 'hidden' : ''}">
+                <label class="flex items-start gap-3 p-3 border border-gray-200 cursor-pointer rounded-xl dark:border-gray-700">
+                    <input type="hidden" name="performs_treatments" value="0">
+                    <input type="checkbox" name="performs_treatments" value="1"${performsTreatments === true ? ' checked' : ''}
+                           class="mt-0.5 w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
+                    <span class="text-sm">
+                        <span class="font-medium text-gray-900 dark:text-white">Also performs treatments</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Can be assigned appointments like a therapist. Therapists always can.</span>
+                    </span>
+                </label>
+            </div>
         `;
+
+        // The checkbox only matters for roles other than Therapist.
+        document.getElementById('editRoleSelect').addEventListener('change', function () {
+            document.getElementById('editPerformsWrapper').classList.toggle('hidden', this.value === 'therapist');
+        });
 
         document.getElementById('editStaffName').textContent = staffName || 'this staff member';
         document.getElementById('editStaffForm').action = routeFor(ROUTE_UPDATE, staffId);
@@ -766,6 +815,12 @@
     // A slow POST plus an impatient second click would create two accounts.
     // ════════════════════════════════════════════════════════════════
     const addForm = document.getElementById('addStaffForm');
+
+    // "Also performs treatments" only matters for roles other than Therapist.
+    document.getElementById('roles')?.addEventListener('change', function () {
+        document.getElementById('addPerformsWrapper')?.classList.toggle('hidden', this.value === 'therapist');
+    });
+
     if (addForm) {
         let submitting = false;
         addForm.addEventListener('submit', function (e) {

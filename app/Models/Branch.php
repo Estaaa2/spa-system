@@ -251,9 +251,10 @@ class Branch extends Model
 
     private ?array $bookingReadinessCache = null;
 
+    /** Someone who can be assigned treatments: a therapist, or staff marked "Performs treatments". */
     public function hasActiveTherapist(): bool
     {
-        return User::role('therapist')
+        return User::treatmentProviders()
             ->whereHas('staff', fn ($query) => $query
                 ->where('spa_id', $this->spa_id)
                 ->where('branch_id', $this->id)
@@ -306,7 +307,7 @@ class Branch extends Model
     public function bookingReadinessMessage(): ?string
     {
         $labels = [
-            'therapist' => 'at least one active therapist',
+            'therapist' => 'at least one active therapist (or a staff member marked "Performs treatments")',
             'services' => 'at least one treatment or package',
         ];
 
@@ -334,7 +335,9 @@ class Branch extends Model
                 'id',
                 Staff::query()
                     ->where('employment_status', 'active')
-                    ->whereHas('user', fn ($u) => $u->role('therapist'))
+                    ->where(fn ($q) => $q
+                        ->where('performs_treatments', true)
+                        ->orWhereHas('user', fn ($u) => $u->role('therapist')))
                     ->select('branch_id')
             );
     }

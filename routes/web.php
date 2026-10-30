@@ -168,10 +168,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/my-schedule', [CustomerAppointmentController::class, 'schedule'])
         ->name('customer.schedule');
 
-    Route::post('/bookings/online', [BookingController::class, 'storeOnline'])
-        ->middleware('role:customer')
-        ->name('bookings.online.store');
-
     Route::get('/appointments/live-data', [BookingController::class, 'liveData'])
         ->name('appointments.live-data');
 });
@@ -298,7 +294,6 @@ Route::middleware([
     });
 
     Route::middleware('branch.permission:edit appointments')->group(function () {
-        Route::post('/appointments/{booking}/reserve', [BookingController::class, 'reserve'])->name('appointments.reserve');
         Route::put('/appointments/{booking}/status', [BookingController::class, 'updateStatus'])->name('appointments.updateStatus');
         Route::put('/appointments/{booking}', [BookingController::class, 'update'])->name('appointments.update');
     });

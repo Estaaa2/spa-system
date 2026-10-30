@@ -55,7 +55,7 @@ class LeaveRequestController extends Controller
 
         $message = 'Leave request submitted. Please wait for approval.';
 
-        if ($user->hasRole('therapist')) {
+        if ($user->isTreatmentProvider()) {
             $message .= ' Any of your appointments that fall within these dates will be automatically flagged for reassignment once this leave is approved — the front desk will handle finding a replacement.';
         }
 
@@ -116,7 +116,9 @@ class LeaveRequestController extends Controller
             $this->abortUnlessInReviewerScope($leaveRequest);
         }
 
-        if (!$leaveRequest->user?->hasRole('therapist')) {
+        // Anyone who can be assigned treatments (therapists and staff marked
+        // "Performs treatments") may hold bookings.
+        if (!$leaveRequest->user?->isTreatmentProvider()) {
             return response()->json([]);
         }
 
@@ -141,34 +143,24 @@ class LeaveRequestController extends Controller
                 return $data;
             }
 
-            $therapists = User::role('therapist')
-                ->whereHas('staff', fn ($q) => $q
-                    ->where('spa_id', $b->spa_id)
-                    ->where('branch_id', $b->branch_id)
-                    ->where('employment_status', 'active'))
-                ->where('id', '!=', $b->therapist_id)
-                ->orderBy('first_name')
-                ->get();
-
-            $busyIds = Booking::where('id', '!=', $b->id)
-                ->where('branch_id', $b->branch_id)
-                ->where('appointment_date', $b->appointment_date)
-                ->whereIn('therapist_id', $therapists->pluck('id'))
-                ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-                ->where(fn ($q) => $q->where('start_time', '<', $b->end_time)->where('end_time', '>', $b->start_time))
-                ->pluck('therapist_id');
-
-            $onLeaveIds = LeaveRequest::approvedUserIdsOnDate($b->spa_id, $b->branch_id, $b->appointment_date->format('Y-m-d'));
-
-            $available = $therapists
-                ->reject(fn ($t) => $busyIds->contains($t->id) || in_array($t->id, $onLeaveIds))
-                ->values();
+            // Shared rule: free at that time, not on leave, and identity-verified
+            // when the booking is online home service.
+            $assigner  = app(\App\Services\Bookings\TherapistAssigner::class);
+            $available = $assigner->available(
+                (int) $b->spa_id,
+                (int) $b->branch_id,
+                $b->appointment_date->format('Y-m-d'),
+                \Carbon\Carbon::parse($b->start_time)->format('H:i'),
+                \Carbon\Carbon::parse($b->end_time)->format('H:i'),
+                \App\Services\Bookings\TherapistAssigner::requiresVerified($b->booking_source, $b->service_type),
+                (int) $b->id
+            )->reject(fn ($t) => (int) $t->id === (int) $b->therapist_id)->values();
 
             $data['available_therapists'] = $available->map(fn ($t) => [
                 'id'   => $t->id,
                 'name' => trim($t->first_name . ' ' . $t->last_name),
             ]);
-            $data['recommended_id'] = $available->first()?->id;
+            $data['recommended_id'] = $assigner->leastBusy($available, (int) $b->spa_id, (int) $b->branch_id, $b->appointment_date->format('Y-m-d'), (int) $b->id)?->id;
 
             return $data;
         }));
@@ -234,29 +226,12 @@ class LeaveRequestController extends Controller
                 $booking        = $reassignment->booking;
                 $newTherapistId = (int) $pick['new_therapist_id'];
 
-                // The replacement must be an active therapist of the same spa and branch.
-                $eligible = User::role('therapist')
-                    ->whereKey($newTherapistId)
-                    ->whereHas('staff', fn ($q) => $q
-                        ->where('spa_id', $booking->spa_id)
-                        ->where('branch_id', $booking->branch_id)
-                        ->where('employment_status', 'active'))
-                    ->exists();
-
-                if (!$eligible || $newTherapistId === (int) $leaveRequest->user_id) {
-                    continue; // leave it pending — approver resolves manually on Appointments
-                }
-
-                $conflict = Booking::where('id', '!=', $booking->id)
-                    ->where('branch_id', $booking->branch_id)
-                    ->where('appointment_date', $booking->appointment_date)
-                    ->where('therapist_id', $newTherapistId)
-                    ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-                    ->where(fn ($q) => $q->where('start_time', '<', $booking->end_time)->where('end_time', '>', $booking->start_time))
-                    ->exists();
-
-                if ($conflict) {
-                    continue; // leave it pending — approver resolves manually on Appointments
+                // Shared rule: in the pool, free at that time, and identity-verified
+                // for online home service. Otherwise leave it pending — the approver
+                // resolves it manually on Appointments.
+                if ($newTherapistId === (int) $leaveRequest->user_id
+                    || app(\App\Services\Bookings\TherapistAssigner::class)->rejectionFor($newTherapistId, $booking)) {
+                    continue;
                 }
 
                 $booking->update(['therapist_id' => $newTherapistId]);
@@ -371,7 +346,7 @@ class LeaveRequestController extends Controller
     // =====================================================
     private function autoFlagAffectedBookings(LeaveRequest $leave): void
     {
-        if (!$leave->user?->hasRole('therapist')) {
+        if (!$leave->user?->isTreatmentProvider()) {
             return;
         }
 

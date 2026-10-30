@@ -10,6 +10,7 @@ use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
 use App\Services\Bookings\ServicePriceResolver;
+use App\Services\Bookings\TherapistAssigner;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -20,6 +21,10 @@ use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
 {
+    public function __construct(private TherapistAssigner $assigner)
+    {
+    }
+
     public function create()
     {
         $user = Auth::user();
@@ -72,7 +77,16 @@ class BookingController extends Controller
             'appointment_date' => ['required', 'date'],
             'start_time' => ['required'],
             'treatment' => ['required', 'string'],
+            // Reassignment review passes the booking: it is left out of the busy
+            // check, and online home service then lists verified therapists only.
+            'booking_id' => ['nullable', 'integer'],
         ]);
+
+        $forBooking = ! empty($validated['booking_id'])
+            ? Booking::where('spa_id', $spaId)->where('branch_id', $branchId)->find($validated['booking_id'])
+            : null;
+        $requireVerified = $forBooking
+            && TherapistAssigner::requiresVerified($forBooking->booking_source, $forBooking->service_type);
 
         $durationMinutes = $this->resolveDurationMinutes($validated['treatment']);
 
@@ -88,28 +102,26 @@ class BookingController extends Controller
             ->addMinutes($durationMinutes)
             ->format('H:i');
 
-        $available = $this->getAvailableTherapists(
+        $available = $this->assigner->available(
             $spaId,
             $branchId,
             $validated['appointment_date'],
-            $validated['start_time'],
-            $endTime
+            Carbon::parse($validated['start_time'])->format('H:i'),
+            $endTime,
+            $requireVerified,
+            $forBooking?->id
         );
 
-        $recommended = $this->pickRecommendedTherapist(
-            $spaId,
-            $branchId,
-            $validated['appointment_date'],
-            $validated['start_time'],
-            $endTime
-        );
+        $recommended = $this->assigner->leastBusy($available, $spaId, $branchId, $validated['appointment_date'], $forBooking?->id);
 
         return response()->json([
             'therapists' => $available->map(fn ($t) => [
                 'id' => $t->id,
                 'name' => $t->first_name . ' ' . $t->last_name,
+                'verified' => $t->isIdentityVerified(),
             ])->values(),
             'recommended_id' => $recommended?->id,
+            'verified_only' => $requireVerified,
         ]);
     }
 
@@ -201,27 +213,21 @@ class BookingController extends Controller
             ])->withInput();
         }
 
-        $recommendedTherapist = $this->pickRecommendedTherapist(
-            $spaId,
-            $branchId,
-            $validated['appointment_date'],
-            $startTime,
-            $endTime
-        );
-
-        if (!$recommendedTherapist) {
-            return back()->withErrors([
-                'start_time' => 'No therapist is available for the selected time.'
-            ])->withInput();
-        }
-
+        // Staff-made bookings, home service included, may use any free therapist
+        // (D2 as written, decision Q14).
         $availableTherapists = $this->getAvailableTherapists(
             $spaId,
             $branchId,
             $validated['appointment_date'],
-            $startTime,
+            Carbon::parse($startTime)->format('H:i'),
             $endTime
         );
+
+        if ($availableTherapists->isEmpty()) {
+            return back()->withErrors([
+                'start_time' => 'No therapist is available for the selected time.'
+            ])->withInput();
+        }
 
         if (!$availableTherapists->pluck('id')->contains((int) $validated['therapist_id'])) {
             return back()->withErrors([
@@ -331,9 +337,11 @@ class BookingController extends Controller
             'collected_today' => (clone $todayBase)->sum('amount_paid'),
         ];
 
-        $therapists = User::role('therapist')
+        // Edit modal: everyone who can be assigned (therapists and staff marked
+        // "Performs treatments"), with their verified status for home service.
+        $therapists = User::treatmentProviders()
             ->whereHas('staff', function ($q) use ($user, $currentBranchId) {
-                $q->where('spa_id', $user->spa_id);
+                $q->where('spa_id', $user->spa_id)->where('employment_status', 'active');
 
                 if ($currentBranchId) {
                     $q->where('branch_id', $currentBranchId);
@@ -342,13 +350,32 @@ class BookingController extends Controller
             ->orderBy('first_name')
             ->get();
 
+        // Paid online bookings that nobody could be assigned to (decision Q17).
+        // The receptionist/manager picks a therapist from the Edit button.
+        $unassignedBookings = collect();
+
+        if ($user->hasBranchPermission('edit appointments')) {
+            $unassignedBookings = Booking::query()
+                ->where('spa_id', $user->spa_id)
+                ->when($currentBranchId, fn ($q) => $q->where('branch_id', $currentBranchId))
+                ->whereNull('therapist_id')
+                ->whereIn('status', ['reserved', 'pending'])
+                ->whereDate('appointment_date', '>=', $today)
+                ->orderBy('appointment_date')
+                ->orderBy('start_time')
+                ->limit(20)
+                ->get()
+                ->map(fn ($booking) => $this->decorateBooking($booking));
+        }
+
         return view('appointments', compact(
             'todayAppointments',
             'todayPending',
             'upcomingAppointments',
             'historyAppointments',
             'summary',
-            'therapists'
+            'therapists',
+            'unassignedBookings'
         ));
     }
 
@@ -358,7 +385,7 @@ class BookingController extends Controller
 
         $this->syncAutomaticStatuses($user->spa_id, $booking->branch_id);
 
-        $therapists = User::role('therapist')
+        $therapists = User::treatmentProviders()
             ->whereHas('staff', function ($q) use ($user, $booking) {
                 $q->where('spa_id', $user->spa_id)
                     ->where('branch_id', $booking->branch_id)
@@ -456,19 +483,19 @@ class BookingController extends Controller
             ])->withInput();
         }
 
-        $availableTherapists = $this->getAvailableTherapists(
-            $spaId,
-            $branchId,
+        // Shared rule: in the pool, free at that time, and identity-verified
+        // when this is an online home-service booking (D2).
+        $problem = $this->assigner->rejectionFor(
+            (int) $validated['therapist_id'],
+            $booking,
             $validated['appointment_date'],
-            $validated['start_time'],
+            $start->format('H:i'),
             $end->format('H:i'),
-            $booking->id
+            $validated['service_type']
         );
 
-        if (!$availableTherapists->pluck('id')->contains((int) $validated['therapist_id'])) {
-            return back()->withErrors([
-                'therapist_id' => 'Selected therapist is not available for this time range.'
-            ])->withInput();
+        if ($problem) {
+            return back()->withErrors(['therapist_id' => $problem])->withInput();
         }
 
         // Capture the pre-update schedule so we only notify the customer
@@ -521,149 +548,6 @@ class BookingController extends Controller
             ->get();
 
         return response()->json($bookings);
-    }
-
-    public function reserve(Booking $booking)
-    {
-        if (in_array($booking->status, ['cancelled', 'completed', 'ongoing'])) {
-            return back()->withErrors('Booking already processed.');
-        }
-
-        $therapistId = request('therapist_id') ?? request('therapist');
-
-        $booking->update([
-            'status' => 'reserved',
-            'therapist_id' => $therapistId ?: $booking->therapist_id,
-        ]);
-
-        return back()->with('success', 'Booking reserved successfully.');
-    }
-
-    public function storeOnline(Request $request)
-    {
-        $user = Auth::user();
-
-        $validated = $request->validate([
-            'spa_id' => ['required', 'exists:spas,id'],
-            'branch_id' => ['required', 'exists:branches,id'],
-            'service_type' => ['required', 'string', 'in:in_branch,in_home'],
-            'treatment' => ['required', 'string'],
-            'appointment_date' => ['required', 'date', 'after_or_equal:today'],
-            'start_time' => ['required'],
-            'customer_phone' => ['nullable', 'string', 'max:255'],
-            'customer_address' => [
-                $request->service_type === 'in_home' ? 'required' : 'nullable',
-                'string',
-                'max:255'
-            ],
-        ]);
-
-        $onlineSpa = \App\Models\Spa::find($validated['spa_id']);
-
-        if (! $onlineSpa || ! $onlineSpa->hasFeature('online_reservation')) {
-            return back()->withErrors([
-                'start_time' => 'Online reservations are not available for this spa right now. Please contact the spa directly.',
-            ])->withInput();
-        }
-
-        $onlineBranch = \App\Models\Branch::where('id', $validated['branch_id'])
-            ->where('spa_id', $validated['spa_id'])
-            ->first();
-
-        abort_unless($onlineBranch, 422, 'Selected branch does not belong to this spa.');
-
-        // The branch must be approved to operate before it takes bookings.
-        if (
-            $onlineSpa->verification_status !== 'verified' ||
-            ! $onlineBranch->isOperational() ||
-            ! $onlineBranch->isReadyForBookings()
-        ) {
-            return back()->withErrors([
-                'start_time' => 'This branch is not accepting online reservations right now. Please contact the spa directly.',
-            ])->withInput();
-        }
-
-        $this->syncAutomaticStatuses((int) $validated['spa_id'], (int) $validated['branch_id']);
-
-        $durationMinutes = $this->resolveDurationMinutes($validated['treatment']);
-
-        if ($durationMinutes <= 0) {
-            return back()->withErrors([
-                'treatment' => 'Invalid treatment or package duration.'
-            ])->withInput();
-        }
-
-        $serviceRestriction = $this->resolveServiceTypeRestriction($validated['treatment']);
-
-        if ($validated['service_type'] === 'in_home' && $serviceRestriction === 'in_branch_only') {
-            return back()->withErrors([
-                'treatment' => 'This treatment is only available for in-branch appointments.'
-            ])->withInput();
-        }
-
-        $dayOfWeek = Carbon::parse($validated['appointment_date'])->format('l');
-        $hours = \App\Models\OperatingHours::where('branch_id', $validated['branch_id'])
-            ->where('day_of_week', $dayOfWeek)
-            ->first();
-
-        if (!$hours || $hours->is_closed) {
-            return back()->withErrors([
-                'start_time' => 'The spa is closed on this day.'
-            ])->withInput();
-        }
-
-        $start = Carbon::parse($validated['start_time']);
-        $opening = Carbon::parse($hours->opening_time);
-        $closing = Carbon::parse($hours->closing_time);
-
-        if ($start->lt($opening) || $start->gte($closing)) {
-            return back()->withErrors([
-                'start_time' => "Please select a time within spa hours: {$hours->opening_time} - {$hours->closing_time}"
-            ])->withInput();
-        }
-
-        $endTime = $start->copy()->addMinutes($durationMinutes)->format('H:i');
-
-        if (Carbon::parse($endTime)->gt($closing)) {
-            return back()->withErrors([
-                'start_time' => 'Ends after closing hours. Choose an earlier time.'
-            ])->withInput();
-        }
-
-        $recommendedTherapist = $this->pickRecommendedTherapist(
-            (int) $validated['spa_id'],
-            (int) $validated['branch_id'],
-            $validated['appointment_date'],
-            $validated['start_time'],
-            $endTime
-        );
-
-        if (!$recommendedTherapist) {
-            return back()->withErrors([
-                'start_time' => 'No therapist is available for the selected schedule.'
-            ])->withInput();
-        }
-
-        Booking::create([
-            'spa_id' => $validated['spa_id'],
-            'branch_id' => $validated['branch_id'],
-            'customer_user_id' => auth()->id(),
-            'created_by_user_id' => null,
-            'booking_source' => 'online',
-            'status' => 'reserved',
-            'service_type' => $validated['service_type'],
-            'treatment' => $validated['treatment'],
-            'customer_name' => $user->first_name . ' ' . $user->last_name,
-            'customer_email' => $user->email,
-            'customer_phone' => $validated['customer_phone'] ?? null,
-            'customer_address' => $validated['customer_address'] ?? null,
-            'appointment_date' => $validated['appointment_date'],
-            'start_time' => $validated['start_time'],
-            'end_time' => $endTime,
-            'therapist_id' => $recommendedTherapist->id,
-        ]);
-
-        return back()->with('success', 'Booking reserved successfully!');
     }
 
     public function updateStatus(Request $request, Booking $booking)
@@ -784,18 +668,13 @@ class BookingController extends Controller
         return null;
     }
 
+    /** Everyone who can be assigned at this branch (shared rule, TherapistAssigner::pool). */
     private function getBranchTherapists(int $spaId, int $branchId): Collection
     {
-        return User::role('therapist')
-            ->whereHas('staff', function ($q) use ($spaId, $branchId) {
-                $q->where('spa_id', $spaId)
-                    ->where('branch_id', $branchId)
-                    ->where('employment_status', 'active');
-            })
-            ->orderBy('first_name')
-            ->get();
+        return $this->assigner->pool($spaId, $branchId);
     }
 
+    /** Free at this time (shared rule). Not verified-only: staff-made bookings are exempt (Q14). */
     private function getAvailableTherapists(
         int $spaId,
         int $branchId,
@@ -804,122 +683,7 @@ class BookingController extends Controller
         string $endTime,
         ?int $excludeBookingId = null
     ): Collection {
-        $therapists = $this->getBranchTherapists($spaId, $branchId);
-
-        if ($therapists->isEmpty()) {
-            return collect();
-        }
-
-        $therapistIds = $therapists->pluck('id');
-
-        $busyIds = Booking::query()
-            ->where('spa_id', $spaId)
-            ->where('branch_id', $branchId)
-            ->where('appointment_date', $appointmentDate)
-            ->whereIn('therapist_id', $therapistIds)
-            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-            ->when($excludeBookingId, fn ($q) => $q->where('id', '!=', $excludeBookingId))
-            ->where(function ($q) use ($startTime, $endTime) {
-                $q->where('start_time', '<', $endTime)
-                  ->where('end_time', '>', $startTime);
-            })
-            ->pluck('therapist_id')
-            ->unique();
-
-        // ON-LEAVE: exclude anyone with an approved leave request covering
-        // this appointment date, so the system never recommends or allows
-        // booking a therapist who's already been granted time off.
-        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate($spaId, $branchId, $appointmentDate);
-
-        $availabilityRows = \App\Models\StaffAvailability::query()
-            ->where('branch_id', $branchId)
-            ->where('date', $appointmentDate)
-            ->whereIn('user_id', $therapistIds)
-            ->get()
-            ->keyBy('user_id');
-
-        $slotStart = Carbon::parse($startTime);
-        $slotEnd   = Carbon::parse($endTime);
-
-        $unavailableIds = $availabilityRows->filter(function ($row) use ($slotStart, $slotEnd) {
-            if ($row->status === 'unavailable') {
-                return true;
-            }
-
-            if ($row->status === 'partial') {
-                // Row is unavailable for this slot if it does NOT fully cover it.
-                if (!$row->start_time || !$row->end_time) {
-                    return true;
-                }
-
-                $availStart = Carbon::parse($row->start_time);
-                $availEnd   = Carbon::parse($row->end_time);
-
-                return $slotStart->lt($availStart) || $slotEnd->gt($availEnd);
-            }
-
-            return false; // 'available' row, explicit or default
-        })->keys();
-
-        return $therapists
-            ->reject(fn ($therapist) => $busyIds->contains($therapist->id) || in_array($therapist->id, $onLeaveIds) || $unavailableIds->contains($therapist->id))
-            ->values();
-    }
-
-    private function pickRecommendedTherapist(
-        int $spaId,
-        int $branchId,
-        string $appointmentDate,
-        string $startTime,
-        string $endTime,
-        ?int $excludeBookingId = null
-    ): ?User {
-        $available = $this->getAvailableTherapists(
-            $spaId,
-            $branchId,
-            $appointmentDate,
-            $startTime,
-            $endTime,
-            $excludeBookingId
-        );
-
-        if ($available->isEmpty()) {
-            return null;
-        }
-
-        $stats = Booking::query()
-            ->select(
-                'therapist_id',
-                DB::raw('COUNT(*) as total_jobs'),
-                DB::raw('MAX(end_time) as last_end_time')
-            )
-            ->where('spa_id', $spaId)
-            ->where('branch_id', $branchId)
-            ->where('appointment_date', $appointmentDate)
-            ->whereIn('therapist_id', $available->pluck('id'))
-            ->where('status', '!=', 'cancelled')
-            ->when($excludeBookingId, fn ($q) => $q->where('id', '!=', $excludeBookingId))
-            ->groupBy('therapist_id')
-            ->get()
-            ->keyBy('therapist_id');
-
-        return $available->sort(function ($a, $b) use ($stats) {
-            $aJobs = (int) ($stats[$a->id]->total_jobs ?? 0);
-            $bJobs = (int) ($stats[$b->id]->total_jobs ?? 0);
-
-            if ($aJobs !== $bJobs) {
-                return $aJobs <=> $bJobs;
-            }
-
-            $aLastEnd = $stats[$a->id]->last_end_time ?? '00:00:00';
-            $bLastEnd = $stats[$b->id]->last_end_time ?? '00:00:00';
-
-            if ($aLastEnd !== $bLastEnd) {
-                return strcmp($aLastEnd, $bLastEnd);
-            }
-
-            return strcmp(mb_strtolower($a->first_name), mb_strtolower($b->first_name));
-        })->first();
+        return $this->assigner->available($spaId, $branchId, $appointmentDate, $startTime, $endTime, false, $excludeBookingId);
     }
 
     private function syncAutomaticStatuses(?int $spaId = null,?int $branchId = null): void

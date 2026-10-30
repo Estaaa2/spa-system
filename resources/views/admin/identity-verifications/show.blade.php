@@ -350,36 +350,150 @@
 {{-- ═══════════════════════════════════════════════════
      LIGHTBOX
      ═══════════════════════════════════════════════════ --}}
-<div id="lightboxModal" class="fixed inset-0 z-50 hidden bg-black/90">
-    <div role="dialog" aria-modal="true" aria-labelledby="lightboxTitle" class="flex flex-col w-full h-full">
-        <div class="flex items-center justify-between gap-3 px-4 py-3 text-white">
-            <h2 id="lightboxTitle" class="text-sm font-semibold"></h2>
-            <div class="flex items-center gap-2">
-                <button type="button" id="lightboxPrev" aria-label="Previous image"
-                        class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-xl hover:bg-white/10">
-                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
-                </button>
-                <button type="button" id="lightboxNext" aria-label="Next image"
-                        class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-xl hover:bg-white/10">
-                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
-                </button>
-                <button type="button" id="lightboxZoom" aria-pressed="false"
-                        class="inline-flex items-center justify-center gap-2 min-h-[44px] px-3 text-sm rounded-xl hover:bg-white/10">
-                    <i class="fa-solid fa-magnifying-glass-plus" aria-hidden="true"></i>
-                    <span>Zoom</span>
-                </button>
-                <button type="button" data-close-modal="lightboxModal" aria-label="Close"
-                        class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-xl hover:bg-white/10">
-                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                </button>
+{{-- Same structure and look as the landing page's spa photo viewer
+     (welcome.blade.php #photoLightbox): dark in both colour schemes, round
+     buttons at the sides, caption and counter underneath, tap outside or swipe.
+     One addition: Zoom, so the reviewer can read the small print on an ID. --}}
+<div id="lightboxModal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
+    <div class="absolute inset-0 bg-black/90"></div>
+
+    <div class="lightbox-shell">
+        <button type="button" data-close-modal="lightboxModal" class="lightbox-btn lightbox-btn-close" aria-label="Close photo viewer">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+
+        <button type="button" id="lightboxZoom" class="lightbox-btn lightbox-btn-zoom" aria-pressed="false" aria-label="Zoom in">
+            <i class="fa-solid fa-magnifying-glass-plus" aria-hidden="true"></i>
+        </button>
+
+        <button type="button" id="lightboxPrev" class="lightbox-btn lightbox-btn-prev" aria-label="Previous photo">
+            <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+        </button>
+
+        <div class="lightbox-stage" id="lightboxStage">
+            <div class="lightbox-scroller" id="lightboxScroller">
+                <img id="lightboxImage" class="lightbox-image" alt="" referrerpolicy="no-referrer">
+            </div>
+            <div class="lightbox-footer">
+                <p class="lightbox-caption" id="lightboxTitle"></p>
+                <p class="lightbox-counter" id="lightboxCounter" aria-live="polite"></p>
             </div>
         </div>
-        <div id="lightboxStage" class="flex items-center justify-center flex-1 min-h-0 p-4 overflow-auto">
-            <img id="lightboxImage" alt="" referrerpolicy="no-referrer" class="object-contain max-w-full max-h-full cursor-zoom-in">
-        </div>
-        <p class="px-4 pb-3 text-xs text-center text-white/70">Click the image or press Z to zoom. Arrow keys switch images. Esc closes.</p>
+
+        <button type="button" id="lightboxNext" class="lightbox-btn lightbox-btn-next" aria-label="Next photo">
+            <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+        </button>
     </div>
 </div>
+
+<style>
+    /* Copied from welcome.blade.php's photo lightbox so both viewers match.
+       Dark in both colour schemes by design, so no prefers-color-scheme branch. */
+    .lightbox-shell {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 72px 16px 24px;
+    }
+    .lightbox-stage {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        max-width: 1100px;
+        max-height: 100%;
+    }
+    .lightbox-scroller {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        max-width: 100%;
+        max-height: calc(100vh - 200px);
+    }
+    .lightbox-image {
+        display: block;
+        max-width: 100%;
+        max-height: calc(100vh - 200px);
+        object-fit: contain;
+        border-radius: 12px;
+        user-select: none;
+        -webkit-user-drag: none;
+        cursor: zoom-in;
+    }
+    @supports (height: 100dvh) {
+        .lightbox-scroller,
+        .lightbox-image { max-height: calc(100dvh - 200px); }
+    }
+    /* Zoomed: actual size inside a scrollable box. */
+    .lightbox-scroller.is-zoomed {
+        display: block;
+        width: 100%;
+        height: calc(100vh - 200px);
+        overflow: auto;
+        border-radius: 12px;
+    }
+    .lightbox-scroller.is-zoomed .lightbox-image {
+        max-width: none;
+        max-height: none;
+        cursor: zoom-out;
+    }
+    .lightbox-footer {
+        width: 100%;
+        max-width: 720px;
+        margin-top: 14px;
+        text-align: center;
+    }
+    .lightbox-caption {
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.45;
+        color: #fff;
+    }
+    .lightbox-counter {
+        margin-top: 6px;
+        font-size: 11px;
+        letter-spacing: .04em;
+        color: rgba(255, 255, 255, .7);
+    }
+    .lightbox-btn {
+        position: absolute;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border: 0;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, .12);
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color .15s ease;
+    }
+    .lightbox-btn:hover { background: rgba(255, 255, 255, .24); }
+    .lightbox-btn:focus-visible { outline: 2px solid #C4A97D; outline-offset: 2px; }
+    .lightbox-btn[hidden] { display: none; }
+    .lightbox-btn-close { top: 16px; right: 16px; }
+    .lightbox-btn-zoom { top: 16px; right: 72px; }
+    .lightbox-btn-zoom[aria-pressed="true"] { background: rgba(255, 255, 255, .32); }
+    .lightbox-btn-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+    .lightbox-btn-next { right: 16px; top: 50%; transform: translateY(-50%); }
+    @media (max-width: 639px) {
+        .lightbox-shell { padding: 64px 8px 20px; }
+        .lightbox-btn-prev { left: 8px; }
+        .lightbox-btn-next { right: 8px; }
+        .lightbox-btn-prev,
+        .lightbox-btn-next { background: rgba(0, 0, 0, .55); }
+        .lightbox-btn-prev:hover,
+        .lightbox-btn-next:hover { background: rgba(0, 0, 0, .7); }
+    }
+</style>
 
 {{-- ═══════════════════════════════════════════════════
      CONFIRM DECISION
@@ -471,25 +585,21 @@
     // LIGHTBOX (reuses the loaded <img>, so no extra download)
     // ════════════════════════════════════════════════════════════════
     const sources = Array.from(document.querySelectorAll('[data-lightbox-src]'));
+    const lightbox = el('lightboxModal');
     const lbImage = el('lightboxImage');
-    const lbStage = el('lightboxStage');
+    const lbScroller = el('lightboxScroller');
     const lbZoom = el('lightboxZoom');
     let current = 0;
     let zoomed = false;
 
     function setZoom(on) {
         zoomed = on;
-        lbImage.classList.toggle('max-w-full', !on);
-        lbImage.classList.toggle('max-h-full', !on);
-        lbImage.classList.toggle('cursor-zoom-in', !on);
-        lbImage.classList.toggle('cursor-zoom-out', on);
-        // Actual size, or at least ~1.75x the screen for small images.
-        lbImage.style.width = on ? Math.round(Math.max(lbImage.naturalWidth, lbStage.clientWidth * 1.75)) + 'px' : '';
-        lbImage.style.maxWidth = on ? 'none' : '';
-        lbStage.classList.toggle('items-center', !on);
-        lbStage.classList.toggle('justify-center', !on);
+        lbScroller.classList.toggle('is-zoomed', on);
+        // Actual size, or at least ~1.75x the box for small images.
+        lbImage.style.width = on ? Math.round(Math.max(lbImage.naturalWidth, lbScroller.clientWidth * 1.75)) + 'px' : '';
         lbZoom.setAttribute('aria-pressed', on ? 'true' : 'false');
-        lbZoom.querySelector('span').textContent = on ? 'Fit' : 'Zoom';
+        lbZoom.setAttribute('aria-label', on ? 'Fit to screen' : 'Zoom in');
+        lbZoom.querySelector('i').className = 'fa-solid ' + (on ? 'fa-magnifying-glass-minus' : 'fa-magnifying-glass-plus');
     }
 
     function toggleZoom() { setZoom(!zoomed); }
@@ -501,6 +611,7 @@
         lbImage.src = src.currentSrc || src.src;
         lbImage.alt = src.alt;
         el('lightboxTitle').textContent = src.dataset.lightboxLabel;
+        el('lightboxCounter').textContent = (current + 1) + ' / ' + sources.length;
         setZoom(false);
     }
 
@@ -508,7 +619,7 @@
         btn.addEventListener('click', () => {
             const index = sources.findIndex(s => s.dataset.lightboxSrc === btn.dataset.lightbox);
             showImage(index < 0 ? 0 : index);
-            openModal('lightboxModal', el('lightboxZoom'));
+            openModal('lightboxModal', lightbox.querySelector('.lightbox-btn-close'));
         });
     });
     lbImage?.addEventListener('click', toggleZoom);
@@ -516,9 +627,32 @@
     el('lightboxPrev')?.addEventListener('click', () => showImage(current - 1));
     el('lightboxNext')?.addEventListener('click', () => showImage(current + 1));
     if (sources.length < 2) {
-        el('lightboxPrev')?.classList.add('hidden');
-        el('lightboxNext')?.classList.add('hidden');
+        el('lightboxPrev').hidden = true;
+        el('lightboxNext').hidden = true;
     }
+
+    // Tap outside the photo closes it, like the landing page viewer.
+    lightbox?.addEventListener('click', e => {
+        if (e.target.closest('.lightbox-image, .lightbox-btn, .lightbox-scroller.is-zoomed')) return;
+        closeModal('lightboxModal');
+    });
+
+    // Horizontal swipe (phones, Median). Not while zoomed: then a swipe pans.
+    let touchX = 0, touchY = 0, tracking = false;
+    el('lightboxStage')?.addEventListener('touchstart', e => {
+        tracking = e.touches.length === 1 && !zoomed;
+        if (!tracking) return;
+        touchX = e.touches[0].clientX;
+        touchY = e.touches[0].clientY;
+    }, { passive: true });
+    el('lightboxStage')?.addEventListener('touchend', e => {
+        if (!tracking) return;
+        tracking = false;
+        const dx = e.changedTouches[0].clientX - touchX;
+        const dy = e.changedTouches[0].clientY - touchY;
+        if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+        showImage(current + (dx < 0 ? 1 : -1));
+    }, { passive: true });
 
     // ════════════════════════════════════════════════════════════════
     // DECISION FORMS

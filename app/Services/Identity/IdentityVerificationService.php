@@ -5,6 +5,7 @@ namespace App\Services\Identity;
 use App\Models\IdentityFileView;
 use App\Models\IdentityVerification;
 use App\Models\User;
+use App\Services\Bookings\VerificationBookingFlags;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -27,8 +28,10 @@ use Illuminate\Validation\ValidationException;
  */
 class IdentityVerificationService
 {
-    public function __construct(private ImageSanitizer $images)
-    {
+    public function __construct(
+        private ImageSanitizer $images,
+        private VerificationBookingFlags $bookingFlags,
+    ) {
     }
 
     // ── Status for screens ───────────────────────────────────────────────────
@@ -109,6 +112,10 @@ class IdentityVerificationService
         }
 
         $user->refresh();
+
+        if ($result['was_verified']) {
+            $this->bookingFlags->flagAfterVerificationLost($user, 'photo_changed');   // Q33
+        }
 
         return $result;
     }
@@ -261,6 +268,7 @@ class IdentityVerificationService
             $user->forceFill(['identity_verified_at' => $now])->saveQuietly();
 
             $this->purgeFiles($row);
+            $this->bookingFlags->closeAfterVerified($user);
 
             Log::info('Identity verification approved.', [
                 'verification_id' => $row->id,
@@ -344,6 +352,7 @@ class IdentityVerificationService
 
             if ($locked->identity_verified_at !== null) {
                 $locked->forceFill(['identity_verified_at' => null])->saveQuietly();
+                $this->bookingFlags->flagAfterVerificationLost($locked, 'withdrawn');   // Q33
             }
 
             $user->refresh();
@@ -354,11 +363,15 @@ class IdentityVerificationService
 
     // ── Hooks ────────────────────────────────────────────────────────────────
 
-    /** Called by User::updated() after a legal-name change. */
-    public function supersedeAfterNameChange(User $user): void
+    /** Called by User::updated() after a legal-name change. $wasVerified: the change ended an approval. */
+    public function supersedeAfterNameChange(User $user, bool $wasVerified = false): void
     {
-        DB::transaction(function () use ($user) {
+        DB::transaction(function () use ($user, $wasVerified) {
             $this->supersedeOpenRows($user, IdentityVerification::SUPERSEDED_NAME_CHANGED);
+
+            if ($wasVerified) {
+                $this->bookingFlags->flagAfterVerificationLost($user, 'name_changed');   // Q33
+            }
         });
     }
 

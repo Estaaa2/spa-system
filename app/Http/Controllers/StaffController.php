@@ -71,6 +71,8 @@ class StaffController extends Controller
             'last_name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'roles' => 'required|in:therapist,receptionist,manager,hr,finance,hr_head,finance_head',
+            // Q37: a non-therapist who also gives treatments (small spas).
+            'performs_treatments' => 'nullable|boolean',
         ]);
 
         $currentUser = Auth::user();
@@ -130,6 +132,8 @@ class StaffController extends Controller
                 'branch_id'         => $branchId,
                 'employment_status' => 'active',
                 'hire_date'         => now(),
+                // Therapists are always in the pool; the flag is for other roles.
+                'performs_treatments' => $validated['roles'] !== 'therapist' && ! empty($validated['performs_treatments']),
             ]);
 
             Mail::to($user->email)->send(new StaffCredentialsMail($user, $tempPassword));
@@ -152,6 +156,7 @@ class StaffController extends Controller
             'roles' => $staff->user?->getRoleNames()->first() ?? '',
             'branch_id' => $staff->branch_id,
             'employment_status' => $staff->employment_status ?? 'active',
+            'performs_treatments' => (bool) $staff->performs_treatments,
         ]);
     }
 
@@ -162,6 +167,7 @@ class StaffController extends Controller
     {
         $validated = $request->validate([
             'roles' => 'required|in:therapist,receptionist,manager,hr,finance,hr_head,finance_head',
+            'performs_treatments' => 'nullable|boolean',
         ]);
 
         $this->assertManageable($staff);
@@ -186,6 +192,11 @@ class StaffController extends Controller
             if ($staff->user) {
                 $staff->user->syncRoles([$validated['roles']]);
             }
+
+            // Q37. Therapists are always in the pool, so the flag stays off for them.
+            $staff->forceFill([
+                'performs_treatments' => $validated['roles'] !== 'therapist' && $request->boolean('performs_treatments'),
+            ])->save();
 
             return redirect()
                 ->route('staff.index')
