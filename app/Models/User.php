@@ -249,6 +249,22 @@ class User extends Authenticatable implements MustVerifyEmail
         ]);
     }
 
+    /**
+     * Same photo for the mobile app (Sanctum token, same IdentityPolicy::viewPhoto
+     * rule). Load it with the Authorization header.
+     */
+    public function profilePhotoApiUrl(): ?string
+    {
+        if (! $this->hasProfilePhoto()) {
+            return null;
+        }
+
+        return route('api.profile-photos.show', [
+            'user' => $this->id,
+            'v'    => $this->profile_photo_updated_at?->timestamp ?? 0,
+        ]);
+    }
+
     /** One or two letters for the avatar fallback. */
     public function initials(): string
     {

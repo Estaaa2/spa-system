@@ -67,6 +67,34 @@ class ArrivalService
         return ['mine' => $mine, 'branch' => $branch];
     }
 
+    /**
+     * Arrival details for the therapist's own booking list (mobile API). Never
+     * includes the code.
+     *
+     * @return array{required: bool, confirmed_at: ?string, method: ?string, can_enter_code: bool, locked: bool, attempts_left: int}|null
+     */
+    public function stateFor(Booking $booking, User $viewer): ?array
+    {
+        if (! $booking->requiresArrivalCode()) {
+            return null;
+        }
+
+        $locked = $booking->arrival_locked_at !== null;
+
+        return [
+            'required'       => true,
+            'confirmed_at'   => $booking->arrival_confirmed_at?->toIso8601String(),
+            'method'         => $booking->arrival_method,
+            'can_enter_code' => ! $booking->isArrivalConfirmed()
+                && ! $locked
+                && in_array($booking->status, Booking::ACTIVE_STATUSES, true)
+                && (bool) $booking->appointment_date?->isToday()
+                && (int) $booking->therapist_id === (int) $viewer->id,
+            'locked'         => $locked,
+            'attempts_left'  => max(self::MAX_ATTEMPTS - (int) $booking->arrival_attempts, 0),
+        ];
+    }
+
     /** The assigned therapist enters the code the customer tells them. */
     public function confirmWithCode(Booking $booking, User $therapist, string $code): Booking
     {

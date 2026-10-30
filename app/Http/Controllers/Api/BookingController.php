@@ -98,6 +98,11 @@ class BookingController extends Controller
             'reassignment_rejection_reason' => $reassignment?->status === 'rejected'
                 ? $reassignment->rejection_reason
                 : null,
+            // Home visits (staff verification Phase 6). The arrival code itself is
+            // never sent to staff: the customer tells it at the door.
+            'is_home_service'         => $booking->requiresArrivalCode(),
+            'customer_email_verified' => (bool) $booking->customer?->email_verified_at,
+            'arrival'                 => app(\App\Services\Bookings\ArrivalService::class)->stateFor($booking, request()->user()),
         ];
     }
 
@@ -136,7 +141,7 @@ class BookingController extends Controller
         try {
             $user = $request->user();
 
-            $bookings = Booking::with('branch', 'spa')
+            $bookings = Booking::with('branch', 'spa', 'customer')
                 ->where('therapist_id', $user->id)
                 ->orderByDesc('appointment_date')
                 ->get();
@@ -162,7 +167,7 @@ class BookingController extends Controller
             $start = $request->query('week_start', now()->startOfWeek()->toDateString());
             $end   = $request->query('week_end', now()->endOfWeek()->toDateString());
 
-            $bookings = Booking::with('branch', 'spa')
+            $bookings = Booking::with('branch', 'spa', 'customer')
                 ->where('therapist_id', $user->id)
                 ->whereNotIn('status', ['cancelled'])
                 ->whereBetween('appointment_date', [$start, $end])

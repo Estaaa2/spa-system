@@ -117,7 +117,8 @@ class CustomerAppointmentController extends Controller
             'therapist_card'       => $active && $therapist ? [
                 'name'      => trim($therapist->first_name.' '.$therapist->last_name),
                 'initials'  => $therapist->initials(),
-                'photo_url' => $therapist->profilePhotoUrl(),
+                // The app can't send the web session cookie: give it the token route.
+                'photo_url' => request()->is('api/*') ? $therapist->profilePhotoApiUrl() : $therapist->profilePhotoUrl(),
                 'verified'  => $therapist->isIdentityVerified(),
             ] : null,
             'arrival_code'         => $active && $isHome && ! $b->isArrivalConfirmed() ? $b->arrival_code : null,

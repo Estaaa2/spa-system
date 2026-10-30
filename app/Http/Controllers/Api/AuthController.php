@@ -542,7 +542,8 @@ class AuthController extends Controller
         ], 409);
     }
 
-    private function formatUser(User $user): array
+    /** The app's `user` object (also used by Api\ProfileIdentityController). */
+    public function formatUser(User $user): array
     {
         $role = $user->getRoleNames()->first() ?? 'customer';
 
@@ -565,6 +566,11 @@ class AuthController extends Controller
             'address'                 => $user->address,
             'latitude'                => $user->latitude,
             'longitude'               => $user->longitude,
+            // Staff identity verification (Phase 6). Photo: send the token header.
+            'profile_photo_url'       => $user->profilePhotoApiUrl(),
+            'initials'                => $user->initials(),
+            'is_treatment_provider'   => $user->isTreatmentProvider(),
+            'identity_verified'       => $user->isIdentityVerified(),
         ];
     }
 }

@@ -290,11 +290,10 @@ class FlutterBookingController extends Controller
                         // ✅ Fallback: create booking if webhook hasn't done it yet
                         if (!$reservation->booking_id) {
                             try {
-                                $this->createBookingFromReservation($reservation);
-
-                                // Same confirmation email as the webhook sends.
-                                if ($bookingId = $reservation->fresh()->booking_id) {
-                                    app(\App\Services\Bookings\BookingNotifier::class)->confirmed(Booking::find($bookingId));
+                                // Same confirmation email as the webhook sends; only when
+                                // this request made the booking (not the webhook).
+                                if ($created = $this->createBookingFromReservation($reservation)) {
+                                    app(\App\Services\Bookings\BookingNotifier::class)->confirmed($created);
                                 }
                             } catch (\Throwable $e) {
                                 Log::error('Fallback booking creation failed in paymentSuccess', [
@@ -429,9 +428,15 @@ class FlutterBookingController extends Controller
      * ✅ reservation_status uses enum: 'reserved' (not 'confirmed')
      * ✅ end_time recalculated from duration (no end_time on reservation table)
      */
-    private function createBookingFromReservation(OnlineReservationPayment $reservation): void
+    private function createBookingFromReservation(OnlineReservationPayment $reservation): ?Booking
     {
-        DB::transaction(function () use ($reservation) {
+        return DB::transaction(function () use ($reservation) {
+            // The webhook may have created the booking while PayMongo was being
+            // checked: re-read the row under a lock and stop if it did.
+            $reservation = OnlineReservationPayment::whereKey($reservation->id)->lockForUpdate()->first();
+            if (! $reservation || $reservation->booking_id) {
+                return null;
+            }
 
             // Recalculate end_time from duration since it's not stored on reservation
             $durationMinutes = 60;
@@ -463,6 +468,10 @@ class FlutterBookingController extends Controller
                 \App\Services\Bookings\TherapistAssigner::requiresVerified('online', $reservation->service_type)
             );
 
+            $totalAmount = (float) $reservation->full_amount;
+            $amountPaid  = (float) ($reservation->amount_charged ?? $reservation->downpayment_amount);
+            $balance     = max(round($totalAmount - $amountPaid, 2), 0);
+
             $booking = Booking::create([
                 'spa_id'             => $reservation->spa_id,
                 'branch_id'          => $reservation->branch_id,
@@ -470,10 +479,12 @@ class FlutterBookingController extends Controller
                 'created_by_user_id' => null,
                 'booking_source'     => 'online',
                 'status'             => 'reserved',
-                'payment_status'     => 'partially_paid',
-                'amount_paid'        => $reservation->downpayment_amount,
-                'total_amount'       => $reservation->full_amount,
-                'balance_amount'     => $reservation->full_amount - $reservation->downpayment_amount,
+                // Same amounts as the webhook (Q40): what PayMongo charged, so a
+                // full payment is recorded as paid, not as a downpayment.
+                'payment_status'     => $balance <= 0 ? 'paid' : 'partially_paid',
+                'amount_paid'        => $amountPaid,
+                'total_amount'       => $totalAmount,
+                'balance_amount'     => $balance,
                 'service_type'       => $reservation->service_type,
                 'treatment'          => $treatmentCode,              // ✅ "treatment_5" format
                 'customer_name'      => $reservation->customer_name,
@@ -492,6 +503,8 @@ class FlutterBookingController extends Controller
                 'paid_at'            => now(),
                 'booking_id'         => $booking->id,
             ]);
+
+            return $booking;
         });
     }
 }

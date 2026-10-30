@@ -84,6 +84,18 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
     Route::put('/me',             [AuthController::class, 'updateProfile']);
     Route::put('/me/password',    [AuthController::class, 'updatePassword']);
     Route::patch('/profile', [ProfileController::class, 'updateCustomerApi'])->middleware('role:customer');
+
+    // Profile photo and staff identity verification: same rules as the web
+    // profile page (Api\ProfileIdentityController, staff verification Phase 6).
+    Route::get('/me/identity',                  [\App\Http\Controllers\Api\ProfileIdentityController::class, 'show']);
+    Route::post('/me/photo',                    [\App\Http\Controllers\Api\ProfileIdentityController::class, 'updatePhoto'])->middleware('throttle:10,1,api-photo');
+    Route::delete('/me/photo',                  [\App\Http\Controllers\Api\ProfileIdentityController::class, 'destroyPhoto']);
+    Route::post('/me/identity-verification',    [\App\Http\Controllers\Api\ProfileIdentityController::class, 'submit'])->middleware('throttle:6,1,api-identity');
+    Route::delete('/me/identity-verification',  [\App\Http\Controllers\Api\ProfileIdentityController::class, 'withdraw']);
+    // Profile photos are private; who may see one: IdentityPolicy::viewPhoto.
+    Route::get('/profile-photos/{user}', [\App\Http\Controllers\ProfilePhotoController::class, 'show'])
+        ->whereNumber('user')
+        ->name('api.profile-photos.show');
     Route::get('/therapist/attendance', [AttendanceController::class, 'myAttendance']);
     Route::post('/therapist/attendance/clock-in',  [AttendanceController::class, 'clockIn']);
     Route::post('/therapist/attendance/clock-out', [AttendanceController::class, 'clockOut']);
@@ -117,14 +129,19 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
 
     });
 
-    // Therapist endpoints (only therapists can access)
-    Route::middleware(['role:therapist'])->group(function () {
+    // Therapist endpoints: therapist role or "Performs treatments" (Q1b/Q48),
+    // same gate as the web's My Performance.
+    Route::middleware(['can:act-as-treatment-provider'])->group(function () {
         Route::get('/assigned-bookings',  [BookingController::class, 'assignedBookings']);
         Route::get('/therapist/schedule', [BookingController::class, 'therapistSchedule']);
+        // Arrival code for online home service (same rules as the web).
+        Route::post('/appointments/{booking}/arrival', [\App\Http\Controllers\Api\ArrivalController::class, 'store'])
+            ->whereNumber('booking')
+            ->middleware('throttle:10,1,api-arrival');
     });
 });
 
-Route::middleware(['auth:sanctum', EnsureMobileAccess::class, 'role:therapist'])->group(function () {
+Route::middleware(['auth:sanctum', EnsureMobileAccess::class, 'can:act-as-treatment-provider'])->group(function () {
     Route::get('/therapist/performance', [TherapistPerformanceController::class, 'index']);
 });
 

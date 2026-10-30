@@ -203,53 +203,30 @@
                     {{-- Step 4: consent (RA 10173; NPC Circular 2023-04) --}}
                     <div class="p-4 border border-gray-200 rounded-2xl bg-gray-50 dark:bg-gray-900/40 dark:border-gray-700">
                         <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                            <span class="font-semibold text-[#8B7355] dark:text-[#C4A97D]">4.</span> Before you submit: how we handle your ID
+                            <span class="font-semibold text-[#8B7355] dark:text-[#C4A97D]">4.</span> {{ \App\Support\Identity\ConsentNotice::HEADING }}
                         </h3>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Data Privacy Act of 2012 (RA 10173). Your ID is sensitive personal information, so we need your consent first.</p>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ \App\Support\Identity\ConsentNotice::INTRO }}</p>
+                        {{-- Same text as the mobile API (App\Support\Identity\ConsentNotice). --}}
                         <dl class="mt-3 space-y-3 text-sm text-gray-700 dark:text-gray-300">
-                            <div>
-                                <dt class="font-semibold">What we collect</dt>
-                                <dd>One photo of a government ID, one selfie holding it, the ID type, and your name as shown on your profile.</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold">Why</dt>
-                                <dd>To confirm that the person in your profile photo is you, so customers who book home service can check who arrives at their door.</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold">Who sees it</dt>
-                                <dd>Only the Levictas admins who review it. Your spa owner and co-workers cannot see your ID or selfie. Every time an admin opens them, it is recorded.</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold">How long we keep it</dt>
-                                <dd>Your ID and selfie are deleted as soon as the admin approves or rejects your request, or when you cancel it. We keep only the result, the ID type, who reviewed it and the dates, for as long as your account exists.</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold">It's your choice</dt>
-                                <dd>Verification is optional. If you don't verify, nothing else changes: you can still work in-branch and take walk-in and staff-made bookings. You just won't be assigned online home-service bookings.</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold">Changing your mind</dt>
-                                <dd>You can withdraw consent at any time on this page. A pending request and its files are deleted right away; an approval ends, and you stop receiving new online home-service bookings.</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold">Your rights</dt>
-                                <dd>
-                                    You can ask to see, correct or delete your data
-                                    @if ($privacyContact)
-                                        by writing to <a href="mailto:{{ $privacyContact }}" class="font-medium text-[#8B7355] underline underline-offset-2 dark:text-[#C4A97D]">{{ $privacyContact }}</a>.
-                                    @else
-                                        by contacting the Levictas team.
-                                    @endif
-                                    You may also file a complaint with the National Privacy Commission (privacy.gov.ph).
-                                </dd>
-                            </div>
+                            @foreach (\App\Support\Identity\ConsentNotice::sections() as $section)
+                                <div>
+                                    <dt class="font-semibold">{{ $section['title'] }}</dt>
+                                    <dd>
+                                        @if ($privacyContact && str_contains($section['body'], $privacyContact))
+                                            {!! str_replace(e($privacyContact), '<a href="mailto:'.e($privacyContact).'" class="font-medium text-[#8B7355] underline underline-offset-2 dark:text-[#C4A97D]">'.e($privacyContact).'</a>', e($section['body'])) !!}
+                                        @else
+                                            {{ $section['body'] }}
+                                        @endif
+                                    </dd>
+                                </div>
+                            @endforeach
                         </dl>
 
                         <label class="flex items-start gap-3 p-3 mt-4 bg-white border border-gray-200 cursor-pointer rounded-xl dark:bg-gray-800 dark:border-gray-700 {{ $iErr->has('consent') ? 'border-red-500 dark:border-red-500' : '' }}">
                             <input type="checkbox" name="consent" value="1" required @checked(old('consent'))
                                    class="mt-0.5 w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
                             <span class="text-sm text-gray-800 dark:text-gray-200">
-                                I have read this notice and I agree to Levictas processing my ID and selfie to verify my identity.
+                                {{ \App\Support\Identity\ConsentNotice::AGREEMENT }}
                             </span>
                         </label>
                         <p class="mt-2 text-[11px] text-gray-400 dark:text-gray-500">Notice version {{ $consentVersion }}</p>
