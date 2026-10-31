@@ -169,7 +169,7 @@ class BookingController extends Controller
 
             $bookings = Booking::with('branch', 'spa', 'customer')
                 ->where('therapist_id', $user->id)
-                ->whereNotIn('status', ['cancelled'])
+                ->whereNotIn('status', ['cancelled', Booking::NO_SHOW])
                 ->whereBetween('appointment_date', [$start, $end])
                 ->orderBy('appointment_date')
                 ->orderBy('start_time')

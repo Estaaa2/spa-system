@@ -134,7 +134,7 @@ class TherapistAssigner
             ->where('branch_id', $branchId)
             ->whereDate('appointment_date', $date)
             ->whereIn('therapist_id', $available->pluck('id'))
-            ->where('status', '!=', 'cancelled')
+            ->whereNotIn('status', ['cancelled', Booking::NO_SHOW])
             ->when($excludeBookingId, fn ($q) => $q->whereKeyNot($excludeBookingId))
             ->groupBy('therapist_id')
             ->get()

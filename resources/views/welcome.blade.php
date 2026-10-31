@@ -89,18 +89,18 @@
                         @role('customer')
                             <div class="flex items-center gap-3">
                                 <div class="flex items-center gap-1">
-                                    <a href="#" onclick="openAppointmentsModal()"
+                                    <button type="button" onclick="openAppointmentsModal()" aria-haspopup="dialog"
                                         class="relative flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">
                                         My Appointments
                                         <span id="myAppointmentsBadge"
                                             class="hidden absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full ring-2 ring-[#F6EFE6] dark:ring-gray-900">
                                             0
                                         </span>
-                                    </a>
-                                    <a href="#" onclick="openScheduleModal()"
+                                    </button>
+                                    <button type="button" onclick="openScheduleModal()" aria-haspopup="dialog"
                                         class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">
                                         My Schedule
-                                    </a>
+                                    </button>
                                 </div>
 
                                 <div class="relative" id="profileDropdownWrapper">
@@ -435,19 +435,19 @@
                         as a Partner</a>
                 @else
                     @role('customer')
-                        <a href="#" onclick="openAppointmentsModal()"
+                        <button type="button" onclick="openAppointmentsModal()" aria-haspopup="dialog"
                             class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">
                             My Appointments
                             <span id="myAppointmentsBadgeMobile"
                                 class="hidden items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
                                 0
                             </span>
-                        </a>
-                        <a href="#" onclick="openScheduleModal()"
+                        </button>
+                        <button type="button" onclick="openScheduleModal()" aria-haspopup="dialog"
                             class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">My
-                            Schedule</a>
-                        <a href="#" onclick="openProfileModal();"
-                            class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">Profile</a>
+                            Schedule</button>
+                        <button type="button" onclick="openProfileModal();" aria-haspopup="dialog"
+                            class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">Profile</button>
                         <button type="button" onclick="openLogoutModal()"
                             class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D]">
                             Logout
@@ -526,38 +526,42 @@
             <div class="h-10 bg-gradient-to-b from-transparent to-[#F6EFE6]"></div>
         </section>
 
-        <!-- ================= MY APPOINTMENTS MODAL ================= -->
-        <div id="appointmentsModal" class="fixed inset-0 z-[120] hidden">
+        <!-- ================= MY APPOINTMENTS (sheet on phones, dialog from sm) =================
+             UI rework Phase 2. Same shell as Booking details: header, tabs and a
+             scrolling list. Rows are built in welcome.js (renderTab) and styled by
+             the .apt-* rules in landing.css, because welcome.js isn't scanned by
+             Tailwind. Tab state is styled off aria-selected (design language §8). -->
+        <div id="appointmentsModal" class="fixed inset-0 z-[120] hidden" role="dialog" aria-modal="true"
+            aria-labelledby="apTitle">
             <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeAppointmentsModal()"></div>
-            <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-                <div
-                    class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
-                    <div
-                        class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
-                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">My Appointments</h3>
-                        <button onclick="closeAppointmentsModal()"
-                            class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
-                            <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
+            <div class="absolute inset-x-0 bottom-0 pointer-events-none sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+                <div id="apPanel"
+                    class="ap-panel pointer-events-auto flex flex-col w-full sm:max-w-xl bg-white dark:bg-gray-800 shadow-2xl rounded-t-3xl sm:rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                    <div class="flex items-center justify-between gap-2 px-4 py-3 border-b shrink-0 sm:px-6 border-black/5 dark:border-white/10">
+                        <h2 id="apTitle" tabindex="-1" class="text-lg font-semibold text-[#3C2F23] dark:text-white focus:outline-none">My appointments</h2>
+                        <button type="button" onclick="closeAppointmentsModal()" aria-label="Close"
+                            class="flex items-center justify-center -mr-2 w-11 h-11 shrink-0 transition rounded-xl text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                            <i class="text-lg fa-solid fa-xmark" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <div class="flex border-b border-black/5 dark:border-white/10">
+                    <div class="flex px-2 border-b shrink-0 sm:px-4 border-black/5 dark:border-white/10" role="tablist" aria-label="Appointments">
                         @foreach (['upcoming' => 'Upcoming', 'past' => 'Past', 'cancelled' => 'Cancelled'] as $key => $label)
-                            <button onclick="switchTab('{{ $key }}')" id="tab-{{ $key }}"
-                                class="flex-1 py-3 text-sm font-semibold transition border-b-2
-                        {{ $key === 'upcoming' ? 'border-[#8B7355] dark:border-[#C4A97D] text-[#8B7355] dark:text-[#C4A97D]' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#C4A97D]' }}">
+                            <button type="button" role="tab" id="tab-{{ $key }}" aria-controls="appointmentsContent"
+                                aria-selected="{{ $key === 'upcoming' ? 'true' : 'false' }}" tabindex="{{ $key === 'upcoming' ? '0' : '-1' }}"
+                                onclick="switchTab('{{ $key }}')" class="ap-tab">
                                 {{ $label }}
-                                <span id="tab-count-{{ $key }}"
-                                    class="ml-1 px-2 py-0.5 text-xs rounded-full bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D]">0</span>
+                                <span id="tab-count-{{ $key }}" class="ap-tab-count hidden">0</span>
                             </button>
                         @endforeach
                     </div>
-                    <div class="overflow-y-auto max-h-[60vh] p-6" id="appointmentsContent">
-                        <div class="flex items-center justify-center py-12">
-                            <i class="text-2xl text-gray-300 dark:text-gray-600 fa-solid fa-spinner fa-spin"></i>
+                    <div id="appointmentsContent" role="tabpanel" aria-labelledby="tab-upcoming"
+                        class="ap-body flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                        <div class="flex items-center justify-center py-16">
+                            <i class="text-2xl text-gray-300 dark:text-gray-600 fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                            <span class="sr-only">Loading your appointments</span>
                         </div>
                     </div>
                 </div>
-                <div class="h-10"></div>
             </div>
         </div>
 
@@ -666,223 +670,199 @@
             </div>
         </div>
 
-        <!-- ================= BOOKING DETAILS MODAL ================= -->
-        <div id="bookingDetailsModal" class="fixed inset-0 z-[125] hidden">
-            <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeBookingDetailsModal()"></div>
-            <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-                <div
-                    class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
-                    <div
-                        class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
-                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Booking Details</h3>
-                        <button type="button" onclick="closeBookingDetailsModal()"
-                            class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
-                            <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
+        <!-- ================= BOOKING DETAILS (sheet on phones, dialog from sm) =================
+             One panel, two views: details and the reschedule form (UI rework Phase 1).
+             The form used to be a second modal stacked on top; it now replaces the
+             details view so sheets never stack. Filled by openBookingDetailsModal()
+             in welcome.js. Every class welcome.js toggles is written out here so
+             Tailwind generates it (welcome.js is not in Tailwind's content globs). -->
+        <div id="bookingDetailsModal" class="fixed inset-0 z-[125] hidden" role="dialog" aria-modal="true"
+            aria-labelledby="bdTitle">
+            <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="bdBackdropClick()"></div>
+            <div class="bd-frame absolute inset-x-0 bottom-0 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 pointer-events-none">
+                <div id="bdPanel"
+                    class="bd-panel pointer-events-auto flex flex-col w-full sm:max-w-lg bg-white dark:bg-gray-800 shadow-2xl rounded-t-3xl sm:rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+
+                    <!-- Header -->
+                    <div class="flex items-center gap-2 px-4 py-3 border-b shrink-0 sm:px-6 border-black/5 dark:border-white/10">
+                        <button type="button" id="bdBackBtn" onclick="closeRescheduleModal()" aria-label="Back to booking details"
+                            class="hidden items-center justify-center -ml-2 w-11 h-11 shrink-0 transition rounded-xl text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                        </button>
+                        <div class="flex flex-wrap items-center flex-1 min-w-0 gap-x-2 gap-y-1">
+                            <h2 id="bdTitle" tabindex="-1" class="text-lg font-semibold text-[#3C2F23] dark:text-white focus:outline-none">Booking details</h2>
+                            <span id="detailStatus" class="apt-pill"></span>
+                        </div>
+                        <button type="button" onclick="closeBookingDetailsModal()" aria-label="Close"
+                            class="flex items-center justify-center -mr-2 w-11 h-11 shrink-0 transition rounded-xl text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                            <i class="text-lg fa-solid fa-xmark" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <!-- Spa Info -->
-                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                            <div
-                                class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
-                                <i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
-                            </div>
+
+                    <!-- Scrolling body -->
+                    <div id="bdBody" class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+
+                        <!-- ===== View 1: details ===== -->
+                        <div id="bdDetailsView" class="px-4 py-5 space-y-5 sm:px-6">
+
+                            <!-- Summary: what, when, where -->
                             <div>
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Spa &
-                                    Branch</p>
-                                <p id="detailSpaName" class="text-sm font-semibold text-[#3C2F23] dark:text-white">
+                                <p id="detailTreatment"
+                                    class="text-2xl font-semibold leading-snug text-[#3C2F23] dark:text-white font-['Playfair_Display']"></p>
+                                <p class="flex items-start gap-2 mt-2 text-sm font-medium text-[#3C2F23] dark:text-gray-100">
+                                    <i class="fa-regular fa-calendar mt-0.5 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                    <span><span id="detailDate"></span><span aria-hidden="true"> · </span><span id="detailTime"></span></span>
+                                </p>
+                                <p class="flex items-start gap-2 mt-1.5 text-sm text-gray-600 dark:text-gray-300">
+                                    <i class="fa-solid fa-location-dot mt-0.5 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                    <span id="detailSpaName"></span>
+                                </p>
+                                <p id="detailServiceRow" class="hidden items-start gap-2 mt-1.5 text-sm text-gray-600 dark:text-gray-300">
+                                    <i class="fa-solid fa-house mt-0.5 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                    <span id="detailServiceType"></span>
                                 </p>
                             </div>
-                        </div>
-                        <!-- Treatment -->
-                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                            <div
-                                class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
-                                <i class="fa-solid fa-list-check text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
+
+                            <!-- Reschedule request state (shown when a request exists) -->
+                            <div id="detailRescheduleStatus" class="hidden items-start gap-3 p-3 rounded-2xl ring-1">
+                                <i id="detailRescheduleIcon" class="mt-0.5 fa-solid" aria-hidden="true"></i>
+                                <p id="detailRescheduleStatusText" class="text-sm"></p>
                             </div>
-                            <div>
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Treatment
+
+                            <!-- Home service: check the person, then give the code (staff verification D6, D7) -->
+                            <section id="detailArrival" aria-labelledby="detailArrivalTitle"
+                                class="hidden p-4 rounded-2xl bg-[#F6EFE6]/70 ring-1 ring-[#8B7355]/15 dark:bg-gray-900/40 dark:ring-white/10">
+                                <h3 id="detailArrivalTitle" class="text-sm font-semibold text-[#3C2F23] dark:text-white">When your therapist arrives</h3>
+
+                                <ol class="mt-3 space-y-4">
+                                    <li class="flex gap-3">
+                                        <span aria-hidden="true"
+                                            class="flex items-center justify-center w-6 h-6 text-xs font-semibold text-white rounded-full shrink-0 bg-[#7A6348] dark:bg-[#C4A97D] dark:text-gray-900">1</span>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-[#3C2F23] dark:text-gray-100">Check that it's the person in this photo</p>
+                                            <div class="flex items-center gap-3 mt-2.5">
+                                                <img id="detailTherapistPhoto" alt=""
+                                                    class="hidden object-cover w-16 h-16 rounded-full shrink-0 ring-2 ring-white dark:ring-gray-800">
+                                                <span id="detailTherapistInitials" aria-hidden="true"
+                                                    class="hidden items-center justify-center w-16 h-16 text-xl font-semibold text-white rounded-full shrink-0 bg-[#7A6348]"></span>
+                                                <span id="detailTherapistIcon" aria-hidden="true"
+                                                    class="hidden items-center justify-center w-16 h-16 rounded-full shrink-0 bg-white text-gray-400 ring-1 ring-black/5 dark:bg-gray-800 dark:text-gray-500 dark:ring-white/10">
+                                                    <i class="text-xl fa-solid fa-user"></i>
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <p id="detailTherapist" class="text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
+                                                    <span id="detailTherapistVerified"
+                                                        class="hidden mt-1 items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                                        <i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Identity verified
+                                                    </span>
+                                                    <p id="detailTherapistNote" class="hidden mt-1 text-xs text-gray-600 dark:text-gray-400"></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <li id="detailArrivalCodeWrap" class="hidden gap-3">
+                                        <span aria-hidden="true"
+                                            class="flex items-center justify-center w-6 h-6 text-xs font-semibold text-white rounded-full shrink-0 bg-[#7A6348] dark:bg-[#C4A97D] dark:text-gray-900">2</span>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-[#3C2F23] dark:text-gray-100">Then tell them your arrival code</p>
+                                            {{-- Screen readers get the code once, digit by digit; the boxes are visual only. --}}
+                                            <p id="detailArrivalCodeSr" class="sr-only"></p>
+                                            <div id="detailArrivalCode" class="flex gap-2 mt-2.5" aria-hidden="true">
+                                                <span data-code-digit class="flex items-center justify-center w-12 h-14 text-2xl font-semibold tabular-nums rounded-xl bg-white text-[#3C2F23] ring-1 ring-[#8B7355]/25 dark:bg-gray-800 dark:text-white dark:ring-white/15"></span>
+                                                <span data-code-digit class="flex items-center justify-center w-12 h-14 text-2xl font-semibold tabular-nums rounded-xl bg-white text-[#3C2F23] ring-1 ring-[#8B7355]/25 dark:bg-gray-800 dark:text-white dark:ring-white/15"></span>
+                                                <span data-code-digit class="flex items-center justify-center w-12 h-14 text-2xl font-semibold tabular-nums rounded-xl bg-white text-[#3C2F23] ring-1 ring-[#8B7355]/25 dark:bg-gray-800 dark:text-white dark:ring-white/15"></span>
+                                                <span data-code-digit class="flex items-center justify-center w-12 h-14 text-2xl font-semibold tabular-nums rounded-xl bg-white text-[#3C2F23] ring-1 ring-[#8B7355]/25 dark:bg-gray-800 dark:text-white dark:ring-white/15"></span>
+                                            </div>
+                                            <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">Only you have this code.</p>
+                                        </div>
+                                    </li>
+                                </ol>
+
+                                <p id="detailArrivalDone"
+                                    class="hidden items-center gap-2 mt-4 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i><span id="detailArrivalDoneText"></span>
                                 </p>
-                                <p id="detailTreatment" class="text-sm font-semibold text-[#3C2F23] dark:text-white">
-                                </p>
-                            </div>
-                        </div>
-                        <!-- Date & Time -->
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                                <div
-                                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
-                                    <i class="fa-solid fa-calendar text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date
+
+                                <div id="detailArrivalSafety"
+                                    class="flex flex-wrap items-center justify-between pt-3 mt-4 border-t gap-x-3 gap-y-1 border-[#8B7355]/15 dark:border-white/10">
+                                    <p class="text-xs text-amber-800 dark:text-amber-300">
+                                        <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Not the right person? Don't let them in.
                                     </p>
-                                    <p id="detailDate" class="text-sm font-semibold text-[#3C2F23] dark:text-white">
-                                    </p>
+                                    <a id="detailArrivalCall" href="#"
+                                        class="hidden items-center gap-1.5 min-h-[44px] -my-2 px-2 -mr-2 text-sm font-semibold rounded-xl text-[#6F5430] hover:bg-[#8B7355]/10 dark:text-[#C4A97D] dark:hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                        <i class="fa-solid fa-phone" aria-hidden="true"></i> Call the branch
+                                    </a>
                                 </div>
+                            </section>
+
+                            <!-- Therapist row for everything except an active home visit -->
+                            <div id="detailTherapistRow" class="hidden pt-4 border-t border-black/5 dark:border-white/10">
+                                <p class="text-xs font-medium text-gray-600 dark:text-gray-400">Therapist</p>
+                                <p id="detailTherapistPlain" class="mt-0.5 text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
                             </div>
-                            <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                                <div
-                                    class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
-                                    <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Time
-                                    </p>
-                                    <p id="detailTime" class="text-sm font-semibold text-[#3C2F23] dark:text-white">
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Therapist (staff verification D6). Filled by openBookingDetailsModal(). -->
-                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                            <div id="detailTherapistIcon"
-                                class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
-                                <i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
-                            </div>
-                            {{-- Photo, or initials when there is none --}}
-                            <img id="detailTherapistPhoto" alt="" class="hidden flex-shrink-0 object-cover w-16 h-16 rounded-full ring-2 ring-white dark:ring-gray-800">
-                            <span id="detailTherapistInitials" aria-hidden="true"
-                                class="hidden flex-shrink-0 items-center justify-center w-16 h-16 rounded-full bg-[#8B7355] text-white text-xl font-semibold"></span>
-                            <div class="min-w-0">
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Therapist
-                                </p>
-                                <p id="detailTherapist" class="text-sm font-semibold text-[#3C2F23] dark:text-white">
-                                </p>
-                                <span id="detailTherapistVerified"
-                                    class="hidden mt-1 items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                                    <i class="fa-solid fa-shield-halved"></i> Identity verified
-                                </span>
-                                <p id="detailTherapistNote" class="hidden mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
-                            </div>
-                        </div>
-                        <!-- Home service: check the person, then give the code (D7) -->
-                        <div id="detailArrival" class="hidden p-3 rounded-xl ring-1 bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800">
-                            <p class="text-xs leading-relaxed text-amber-800 dark:text-amber-200">
-                                <strong>When your therapist arrives,</strong> check that they are the person in the photo.
-                                If not, don't let them in<span id="detailArrivalPhone"></span>.
+
+                            <!-- Started or ended: say how to change it instead of offering a button -->
+                            <p id="detailRescheduleClosed" class="hidden text-sm text-gray-600 dark:text-gray-300">
+                                Need to change this appointment? Please call the branch<span id="detailRescheduleClosedPhone"></span>.
                             </p>
-                            <div id="detailArrivalCodeWrap" class="hidden mt-3">
-                                <p class="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider">Arrival code</p>
-                                <p id="detailArrivalCode" class="mt-0.5 text-3xl font-bold tracking-[0.4em] text-[#3C2F23] dark:text-white font-mono"></p>
-                                <p class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">If they match, tell them this code. Only you have it.</p>
-                            </div>
-                            <p id="detailArrivalDone" class="hidden mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300"></p>
                         </div>
-                        <!-- Status -->
-                        <div class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                            <div
-                                class="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-white rounded-lg dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10">
-                                <i class="fa-solid fa-circle-info text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
+
+                        <!-- ===== View 2: reschedule form ===== -->
+                        <div id="bdRescheduleView" class="hidden px-4 py-5 space-y-5 sm:px-6">
+                            <input type="hidden" id="rescheduleBookingId">
+
+                            <div class="p-3 rounded-2xl bg-[#F6EFE6]/70 dark:bg-gray-900/40">
+                                <p class="text-xs font-medium text-gray-600 dark:text-gray-400">Current schedule</p>
+                                <p id="rescheduleCurrentSchedule" class="mt-0.5 text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
                             </div>
+
+                            <p class="text-sm text-gray-600 dark:text-gray-300">
+                                Pick a new date and time. The branch will review your request and let you know.
+                            </p>
+
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label for="rescheduleDate" class="block text-sm font-medium text-[#3C2F23] dark:text-gray-100">New date</label>
+                                    <input type="date" id="rescheduleDate" required
+                                        class="w-full mt-1.5 min-h-[44px] rounded-xl border-black/15 text-[#3C2F23] dark:border-white/15 dark:bg-gray-700 dark:text-white focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/30 dark:focus:border-[#C4A97D] dark:focus:ring-[#C4A97D]/30">
+                                </div>
+                                <div>
+                                    <label for="rescheduleTime" class="block text-sm font-medium text-[#3C2F23] dark:text-gray-100">New time</label>
+                                    <input type="time" id="rescheduleTime" required aria-describedby="rescheduleTimeError"
+                                        class="w-full mt-1.5 min-h-[44px] rounded-xl border-black/15 text-[#3C2F23] dark:border-white/15 dark:bg-gray-700 dark:text-white focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/30 dark:focus:border-[#C4A97D] dark:focus:ring-[#C4A97D]/30 disabled:opacity-60">
+                                </div>
+                            </div>
+                            <p id="rescheduleTimeError" class="hidden -mt-3 text-xs text-red-700 dark:text-red-400" role="alert">
+                                <i class="mr-1 fa-solid fa-circle-exclamation" aria-hidden="true"></i><span id="rescheduleTimeErrorText"></span>
+                            </p>
+
                             <div>
-                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</p>
-                                <p id="detailStatus" class="text-sm font-semibold"></p>
+                                <label for="rescheduleReason" class="block text-sm font-medium text-[#3C2F23] dark:text-gray-100">Reason</label>
+                                <textarea id="rescheduleReason" rows="4" maxlength="1000" required aria-describedby="rescheduleReasonCount"
+                                    placeholder="I have a work meeting that morning."
+                                    class="w-full mt-1.5 text-sm resize-none rounded-xl border-black/15 text-[#3C2F23] placeholder:text-gray-400 dark:border-white/15 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-500 focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/30 dark:focus:border-[#C4A97D] dark:focus:ring-[#C4A97D]/30"></textarea>
+                                <p id="rescheduleReasonCount" class="mt-1 text-xs text-gray-600 dark:text-gray-400">At least 10 characters · 0 / 1000</p>
                             </div>
-                        </div>
-                        <!-- Reschedule Status (shown if request exists) -->
-                        <div id="detailRescheduleStatus" class="hidden p-3 rounded-xl ring-1">
-                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Reschedule
-                                Request</p>
-                            <p id="detailRescheduleStatusText" class="text-sm font-semibold"></p>
+
+                            <div id="rescheduleError" role="alert"
+                                class="hidden p-3 text-sm text-red-700 dark:text-red-300 rounded-2xl bg-red-50 dark:bg-red-900/20 ring-1 ring-red-200 dark:ring-red-800">
+                                <i class="mr-1 fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                                <span id="rescheduleErrorText"></span>
+                            </div>
                         </div>
                     </div>
-                    <div class="px-6 pb-6 space-y-2">
-                        <!-- Reschedule Button -->
+
+                    <!-- Footer: one action per view -->
+                    <div id="bdFooter" class="bd-footer px-4 pt-3 border-t shrink-0 sm:px-6 border-black/5 dark:border-white/10">
                         <button type="button" id="openRescheduleBtn" onclick="openRescheduleModal()"
-                            class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
-                            <i class="mr-2 fa-solid fa-calendar-pen"></i>
-                            Request Reschedule
+                            class="inline-flex items-center justify-center w-full gap-2 min-h-[48px] px-4 text-sm font-semibold text-white transition shadow-md rounded-xl booking-btn hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] dark:focus-visible:ring-offset-gray-800">
+                            <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
+                            Request reschedule
                         </button>
-                        <button type="button" onclick="closeBookingDetailsModal()"
-                            class="w-full py-3 rounded-xl text-sm font-semibold text-[#8B7355] dark:text-[#C4A97D] border border-[#8B7355] dark:border-[#C4A97D] hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ================= RESCHEDULE REQUEST MODAL ================= -->
-        <div id="rescheduleModal" class="fixed inset-0 z-[130] hidden">
-            <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeRescheduleModal()"></div>
-            <div class="relative mx-auto w-[92%] max-w-lg mt-10 sm:mt-16">
-                <div
-                    class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
-                    <div
-                        class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
-                        <div>
-                            <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Request Reschedule</h3>
-                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Please provide a valid reason
-                                for rescheduling.</p>
-                        </div>
-                        <button type="button" onclick="closeRescheduleModal()"
-                            class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
-                            <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                    <div class="p-6 space-y-4">
-                        <input type="hidden" id="rescheduleBookingId">
-
-                        <!-- Current Schedule -->
-                        <div
-                            class="p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50 ring-1 ring-black/5 dark:ring-white/10">
-                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Current
-                                Schedule</p>
-                            <p id="rescheduleCurrentSchedule"
-                                class="text-sm text-[#3C2F23] dark:text-white font-medium"></p>
-                        </div>
-
-                        <!-- New Date -->
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                New Preferred Date <span class="text-red-500">*</span>
-                            </label>
-                            <input type="date" id="rescheduleDate"
-                                class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40"
-                                required>
-                        </div>
-
-                        <!-- New Time -->
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                New Preferred Time <span class="text-red-500">*</span>
-                            </label>
-                            <input type="time" id="rescheduleTime"
-                                class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40"
-                                required>
-                            <p id="rescheduleTimeError"
-                                class="hidden mt-1 text-[11px] text-red-500 dark:text-red-400">
-                                <i class="fa-solid fa-circle-exclamation"></i>
-                                <span id="rescheduleTimeErrorText"></span>
-                            </p>
-                        </div>
-
-                        <!-- Reason -->
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                Reason for Rescheduling <span class="text-red-500">*</span>
-                            </label>
-                            <textarea id="rescheduleReason" rows="4"
-                                placeholder="Please explain why you need to reschedule (minimum 10 characters)..."
-                                class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm resize-none"
-                                required></textarea>
-                            <p id="rescheduleReasonCount" class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">0
-                                / 1000 characters</p>
-                        </div>
-
-                        <!-- Error message -->
-                        <div id="rescheduleError"
-                            class="hidden p-3 text-sm text-red-600 dark:text-red-300 rounded-xl bg-red-50 dark:bg-red-900/20 ring-1 ring-red-200 dark:ring-red-800">
-                            <i class="mr-1 fa-solid fa-circle-exclamation"></i>
-                            <span id="rescheduleErrorText"></span>
-                        </div>
-                    </div>
-                    <div class="px-6 pb-6">
                         <button type="button" id="rescheduleSubmitBtn" onclick="submitRescheduleRequest()"
-                            class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <i class="mr-2 fa-solid fa-paper-plane"></i>
-                            Submit Request
+                            class="hidden items-center justify-center w-full gap-2 min-h-[48px] px-4 text-sm font-semibold text-white transition shadow-md rounded-xl booking-btn hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] dark:focus-visible:ring-offset-gray-800">
+                            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                            <span>Send request</span>
                         </button>
                     </div>
                 </div>

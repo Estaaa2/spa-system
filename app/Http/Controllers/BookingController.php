@@ -319,7 +319,7 @@ class BookingController extends Controller
 
         $historyAppointments = (clone $baseQuery)
             ->where(function ($query) use ($today) {
-                $query->whereIn('status', ['completed', 'cancelled'])
+                $query->whereIn('status', Booking::FINISHED_STATUSES)
                     ->orWhereDate('appointment_date', '<', $today);
             })
             ->orderBy('appointment_date', 'desc')
@@ -419,10 +419,10 @@ class BookingController extends Controller
         $this->syncAutomaticStatuses($spaId, $branchId);
         $booking->refresh();
 
-        if (in_array($booking->status, ['completed', 'cancelled'], true)) {
+        if (in_array($booking->status, Booking::FINISHED_STATUSES, true)) {
             return redirect()
                 ->route('appointments.index')
-                ->with('error', 'This appointment is already ' . $booking->status . ' and can no longer be edited.');
+                ->with('error', 'This appointment is already ' . strtolower(Booking::statusLabel($booking->status)) . ' and can no longer be edited.');
         }
 
         $validated = $request->validate([
@@ -530,8 +530,8 @@ class BookingController extends Controller
     {
         $booking = Booking::findOrFail($id);
 
-        if (in_array($booking->status, ['completed', 'cancelled'], true)) {
-            return redirect()->back()->with('error', 'This appointment is already ' . $booking->status . '.');
+        if (in_array($booking->status, Booking::FINISHED_STATUSES, true)) {
+            return redirect()->back()->with('error', 'This appointment is already ' . strtolower(Booking::statusLabel($booking->status)) . '.');
         }
 
         $booking->update(['status' => 'cancelled']);
@@ -553,9 +553,21 @@ class BookingController extends Controller
     public function updateStatus(Request $request, Booking $booking)
     {
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['ongoing', 'cancelled'])],
+            'status' => ['required', Rule::in(['ongoing', 'cancelled', Booking::NO_SHOW])],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        // A no-show only after the start time, on a booking that's still open
+        // (UI rework Phase 3, decision 1A).
+        if ($validated['status'] === Booking::NO_SHOW && ! $booking->canBeMarkedNoShow()) {
+            return back()->withErrors([
+                'status' => 'A no-show can only be recorded after the appointment has started.',
+            ])->withInput();
+        }
+
+        // Cancelled and no-show end the booking without the service: payments
+        // stay exactly as they are (decision 2A — same handling as a cancellation).
+        $endsWithoutService = in_array($validated['status'], ['cancelled', Booking::NO_SHOW], true);
 
         // Server-side validation for future appointments
         $today = now()->startOfDay();
@@ -575,7 +587,7 @@ class BookingController extends Controller
         $remaining = max($serviceTotal - $currentPaid, 0);
         $additionalPayment = (float) ($validated['amount_paid'] ?? 0);
 
-        if ($validated['status'] !== 'cancelled') {
+        if (! $endsWithoutService) {
             if ($additionalPayment > $remaining) {
                 return back()->withErrors([
                     'amount_paid' => 'Entered amount is greater than the remaining balance.',
@@ -589,7 +601,7 @@ class BookingController extends Controller
             }
         }
 
-        $newPaid = $validated['status'] === 'cancelled'
+        $newPaid = $endsWithoutService
             ? $currentPaid
             : $currentPaid + $additionalPayment;
 
@@ -597,7 +609,7 @@ class BookingController extends Controller
 
         $newPaymentStatus = $booking->payment_status;
 
-        if ($validated['status'] !== 'cancelled') {
+        if (! $endsWithoutService) {
             if ($serviceTotal > 0 && $newPaid >= $serviceTotal) {
                 $newPaymentStatus = 'paid';
             } elseif ($newPaid > 0) {
@@ -615,7 +627,9 @@ class BookingController extends Controller
             'payment_status' => $newPaymentStatus,
         ]);
 
-        return back()->with('success', 'Appointment status updated successfully.');
+        return back()->with('success', $validated['status'] === Booking::NO_SHOW
+            ? 'Marked as a no-show.'
+            : 'Appointment status updated successfully.');
     }
 
     /**
@@ -691,7 +705,7 @@ class BookingController extends Controller
         $now = Carbon::now();
 
         $query = Booking::query()
-            ->whereNotIn('status', ['completed', 'cancelled']);
+            ->whereNotIn('status', Booking::FINISHED_STATUSES);
 
         if ($spaId) {
             $query->where('spa_id', $spaId);

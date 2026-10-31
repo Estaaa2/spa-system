@@ -166,7 +166,7 @@
                             </td>
                             <td class="px-6 py-4">
                                 <span class="inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full {{ $statusClasses[$booking->status] ?? 'bg-gray-100 text-gray-700' }}">
-                                    {{ ucfirst($booking->status) }}
+                                    {{ \App\Models\Booking::statusLabel($booking->status) }}
                                 </span>
                             </td>
                         </tr>

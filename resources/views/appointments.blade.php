@@ -18,6 +18,7 @@
         'ongoing'   => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
         'completed' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
         'cancelled' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+        'no_show'   => 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
     ];
 
     $sourceClasses = [
@@ -27,7 +28,7 @@
         ''        => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
     ];
 
-    // Used when $booking->status is not one of the five known values.
+    // Used when $booking->status is not one of the known values.
     $statusFallback = 'bg-gray-100 text-gray-700';
 
     // The button classes are defined here to ensure consistent styling across
@@ -319,7 +320,7 @@
                                 <div class="flex flex-wrap gap-2 md:flex-col">
                                     <span class="inline-flex w-fit items-center px-3 py-1 text-xs font-medium rounded-full
                                                  {{ $statusClasses[$booking->status] ?? $statusFallback }}">
-                                        {{ ucfirst($booking->status) }}
+                                        {{ \App\Models\Booking::statusLabel($booking->status) }}
                                     </span>
                                     <span class="inline-flex w-fit items-center px-3 py-1 text-xs font-medium rounded-full
                                                  {{ $sourceClasses[$booking->booking_source ?? ''] ?? $sourceClasses[''] }}">
@@ -454,7 +455,7 @@
                             <td role="cell" data-label="Status" class="px-6 py-4">
                                 <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full
                                              {{ $statusClasses[$booking->status] ?? $statusFallback }}">
-                                    {{ ucfirst($booking->status) }}
+                                    {{ \App\Models\Booking::statusLabel($booking->status) }}
                                 </span>
                             </td>
                             @if($showUpcomingActions)
@@ -570,7 +571,7 @@
                             <td role="cell" data-label="Status" class="px-6 py-4">
                                 <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full
                                              {{ $statusClasses[$booking->status] ?? $statusFallback }}">
-                                    {{ ucfirst($booking->status) }}
+                                    {{ \App\Models\Booking::statusLabel($booking->status) }}
                                 </span>
                             </td>
                         </tr>
@@ -643,6 +644,10 @@
                     <select id="process_status" name="status"
                             class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></select>
                 </div>
+                <p id="process_end_note" class="hidden p-3 text-sm text-gray-700 rounded-xl bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-700/40 dark:text-gray-200 dark:ring-gray-700">
+                    <i class="mr-1 fa-solid fa-circle-info text-gray-500 dark:text-gray-400" aria-hidden="true"></i>
+                    No payment is collected. Anything already paid stays recorded as it is.
+                </p>
                 <div id="process_amount_wrapper">
                     <label for="process_amount_paid" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Amount Collected Now</label>
                     <input type="number" step="0.01" min="0" id="process_amount_paid" name="amount_paid"
@@ -858,6 +863,7 @@
     const STATUS_CLASSES  = @json($statusClasses);
     const SOURCE_CLASSES  = @json($sourceClasses);
     const STATUS_FALLBACK = @json($statusFallback);
+    const STATUS_LABELS   = @json(\App\Models\Booking::STATUS_LABELS);
     const BTN             = @json($btn);
     const BTN_LABEL       = @json($btnLabel);
     const REASSIGN_BADGE  = @json($reassignPendingBadge);
@@ -876,6 +882,8 @@
     function esc(s)        { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
     function php(n)        { return '₱' + Number(n).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2}); }
     function ucfirst(s)    { return String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1); }
+    // Same words as Booking::statusLabel(), so the poll never shows a raw status value.
+    function stLabel(st)   { return STATUS_LABELS[st] ?? ucfirst(String(st || '').replace(/_/g, ' ')); }
 
     // Local calendar date, matching booking.blade.php's todayString().
     // toISOString() returns UTC, which is yesterday in Manila between 00:00–08:00.
@@ -968,20 +976,27 @@
 @if($canEdit)
     // Only these two statuses can reach the Process button, but the fallback
     // guarantees the select is never empty (which would submit status=).
+    // Both appear only after the start time (the clock sets them), which is
+    // when a no-show can be recorded (UI rework Phase 3, decision 1A).
     const PROCESS_OPTIONS = {
         pending: [
             { value: 'ongoing',   label: 'Mark as Ongoing (customer has arrived)' },
-            { value: 'cancelled', label: 'Cancel (customer called / no-show)' },
+            { value: 'no_show',   label: 'Mark as No-show (customer didn\'t come)' },
+            { value: 'cancelled', label: 'Cancel (customer called to cancel)' },
         ],
         ongoing: [
-            { value: 'cancelled', label: 'Cancel (customer did not proceed / no-show)' },
+            { value: 'no_show',   label: 'Mark as No-show (customer didn\'t come)' },
+            { value: 'cancelled', label: 'Cancel (customer didn\'t proceed)' },
         ],
     };
 
+    // Cancel and no-show collect nothing; payments already received stay as they are.
     function togglePaymentField() {
         const statusSelect  = document.getElementById('process_status');
         const amountWrapper = document.getElementById('process_amount_wrapper');
-        amountWrapper.classList.toggle('hidden', statusSelect.value === 'cancelled');
+        const endsBooking   = ['cancelled', 'no_show'].includes(statusSelect.value);
+        amountWrapper.classList.toggle('hidden', endsBooking);
+        document.getElementById('process_end_note')?.classList.toggle('hidden', !endsBooking);
     }
 
     function openProcessModal(btn) {
@@ -1538,7 +1553,7 @@
                 <td role="cell" data-label="Status" class="px-6 py-4">
                     <div class="flex flex-wrap gap-2 md:flex-col">
                         <span class="inline-flex w-fit items-center px-3 py-1 text-xs font-medium rounded-full ${stClass(b.status)}">
-                            ${ucfirst(b.status)}
+                            ${stLabel(b.status)}
                         </span>
                         <span class="inline-flex w-fit items-center px-3 py-1 text-xs font-medium rounded-full ${srcClass(b.booking_source)}">
                             ${(b.booking_source || 'STAFF').toUpperCase()}
@@ -1594,7 +1609,7 @@
                 <td role="cell" data-label="Therapist" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">${esc(b.therapist_name)}</td>
                 <td role="cell" data-label="Status" class="px-6 py-4">
                     <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${stClass(b.status)}">
-                        ${ucfirst(b.status)}
+                        ${stLabel(b.status)}
                     </span>
                 </td>
                 ${actionCell}

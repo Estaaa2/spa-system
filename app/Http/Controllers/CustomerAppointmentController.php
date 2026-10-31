@@ -86,6 +86,8 @@ class CustomerAppointmentController extends Controller
             'service_type'       => $b->service_type_label,
             'reschedule_status'  => $b->latestRescheduleRequest?->status ?? null,
             'reschedule_pending' => $b->latestRescheduleRequest?->isPending() ?? false,
+            // Same rule the server enforces on submit; the app can read it too.
+            'can_reschedule'     => $b->canRequestReschedule(),
             'has_rating'         => $hasRating,
             'rating_value'       => $ratingValue,
         ] + $this->therapistCard($b);

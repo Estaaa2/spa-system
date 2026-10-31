@@ -1689,7 +1689,7 @@ async function loadBookingCalendar() {
 
         bookingMyDates = new Set(
             bookings
-                .filter(b => !['cancelled', 'completed'].includes(String(b.status || '').toLowerCase()))
+                .filter(b => !['cancelled', 'completed', 'no_show'].includes(String(b.status || '').toLowerCase()))
                 .map(b => b.date_raw)
         );
         renderBookingCalendar();
@@ -1982,7 +1982,7 @@ function setupApplicationForm() {
         }
 
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Sending…</span>';
 
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -2278,16 +2278,127 @@ bookingCustomerPhone?.addEventListener('input', function () {
 let allAppointments = [];
 let currentTab      = 'upcoming';
 let _appointmentMap = {};
+let _apReturnFocus  = null;
+
+/*
+  My appointments (UI rework Phase 2).
+  - Upcoming: soonest first, grouped "Happening now" / "Today" / "Tomorrow" /
+    one group per later day. Past and Cancelled: most recent first, grouped by
+    month.
+  - Rows are <button>s styled by the .apt-* rules in landing.css (this file
+    isn't in Tailwind's content globs, so no Tailwind classes are built here).
+  - Customers see their own status words (customerStatus); staff pages keep
+    the raw statuses.
+*/
+
+const ACTIVE_BOOKING_STATUSES = ['reserved', 'pending', 'ongoing'];
+
+// Local Date for a booking's day + time ("HH:MM[:SS]"); null when missing.
+function bookingDateTime(b, time) {
+    if (!b.date_raw || !time) return null;
+    return new Date(`${b.date_raw}T${time.slice(0, 8)}`);
+}
+
+function isBookingHappeningNow(b) {
+    const start = bookingDateTime(b, b.start_time);
+    const end   = bookingDateTime(b, b.end_time);
+    const now   = Date.now();
+    return ACTIVE_BOOKING_STATUSES.includes(b.status) && !!start && !!end
+        && start.getTime() <= now && now < end.getTime();
+}
+
+/*
+  What the customer sees for a status. 'pending' and 'ongoing' are set by the
+  clock once the start time passes, so both read "In progress". An active
+  booking whose end time has passed is waiting for the status job to run, so
+  it reads "Ended" rather than claiming to be confirmed.
+*/
+function customerStatus(b) {
+    const s = b.status;
+    if (ACTIVE_BOOKING_STATUSES.includes(s) && isBookingPastNow(b)) return { key: 'ended',     label: 'Ended' };
+    if (s === 'reserved')                          return { key: 'confirmed', label: 'Confirmed' };
+    if (s === 'pending' || s === 'ongoing')        return { key: 'progress',  label: 'In progress' };
+    if (s === 'completed')                         return { key: 'completed', label: 'Completed' };
+    if (s === 'cancelled')                         return { key: 'cancelled', label: 'Cancelled' };
+    if (s === 'no_show')                           return { key: 'missed',    label: 'Missed' };
+    return { key: 'ended', label: s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '' };
+}
+
+function customerStatusPill(b) {
+    const st = customerStatus(b);
+    return `<span class="apt-pill apt-pill--${st.key}">${escapeHtml(st.label)}</span>`;
+}
+
+// Which tab a booking belongs to. Missed visits sit with past ones.
+function appointmentTab(b) {
+    if (b.status === 'cancelled') return 'cancelled';
+    if (ACTIVE_BOOKING_STATUSES.includes(b.status) && !isBookingPastNow(b)) return 'upcoming';
+    return 'past';
+}
+
+function sortForTab(list, tab) {
+    const key = b => `${b.date_raw || ''}T${(b.start_time || '').slice(0, 8)}`;
+    return [...list].sort((a, b) => tab === 'upcoming'
+        ? key(a).localeCompare(key(b))
+        : key(b).localeCompare(key(a)));
+}
+
+function addDaysLocal(dateStr, days) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d + days);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function localDateFromRaw(raw) {
+    const [y, m, d] = raw.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+// Groups for one tab, in display order: [{ key, title, now?, items: [] }].
+function groupAppointments(list, tab) {
+    const today    = getTodayLocal();
+    const tomorrow = addDaysLocal(today, 1);
+    const groups   = [];
+    const byKey    = {};
+
+    const put = (key, title, b, extra = {}) => {
+        if (!byKey[key]) { byKey[key] = { key, title, items: [], ...extra }; groups.push(byKey[key]); }
+        byKey[key].items.push(b);
+    };
+
+    sortForTab(list, tab).forEach(b => {
+        if (!b.date_raw) { put('other', 'Other', b); return; }
+        const day = localDateFromRaw(b.date_raw);
+
+        if (tab === 'upcoming') {
+            const dayLabel = day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            if (isBookingHappeningNow(b))      put('now', 'Happening now', b, { now: true });
+            else if (b.date_raw === today)     put(b.date_raw, `Today · ${dayLabel}`, b);
+            else if (b.date_raw === tomorrow)  put(b.date_raw, `Tomorrow · ${dayLabel}`, b);
+            else put(b.date_raw, day.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }), b);
+        } else {
+            put(b.date_raw.slice(0, 7), day.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), b);
+        }
+    });
+
+    // "Happening now" always leads, whatever its date.
+    groups.sort((a, b) => (b.now ? 1 : 0) - (a.now ? 1 : 0));
+    return groups;
+}
 
 function openAppointmentsModal() {
+    _apReturnFocus = document.activeElement;
     document.getElementById('appointmentsModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
     loadAppointments();
+    requestAnimationFrame(() => document.getElementById('apTitle')?.focus());
 }
 
 function closeAppointmentsModal() {
     document.getElementById('appointmentsModal').classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+    if (_apReturnFocus && document.contains(_apReturnFocus)) _apReturnFocus.focus();
+    _apReturnFocus = null;
 }
 
 function loadAppointments() {
@@ -2298,9 +2409,7 @@ function loadAppointments() {
             updateTabCounts();
             renderTab(currentTab);
 
-            const upcomingCount = data.filter(b =>
-                ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b)
-            ).length;
+            const upcomingCount = data.filter(b => appointmentTab(b) === 'upcoming').length;
             updateAppointmentsBadge(upcomingCount);
             checkUnratedBookings(data);
         });
@@ -2321,105 +2430,160 @@ function updateAppointmentsBadge(count) {
         });
 }
 
+// Counts sit on the tabs only when there is something to count.
 function updateTabCounts() {
-    document.getElementById('tab-count-upcoming').textContent =
-        allAppointments.filter(b => ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b)).length;
-    document.getElementById('tab-count-past').textContent =
-        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'ongoing'].includes(b.status) && isBookingPastNow(b))).length;
-    document.getElementById('tab-count-cancelled').textContent =
-        allAppointments.filter(b => b.status === 'cancelled').length;
+    ['upcoming', 'past', 'cancelled'].forEach(tab => {
+        const el = document.getElementById(`tab-count-${tab}`);
+        if (!el) return;
+        const n = allAppointments.filter(b => appointmentTab(b) === tab).length;
+        el.textContent = n > 99 ? '99+' : n;
+        el.classList.toggle('hidden', n === 0);
+    });
 }
 
-function switchTab(tab) {
+// Tabs follow the ARIA tabs pattern: state lives on aria-selected (styled in
+// landing.css), and Left/Right/Home/End move between tabs.
+function switchTab(tab, focusTab = false) {
     currentTab = tab;
     ['upcoming', 'past', 'cancelled'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
-        if (t === tab) {
-            el.classList.add('border-[#8B7355]', 'dark:border-[#C4A97D]', 'text-[#8B7355]', 'dark:text-[#C4A97D]');
-            el.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-        } else {
-            el.classList.remove('border-[#8B7355]', 'dark:border-[#C4A97D]', 'text-[#8B7355]', 'dark:text-[#C4A97D]');
-            el.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-        }
+        if (!el) return;
+        el.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+        el.tabIndex = t === tab ? 0 : -1;
+        if (t === tab && focusTab) el.focus();
     });
+    document.getElementById('appointmentsContent')?.setAttribute('aria-labelledby', `tab-${tab}`);
     renderTab(tab);
 }
 
-function renderTab(tab) {
-    let filtered = [];
-    if (tab === 'upcoming') {
-        filtered = allAppointments.filter(b => ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b));
-    } else if (tab === 'past') {
-        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'ongoing'].includes(b.status) && isBookingPastNow(b)));
-    } else {
-        filtered = allAppointments.filter(b => b.status === 'cancelled');
+document.querySelector('#appointmentsModal [role="tablist"]')?.addEventListener('keydown', (e) => {
+    const order = ['upcoming', 'past', 'cancelled'];
+    const i = order.indexOf(currentTab);
+    const next = { ArrowRight: order[(i + 1) % 3], ArrowLeft: order[(i + 2) % 3], Home: order[0], End: order[2] }[e.key];
+    if (!next) return;
+    e.preventDefault();
+    switchTab(next, true);
+});
+
+// Keep Tab inside the panel while it is open (Booking details, when open on
+// top, has its own trap).
+document.getElementById('appointmentsModal')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = [...document.querySelectorAll(
+        '#apPanel button:not([disabled]):not([tabindex="-1"]), #apPanel a[href]'
+    )].filter(el => el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+
+const APT_EMPTY = {
+    upcoming:  { icon: 'fa-calendar-plus', title: 'Book your next treatment',
+                 text: 'Your upcoming appointments will show here.', cta: true },
+    past:      { icon: 'fa-clock-rotate-left', title: 'No past visits yet',
+                 text: 'Appointments you\'ve had will show here, so you can rate them.' },
+    cancelled: { icon: 'fa-calendar-xmark', title: 'No cancelled appointments',
+                 text: 'Anything that gets cancelled will show here.' },
+};
+
+// "Book your next treatment": close the panel and bring the spa list into view.
+function browseSpasFromAppointments() {
+    closeAppointmentsModal();
+    document.getElementById('browseSections')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderAppointmentRow(b, i, tab) {
+    const st        = customerStatus(b);
+    const isHome    = !!b.is_home_service;
+    const therapist = b.therapist_card ? b.therapist_card.name
+        : (b.therapist && b.therapist !== 'Not Assigned' ? b.therapist : '');
+    const verified  = !!(b.therapist_card && b.therapist_card.verified);
+    const canRate   = b.status === 'completed' && !b.has_rating;
+    const hasRating = b.has_rating === true;
+    const day       = b.date_raw ? localDateFromRaw(b.date_raw) : null;
+
+    // Upcoming groups already say the day, so the left column is the time.
+    // Past/Cancelled are grouped by month, so it shows the date too.
+    const when = tab === 'upcoming'
+        ? `<span class="apt-when-main">${formatTime(b.start_time)}</span>`
+        : `<span class="apt-when-main">${day ? day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+           <span class="apt-when-sub">${formatTime(b.start_time)}</span>`;
+
+    // The tab already implies the usual status; show a pill only when it differs.
+    const usual = { upcoming: 'confirmed', past: 'completed', cancelled: 'cancelled' }[tab];
+    const chips = [];
+    if (st.key !== usual) chips.push(customerStatusPill(b));
+    if (isHome) chips.push(`<span class="apt-chip"><i class="fa-solid fa-house" aria-hidden="true"></i>Home service</span>`);
+    if (therapist) {
+        chips.push(`<span class="apt-chip${verified ? ' apt-chip--verified' : ''}"><i class="fa-solid ${verified ? 'fa-shield-halved' : 'fa-user'}" aria-hidden="true"></i>${escapeHtml(therapist)}${verified ? '<span class="sr-only"> (identity verified)</span>' : ''}</span>`);
+    } else if (tab === 'upcoming') {
+        chips.push(`<span class="apt-chip"><i class="fa-solid fa-user" aria-hidden="true"></i>Therapist not assigned yet</span>`);
+    }
+    if (b.reschedule_status === 'pending') {
+        chips.push(`<span class="apt-chip apt-chip--warn"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Reschedule requested</span>`);
     }
 
+    const stars = n => [1, 2, 3, 4, 5]
+        .map(k => `<i class="fa-solid fa-star${k <= n ? ' is-on' : ''}" aria-hidden="true"></i>`).join('');
+
+    const actions = canRate
+        ? `<div class="apt-actions">
+               <button type="button" class="apt-rate"
+                   onclick="openRatingModal(_appointmentMap[${i}].id, _appointmentMap[${i}].therapist, _appointmentMap[${i}].spa_name, _appointmentMap[${i}].branch_name, _appointmentMap[${i}].branch_location)">
+                   <i class="fa-regular fa-star" aria-hidden="true"></i>Rate your visit
+               </button>
+           </div>`
+        : hasRating
+        ? `<div class="apt-actions">
+               <span class="apt-rated"><span class="sr-only">You rated this ${b.rating_value} out of 5.</span><span aria-hidden="true">You rated</span>${stars(b.rating_value)}</span>
+           </div>`
+        : '';
+
+    return `
+        <li class="apt-item">
+            <button type="button" class="apt-row" onclick="openBookingDetailsModal(_appointmentMap[${i}])">
+                <span class="apt-when">${when}</span>
+                <span class="apt-main">
+                    <span class="apt-title">${escapeHtml(b.treatment)}</span>
+                    <span class="apt-sub">${escapeHtml(b.spa_name)} · ${escapeHtml(b.branch_location ?? b.branch_name)}</span>
+                    ${chips.length ? `<span class="apt-chips">${chips.join('')}</span>` : ''}
+                </span>
+                <i class="apt-chev fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            ${actions}
+        </li>`;
+}
+
+function renderTab(tab) {
+    const filtered = allAppointments.filter(b => appointmentTab(b) === tab);
+
     Object.keys(_appointmentMap).forEach(k => delete _appointmentMap[k]);
-    filtered.forEach((b, i) => { _appointmentMap[i] = b; });
 
     const container = document.getElementById('appointmentsContent');
     if (!filtered.length) {
+        const e = APT_EMPTY[tab];
         container.innerHTML = `
-            <div class="py-12 text-center text-gray-400 dark:text-gray-500">
-                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
-                <p class="text-sm">No ${tab} appointments</p>
+            <div class="apt-empty">
+                <span class="apt-empty-icon"><i class="fa-solid ${e.icon}" aria-hidden="true"></i></span>
+                <p class="apt-empty-title">${e.title}</p>
+                <p class="apt-empty-text">${e.text}</p>
+                ${e.cta ? `<button type="button" class="apt-empty-cta booking-btn" onclick="browseSpasFromAppointments()">
+                    <i class="fa-solid fa-spa" aria-hidden="true"></i>Browse spas</button>` : ''}
             </div>`;
         return;
     }
 
-    container.innerHTML = filtered.map((b, i) => {
-        const canRate   = b.status === 'completed' && !b.has_rating;
-        const hasRating = b.has_rating === true;
-
+    let i = 0;
+    container.innerHTML = groupAppointments(filtered, tab).map(g => {
+        const rows = g.items.map(b => { _appointmentMap[i] = b; return renderAppointmentRow(b, i++, tab); }).join('');
+        const id   = `apt-group-${g.key}`;
         return `
-        <div class="p-4 mb-3 border border-black/5 dark:border-white/10 rounded-2xl bg-[#F6EFE6]/40 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 transition hover:shadow-md">
-            <div onclick="openBookingDetailsModal(_appointmentMap[${i}])" class="cursor-pointer">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_location ?? b.branch_name)} • ${b.service_type}</p>
-                    </div>
-                    <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                        ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                    </span>
-                </div>
-                <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600 dark:text-gray-400">
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.treatment)}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.therapist)}${b.therapist_card && b.therapist_card.verified ? ' <span class="font-semibold text-emerald-800 dark:text-emerald-300" title="Identity verified">✓</span>' : ''}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355] dark:text-[#C4A97D]"></i> ${b.date}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
-                </div>
-                ${b.reschedule_status === 'pending' ? `
-                <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
-                </div>` : ''}
-                ${b.arrival_code ? `
-                <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    <i class="fa-solid fa-key"></i> Home service: open for your therapist's photo and arrival code
-                </div>` : ''}
-            </div>
-            ${canRate ? `
-            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <button onclick="openRatingModal(_appointmentMap[${i}].id, _appointmentMap[${i}].therapist, _appointmentMap[${i}].spa_name, _appointmentMap[${i}].branch_name, _appointmentMap[${i}].branch_location)"
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition rounded-xl bg-[#8B7355] hover:bg-[#6F5430] w-full justify-center">
-                    <i class="fa-solid fa-star"></i>
-                    Rate Your Experience
-                </button>
-            </div>` : ''}
-            ${hasRating ? `
-            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-circle-check text-green-600 dark:text-green-400 text-sm"></i>
-                        <span class="text-sm font-semibold text-green-600 dark:text-green-400">Thank you for rating!</span>
-                    </div>
-                    <div class="flex items-center gap-0.5">
-                        ${renderStars(b.rating_value)}
-                    </div>
-                </div>
-            </div>` : ''}
-        </div>`;
+            <section class="apt-group" aria-labelledby="${id}">
+                <h3 id="${id}" class="apt-group-title${g.now ? ' apt-group-title--now' : ''}">${escapeHtml(g.title)}</h3>
+                <ul class="apt-list">${rows}</ul>
+            </section>`;
     }).join('');
 }
 
@@ -2458,17 +2622,6 @@ function renderStars(rating) {
         stars += `<i class="fa-solid fa-star ${i <= rating ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'} text-xs"></i>`;
     }
     return stars;
-}
-
-function statusBadge(status) {
-    const map = {
-        reserved:  'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-        ongoing:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-        completed: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-        cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-        pending:   'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-    };
-    return map[status] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300';
 }
 
 // =====================================================
@@ -2592,7 +2745,7 @@ function renderScheduleList() {
                     onclick="openBookingDetailsModal(_listBookingMap[${idx}])">
                     <div class="flex items-center justify-between">
                         <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
-                        <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
+                        ${customerStatusPill(b)}
                     </div>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -2667,7 +2820,7 @@ function selectDay(dateStr) {
             onclick="openBookingDetailsModal(_dayBookingMap[${i}])">
             <div class="flex items-center justify-between">
                 <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
-                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
+                ${customerStatusPill(b)}
             </div>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -2697,64 +2850,123 @@ function formatTime(timeStr) {
 // =====================================================
 let selectedBooking = null;
 
+/*
+  Booking details (UI rework Phase 1): one panel with two views, "details" and
+  "reschedule". The reschedule form used to be a second modal stacked on top;
+  openRescheduleModal / closeRescheduleModal keep their names (onclick + window
+  exports) but now switch views inside the same panel.
+  Every class toggled here is written out in welcome.blade.php, because this
+  file is not in Tailwind's content globs.
+*/
+let _bdReturnFocus = null;       // element to refocus when the panel closes
+let _bdFormBookingId = null;     // keeps typed form values if the customer goes back and forth
+
+// Toggles 'hidden' and, for flex items, the display class with it.
+function bdShow(el, on, display = null) {
+    if (!el) return;
+    el.classList.toggle('hidden', !on);
+    if (display) el.classList.toggle(display, on);
+}
+
+// Start of the appointment in the customer's local time (null when unknown).
+function bookingStartDate(b) {
+    if (!b.date_raw || !b.start_time) return null;
+    return new Date(`${b.date_raw}T${b.start_time.slice(0, 8)}`);
+}
+
+// Mirrors Booking::canRequestReschedule() on the server, which has the final say.
+function bookingCanReschedule(b) {
+    const start = bookingStartDate(b);
+    const serverSays = b.can_reschedule ?? (b.status === 'reserved');
+    return serverSays && b.status === 'reserved' && !!start && start.getTime() > Date.now();
+}
+
 function openBookingDetailsModal(booking) {
     selectedBooking = booking;
+    _bdReturnFocus  = document.activeElement;
 
-    document.getElementById('detailSpaName').textContent =
-        `${booking.spa_name} • ${booking.branch_name}`;
     document.getElementById('detailTreatment').textContent = booking.treatment;
     document.getElementById('detailDate').textContent      = booking.date;
     document.getElementById('detailTime').textContent      =
         `${formatTime(booking.start_time)} – ${formatTime(booking.end_time)}`;
-    renderDetailTherapist(booking);
+    document.getElementById('detailSpaName').textContent   =
+        `${booking.spa_name} · ${booking.branch_name}`;
+
+    const serviceRow = document.getElementById('detailServiceRow');
+    document.getElementById('detailServiceType').textContent = booking.service_type || '';
+    bdShow(serviceRow, !!booking.is_home_service, 'flex');
 
     const statusEl = document.getElementById('detailStatus');
-    statusEl.textContent = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
-    statusEl.className   = `text-sm font-semibold ${statusColor(booking.status)}`;
+    const st = customerStatus(booking);
+    statusEl.textContent = st.label;
+    statusEl.className   = `apt-pill apt-pill--${st.key}`;
 
-    const rescheduleStatusEl   = document.getElementById('detailRescheduleStatus');
-    const rescheduleStatusText = document.getElementById('detailRescheduleStatusText');
-    const rescheduleBtn        = document.getElementById('openRescheduleBtn');
+    renderDetailTherapist(booking);
+    renderDetailReschedule(booking);
 
-    if (booking.reschedule_status === 'pending') {
-        rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-amber-50 dark:bg-amber-900/20 ring-amber-200 dark:ring-amber-800';
-        rescheduleStatusText.textContent = '⏳ Reschedule request is pending approval.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-amber-700 dark:text-amber-300';
-        rescheduleBtn.disabled           = true;
-        rescheduleBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    } else if (booking.reschedule_status === 'approved') {
-        rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-green-50 dark:bg-green-900/20 ring-green-200 dark:ring-green-800';
-        rescheduleStatusText.textContent = '✅ Your reschedule was approved.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-green-700 dark:text-green-300';
-        rescheduleBtn.disabled           = false;
-        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    } else if (booking.reschedule_status === 'rejected') {
-        rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-red-50 dark:bg-red-900/20 ring-red-200 dark:ring-red-800';
-        rescheduleStatusText.textContent = '❌ Your last reschedule request was rejected.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-red-600 dark:text-red-400';
-        rescheduleBtn.disabled           = false;
-        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    } else {
-        rescheduleStatusEl.classList.add('hidden');
-        rescheduleBtn.disabled = false;
-        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    }
-
-    if (!['reserved', 'pending'].includes(booking.status)) {
-        rescheduleBtn.classList.add('hidden');
-    } else {
-        rescheduleBtn.classList.remove('hidden');
-    }
-
+    bdShowView('details', false);
     document.getElementById('bookingDetailsModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+    document.getElementById('bdBody').scrollTop = 0;
+
+    // Land keyboard and screen-reader users on the title, inside the dialog,
+    // without a focus ring flashing on the close button.
+    requestAnimationFrame(() => document.getElementById('bdTitle')?.focus());
 }
 
-// Therapist card + arrival code in Booking Details (staff verification D6, D7).
-// The markup lives in welcome.blade.php, so Tailwind sees every class.
+function renderDetailReschedule(booking) {
+    const wrap  = document.getElementById('detailRescheduleStatus');
+    const icon  = document.getElementById('detailRescheduleIcon');
+    const text  = document.getElementById('detailRescheduleStatusText');
+    const btn   = document.getElementById('openRescheduleBtn');
+    const closed = document.getElementById('detailRescheduleClosed');
+
+    const notices = {
+        pending: {
+            box:  'flex items-start gap-3 p-3 rounded-2xl ring-1 bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800',
+            icon: 'mt-0.5 fa-solid fa-clock-rotate-left text-amber-700 dark:text-amber-300',
+            text: 'text-sm text-amber-800 dark:text-amber-200',
+            msg:  'Your reschedule request is waiting for the branch to review it.',
+        },
+        approved: {
+            box:  'flex items-start gap-3 p-3 rounded-2xl ring-1 bg-emerald-50 ring-emerald-200 dark:bg-emerald-900/20 dark:ring-emerald-800',
+            icon: 'mt-0.5 fa-solid fa-circle-check text-emerald-700 dark:text-emerald-300',
+            text: 'text-sm text-emerald-800 dark:text-emerald-200',
+            msg:  'Your reschedule was approved. The date and time above are the new ones.',
+        },
+        rejected: {
+            box:  'flex items-start gap-3 p-3 rounded-2xl ring-1 bg-red-50 ring-red-200 dark:bg-red-900/20 dark:ring-red-800',
+            icon: 'mt-0.5 fa-solid fa-circle-xmark text-red-700 dark:text-red-300',
+            text: 'text-sm text-red-800 dark:text-red-200',
+            msg:  'Your last reschedule request was declined. Your original schedule still stands.',
+        },
+    };
+
+    const notice = notices[booking.reschedule_status] || null;
+    if (notice) {
+        wrap.className   = notice.box;
+        icon.className   = notice.icon;
+        text.className   = notice.text;
+        text.textContent = notice.msg;
+    } else {
+        wrap.className = 'hidden';
+    }
+
+    const active      = ['reserved', 'pending', 'ongoing'].includes(booking.status);
+    const canAsk      = bookingCanReschedule(booking);
+    const waiting     = booking.reschedule_status === 'pending';
+    const showButton  = canAsk && !waiting;
+
+    bdShow(btn, showButton, 'inline-flex');
+    bdShow(document.getElementById('bdFooter'), showButton);
+
+    // Started (or past its start) but not finished: tell them how to change it.
+    bdShow(closed, active && !canAsk && !waiting);
+    document.getElementById('detailRescheduleClosedPhone').textContent =
+        booking.branch_phone ? ` at ${booking.branch_phone}` : '';
+}
+
+// Therapist card + arrival code (staff verification D6, D7).
 function renderDetailTherapist(booking) {
     const card     = booking.therapist_card || null;
     const nameEl   = document.getElementById('detailTherapist');
@@ -2763,14 +2975,21 @@ function renderDetailTherapist(booking) {
     const icon     = document.getElementById('detailTherapistIcon');
     const badge    = document.getElementById('detailTherapistVerified');
     const note     = document.getElementById('detailTherapistNote');
-    // Toggles 'hidden' and, for flex items, the display class with it.
-    const show     = (el, on, display = null) => {
-        if (!el) return;
-        el.classList.toggle('hidden', !on);
-        if (display) el.classList.toggle(display, on);
-    };
 
-    nameEl.textContent = card ? card.name : (booking.therapist || 'Not Assigned');
+    const active   = ['reserved', 'pending', 'ongoing'].includes(booking.status);
+    const homeCard = !!booking.is_home_service && active;
+    const assigned = !!card || (booking.therapist_assigned ?? (booking.therapist && booking.therapist !== 'Not Assigned'));
+
+    // Everything except an active home visit: a plain therapist row.
+    document.getElementById('detailTherapistPlain').textContent =
+        card ? card.name : (booking.therapist || 'Not assigned yet');
+    bdShow(document.getElementById('detailTherapistRow'), !homeCard);
+
+    bdShow(document.getElementById('detailArrival'), homeCard);
+    if (!homeCard) return;
+
+    // Step 1: who to expect.
+    nameEl.textContent = card ? card.name : 'Not assigned yet';
 
     const hasPhoto = !!(card && card.photo_url);
     if (hasPhoto) {
@@ -2778,80 +2997,152 @@ function renderDetailTherapist(booking) {
         photo.alt = `Photo of ${card.name}`;
     } else {
         photo.removeAttribute('src');
+        photo.alt = '';
     }
-    show(photo, hasPhoto);
+    bdShow(photo, hasPhoto);
     initials.textContent = card ? (card.initials || '') : '';
-    show(initials, !!card && !hasPhoto, 'inline-flex');
-    show(icon, !card, 'flex');
-    show(badge, !!(card && card.verified), 'inline-flex');
+    bdShow(initials, !!card && !hasPhoto, 'flex');
+    bdShow(icon, !card, 'flex');
+    bdShow(badge, !!(card && card.verified), 'inline-flex');
 
-    const active = ['reserved', 'pending', 'ongoing'].includes(booking.status);
-    note.textContent = (active && !booking.therapist_assigned)
-        ? 'Your therapist will be shown once the branch assigns one.'
-        : '';
-    show(note, note.textContent !== '');
+    note.textContent = assigned ? '' : 'Their photo will show here once the branch assigns your therapist.';
+    bdShow(note, note.textContent !== '');
 
-    // Home service only.
-    const arrival  = document.getElementById('detailArrival');
-    const codeWrap = document.getElementById('detailArrivalCodeWrap');
-    const done     = document.getElementById('detailArrivalDone');
-    show(arrival, booking.is_home_service && active);
+    // Step 2: the code, one digit per box.
+    const code   = (booking.arrival_code || '').toString();
+    const digits = document.querySelectorAll('#detailArrivalCode [data-code-digit]');
+    digits.forEach((el, i) => { el.textContent = code[i] ?? ''; });
+    document.getElementById('detailArrivalCodeSr').textContent =
+        code ? `Arrival code: ${code.split('').join(' ')}` : '';
+    bdShow(document.getElementById('detailArrivalCodeWrap'), code !== '', 'flex');
 
-    document.getElementById('detailArrivalPhone').textContent =
-        booking.branch_phone ? `, and call the branch at ${booking.branch_phone}` : ', and call the branch';
-    document.getElementById('detailArrivalCode').textContent = booking.arrival_code || '';
-    show(codeWrap, !!booking.arrival_code);
+    // After the branch confirms arrival, the code is no longer sent.
+    const done = document.getElementById('detailArrivalDone');
+    document.getElementById('detailArrivalDoneText').textContent =
+        booking.arrival_confirmed_at ? `Arrival confirmed at ${booking.arrival_confirmed_at}.` : '';
+    bdShow(done, !!booking.arrival_confirmed_at, 'flex');
+    bdShow(document.getElementById('detailArrivalSafety'), !booking.arrival_confirmed_at, 'flex');
 
-    done.textContent = booking.arrival_confirmed_at ? `Arrival confirmed at ${booking.arrival_confirmed_at}.` : '';
-    show(done, !!booking.arrival_confirmed_at);
+    const call = document.getElementById('detailArrivalCall');
+    if (booking.branch_phone) {
+        call.href = `tel:${booking.branch_phone.replace(/[^\d+]/g, '')}`;
+        call.setAttribute('aria-label', `Call the branch at ${booking.branch_phone}`);
+    } else {
+        call.removeAttribute('href');
+    }
+    bdShow(call, !!booking.branch_phone, 'inline-flex');
+}
+
+// Switches the panel between the details view and the reschedule form.
+function bdShowView(view, moveFocus = true) {
+    const form = view === 'reschedule';
+
+    bdShow(document.getElementById('bdDetailsView'), !form);
+    bdShow(document.getElementById('bdRescheduleView'), form);
+    bdShow(document.getElementById('bdBackBtn'), form, 'flex');
+    bdShow(document.getElementById('detailStatus'), !form);
+    document.getElementById('bdTitle').textContent = form ? 'Request reschedule' : 'Booking details';
+
+    bdShow(document.getElementById('openRescheduleBtn'), !form && bookingCanReschedule(selectedBooking || {})
+        && selectedBooking?.reschedule_status !== 'pending', 'inline-flex');
+    bdShow(document.getElementById('rescheduleSubmitBtn'), form, 'inline-flex');
+    if (form) bdShow(document.getElementById('bdFooter'), true);
+    else if (selectedBooking) renderDetailReschedule(selectedBooking);
+
+    document.getElementById('bdBody').scrollTop = 0;
+    if (moveFocus) {
+        requestAnimationFrame(() => (form
+            ? document.getElementById('rescheduleDate')
+            : document.getElementById('openRescheduleBtn')?.offsetParent
+                ? document.getElementById('openRescheduleBtn')
+                : document.getElementById('bdTitle'))?.focus());
+    }
+}
+
+function bdIsFormView() {
+    return !document.getElementById('bdRescheduleView').classList.contains('hidden');
+}
+
+// Backdrop: closes the details view, but never discards a half-typed form.
+function bdBackdropClick() {
+    if (bdIsFormView()) return;
+    closeBookingDetailsModal();
+}
+
+// Escape: form → back to details; details → close.
+function bdEscape() {
+    if (bdIsFormView()) closeRescheduleModal();
+    else closeBookingDetailsModal();
 }
 
 function closeBookingDetailsModal() {
     document.getElementById('bookingDetailsModal').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+    bdShowView('details', false);
+
+    // Only unlock the page if no other overlay is still open underneath.
+    const stillOpen = ['appointmentsModal', 'scheduleModal']
+        .some(id => !document.getElementById(id)?.classList.contains('hidden'));
+    if (!stillOpen) document.body.classList.remove('overflow-hidden');
+
+    if (_bdReturnFocus && document.contains(_bdReturnFocus)) _bdReturnFocus.focus();
+    _bdReturnFocus = null;
 }
 
-function statusColor(status) {
-    const map = {
-        reserved:  'text-blue-600 dark:text-blue-400',
-        pending:   'text-amber-600 dark:text-amber-400',
-        ongoing:   'text-emerald-600 dark:text-emerald-400',
-        completed: 'text-gray-500 dark:text-gray-400',
-        cancelled: 'text-red-500 dark:text-red-400',
-    };
-    return map[status] ?? 'text-gray-600 dark:text-gray-400';
-}
+// Keep Tab inside the panel while it is open.
+document.getElementById('bookingDetailsModal')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = [...document.querySelectorAll(
+        '#bdPanel a[href], #bdPanel button:not([disabled]), #bdPanel input:not([type="hidden"]):not([disabled]), #bdPanel textarea:not([disabled])'
+    )].filter(el => el.offsetParent !== null);
+    if (!focusable.length) return;
+
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 // =====================================================
-// RESCHEDULE MODAL
+// RESCHEDULE (a view inside the booking details panel)
 // =====================================================
 function openRescheduleModal() {
-    if (!selectedBooking) return;
+    if (!selectedBooking || !bookingCanReschedule(selectedBooking)) return;
 
-    document.getElementById('rescheduleBookingId').value             = selectedBooking.id;
     document.getElementById('rescheduleCurrentSchedule').textContent =
         `${selectedBooking.date} at ${formatTime(selectedBooking.start_time)}`;
 
-    const today     = getTodayLocal();
-    const timeInput = document.getElementById('rescheduleTime');
+    // Fresh form for a different booking; keep what was typed for the same one.
+    if (_bdFormBookingId !== selectedBooking.id) {
+        _bdFormBookingId = selectedBooking.id;
+        document.getElementById('rescheduleBookingId').value = selectedBooking.id;
 
-    document.getElementById('rescheduleDate').min   = today;
-    document.getElementById('rescheduleDate').value = '';
-    timeInput.value    = '';
-    timeInput.disabled = false;
-    timeInput.removeAttribute('min');
-    timeInput.removeAttribute('max');
-    document.getElementById('rescheduleReason').value            = '';
-    document.getElementById('rescheduleReasonCount').textContent = '0 / 1000 characters';
+        const timeInput = document.getElementById('rescheduleTime');
+        document.getElementById('rescheduleDate').min   = getTodayLocal();
+        document.getElementById('rescheduleDate').value = '';
+        timeInput.value    = '';
+        timeInput.disabled = false;
+        timeInput.removeAttribute('min');
+        timeInput.removeAttribute('max');
+        document.getElementById('rescheduleReason').value = '';
+        updateRescheduleReasonCount();
 
-    document.getElementById('rescheduleError').classList.add('hidden');
-    document.getElementById('rescheduleTimeError').classList.add('hidden');
+        document.getElementById('rescheduleError').classList.add('hidden');
+        document.getElementById('rescheduleTimeError').classList.add('hidden');
+        document.getElementById('rescheduleSubmitBtn').disabled = false;
+    }
 
-    document.getElementById('rescheduleModal').classList.remove('hidden');
+    bdShowView('reschedule');
 }
 
+// "Back": returns to the details view without losing what was typed.
 function closeRescheduleModal() {
-    document.getElementById('rescheduleModal').classList.add('hidden');
+    bdShowView('details');
+}
+
+function updateRescheduleReasonCount() {
+    const len = document.getElementById('rescheduleReason').value.length;
+    document.getElementById('rescheduleReasonCount').textContent =
+        `At least 10 characters · ${len} / 1000`;
 }
 
 async function updateRescheduleAvailableTimes() {
@@ -2956,10 +3247,7 @@ function validateRescheduleTime() {
     return true;
 }
 
-document.getElementById('rescheduleReason')?.addEventListener('input', function () {
-    document.getElementById('rescheduleReasonCount').textContent =
-        `${this.value.length} / 1000 characters`;
-});
+document.getElementById('rescheduleReason')?.addEventListener('input', updateRescheduleReasonCount);
 
 document.getElementById('rescheduleDate')?.addEventListener('change', updateRescheduleAvailableTimes);
 document.getElementById('rescheduleTime')?.addEventListener('change', validateRescheduleTime);
@@ -2990,7 +3278,7 @@ async function submitRescheduleRequest() {
 
     errorEl.classList.add('hidden');
     submitBtn.disabled  = true;
-    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Sending…</span>';
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -3017,9 +3305,9 @@ async function submitRescheduleRequest() {
             return;
         }
 
-        closeRescheduleModal();
+        _bdFormBookingId = null;   // next time, start with an empty form
         closeBookingDetailsModal();
-        showSpaToast('Reschedule request submitted! Waiting for approval.', 'success');
+        showSpaToast('Reschedule request sent. The branch will review it.', 'success');
 
         loadAppointments();
         loadSchedule();
@@ -3029,7 +3317,7 @@ async function submitRescheduleRequest() {
         errorEl.classList.remove('hidden');
     } finally {
         submitBtn.disabled  = false;
-        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Submit Request';
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane" aria-hidden="true"></i> <span>Send request</span>';
     }
 }
 
@@ -3549,8 +3837,8 @@ const escapeCloseOrder = [
     ['businessInfoModal',   () => closeBusinessInfo()],      // z-[150]
     ['logoutModal',         () => closeLogoutModal()],       // z-[145]
     ['reviewsModal',        () => closeReviewsModal()],      // z-[145]
-    ['rescheduleModal',     () => closeRescheduleModal()],   // z-[130]
-    ['bookingDetailsModal', () => closeBookingDetailsModal()], // z-[125]
+    ['bookingDetailsModal', () => bdEscape()],               // z-[125]; the form view goes back first
+    ['appointmentsModal',   () => closeAppointmentsModal()], // z-[120]
     ['termsModal',          () => closeTermsModal()],        // z-[120]
     ['applicationModal',    () => closeApplicationModal()],  // z-[115]
     ['bookingModal',        () => closeBookingModal()],      // z-[110]
@@ -3577,6 +3865,7 @@ window.closeAppointmentsModal   = closeAppointmentsModal;
 window.openScheduleModal        = openScheduleModal;
 window.closeScheduleModal       = closeScheduleModal;
 window.switchTab                = switchTab;
+window.browseSpasFromAppointments = browseSpasFromAppointments;
 window.selectDay                = selectDay;
 window.changeMonth              = changeMonth;
 window.openProfileModal         = openProfileModal;
@@ -3591,6 +3880,7 @@ window.openBookingDetailsModal  = openBookingDetailsModal;
 window.closeBookingDetailsModal = closeBookingDetailsModal;
 window.openRescheduleModal      = openRescheduleModal;
 window.closeRescheduleModal     = closeRescheduleModal;
+window.bdBackdropClick          = bdBackdropClick;
 window.submitRescheduleRequest  = submitRescheduleRequest;
 window.openRatingModal          = openRatingModal;
 window.closeRatingModal         = closeRatingModal;
@@ -3821,7 +4111,7 @@ async function submitRating() {
     const submitBtn = document.getElementById('ratingSubmitBtn');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Sending…</span>';
     }
 
     try {

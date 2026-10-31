@@ -56,6 +56,40 @@ class Booking extends Model
     /** Statuses where the booking is still coming up or running. */
     public const ACTIVE_STATUSES = ['reserved', 'pending', 'ongoing'];
 
+    /** The customer didn't come. Set by staff, only after the start time (UI rework Phase 3). */
+    public const NO_SHOW = 'no_show';
+
+    /** Statuses that end a booking; it can't be edited, processed or cancelled after these. */
+    public const FINISHED_STATUSES = ['completed', 'cancelled', self::NO_SHOW];
+
+    /**
+     * Staff-facing words for each status, in one place. Blade reads this
+     * directly and the polling scripts get it through @json, so a status
+     * never shows as a raw value like "No_show".
+     */
+    public const STATUS_LABELS = [
+        'reserved'    => 'Reserved',
+        'pending'     => 'Pending',
+        'ongoing'     => 'Ongoing',
+        'completed'   => 'Completed',
+        'cancelled'   => 'Cancelled',
+        self::NO_SHOW => 'No-show',
+    ];
+
+    public static function statusLabel(?string $status): string
+    {
+        return self::STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', (string) $status));
+    }
+
+    /** Staff may mark a no-show only once the appointment has started and it isn't finished. */
+    public function canBeMarkedNoShow(): bool
+    {
+        $start = $this->startsAt();
+
+        return in_array($this->status, ['pending', 'ongoing'], true)
+            && $start !== null && now()->gte($start);
+    }
+
     protected static function booted(): void
     {
         // Every online home-service booking gets a 4-digit arrival code (Q41).
@@ -101,6 +135,30 @@ class Booking extends Model
     public function isArrivalConfirmed(): bool
     {
         return $this->arrival_confirmed_at !== null;
+    }
+
+    /** When the appointment starts, in app time. Null when the date or time is missing. */
+    public function startsAt(): ?Carbon
+    {
+        if (! $this->appointment_date || blank($this->start_time)) {
+            return null;
+        }
+
+        return Carbon::parse($this->appointment_date->toDateString().' '.$this->start_time);
+    }
+
+    /**
+     * A customer can ask to reschedule only before the appointment starts.
+     * 'pending' and 'ongoing' are clock-driven (start time reached), so only
+     * 'reserved' qualifies, and the start time is checked too in case the
+     * status sync hasn't run yet. Web, the app API and the details screen all
+     * read this one rule.
+     */
+    public function canRequestReschedule(): bool
+    {
+        $start = $this->startsAt();
+
+        return $this->status === 'reserved' && $start !== null && now()->lt($start);
     }
 
     public function arrivalConfirmedBy()

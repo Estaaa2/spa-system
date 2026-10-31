@@ -13,6 +13,7 @@
             'ongoing'   => ['label' => 'Ongoing',   'accent' => '#059669', 'badge' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'],
             'completed' => ['label' => 'Completed', 'accent' => '#64748b', 'badge' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
             'cancelled' => ['label' => 'Cancelled', 'accent' => '#dc2626', 'badge' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'],
+            'no_show'   => ['label' => 'No-show',   'accent' => '#ea580c', 'badge' => 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'],
         ];
         $statusFallback = ['label' => 'Unknown', 'accent' => '#8B7355', 'badge' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'];
 
@@ -345,7 +346,7 @@
                                                 18
                                             );
 
-                                            $statusTxt = ucfirst($b->status);
+                                            $statusTxt = \App\Models\Booking::statusLabel($b->status);
 
                                             $durHours     = intdiv($durationMinutes, 60);
                                             $durRemainder = $durationMinutes % 60;
@@ -395,6 +396,7 @@
                                              data-end-time="{{ $endAt->format('g:i A') }}"
                                              data-duration="{{ $durationTxt }}"
                                              data-status="{{ $statusTxt }}"
+                                             data-status-key="{{ $b->status }}"
                                              data-reschedule-id="{{ $reschedule?->id }}"
                                              data-reschedule-status="{{ $reschedule?->status }}"
                                              data-reschedule-date="{{ $reschedule?->requested_date?->format('F j, Y') }}"
@@ -739,7 +741,8 @@
 
             const statusEl = document.getElementById('modalStatus');
             statusEl.innerText = el.dataset.status || '';
-            const s = (el.dataset.status || '').toLowerCase();
+            // The key, not the label: "No-show" lowercased isn't "no_show".
+            const s = el.dataset.statusKey || (el.dataset.status || '').toLowerCase();
             statusEl.className = 'inline-block mt-1.5 px-2.5 py-0.5 text-xs font-medium rounded-full '
                 + (STATUS_CHIP_CLASSES[s] || STATUS_CHIP_FALLBACK);
 

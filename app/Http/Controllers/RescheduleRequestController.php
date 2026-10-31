@@ -30,10 +30,18 @@ class RescheduleRequestController extends Controller
             ->where('customer_user_id', Auth::id())
             ->firstOrFail();
 
-        // Only allow reschedule if booking is reserved or pending
-        if (!in_array($booking->status, ['reserved', 'pending'])) {
+        // Only before the appointment starts (Booking::canRequestReschedule).
+        // The app API posts here too, so this covers both.
+        if (! $booking->canRequestReschedule()) {
             return response()->json([
-                'message' => 'This booking can no longer be rescheduled.'
+                'message' => 'This appointment has already started or ended, so it can no longer be rescheduled. Please call the branch.'
+            ], 422);
+        }
+
+        // A time earlier today is not a valid new slot.
+        if (Carbon::parse($validated['requested_date'].' '.$validated['requested_time'])->lte(now())) {
+            return response()->json([
+                'message' => 'Please choose a time that hasn\'t passed yet.'
             ], 422);
         }
 

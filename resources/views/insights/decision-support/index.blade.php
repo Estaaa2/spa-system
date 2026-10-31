@@ -109,7 +109,10 @@
             <p class="mt-2 text-3xl font-bold {{ $kpis['cancel_rate'] >= 20 ? 'text-red-500' : ($kpis['cancel_rate'] >= 10 ? 'text-amber-500' : 'text-gray-900 dark:text-white') }}">
                 {{ $kpis['cancel_rate'] }}%
             </p>
-            <p class="mt-1 text-xs text-gray-400">of bookings this period</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">of bookings this period</p>
+            <p class="mt-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                <span class="inline-block w-2 h-2 mr-1 bg-orange-400 rounded-full" aria-hidden="true"></span>No-show rate: {{ $kpis['no_show_rate'] ?? 0 }}%
+            </p>
         </div>
 
     </div>

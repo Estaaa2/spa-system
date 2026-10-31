@@ -20,7 +20,8 @@ class BookingCompletionService
                 return $lockedBooking;
             }
 
-            if ($lockedBooking->status === 'cancelled') {
+            // Cancelled or no-show: the service never happened, so nothing is consumed.
+            if (in_array($lockedBooking->status, ['cancelled', \App\Models\Booking::NO_SHOW], true)) {
                 return $lockedBooking;
             }
 

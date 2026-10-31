@@ -97,7 +97,7 @@ main.pt-20 {
    buttons aren't hidden behind Android gesture bars or the iOS home
    indicator, and aren't clipped under a notch in landscape. */
 #appointmentsModal, #scheduleModal, #logoutModal, #bookingDetailsModal,
-#rescheduleModal, #spaModal, #bookingModal, #applicationModal,
+#spaModal, #bookingModal, #applicationModal,
 #businessInfoModal, #termsModal, #ratingModal, #rateReminderModal,
 #profileModal, #photoLightbox {
     padding-bottom: var(--safe-bottom);
@@ -115,4 +115,214 @@ main.pt-20 {
    behind the status bar rather than showing a hard color seam above it */
 .nav-glass {
     background-clip: padding-box;
+}
+
+/* ============ Booking details: sheet on phones, dialog from sm ============
+   UI rework Phase 1. The panel is a flex column (header / scrolling body /
+   footer) capped at the viewport, so long content scrolls inside it instead
+   of running off-screen behind a locked body. Heights are raw CSS with an
+   @supports guard rather than Tailwind's h-dvh (design language §8). */
+#bookingDetailsModal, #appointmentsModal {
+    /* The sheet sits on the bottom edge; its last row adds the safe area instead. */
+    padding-bottom: 0;
+}
+.bd-panel, .ap-panel {
+    max-height: calc(100vh - 1.5rem);
+    animation: bd-sheet-in .28s cubic-bezier(.2, .8, .2, 1);
+}
+@supports (height: 100dvh) {
+    .bd-panel, .ap-panel { max-height: calc(100dvh - 1.5rem); }
+}
+.bd-footer {
+    padding-bottom: calc(1rem + var(--safe-bottom));
+}
+@media (min-width: 640px) {
+    .bd-panel, .ap-panel {
+        max-height: calc(100vh - 4rem);
+        animation-name: bd-dialog-in;
+        animation-duration: .2s;
+    }
+    @supports (height: 100dvh) {
+        .bd-panel, .ap-panel { max-height: calc(100dvh - 4rem); }
+    }
+    .bd-footer { padding-bottom: 1.25rem; }
+}
+@keyframes bd-sheet-in {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@keyframes bd-dialog-in {
+    from { transform: scale(.98); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bd-panel, .ap-panel { animation: none; }
+}
+
+/* ============ My appointments list (UI rework Phase 2) ============
+   Built at runtime in welcome.js, so it is plain CSS with a dark-scheme
+   block (design language §4), like .svc-card. Surface colours match the
+   panel: white / gray-800. Text on white: #3C2F23 (titles), #4b5563
+   (gray-600, 7.6:1) for secondary, #6b7280 (gray-500, 4.8:1) minimum. */
+.ap-body { padding-bottom: calc(.75rem + var(--safe-bottom)); }
+
+.ap-tab {
+    flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    min-height: 48px;
+    font-size: .875rem; font-weight: 600;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s ease, border-color .15s ease;
+}
+.ap-tab:hover { color: #6F5430; }
+.ap-tab[aria-selected="true"] { color: #6F5430; border-bottom-color: #8B7355; }
+.ap-tab:focus-visible { outline: 2px solid #8B7355; outline-offset: -4px; border-radius: .75rem; }
+.ap-tab-count {
+    min-width: 1.25rem; padding: 0 .4rem;
+    font-size: .75rem; line-height: 1.25rem; font-weight: 600;
+    border-radius: 999px; background: #F6EFE6; color: #6F5430;
+}
+
+.apt-group { padding: .25rem 0 .5rem; }
+.apt-group-title {
+    position: sticky; top: 0; z-index: 1;
+    margin: 0; padding: .875rem 1rem .5rem;
+    font-size: .75rem; font-weight: 600; letter-spacing: .01em;
+    color: #4b5563; background: #ffffff;
+}
+.apt-group-title--now { color: #047857; }
+.apt-list { list-style: none; margin: 0; padding: 0; }
+.apt-item + .apt-item { border-top: 1px solid rgba(0, 0, 0, .06); }
+
+.apt-row {
+    display: flex; align-items: flex-start; gap: .875rem;
+    width: 100%; min-height: 44px;
+    padding: .875rem 1rem;
+    text-align: left; background: transparent; cursor: pointer;
+    transition: background-color .15s ease;
+}
+.apt-row:hover { background: rgba(246, 239, 230, .6); }
+.apt-row:focus-visible { outline: 2px solid #8B7355; outline-offset: -2px; border-radius: .75rem; }
+
+.apt-when { flex: none; width: 4.5rem; padding-top: .0625rem; }
+.apt-when-main { display: block; font-size: .875rem; font-weight: 600; color: #3C2F23; font-variant-numeric: tabular-nums; }
+.apt-when-sub  { display: block; margin-top: .125rem; font-size: .75rem; color: #6b7280; font-variant-numeric: tabular-nums; }
+
+.apt-main { flex: 1; min-width: 0; }
+.apt-title, .apt-sub { display: block; }
+.apt-title { margin: 0; font-size: .9375rem; font-weight: 600; line-height: 1.35; color: #3C2F23; }
+.apt-sub   { margin: .125rem 0 0; font-size: .8125rem; color: #4b5563; }
+.apt-chips { display: flex; flex-wrap: wrap; gap: .375rem; margin-top: .5rem; }
+.apt-chip {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .125rem .5rem;
+    font-size: .75rem; font-weight: 500; line-height: 1.25rem;
+    border-radius: 999px; background: #F6EFE6; color: #6F5430;
+}
+.apt-chip i { font-size: .6875rem; }
+.apt-chip--verified i { color: #047857; }
+.apt-chip--warn { background: #fef3c7; color: #92400e; }
+.apt-chip--now  { background: #d1fae5; color: #065f46; }
+.apt-pill {
+    display: inline-flex; align-items: center;
+    padding: .125rem .5rem;
+    font-size: .75rem; font-weight: 600; line-height: 1.25rem;
+    border-radius: 999px;
+}
+.apt-pill--confirmed  { background: #dbeafe; color: #1d4ed8; }
+.apt-pill--progress   { background: #d1fae5; color: #047857; }
+.apt-pill--completed  { background: #f1f5f9; color: #334155; }
+.apt-pill--cancelled  { background: #fee2e2; color: #b91c1c; }
+.apt-pill--missed     { background: #ffedd5; color: #9a3412; }
+.apt-pill--ended      { background: #f1f5f9; color: #334155; }
+.apt-chev { flex: none; margin-top: .125rem; color: #9ca3af; font-size: .75rem; }
+
+/* Second line of actions under a row (rate / rated), aligned with the title. */
+.apt-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem;
+    padding: 0 1rem .875rem calc(1rem + 4.5rem + .875rem);
+}
+.apt-rate {
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    min-height: 44px; padding: 0 1rem;
+    font-size: .875rem; font-weight: 600;
+    color: #6F5430; background: transparent;
+    border: 1px solid rgba(139, 115, 85, .45); border-radius: .75rem;
+    transition: background-color .15s ease;
+}
+.apt-rate:hover { background: rgba(139, 115, 85, .08); }
+.apt-rate:focus-visible { outline: 2px solid #8B7355; outline-offset: 2px; }
+.apt-rated { display: inline-flex; align-items: center; gap: .375rem; font-size: .8125rem; color: #4b5563; }
+.apt-rated .fa-star { font-size: .75rem; color: #d1d5db; }
+.apt-rated .fa-star.is-on { color: #D2A85B; }
+
+.apt-empty { padding: 3rem 1.5rem; text-align: center; }
+.apt-empty-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 3rem; height: 3rem; border-radius: 999px;
+    background: #F6EFE6; color: #8B7355; font-size: 1.125rem;
+}
+.apt-empty-title { margin: .875rem 0 0; font-size: 1rem; font-weight: 600; color: #3C2F23; }
+.apt-empty-text  { margin: .25rem auto 0; max-width: 20rem; font-size: .875rem; color: #4b5563; }
+.apt-empty-cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    min-height: 44px; margin-top: 1.25rem; padding: 0 1.25rem;
+    font-size: .875rem; font-weight: 600; color: #fff; border-radius: .75rem;
+}
+.apt-empty-cta:focus-visible { outline: 2px solid #8B7355; outline-offset: 2px; }
+
+@media (min-width: 640px) {
+    .apt-group-title, .apt-row { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .apt-actions { padding-left: calc(1.5rem + 4.5rem + .875rem); padding-right: 1.5rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+    .ap-tab { color: #9ca3af; }
+    .ap-tab:hover, .ap-tab[aria-selected="true"] { color: #C4A97D; }
+    .ap-tab[aria-selected="true"] { border-bottom-color: #C4A97D; }
+    .ap-tab:focus-visible { outline-color: #C4A97D; }
+    .ap-tab-count { background: rgba(196, 169, 125, .14); color: #C4A97D; }
+
+    .apt-group-title { color: #9ca3af; background: #1f2937; }
+    .apt-group-title--now { color: #6ee7b7; }
+    .apt-item + .apt-item { border-top-color: rgba(255, 255, 255, .07); }
+    .apt-row:hover { background: rgba(255, 255, 255, .04); }
+    .apt-row:focus-visible { outline-color: #C4A97D; }
+    .apt-when-main, .apt-title { color: #ffffff; }
+    .apt-when-sub { color: #9ca3af; }
+    .apt-sub { color: #d1d5db; }
+    .apt-chip { background: rgba(196, 169, 125, .12); color: #C4A97D; }
+    .apt-chip--verified i { color: #6ee7b7; }
+    .apt-chip--warn { background: rgba(245, 158, 11, .15); color: #fcd34d; }
+    .apt-chip--now  { background: rgba(16, 185, 129, .15); color: #6ee7b7; }
+    .apt-pill--confirmed { background: rgba(30, 58, 138, .4); color: #93c5fd; }
+    .apt-pill--progress  { background: rgba(6, 78, 59, .4); color: #6ee7b7; }
+    .apt-pill--completed, .apt-pill--ended { background: rgba(15, 23, 42, .4); color: #cbd5e1; }
+    .apt-pill--cancelled { background: rgba(127, 29, 29, .4); color: #fca5a5; }
+    .apt-pill--missed    { background: rgba(124, 45, 18, .4); color: #fdba74; }
+    .apt-chev { color: #6b7280; }
+    .apt-rate { color: #C4A97D; border-color: rgba(196, 169, 125, .35); }
+    .apt-rate:hover { background: rgba(196, 169, 125, .08); }
+    .apt-rate:focus-visible, .apt-empty-cta:focus-visible { outline-color: #C4A97D; }
+    .apt-rated { color: #d1d5db; }
+    .apt-rated .fa-star { color: #4b5563; }
+    .apt-rated .fa-star.is-on { color: #D2A85B; }
+    .apt-empty-icon { background: rgba(196, 169, 125, .12); color: #C4A97D; }
+    .apt-empty-title { color: #ffffff; }
+    .apt-empty-text { color: #d1d5db; }
+}
+
+
+.apt-pill.hidden { display: none; }
+
+/* The list keeps one height while switching tabs, so the sheet doesn't jump:
+   full sheet height on phones, a steady minimum from sm up. */
+.ap-panel { height: calc(100vh - 1.5rem); }
+@supports (height: 100dvh) {
+    .ap-panel { height: calc(100dvh - 1.5rem); }
+}
+@media (min-width: 640px) {
+    .ap-panel { height: auto; min-height: min(36rem, calc(100vh - 4rem)); }
 }

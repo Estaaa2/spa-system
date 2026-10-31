@@ -12,6 +12,7 @@
         'ongoing'   => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
         'completed' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
         'cancelled' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+        'no_show'   => 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
     ];
 
     $sourceClasses = [
@@ -27,6 +28,7 @@
         'reserved'  => 'bg-blue-400 border-blue-400',
         'completed' => 'bg-gray-300 border-gray-300',
         'cancelled' => 'bg-red-300 border-red-300',
+        'no_show'   => 'bg-orange-300 border-orange-300',
     ];
 
     // Resolve all permission flags once using hasBranchPermission() so that
@@ -481,7 +483,7 @@
                             $startC = \Carbon\Carbon::parse($booking->start_time);
                             $endC   = \Carbon\Carbon::parse($booking->end_time);
                             $isNow  = $booking->status === 'ongoing';
-                            $isPast = in_array($booking->status, ['completed', 'cancelled']);
+                            $isPast = in_array($booking->status, \App\Models\Booking::FINISHED_STATUSES);
                         @endphp
                         <div class="flex items-start gap-4 px-4 py-4 sm:px-6 transition-colors
                                     hover:bg-gray-50 dark:hover:bg-gray-900/40
@@ -514,7 +516,7 @@
                                     </div>
                                     <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full
                                         {{ $statusClasses[$booking->status] ?? 'bg-gray-100 text-gray-600' }}">
-                                        {{ ucfirst($booking->status) }}
+                                        {{ \App\Models\Booking::statusLabel($booking->status) }}
                                     </span>
                                 </div>
                                 @if($booking->customer_phone)
@@ -735,7 +737,7 @@
                         $startC = \Carbon\Carbon::parse($booking->start_time);
                         $endC   = \Carbon\Carbon::parse($booking->end_time);
                         $isNow  = $booking->status === 'ongoing';
-                        $isPast = in_array($booking->status, ['completed', 'cancelled']);
+                        $isPast = in_array($booking->status, \App\Models\Booking::FINISHED_STATUSES);
                     @endphp
                     <div class="flex items-start gap-4 px-4 py-4 sm:px-6 transition-colors
                                 hover:bg-gray-50 dark:hover:bg-gray-900/40
@@ -762,7 +764,7 @@
                                 </div>
                                 <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full
                                     {{ $statusClasses[$booking->status] ?? 'bg-gray-100 text-gray-600' }}">
-                                    {{ ucfirst($booking->status) }}
+                                    {{ \App\Models\Booking::statusLabel($booking->status) }}
                                 </span>
                             </div>
                             <div class="flex items-center gap-3 mt-1.5">
@@ -951,8 +953,8 @@
              'activeSub'=>'Pending past their start time','idleSub'=>'All on time'],
             ['key'=>'noshow','field'=>'no_shows','tone'=>'red','icon'=>'fa-user-xmark',
              'href'=>route('appointments.index'),'count'=>$cancelled,
-             'singular'=>'Cancellation Today','plural'=>'Cancellations Today',
-             'activeSub'=>'Slots freed up today','idleSub'=>'No cancellations'],
+             'singular'=>'No-show Today','plural'=>'No-shows Today',
+             'activeSub'=>'Customers who didn\'t come','idleSub'=>'No no-shows today'],
             ['key'=>'overloaded','field'=>'overbooked_therapists','tone'=>'red','icon'=>'fa-user-nurse',
              'href'=>route('schedule.index'),'count'=>$overloaded,
              'singular'=>'Overloaded','plural'=>'Overloaded',
@@ -1060,6 +1062,7 @@
                                 ['id' => 'bar-pending',   'label' => 'Pending',   'count' => $pendingToday   ?? 0, 'color' => 'bg-amber-400'],
                                 ['id' => 'bar-reserved',  'label' => 'Reserved',  'count' => $reservedToday  ?? 0, 'color' => 'bg-blue-400'],
                                 ['id' => 'bar-cancelled', 'label' => 'Cancelled', 'count' => $cancelledToday ?? 0, 'color' => 'bg-red-400'],
+                                ['id' => 'bar-noshow',    'label' => 'No-show',   'count' => $noShowToday    ?? 0, 'color' => 'bg-orange-400'],
                             ];
                             $total = $todayCount ?? 0;
                         @endphp
@@ -1118,6 +1121,8 @@
     const STATUS_CLASSES     = @json($statusClasses);
     const SOURCE_CLASSES     = @json($sourceClasses);
     const STATUS_DOT_CLASSES = @json($statusDotClasses);
+    const STATUS_LABELS      = @json(\App\Models\Booking::STATUS_LABELS);
+    const FINISHED_STATUSES  = @json(\App\Models\Booking::FINISHED_STATUSES);
     const BOOKING_URL = @json($canBookingBtn ? route('booking') : null);
 
     let lastUpdatedAt = null;
@@ -1201,6 +1206,7 @@
             { id: 'bar-pending',   count: kpis.pending_today   },
             { id: 'bar-reserved',  count: kpis.reserved_today  },
             { id: 'bar-cancelled', count: kpis.cancelled_today },
+            { id: 'bar-noshow',    count: kpis.no_show_today ?? 0 },
         ];
         bars.forEach(({ id, count }) => {
             const row  = document.getElementById(id + '-row');
@@ -1258,7 +1264,7 @@
     function buildTimelineRow(b, opts) {
         const o       = opts || {};
         const isNow   = b.status === 'ongoing';
-        const isPast  = b.status === 'completed' || b.status === 'cancelled';
+        const isPast  = FINISHED_STATUSES.includes(b.status);
         const rowBg   = isNow ? 'bg-emerald-50/60 dark:bg-emerald-900/10' : '';
         const opacity = isPast ? 'opacity-60' : '';
 
@@ -1317,7 +1323,7 @@
                         ${homeLine}
                     </div>
                     <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${stClass(b.status)}">
-                        ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                        ${STATUS_LABELS[b.status] ?? (b.status.charAt(0).toUpperCase() + b.status.slice(1).replace(/_/g, ' '))}
                     </span>
                 </div>
                 ${metaRow}

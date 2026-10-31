@@ -61,6 +61,12 @@ class DecisionSupportController extends Controller
             ? round(($cancelledCount / $totalCurrent) * 100, 1)
             : 0;
 
+        // Shown next to the cancel rate (UI rework Phase 3, decision 3A).
+        $noShowCount = $currentBookings->where('status', Booking::NO_SHOW)->count();
+        $noShowRate  = $totalCurrent > 0
+            ? round(($noShowCount / $totalCurrent) * 100, 1)
+            : 0;
+
         // ── Spa Rating KPIs ───────────────────────────────────────────────
         // ratings has no spa_id/branch_id of its own — only booking_id — so
         // scoping to "this spa's current branch" goes through bookings.
@@ -215,6 +221,7 @@ class DecisionSupportController extends Controller
                 'revenue'           => $revenueCurrent,
                 'revenue_growth'    => $revenueGrowth,
                 'cancel_rate'       => $cancelRate,
+                'no_show_rate'      => $noShowRate,
                 'avg_spa_rating'    => $avgSpaRating,
                 'spa_rating_prev'   => $avgSpaRatingPrev,
                 'spa_rating_growth' => $spaRatingGrowth,
