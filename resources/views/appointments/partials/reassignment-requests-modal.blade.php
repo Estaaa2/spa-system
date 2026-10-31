@@ -18,11 +18,11 @@
         <div>
             <h2 class="text-lg font-semibold text-red-900 dark:text-red-200">Reassignment Requested</h2>
             <p class="text-sm text-red-700 dark:text-red-300">
-                A therapist has flagged they can't make an appointment — pick a replacement or reject the request.
+                A therapist can't make an appointment, or is no longer identity-verified for an online home-service booking — pick a replacement or reject the request.
             </p>
         </div>
         <span id="reassignmentBadge"
-              class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+              class="inline-flex items-center flex-shrink-0 whitespace-nowrap px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
             0 Pending
         </span>
     </div>
@@ -157,12 +157,14 @@
                             <p class="mt-1 font-medium text-gray-900 dark:text-white">${esc(r.appointment_date)} · ${esc(r.start_time_fmt)}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Requested by</p>
+                            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">${r.source === 'unverified' ? 'Therapist' : 'Requested by'}</p>
                             <p class="mt-1 font-medium text-gray-900 dark:text-white">${esc(r.old_therapist)}</p>
+                            ${r.source === 'unverified' ? '<p class="mt-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">Not identity-verified anymore (flagged automatically)</p>' : ''}
                         </div>
                     </div>
                     <button type="button" onclick="openReassignReviewModal(this)"
                             data-id="${r.id}"
+                            data-booking-id="${r.booking_id}"
                             data-customer="${esc(r.customer_name)}"
                             data-treatment="${esc(r.treatment)}"
                             data-treatment-code="${esc(r.treatment_code)}"
@@ -216,6 +218,7 @@
         const d = btn.dataset;
         currentReassignment = {
             id: d.id,
+            booking_id: d.bookingId,
             customer_name: d.customer,
             treatment: d.treatment,
             treatment_code: d.treatmentCode,
