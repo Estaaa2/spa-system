@@ -108,18 +108,25 @@ class BranchProfile extends Model
             ->all();
     }
 
-    // This method returns the URL of a fallback photo to be used when no photos are available for a branch profile.
-    public static function fallbackPhotoUrl(): string
+    /**
+     * Shown when a spa or treatment has no photo (UI rework Phase 4). A neutral
+     * placeholder that can't pass for a real photo. It lives in public/images,
+     * which is in the repo; the old storage/branch_profiles/emptyspa.jpg path
+     * was never committed, so every fallback was a broken image.
+     *
+     * Web pages get the SVG (it follows dark mode). The mobile app gets the
+     * PNG, because Flutter's Image.network can't draw SVG on its own.
+     */
+    public static function fallbackPhotoUrl(bool $forApp = false): string
     {
-        return asset('storage/branch_profiles/emptyspa.jpg');
+        return asset($forApp ? 'images/placeholder-spa.png' : 'images/placeholder-spa.svg');
     }
 
-    // This method returns the URL of the thumbnail photo for a given branch profile. 
-    // If the profile has photos, it returns the URL of the first photo; otherwise, it returns the fallback photo URL.
-    public static function thumbnailFor(?self $profile): string
+    // URL of the card thumbnail: the first real photo, or the placeholder.
+    public static function thumbnailFor(?self $profile, bool $forApp = false): string
     {
         $photos = self::photoPayload($profile);
 
-        return $photos[0]['url'] ?? self::fallbackPhotoUrl();
+        return $photos[0]['url'] ?? self::fallbackPhotoUrl($forApp);
     }
 }

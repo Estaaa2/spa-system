@@ -22,7 +22,7 @@
     function getImageUrl($path)
     {
         if (empty($path)) {
-            return asset('storage/branch_profiles/emptyspa.jpg');
+            return \App\Models\BranchProfile::fallbackPhotoUrl();
         }
 
         // If already has branch_profiles in path
@@ -40,7 +40,7 @@
 
 <body
     class="bg-[#F6EFE6] dark:bg-gray-900 text-gray-800 dark:text-gray-100 selection:bg-[#D2A85B]/30 selection:text-[#3C2F23]"
-    data-fallback-image="{{ asset('storage/branch_profiles/emptyspa.jpg') }}">
+    data-fallback-image="{{ \App\Models\BranchProfile::fallbackPhotoUrl() }}">
 
     <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 nav-glass" id="topNav">
         <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
@@ -565,61 +565,68 @@
             </div>
         </div>
 
-        <!-- ================= MY SCHEDULE MODAL ================= -->
-        <div id="scheduleModal" class="fixed inset-0 z-[120] hidden">
+        <!-- ================= MY SCHEDULE (sheet on phones, dialog from sm) =================
+             UI rework Phase 4. Same shell and rows as My appointments; this one is
+             about the month: a list grouped by day, or a calendar with the chosen
+             day's appointments under it. Built in welcome.js (renderSchedule) and
+             styled by the .apt-* / .sc-* rules in landing.css. -->
+        <div id="scheduleModal" class="fixed inset-0 z-[120] hidden" role="dialog" aria-modal="true"
+            aria-labelledby="scTitle">
             <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeScheduleModal()"></div>
-            <div class="relative mx-auto w-[92%] max-w-2xl mt-10 sm:mt-16">
-                <div
-                    class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
-                    <div
-                        class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
-                        <div class="flex items-center gap-3">
-                            <button onclick="changeMonth(-1)"
-                                class="flex items-center justify-center w-8 h-8 text-gray-700 transition rounded-lg hover:bg-black/5 dark:hover:bg-white/10 dark:text-gray-300">
-                                <i class="text-sm fa-solid fa-chevron-left"></i>
-                            </button>
-                            <h3 id="calendarTitle" class="text-lg font-semibold text-[#3C2F23] dark:text-white">March
-                                2026</h3>
-                            <button onclick="changeMonth(1)"
-                                class="flex items-center justify-center w-8 h-8 text-gray-700 transition rounded-lg hover:bg-black/5 dark:hover:bg-white/10 dark:text-gray-300">
-                                <i class="text-sm fa-solid fa-chevron-right"></i>
-                            </button>
-                            <button type="button" onclick="toggleScheduleView()" id="scheduleViewToggleBtn"
-                                title="Switch to calendar view"
-                                class="flex items-center justify-center w-8 h-8 ml-1 text-[#8B7355] dark:text-[#C4A97D] transition rounded-lg hover:bg-[#F6EFE6] dark:hover:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
-                                <i class="text-sm fa-solid fa-calendar-days"></i>
-                            </button>
-                        </div>
-                        <button onclick="closeScheduleModal()"
-                            class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
-                            <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
+            <div class="absolute inset-x-0 bottom-0 pointer-events-none sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+                <div id="scPanel"
+                    class="ap-panel pointer-events-auto flex flex-col w-full sm:max-w-xl bg-white dark:bg-gray-800 shadow-2xl rounded-t-3xl sm:rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                    <div class="flex items-center justify-between gap-2 px-4 pt-3 shrink-0 sm:px-6">
+                        <h2 id="scTitle" tabindex="-1" class="text-lg font-semibold text-[#3C2F23] dark:text-white focus:outline-none">My schedule</h2>
+                        <button type="button" onclick="closeScheduleModal()" aria-label="Close"
+                            class="flex items-center justify-center -mr-2 w-11 h-11 shrink-0 transition rounded-xl text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                            <i class="text-lg fa-solid fa-xmark" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <div class="p-6 overflow-y-auto max-h-[65vh]">
-                        {{-- LIST VIEW (default) --}}
-                        <div id="scheduleListView">
-                            <div id="scheduleListContent" class="space-y-3"></div>
-                        </div>
 
-                        {{-- CALENDAR VIEW (optional, toggled via the icon in the header) --}}
+                    <!-- Month and view controls -->
+                    <div class="flex items-center justify-between gap-3 px-2 pb-3 border-b shrink-0 sm:px-4 border-black/5 dark:border-white/10">
+                        <div class="flex items-center">
+                            <button type="button" id="scPrevMonth" onclick="changeMonth(-1)" aria-label="Previous month" class="sc-icon-btn">
+                                <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                            </button>
+                            <p id="calendarTitle" class="min-w-[8.5rem] text-center text-sm font-semibold text-[#3C2F23] dark:text-white" aria-live="polite"></p>
+                            <button type="button" id="scNextMonth" onclick="changeMonth(1)" aria-label="Next month" class="sc-icon-btn">
+                                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="sc-seg" role="group" aria-label="View">
+                            <button type="button" id="scViewList" class="sc-seg-btn" aria-pressed="true" onclick="setScheduleView('list')">
+                                <i class="fa-solid fa-list" aria-hidden="true"></i><span>List</span>
+                            </button>
+                            <button type="button" id="scViewCalendar" class="sc-seg-btn" aria-pressed="false" onclick="setScheduleView('calendar')">
+                                <i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>Calendar</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="scBody" class="ap-body flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                        <div id="scheduleListView">
+                            <div id="scheduleListContent">
+                                <div class="flex items-center justify-center py-16">
+                                    <i class="text-2xl text-gray-300 dark:text-gray-600 fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                                    <span class="sr-only">Loading your schedule</span>
+                                </div>
+                            </div>
+                        </div>
                         <div id="scheduleCalendarView" class="hidden">
-                            <div class="grid grid-cols-7 mb-2">
-                                @foreach (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $day)
-                                    <div
-                                        class="py-2 text-xs font-semibold text-center text-gray-400 dark:text-gray-500">
-                                        {{ $day }}</div>
-                                @endforeach
+                            <div class="sc-cal">
+                                <div class="sc-weekdays" aria-hidden="true">
+                                    @foreach (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $day)
+                                        <span>{{ $day }}</span>
+                                    @endforeach
+                                </div>
+                                <div id="calendarGrid" class="sc-grid"></div>
                             </div>
-                            <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
-                            <div id="selectedDayBookings" class="hidden mt-6 space-y-3">
-                                <h4 id="selectedDayTitle"
-                                    class="text-sm font-semibold text-[#3C2F23] dark:text-white"></h4>
-                                <div id="selectedDayContent"></div>
-                            </div>
+                            <div id="selectedDayBookings"></div>
                         </div>
                     </div>
                 </div>
-                <div class="h-10"></div>
             </div>
         </div>
 

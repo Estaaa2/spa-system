@@ -561,6 +561,33 @@ function fallbackSpaImage() {
     return document.body.dataset.fallbackImage ?? '';
 }
 
+/*
+  Spa and treatment photos that fail to load (a file missing from storage, a
+  moved upload) show the same neutral placeholder as "no photo yet", instead
+  of the browser's broken-image icon and alt text (UI rework Phase 4).
+  One listener for every surface: spa cards, the spa window's photo grid and
+  the booking treatment list. Image errors don't bubble, so it listens in the
+  capture phase, and it re-checks images that already failed before this
+  module ran.
+*/
+const PHOTO_FALLBACK_SCOPE = '[data-open-spa-modal], .spa-photo-cell, .svc-card-thumb, [data-photo-fallback]';
+
+function useFallbackPhoto(img) {
+    const fallback = fallbackSpaImage();
+    if (!fallback || img.dataset.fellBack) return;   // once only, so a missing fallback can't loop
+    img.dataset.fellBack = '1';
+    img.src = fallback;
+}
+
+document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (img instanceof HTMLImageElement && img.closest(PHOTO_FALLBACK_SCOPE)) useFallbackPhoto(img);
+}, true);
+
+document.querySelectorAll(`:is(${PHOTO_FALLBACK_SCOPE}) img`).forEach(img => {
+    if (img.complete && img.naturalWidth === 0 && img.getAttribute('src')) useFallbackPhoto(img);
+});
+
 /**
  * The server now sends photos as [{ url, caption }] with real uploads only
  * (BranchProfile::photoPayload). The string-array branch is a cheap guard for
@@ -2494,7 +2521,7 @@ function browseSpasFromAppointments() {
     document.getElementById('browseSections')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function renderAppointmentRow(b, i, tab) {
+function renderAppointmentRow(b, i, tab, mapName = '_appointmentMap') {
     const st        = customerStatus(b);
     const isHome    = !!b.is_home_service;
     const therapist = b.therapist_card ? b.therapist_card.name
@@ -2531,7 +2558,7 @@ function renderAppointmentRow(b, i, tab) {
     const actions = canRate
         ? `<div class="apt-actions">
                <button type="button" class="apt-rate"
-                   onclick="openRatingModal(_appointmentMap[${i}].id, _appointmentMap[${i}].therapist, _appointmentMap[${i}].spa_name, _appointmentMap[${i}].branch_name, _appointmentMap[${i}].branch_location)">
+                   onclick="openRatingModal(${mapName}[${i}].id, ${mapName}[${i}].therapist, ${mapName}[${i}].spa_name, ${mapName}[${i}].branch_name, ${mapName}[${i}].branch_location)">
                    <i class="fa-regular fa-star" aria-hidden="true"></i>Rate your visit
                </button>
            </div>`
@@ -2543,7 +2570,7 @@ function renderAppointmentRow(b, i, tab) {
 
     return `
         <li class="apt-item">
-            <button type="button" class="apt-row" onclick="openBookingDetailsModal(_appointmentMap[${i}])">
+            <button type="button" class="apt-row" onclick="openBookingDetailsModal(${mapName}[${i}])">
                 <span class="apt-when">${when}</span>
                 <span class="apt-main">
                     <span class="apt-title">${escapeHtml(b.treatment)}</span>
@@ -2627,21 +2654,44 @@ function renderStars(rating) {
 // =====================================================
 // MY SCHEDULE MODAL
 // =====================================================
+/*
+  My schedule (UI rework Phase 4): the customer's upcoming appointments by
+  month, as a list grouped by day or as a calendar with the chosen day's
+  appointments under it. Rows are the same .apt-row buttons as My
+  appointments (renderAppointmentRow), so a booking looks the same in both.
+  The /my-schedule feed holds active bookings from today on, so months before
+  this one are always empty and Previous stops at the current month.
+*/
 let scheduleBookings  = [];
 let calendarDate      = new Date();
-let _dayBookingMap    = {};
-let _listBookingMap   = {};
-let scheduleViewMode  = 'list'; // 'list' | 'calendar'
+calendarDate.setDate(1);
+let scheduleMap       = {};
+let scheduleViewMode  = 'list';      // 'list' | 'calendar'
+let scheduleSelected  = null;        // 'YYYY-MM-DD' in calendar view
+let _scReturnFocus    = null;
+
+try {
+    const saved = localStorage.getItem('levictas.scheduleView');
+    if (saved === 'list' || saved === 'calendar') scheduleViewMode = saved;
+} catch (e) { /* storage blocked: keep the default */ }
 
 function openScheduleModal() {
+    _scReturnFocus = document.activeElement;
     document.getElementById('scheduleModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+    calendarDate = new Date();
+    calendarDate.setDate(1);
+    scheduleSelected = null;
+    applyScheduleView();
     loadSchedule();
+    requestAnimationFrame(() => document.getElementById('scTitle')?.focus());
 }
 
 function closeScheduleModal() {
     document.getElementById('scheduleModal').classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+    if (_scReturnFocus && document.contains(_scReturnFocus)) _scReturnFocus.focus();
+    _scReturnFocus = null;
 }
 
 function loadSchedule() {
@@ -2653,188 +2703,176 @@ function loadSchedule() {
         });
 }
 
+function scheduleMonthKey(date = calendarDate) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function scheduleInMonth() {
+    const key = scheduleMonthKey();
+    return scheduleBookings.filter(b => (b.date_raw || '').startsWith(key));
+}
+
 function renderSchedule() {
-    if (scheduleViewMode === 'list') {
-        renderScheduleList();
-    } else {
-        renderCalendar();
-    }
-}
-
-function toggleScheduleView() {
-    scheduleViewMode = scheduleViewMode === 'list' ? 'calendar' : 'list';
-
-    const listView  = document.getElementById('scheduleListView');
-    const calView   = document.getElementById('scheduleCalendarView');
-    const toggleBtn = document.getElementById('scheduleViewToggleBtn');
-
-    if (scheduleViewMode === 'list') {
-        listView?.classList.remove('hidden');
-        calView?.classList.add('hidden');
-        if (toggleBtn) {
-            toggleBtn.title = 'Switch to calendar view';
-            toggleBtn.innerHTML = '<i class="text-sm fa-solid fa-calendar-days"></i>';
-        }
-    } else {
-        listView?.classList.add('hidden');
-        calView?.classList.remove('hidden');
-        if (toggleBtn) {
-            toggleBtn.title = 'Switch to list view';
-            toggleBtn.innerHTML = '<i class="text-sm fa-solid fa-list"></i>';
-        }
-        document.getElementById('selectedDayBookings')?.classList.add('hidden');
-    }
-
-    renderSchedule();
-}
-
-function changeMonth(dir) {
-    calendarDate.setMonth(calendarDate.getMonth() + dir);
-    document.getElementById('selectedDayBookings')?.classList.add('hidden');
-    renderSchedule();
-}
-
-// ── LIST VIEW: every booking this month, grouped by day ────────────────────
-function renderScheduleList() {
-    const year  = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
+    const now = new Date();
     document.getElementById('calendarTitle').textContent =
         calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    // Nothing before this month can be in the feed.
+    document.getElementById('scPrevMonth').disabled =
+        calendarDate.getFullYear() === now.getFullYear() && calendarDate.getMonth() === now.getMonth();
 
-    const monthBookings = scheduleBookings
-        .filter(b => {
-            const d = new Date(b.date_raw + 'T00:00:00');
-            return d.getFullYear() === year && d.getMonth() === month;
-        })
-        .sort((a, b) => {
-            if (a.date_raw !== b.date_raw) return a.date_raw.localeCompare(b.date_raw);
-            return (a.start_time || '').localeCompare(b.start_time || '');
-        });
+    if (scheduleViewMode === 'list') renderScheduleList();
+    else renderCalendar();
+}
 
-    const container = document.getElementById('scheduleListContent');
-    if (!container) return;
+function setScheduleView(mode) {
+    scheduleViewMode = mode;
+    try { localStorage.setItem('levictas.scheduleView', mode); } catch (e) { /* ignore */ }
+    applyScheduleView();
+    renderSchedule();
+}
 
-    if (!monthBookings.length) {
-        container.innerHTML = `
-            <div class="py-12 text-center text-gray-400 dark:text-gray-500">
-                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
-                <p class="text-sm">No bookings this month</p>
-            </div>`;
-        return;
-    }
+function applyScheduleView() {
+    const list = scheduleViewMode === 'list';
+    document.getElementById('scheduleListView')?.classList.toggle('hidden', !list);
+    document.getElementById('scheduleCalendarView')?.classList.toggle('hidden', list);
+    document.getElementById('scViewList')?.setAttribute('aria-pressed', list ? 'true' : 'false');
+    document.getElementById('scViewCalendar')?.setAttribute('aria-pressed', list ? 'false' : 'true');
+}
 
-    const groups = {};
-    monthBookings.forEach(b => { (groups[b.date_raw] ??= []).push(b); });
+// Always step from the 1st, so Jan 31 + 1 month is February, not March 3.
+function changeMonth(dir) {
+    calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + dir, 1);
+    scheduleSelected = null;
+    document.getElementById('scBody').scrollTop = 0;
+    renderSchedule();
+}
 
-    Object.keys(_listBookingMap).forEach(k => delete _listBookingMap[k]);
-    let idx = 0;
+function jumpToScheduleMonth(dateRaw) {
+    const [y, m] = dateRaw.split('-').map(Number);
+    calendarDate = new Date(y, m - 1, 1);
+    scheduleSelected = scheduleViewMode === 'calendar' ? dateRaw : null;
+    renderSchedule();
+}
 
-    const today = getTodayLocal();
+// The first booking after the month on screen, for the "Go to …" button.
+function nextScheduleBookingAfterMonth() {
+    const key = scheduleMonthKey();
+    return [...scheduleBookings]
+        .filter(b => (b.date_raw || '').slice(0, 7) > key)
+        .sort((a, b) => `${a.date_raw}${a.start_time}`.localeCompare(`${b.date_raw}${b.start_time}`))[0] || null;
+}
 
-    container.innerHTML = Object.keys(groups).sort().map(dateRaw => {
-        const dayBookings = groups[dateRaw];
-        const isToday     = dateRaw === today;
-        const dateLabel   = new Date(dateRaw + 'T00:00:00').toLocaleDateString('en-US', {
-            weekday: 'long', month: 'long', day: 'numeric'
-        });
+function scheduleEmptyMonth() {
+    const month = calendarDate.toLocaleDateString('en-US', { month: 'long' });
+    const next  = nextScheduleBookingAfterMonth();
+    const nextLabel = next
+        ? localDateFromRaw(next.date_raw).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        : '';
+    return `
+        <div class="apt-empty">
+            <span class="apt-empty-icon"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i></span>
+            <p class="apt-empty-title">Nothing booked in ${escapeHtml(month)}</p>
+            ${next
+                ? `<p class="apt-empty-text">Your next appointment is on ${escapeHtml(nextLabel)}.</p>
+                   <button type="button" class="sc-next" onclick="jumpToScheduleMonth('${next.date_raw}')">
+                       Go to ${escapeHtml(nextLabel)}<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>`
+                : `<p class="apt-empty-text">When you book a treatment, it will show here.</p>
+                   <button type="button" class="apt-empty-cta booking-btn" onclick="closeScheduleModal(); document.getElementById('browseSections')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">
+                       <i class="fa-solid fa-spa" aria-hidden="true"></i>Browse spas</button>`}
+        </div>`;
+}
 
-        const items = dayBookings.map(b => {
-            _listBookingMap[idx] = b;
-            const html = `
-                <div class="p-3 border border-black/5 dark:border-white/10 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 cursor-pointer hover:shadow-md transition"
-                    onclick="openBookingDetailsModal(_listBookingMap[${idx}])">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
-                        ${customerStatusPill(b)}
-                    </div>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i>
-                        ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${escapeHtml(b.therapist)}
-                    </p>
-                    ${b.reschedule_status === 'pending' ? `
-                    <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
-                    </div>` : ''}
-                </div>`;
-            idx++;
-            return html;
-        }).join('');
-
+// Same day groups and rows as the Upcoming tab of My appointments.
+function renderScheduleRows(list) {
+    Object.keys(scheduleMap).forEach(k => delete scheduleMap[k]);
+    let i = 0;
+    return groupAppointments(list, 'upcoming').map(g => {
+        const rows = g.items.map(b => { scheduleMap[i] = b; return renderAppointmentRow(b, i++, 'upcoming', 'scheduleMap'); }).join('');
+        const id   = `sc-group-${g.key}`;
         return `
-            <div class="mb-5">
-                <div class="flex items-center gap-2 mb-2">
-                    <h4 class="text-sm font-semibold ${isToday ? 'text-[#8B7355] dark:text-[#C4A97D]' : 'text-[#3C2F23] dark:text-white'}">${dateLabel}</h4>
-                    ${isToday ? '<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#8B7355] text-white">Today</span>' : ''}
-                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D]">${dayBookings.length}</span>
-                </div>
-                <div class="space-y-2">${items}</div>
-            </div>`;
+            <section class="apt-group" aria-labelledby="${id}">
+                <h3 id="${id}" class="apt-group-title${g.now ? ' apt-group-title--now' : ''}">${escapeHtml(g.title)}</h3>
+                <ul class="apt-list">${rows}</ul>
+            </section>`;
     }).join('');
 }
 
-// ── CALENDAR VIEW (unchanged behavior, now optional) ────────────────────────
+// ── LIST VIEW: this month, grouped by day ───────────────────────────────────
+function renderScheduleList() {
+    const container = document.getElementById('scheduleListContent');
+    if (!container) return;
+    const monthBookings = scheduleInMonth();
+    container.innerHTML = monthBookings.length ? renderScheduleRows(monthBookings) : scheduleEmptyMonth();
+}
+
+// ── CALENDAR VIEW: month grid, then the chosen day's appointments ──────────
 function renderCalendar() {
-    const year  = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const today = getTodayLocal();
-    document.getElementById('calendarTitle').textContent =
-        calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const year        = calendarDate.getFullYear();
+    const month       = calendarDate.getMonth();
+    const today       = getTodayLocal();
     const firstDay    = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
-    const grid        = document.getElementById('calendarGrid');
-    grid.innerHTML    = '';
-    for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr    = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const isToday    = dateStr === today;
-        const hasBooking = bookedDates.has(dateStr);
-        const isPast     = dateStr < today;
-        grid.innerHTML  += `
-            <button onclick="selectDay('${dateStr}')"
-                class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
-                ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
-                ${hasBooking && !isToday ? 'bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D] font-semibold ring-1 ring-[#8B7355]/30 dark:ring-[#C4A97D]/30' : ''}
-                ${isPast && !isToday ? 'text-gray-300 dark:text-gray-600 cursor-default' : 'hover:bg-[#F6EFE6] dark:hover:bg-gray-700'}
-                ${!hasBooking && !isToday && !isPast ? 'text-gray-700 dark:text-gray-300' : ''}">
-                ${d}
-                ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355] dark:bg-[#C4A97D]'}"></span>` : ''}
-            </button>`;
+    const monthList   = scheduleInMonth();
+    const counts      = {};
+    monthList.forEach(b => { counts[b.date_raw] = (counts[b.date_raw] || 0) + 1; });
+
+    // Default day: today if it's in this month, else the month's first booking.
+    if (!scheduleSelected || !scheduleSelected.startsWith(scheduleMonthKey())) {
+        const firstBooked = Object.keys(counts).sort()[0] || null;
+        scheduleSelected = today.startsWith(scheduleMonthKey()) ? today : firstBooked;
     }
+
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push('<span aria-hidden="true"></span>');
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const n       = counts[dateStr] || 0;
+        const label   = localDateFromRaw(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+            + (dateStr === today ? ', today' : '')
+            + (n ? `, ${n} appointment${n > 1 ? 's' : ''}` : '');
+        const classes = ['sc-day', dateStr === today ? 'is-today' : '', n ? 'has-booking' : ''].filter(Boolean).join(' ');
+        cells.push(`<button type="button" class="${classes}" data-date="${dateStr}"
+            aria-pressed="${dateStr === scheduleSelected ? 'true' : 'false'}" aria-label="${label}"
+            ${dateStr < today ? 'disabled' : ''} onclick="selectDay('${dateStr}')">${d}</button>`);
+    }
+    document.getElementById('calendarGrid').innerHTML = cells.join('');
+    renderSelectedDay();
 }
 
 function selectDay(dateStr) {
-    const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
-    if (!dayBookings.length) return;
-
-    Object.keys(_dayBookingMap).forEach(k => delete _dayBookingMap[k]);
-    dayBookings.forEach((b, i) => { _dayBookingMap[i] = b; });
-
-    const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric'
-    });
-    document.getElementById('selectedDayTitle').textContent = title;
-    document.getElementById('selectedDayContent').innerHTML = dayBookings.map((b, i) => `
-        <div class="p-3 mb-3 border border-black/5 dark:border-white/10 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 cursor-pointer hover:shadow-md transition"
-            onclick="openBookingDetailsModal(_dayBookingMap[${i}])">
-            <div class="flex items-center justify-between">
-                <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
-                ${customerStatusPill(b)}
-            </div>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i>
-                ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${escapeHtml(b.therapist)}
-            </p>
-            ${b.reschedule_status === 'pending' ? `
-            <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
-            </div>` : ''}
-        </div>
-    `).join('');
-    document.getElementById('selectedDayBookings').classList.remove('hidden');
+    scheduleSelected = dateStr;
+    document.querySelectorAll('#calendarGrid .sc-day').forEach(el =>
+        el.setAttribute('aria-pressed', el.dataset.date === dateStr ? 'true' : 'false'));
+    renderSelectedDay();
 }
+
+function renderSelectedDay() {
+    const wrap = document.getElementById('selectedDayBookings');
+    if (!wrap) return;
+    if (!scheduleInMonth().length) { wrap.innerHTML = scheduleEmptyMonth(); return; }
+
+    const dayList = scheduleBookings.filter(b => b.date_raw === scheduleSelected);
+    if (!dayList.length) {
+        const day = scheduleSelected
+            ? localDateFromRaw(scheduleSelected).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+            : '';
+        wrap.innerHTML = `<p class="sc-empty-day">${day ? `Nothing booked on ${escapeHtml(day)}.` : ''} Days with a dot have appointments.</p>`;
+        return;
+    }
+    wrap.innerHTML = renderScheduleRows(dayList);
+}
+
+// Keep Tab inside the panel while it is open.
+document.getElementById('scheduleModal')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = [...document.querySelectorAll('#scPanel button:not([disabled])')]
+        .filter(el => el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 function formatTime(timeStr) {
     if (!timeStr) return 'N/A';
@@ -3839,6 +3877,7 @@ const escapeCloseOrder = [
     ['reviewsModal',        () => closeReviewsModal()],      // z-[145]
     ['bookingDetailsModal', () => bdEscape()],               // z-[125]; the form view goes back first
     ['appointmentsModal',   () => closeAppointmentsModal()], // z-[120]
+    ['scheduleModal',       () => closeScheduleModal()],     // z-[120]
     ['termsModal',          () => closeTermsModal()],        // z-[120]
     ['applicationModal',    () => closeApplicationModal()],  // z-[115]
     ['bookingModal',        () => closeBookingModal()],      // z-[110]
@@ -3893,7 +3932,7 @@ window.setRating                = setRating;
 window.setSpaRating             = setSpaRating;
 window.openReviewPhoto          = openReviewPhoto;
 window.removeSpaRatingPhoto     = removeSpaRatingPhoto;
-window._dayBookingMap           = _dayBookingMap;
+window.scheduleMap              = scheduleMap;
 window._appointmentMap          = _appointmentMap;
 window.openApplicationModal     = openApplicationModal;
 window.closeApplicationModal    = closeApplicationModal;
@@ -3906,7 +3945,8 @@ window.handleResumeFileSelect   = handleResumeFileSelect;
 window.formatFileSize           = formatFileSize;
 window.openLogoutModal          = openLogoutModal;
 window.closeLogoutModal         = closeLogoutModal;
-window.toggleScheduleView       = toggleScheduleView;
+window.setScheduleView          = setScheduleView;
+window.jumpToScheduleMonth      = jumpToScheduleMonth;
 window.openLightbox             = openLightbox;
 window.closeLightbox            = closeLightbox;
 

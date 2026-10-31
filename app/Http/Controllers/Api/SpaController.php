@@ -567,8 +567,8 @@ class SpaController extends Controller
         // Same photo payload and card thumbnail as the web.
         $photos = $profile ? BranchProfile::photoPayload($profile) : [];
         $thumbnail = $profile
-            ? BranchProfile::thumbnailFor($profile)
-            : BranchProfile::fallbackPhotoUrl();
+            ? BranchProfile::thumbnailFor($profile, forApp: true)
+            : BranchProfile::fallbackPhotoUrl(forApp: true);
 
         return [
             'id' => $branch->id,
