@@ -49,7 +49,11 @@ class ProfilePhotoController extends Controller
         try {
             $result = $this->identity->updateProfilePhoto($request->user(), $request->file('photo'));
         } catch (ValidationException $e) {
-            throw $e->errorBag('photo')->redirectTo(route('profile.edit').'#photo');
+            throw $e->errorBag('photo')->redirectTo($this->returnUrl($request));
+        }
+
+        if ($this->isCustomer($request)) {
+            return $this->backToCustomerProfile($request, 'Profile photo updated.');
         }
 
         $message = match (true) {
@@ -66,9 +70,33 @@ class ProfilePhotoController extends Controller
         try {
             $this->identity->removeProfilePhoto($request->user());
         } catch (ValidationException $e) {
-            throw $e->errorBag('photo')->redirectTo(route('profile.edit').'#photo');
+            throw $e->errorBag('photo')->redirectTo($this->returnUrl($request));
+        }
+
+        if ($this->isCustomer($request)) {
+            return $this->backToCustomerProfile($request, 'Profile photo removed.');
         }
 
         return redirect()->to(route('profile.edit').'#photo')->with('success', 'Profile photo removed.');
+    }
+
+    // Customers manage their photo in the profile window on the landing page
+    // (D13, Phase 7); staff on the profile page.
+
+    private function isCustomer(Request $request): bool
+    {
+        return $request->user()->hasRole('customer');
+    }
+
+    private function returnUrl(Request $request): string
+    {
+        return $this->isCustomer($request) ? url()->previous() : route('profile.edit').'#photo';
+    }
+
+    private function backToCustomerProfile(Request $request, string $message): RedirectResponse
+    {
+        return redirect()->to(url()->previous())
+            ->with('success', $message)
+            ->with('open_profile_modal', true);
     }
 }

@@ -16,6 +16,9 @@
 </head>
 
 @php
+    // Guarded: a plain function declaration crashes the second render in one
+    // PHP process (tests, queue workers). Not used anywhere at the moment.
+    if (! function_exists('getImageUrl')) {
     function getImageUrl($path)
     {
         if (empty($path)) {
@@ -29,6 +32,7 @@
 
         // Add branch_profiles to the path
         return asset('storage/branch_profiles/' . $path);
+    }
     }
 @endphp
 
@@ -102,10 +106,15 @@
                                 <div class="relative" id="profileDropdownWrapper">
                                     <button type="button" id="profileDropdownBtn"
                                         class="flex items-center gap-2 px-3 py-2 transition rounded-full hover:bg-white/60 dark:hover:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10">
-                                        <div
-                                            class="flex items-center justify-center w-8 h-8 bg-[#8B7355] text-white rounded-full text-xs font-semibold leading-none shrink-0">
-                                            {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
-                                        </div>
+                                        @if (auth()->user()?->profilePhotoUrl())
+                                            <img src="{{ auth()->user()->profilePhotoUrl() }}" alt=""
+                                                class="object-cover w-8 h-8 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/10">
+                                        @else
+                                            <div
+                                                class="flex items-center justify-center w-8 h-8 bg-[#8B7355] text-white rounded-full text-xs font-semibold leading-none shrink-0">
+                                                {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
+                                            </div>
+                                        @endif
                                         <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200"
                                             id="profileChevron"></i>
                                     </button>
@@ -158,10 +167,18 @@
                         {{-- HEADER: never scrolls. Gradient is already dark-toned brown, left as-is. --}}
                         <div
                             class="relative px-6 py-6 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center flex-shrink-0">
-                            <div
-                                class="flex items-center justify-center mx-auto text-xl font-bold rounded-full w-14 h-14 bg-white/20 ring-2 ring-white/30">
-                                {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
-                            </div>
+                            {{-- Optional customer photo (D13): never a trust signal, no verified
+                             badge, not shown to spas or therapists (Q54). --}}
+                            @php $customerPhotoUrl = auth()->user()?->profilePhotoUrl(); @endphp
+                            @if ($customerPhotoUrl)
+                                <img src="{{ $customerPhotoUrl }}" alt="Your profile photo"
+                                    class="object-cover mx-auto rounded-full w-14 h-14 ring-2 ring-white/30">
+                            @else
+                                <div
+                                    class="flex items-center justify-center mx-auto text-xl font-bold rounded-full w-14 h-14 bg-white/20 ring-2 ring-white/30">
+                                    {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
+                                </div>
+                            @endif
                             <h3 class="mt-2 text-base font-semibold font-['Playfair_Display']">
                                 {{ auth()->user()?->name ?? 'Guest' }}
                             </h3>
@@ -188,6 +205,32 @@
                                     </span>
                                 @endif
                             </div>
+                            {{-- Photo forms sit outside the profile form (forms can't nest). --}}
+                            <div class="flex items-center justify-center gap-2 mt-3">
+                                <form method="POST" action="{{ route('profile.photo.update') }}" enctype="multipart/form-data"
+                                    id="customerPhotoForm">
+                                    @csrf
+                                    <label
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition rounded-full cursor-pointer bg-white/15 hover:bg-white/25 ring-1 ring-white/20 focus-within:ring-2 focus-within:ring-white/60">
+                                        <i class="fa-solid fa-camera" aria-hidden="true"></i>
+                                        <span id="customerPhotoLabel">{{ $customerPhotoUrl ? 'Change photo' : 'Add photo' }}</span>
+                                        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp"
+                                            class="sr-only" data-max-mb="{{ (int) round(config('identity.upload.max_kb', 5120) / 1024) }}"
+                                            onchange="submitCustomerPhoto(this)">
+                                    </label>
+                                </form>
+                                @if ($customerPhotoUrl)
+                                    <form method="POST" action="{{ route('profile.photo.destroy') }}">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/20">
+                                            <i class="fa-solid fa-trash-can" aria-hidden="true"></i> Remove
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                            <p class="mt-1.5 text-[11px] text-white/70">Optional. Spas and therapists don't see it.</p>
                             <button onclick="closeProfileModal()"
                                 class="absolute flex items-center justify-center w-8 h-8 transition top-3 right-3 rounded-xl bg-white/10 hover:bg-white/20">
                                 <i class="text-sm fa-solid fa-xmark"></i>
@@ -204,6 +247,14 @@
 
                                 {{-- Errors use a named bag ('customerProfile') set in ProfileController so a
                              failed job-application form on this same page can't also pop this modal. --}}
+                                @if ($errors->hasBag('photo') && $errors->getBag('photo')->any())
+                                    <div
+                                        class="p-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
+                                        <p class="font-semibold">Your photo wasn't saved:</p>
+                                        <p class="mt-0.5">{{ $errors->getBag('photo')->first() }}</p>
+                                    </div>
+                                @endif
+
                                 @if ($errors->hasBag('customerProfile') && $errors->getBag('customerProfile')->any())
                                     <div
                                         class="p-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
@@ -948,6 +999,8 @@
                                         $spaPayload = [
                                             'id' => $spa->id,
                                             'name' => $spa->name,
+                                            'owner_name' => $spa->ownerDisplayName(),
+                                            'business_verified' => $spa->isBusinessVerified(),
                                             'tag' => 'Featured Spa',
                                             'branch_id' => $branch->id,
                                             'branch_name' => $branch->name,
@@ -1162,6 +1215,8 @@
                                                     $spaPayload = [
                                                         'id' => $spa->id,
                                                         'name' => $spa->name,
+                                                        'owner_name' => $spa->ownerDisplayName(),
+                                                        'business_verified' => $spa->isBusinessVerified(),
                                                         'tag' => 'Listed Spa',
                                                         'branch_id' => $branch->id,
                                                         'branch_name' => $branch->name,
@@ -1491,6 +1546,17 @@
                                         class="font-medium text-[#3C2F23] dark:text-white"></span>
                                     <span id="spaModalRatingCount" class="text-gray-400"></span>
                                 </button>
+                            </div>
+                            {{-- D11: business-verified badge + owner's name (filled by openSpaModal). --}}
+                            <div id="spaModalOwnerRow" class="flex-wrap items-center hidden gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                <span id="spaModalBusinessVerified"
+                                    title="Levictas checked this spa's business documents."
+                                    class="hidden items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i> Business verified
+                                </span>
+                                <span id="spaModalOwner" class="hidden">
+                                    Owned by <span id="spaModalOwnerName" class="font-medium text-[#3C2F23] dark:text-gray-200"></span>
+                                </span>
                             </div>
                         </div>
                         <button data-close-spa-modal
@@ -3702,7 +3768,9 @@
         </script>
     @endif
 
-    @if ($errors->hasBag('customerProfile') && $errors->getBag('customerProfile')->any())
+    @if (($errors->hasBag('customerProfile') && $errors->getBag('customerProfile')->any())
+            || ($errors->hasBag('photo') && $errors->getBag('photo')->any())
+            || session('open_profile_modal'))
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 openProfileModal();

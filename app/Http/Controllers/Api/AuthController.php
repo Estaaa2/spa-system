@@ -241,7 +241,12 @@ class AuthController extends Controller
 
         $userRole = $user->getRoleNames()->first();
 
-        if (! in_array($userRole, $allowedRoles[$request->platform])) {
+        // Q51: staff marked "Performs treatments" (e.g. a receptionist who also
+        // does massages) use the therapist side of the app.
+        $allowed = in_array($userRole, $allowedRoles[$request->platform])
+            || ($request->platform === 'mobile' && $user->isTreatmentProvider());
+
+        if (! $allowed) {
             return response()->json([
                 'message'           => 'Access denied for this platform.',
                 'unauthorized_role' => true,
@@ -558,6 +563,9 @@ class AuthController extends Controller
             'email'                   => $user->email,
             'phone'                   => $user->phone,
             'role'                    => $role,
+            // Which side of the mobile app to show: "therapist" for the therapist
+            // role and for staff marked "Performs treatments" (Q51), otherwise the role.
+            'app_role'                => $user->isTreatmentProvider() ? 'therapist' : $role,
             'spa_id'                  => $user->spa_id,
             'branch_id'               => $user->branch_id,
             'is_owner'                => $user->is_owner,

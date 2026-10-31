@@ -132,7 +132,29 @@ class PaymongoWebhookController extends Controller
 
             if (!($reservation->payment_status === 'paid' && $reservation->booking_id)) {
                 try {
-                    DB::transaction(function () use ($reservation, $payload) {
+                    $createdBookingId = DB::transaction(function () use ($reservation, $payload) {
+                        // Q52: the app's payment-success page may have made the
+                        // booking since the check above. Re-read under a lock; if a
+                        // booking exists, only record PayMongo's payment details.
+                        $locked = OnlineReservationPayment::whereKey($reservation->id)->lockForUpdate()->first();
+                        if (! $locked) {
+                            return null;
+                        }
+                        if ($locked->booking_id) {
+                            $locked->update([
+                                'payment_status' => 'paid',
+                                'reservation_status' => 'reserved',
+                                'paid_at' => $locked->paid_at ?? now(),
+                                'paymongo_payload' => $payload,
+                                'paymongo_payment_intent_id' => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.payment_intent_id'),
+                                'paymongo_payment_id' => data_get($payload, 'data.attributes.data.attributes.payments.0.id'),
+                                'payment_reference' => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.reference_number'),
+                            ]);
+
+                            return null;
+                        }
+                        $reservation = $locked;
+
                         $treatmentCode = $reservation->bookable_type . '_' . $reservation->bookable_id;
 
                         $durationMinutes = 60;
@@ -207,6 +229,8 @@ class PaymongoWebhookController extends Controller
                             'paymongo_payment_id' => data_get($payload, 'data.attributes.data.attributes.payments.0.id'),
                             'payment_reference' => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.reference_number'),
                         ]);
+
+                        return $booking->id;
                     });
                 } catch (\Throwable $e) {
                     Log::error('Reservation webhook transaction failed', [
@@ -221,8 +245,9 @@ class PaymongoWebhookController extends Controller
 
                 // Confirmation with the therapist card and, for home service, the
                 // arrival code (staff verification D6/D7). Never fails the webhook.
-                if ($bookingId = $reservation->fresh()->booking_id) {
-                    app(\App\Services\Bookings\BookingNotifier::class)->confirmed(Booking::find($bookingId));
+                // Only when this webhook made the booking (the app's fallback sends its own).
+                if ($createdBookingId) {
+                    app(\App\Services\Bookings\BookingNotifier::class)->confirmed(Booking::find($createdBookingId));
                 }
             }
 

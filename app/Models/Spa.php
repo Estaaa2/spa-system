@@ -61,6 +61,26 @@ class Spa extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    /**
+     * Landing page (D11): the owner's first and last name only — no middle
+     * name, photo or contact details. Eager-load `owner` for lists.
+     */
+    public function ownerDisplayName(): ?string
+    {
+        $name = trim(($this->owner?->first_name ?? '').' '.($this->owner?->last_name ?? ''));
+
+        return $name !== '' ? $name : null;
+    }
+
+    /** The spa's business documents were approved by a Levictas admin. */
+    public function isBusinessVerified(): bool
+    {
+        return $this->verification_status === 'verified';
+    }
+
+    /** Columns the landing page needs from the owner (for eager loading). */
+    public const OWNER_PUBLIC_COLUMNS = 'owner:id,first_name,last_name';
+
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class);

@@ -60,6 +60,7 @@ class SpaController extends Controller
             'branches.operatingHours',
             'branches.profile',
             'subscriptions',
+            Spa::OWNER_PUBLIC_COLUMNS,
         ];
     }
 
@@ -450,6 +451,9 @@ class SpaController extends Controller
         return [
             'id' => $spa->id,
             'name' => $spa->name,
+            // D11: owner's first + last name and the business-verified badge.
+            'owner_name' => $spa->ownerDisplayName(),
+            'business_verified' => $spa->isBusinessVerified(),
             'location' => $branch->location ?? '',
             'address' => $profile?->address ?? $branch->location ?? '',
             'contact' => $profile?->phone ?? '',
@@ -480,6 +484,9 @@ class SpaController extends Controller
         return [
             'id' => $spa->id,
             'name' => $spa->name,
+            // D11: owner's first + last name and the business-verified badge.
+            'owner_name' => $spa->ownerDisplayName(),
+            'business_verified' => $spa->isBusinessVerified(),
             'location' => $primaryBranch?->location ?? '',
             'address' => $profile?->address
                 ?? $primaryBranch?->location

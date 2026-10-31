@@ -250,15 +250,6 @@ class ApiParityTest extends TestCase
         $this->as($this->customer)->getJson('/api/assigned-bookings')->assertForbidden();
     }
 
-    public function test_receptionists_still_cannot_log_in_to_the_app(): void
-    {
-        // Unchanged on purpose (RBAC, see the Phase 6 [DECISION]): mobile login
-        // allows only customer and therapist accounts.
-        $this->postJson('/api/login', [
-            'email' => 'idv.rhea@levictas.test', 'password' => PayrollTestAccountsSeeder::PASSWORD, 'platform' => 'mobile',
-        ])->assertForbidden()->assertJsonPath('unauthorized_role', true);
-    }
-
     // ── Q40: payment fallback amounts ────────────────────────────────────────
 
     private function paidReservation(string $option): OnlineReservationPayment

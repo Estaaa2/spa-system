@@ -54,13 +54,15 @@ class EnsureMobileAccess
 
     /**
      * Why this user's spa or branch is locked for the mobile app, or null.
-     * Only therapists are checked: customers are not tied to a branch.
+     * Staff are checked; customers are not tied to a branch.
      *
      * @return array{reason: string, message: string}|null
      */
     public static function lockFor(User $user): ?array
     {
-        if (! $user->hasRole('therapist') || ! $user->spa_id) {
+        // Every staff account (therapists and, since Q51, staff marked
+        // "Performs treatments"); customers are not tied to a spa.
+        if ($user->hasRole('customer') || ! $user->spa_id) {
             return null;
         }
 

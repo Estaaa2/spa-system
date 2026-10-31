@@ -124,6 +124,7 @@ class LandingController extends Controller
                 $query->with(['profile', 'treatments', 'packages']);
             },
             'subscriptions',
+            Spa::OWNER_PUBLIC_COLUMNS,
         ])
             ->whereIn('id', $publicSpaIds)
             ->whereHas('branches', $branchMatches);
@@ -210,6 +211,7 @@ class LandingController extends Controller
                     ->with(['profile', 'treatments', 'packages']);
             },
             'subscriptions',
+            Spa::OWNER_PUBLIC_COLUMNS,
         ])
             ->whereIn('id', $publicSpaIds)
             ->whereHas('branches', function ($query) {
@@ -333,6 +335,8 @@ class LandingController extends Controller
                 $cards[] = [
                     'id' => $spa->id,
                     'name' => $spa->name,
+                    'owner_name' => $spa->ownerDisplayName(),
+                    'business_verified' => $spa->isBusinessVerified(),
                     'tag' => $featured ? 'Featured Spa' : 'Spa',
                     'can_book_online' => $spa->hasFeature('online_reservation'),
                     'is_featured' => $featured,
@@ -431,6 +435,7 @@ class LandingController extends Controller
                     ->with(['profile', 'treatments', 'packages']);
             },
             'subscriptions',
+            Spa::OWNER_PUBLIC_COLUMNS,
         ])
             ->whereIn('id', $this->publicSpaIds())
             ->whereHas('branches', function ($query) use ($branchIds) {
@@ -468,6 +473,8 @@ class LandingController extends Controller
                 $result[] = [
                     'id' => $spa->id,
                     'name' => $spa->name,
+                    'owner_name' => $spa->ownerDisplayName(),
+                    'business_verified' => $spa->isBusinessVerified(),
                     'tag' => 'Nearby Spa',
                     'can_book_online' => $spa->hasFeature('online_reservation'),
                     'is_featured' => $featured,

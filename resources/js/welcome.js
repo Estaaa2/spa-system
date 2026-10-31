@@ -78,6 +78,27 @@ document.addEventListener('click', function (e) {
     if (wrapper && !wrapper.contains(e.target)) closeProfileDropdown();
 });
 
+// Customer profile photo (D13): checks the size here so a too-large photo
+// doesn't upload for nothing, then submits #customerPhotoForm.
+function submitCustomerPhoto(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    const maxMb = parseInt(input.dataset.maxMb || '5', 10);
+    if (file.size > maxMb * 1024 * 1024) {
+        input.value = '';
+        if (typeof window.showSpaToast === 'function') {
+            window.showSpaToast(`The photo must be ${maxMb} MB or smaller.`, 'error');
+        }
+        return;
+    }
+
+    const label = document.getElementById('customerPhotoLabel');
+    if (label) label.textContent = 'Uploading…';
+    input.closest('label')?.classList.add('opacity-60', 'pointer-events-none');
+    input.form.submit();
+}
+
 function openProfileModal() {
     const profileModalEl = document.getElementById('profileModal');
     if (!profileModalEl) {
@@ -184,11 +205,32 @@ const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
 let photos     = [];
 let photoIndex = 0;
 
+// D11: "Business verified" badge and "Owned by …" under the spa name. Toggles
+// classes that exist in welcome.blade.php (hidden / flex / inline-flex).
+function renderSpaOwner(spaData) {
+    const row      = document.getElementById('spaModalOwnerRow');
+    const badge    = document.getElementById('spaModalBusinessVerified');
+    const owner    = document.getElementById('spaModalOwner');
+    const nameEl   = document.getElementById('spaModalOwnerName');
+    if (!row || !badge || !owner || !nameEl) return;
+
+    const verified = spaData.business_verified === true;
+    const name     = (spaData.owner_name || '').trim();
+
+    badge.classList.toggle('hidden', !verified);
+    badge.classList.toggle('inline-flex', verified);
+    nameEl.textContent = name;
+    owner.classList.toggle('hidden', name === '');
+    row.classList.toggle('hidden', !verified && name === '');
+    row.classList.toggle('flex', verified || name !== '');
+}
+
 function openSpaModal(spaData) {
     selectedSpa = spaData;
 
     document.getElementById('spaModalName').textContent    = spaData.name    ?? 'Spa';
     document.getElementById('spaModalTag').textContent     = spaData.tag     ?? 'Featured Spa';
+    renderSpaOwner(spaData);
     document.getElementById('spaModalDesc').textContent    = spaData.desc    ?? '';
     document.getElementById('spaModalPhone').textContent   = spaData.phone   ?? 'No contact info';
     document.getElementById('spaModalAddress').textContent = spaData.address ?? 'Address unavailable';
@@ -3538,6 +3580,7 @@ window.switchTab                = switchTab;
 window.selectDay                = selectDay;
 window.changeMonth              = changeMonth;
 window.openProfileModal         = openProfileModal;
+window.submitCustomerPhoto      = submitCustomerPhoto;
 window.closeProfileModal        = closeProfileModal;
 window.closeProfileDropdown     = closeProfileDropdown;
 window.toggleEmail              = toggleEmail;
