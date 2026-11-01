@@ -228,4 +228,19 @@ class CustomerProfileWindowTest extends TestCase
         $this->assertArrayHasKey('has_promo', $spas[0]);
         $this->assertArrayHasKey('distance_km', $spas[0]);
     }
+
+    public function test_the_suffix_is_part_of_the_name(): void
+    {
+        $this->save(['section' => 'name', 'first_name' => 'Cara', 'last_name' => 'Customer (test)', 'suffix' => 'Jr.'])
+            ->assertOk()->assertJsonPath('user.suffix', 'Jr.');
+        $this->assertSame('Jr.', $this->customer->fresh()->suffix);
+        $this->assertNotNull($this->customer->fresh()->name_changed_at, 'Adding a suffix is a name change.');
+
+        // The app's older endpoint doesn't send a suffix: an unchanged name must not count as a change.
+        $this->customer->forceFill(['name_changed_at' => null])->save();
+        \Laravel\Sanctum\Sanctum::actingAs($this->customer->fresh());
+        $this->putJson('/api/me', ['first_name' => 'Cara', 'last_name' => 'Customer (test)'])->assertOk();
+        $this->assertNull($this->customer->fresh()->name_changed_at);
+        $this->assertSame('Jr.', $this->customer->fresh()->suffix);
+    }
 }

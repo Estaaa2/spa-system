@@ -109,6 +109,7 @@ class ProfileController extends Controller
                 'first_name'  => 'required|string|max:255',
                 'middle_name' => 'nullable|string|max:255',
                 'last_name'   => 'required|string|max:255',
+                'suffix'      => 'nullable|string|max:20',
             ],
             'phone'    => [
                 'phone' => ['nullable', 'string', 'regex:/^09\d{9}$/'],
@@ -143,7 +144,7 @@ class ProfileController extends Controller
 
         // Name: once every 30 days, with 24 hours to fix a typo (User::guardNameChange).
         if (array_key_exists('first_name', $sectionRules)) {
-            $refused = $user->guardNameChange($validated['first_name'], $validated['middle_name'] ?? null, $validated['last_name']);
+            $refused = $user->guardNameChange($validated['first_name'], $validated['middle_name'] ?? null, $validated['last_name'], $validated['suffix'] ?? null);
             if ($refused) {
                 return $request->expectsJson()
                     ? response()->json(['message' => $refused, 'errors' => ['first_name' => [$refused]]], 422)
@@ -166,6 +167,7 @@ class ProfileController extends Controller
                     'first_name'  => $fresh->first_name,
                     'middle_name' => $fresh->middle_name,
                     'last_name'   => $fresh->last_name,
+                    'suffix'      => $fresh->suffix,
                     'phone'       => $fresh->phone,
                     'address'     => $fresh->address,
                     'latitude'    => $fresh->latitude !== null ? (float) $fresh->latitude : null,
@@ -185,6 +187,7 @@ class ProfileController extends Controller
             'first_name'  => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name'   => 'required|string|max:255',
+            'suffix'      => 'nullable|string|max:20',
             'phone'       => ['nullable', 'string', 'regex:/^09\d{9}$/'],
             'address'     => 'nullable|string|max:255',
             'latitude'    => 'nullable|numeric|between:-90,90',
@@ -206,7 +209,7 @@ class ProfileController extends Controller
         }
 
         // Same 30-day name rule as the web, so the app can't be used to bypass it.
-        if ($refused = $user->guardNameChange($validated['first_name'], $validated['middle_name'] ?? null, $validated['last_name'])) {
+        if ($refused = $user->guardNameChange($validated['first_name'], $validated['middle_name'] ?? null, $validated['last_name'], $request->has('suffix') ? ($validated['suffix'] ?? null) : $user->suffix)) {
             return response()->json(['message' => $refused, 'errors' => ['first_name' => [$refused]]], 422);
         }
 
@@ -214,6 +217,8 @@ class ProfileController extends Controller
             'first_name'  => $validated['first_name'],
             'middle_name' => $validated['middle_name'] ?? null,
             'last_name'   => $validated['last_name'],
+            // Only when the app sends it, so an older app build can't clear a saved suffix.
+            'suffix'      => $request->has('suffix') ? ($validated['suffix'] ?? null) : $user->suffix,
             'phone'       => $validated['phone'] ?? null,
             'address'     => $validated['address'] ?? null,
             'latitude'    => $validated['latitude'] ?? null,

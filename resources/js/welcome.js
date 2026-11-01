@@ -3654,7 +3654,7 @@ function pfShowError(field, message) {
     if (!el) return false;
     el.textContent = message;
     el.classList.remove('hidden');
-    const input = { first_name: 'pfFirstName', middle_name: 'pfMiddleName', last_name: 'pfLastName', phone: 'pfPhone', address: 'address' }[field];
+    const input = { first_name: 'pfFirstName', middle_name: 'pfMiddleName', last_name: 'pfLastName', suffix: 'pfSuffix', phone: 'pfPhone', address: 'address' }[field];
     document.getElementById(input)?.setAttribute('aria-invalid', 'true');
     return true;
 }
@@ -3679,6 +3679,7 @@ function pfShowView(view, moveFocus = true) {
         document.getElementById('pfFirstName').value  = u.first_name || '';
         document.getElementById('pfMiddleName').value = u.middle_name || '';
         document.getElementById('pfLastName').value   = u.last_name || '';
+        document.getElementById('pfSuffix').value     = u.suffix || '';
     }
     if (view === 'phone') document.getElementById('pfPhone').value = u.phone || '';
     if (view === 'location') pfOpenLocationEditor();
@@ -3695,6 +3696,7 @@ function pfPayload() {
         first_name:  document.getElementById('pfFirstName').value.trim(),
         middle_name: document.getElementById('pfMiddleName').value.trim(),
         last_name:   document.getElementById('pfLastName').value.trim(),
+        suffix:      document.getElementById('pfSuffix').value.trim(),
     };
     if (pfView === 'phone') return { section: 'phone', phone: document.getElementById('pfPhone').value.trim() };
     if (pfView === 'location') return {

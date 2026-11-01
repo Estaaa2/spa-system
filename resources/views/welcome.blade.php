@@ -282,6 +282,7 @@
                     'first_name'  => $pfUser->first_name,
                     'middle_name' => $pfUser->middle_name,
                     'last_name'   => $pfUser->last_name,
+                    'suffix'      => $pfUser->suffix,
                     'name'        => $pfUser->name,
                     'phone'       => $pfUser->phone,
                     'address'     => $pfUser->address,
@@ -472,6 +473,11 @@
                                     <label for="pfLastName" class="{{ $pfLabel }}">Last name</label>
                                     <input type="text" id="pfLastName" autocomplete="family-name" maxlength="255" class="{{ $pfInput }}" aria-describedby="pfErr-last_name">
                                     <p id="pfErr-last_name" class="{{ $pfError }}"></p>
+                                </div>
+                                <div>
+                                    <label for="pfSuffix" class="{{ $pfLabel }}">Suffix <span class="font-normal text-gray-600 dark:text-gray-400">(optional)</span></label>
+                                    <input type="text" id="pfSuffix" autocomplete="honorific-suffix" maxlength="20" placeholder="Jr., Sr., III" class="{{ $pfInput }}" aria-describedby="pfErr-suffix">
+                                    <p id="pfErr-suffix" class="{{ $pfError }}"></p>
                                 </div>
                             </div>
 

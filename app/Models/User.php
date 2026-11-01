@@ -121,13 +121,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /** Whether these names differ from the saved ones (ignoring spaces at the ends). */
-    public function nameDiffersFrom(?string $first, ?string $middle, ?string $last): bool
+    public function nameDiffersFrom(?string $first, ?string $middle, ?string $last, ?string $suffix = null): bool
     {
         $norm = fn ($v) => trim((string) $v);
 
         return $norm($first) !== $norm($this->first_name)
             || $norm($middle) !== $norm($this->middle_name)
-            || $norm($last) !== $norm($this->last_name);
+            || $norm($last) !== $norm($this->last_name)
+            || $norm($suffix) !== $norm($this->suffix);
     }
 
     /**
@@ -136,9 +137,9 @@ class User extends Authenticatable implements MustVerifyEmail
      * (a correction inside the 24-hour window keeps the original time, so
      * corrections can't push the 30 days back). The caller saves.
      */
-    public function guardNameChange(?string $first, ?string $middle, ?string $last): ?string
+    public function guardNameChange(?string $first, ?string $middle, ?string $last, ?string $suffix = null): ?string
     {
-        if (! $this->nameDiffersFrom($first, $middle, $last)) {
+        if (! $this->nameDiffersFrom($first, $middle, $last, $suffix)) {
             return null;
         }
         if ($until = $this->nameLockedUntil()) {

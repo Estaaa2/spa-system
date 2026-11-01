@@ -324,7 +324,7 @@ class AuthController extends Controller
 
         // Customers: once every 30 days, the same rule as the web profile window.
         if ($user->hasRole('customer')
-            && ($refused = $user->guardNameChange($request->first_name, $request->middle_name, $request->last_name))) {
+            && ($refused = $user->guardNameChange($request->first_name, $request->middle_name, $request->last_name, $user->suffix))) {
             return response()->json(['message' => $refused, 'errors' => ['first_name' => [$refused]]], 422);
         }
 
