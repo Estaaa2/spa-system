@@ -86,7 +86,71 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verification_otp_attempts' => 'integer',
             'profile_photo_updated_at' => 'datetime',
             'identity_verified_at' => 'datetime',
+            'name_changed_at' => 'datetime',
         ];
+    }
+
+    /** Customers may change their name once every this many days (UI rework Phase 5). */
+    public const NAME_CHANGE_DAYS = 30;
+
+    /** After a change, this many hours to fix a typo without starting the 30 days again. */
+    public const NAME_CORRECTION_HOURS = 24;
+
+    /** Until when a name change right after the last one still counts as a correction. */
+    public function nameCorrectionUntil(): ?\Illuminate\Support\Carbon
+    {
+        return $this->name_changed_at?->copy()->addHours(self::NAME_CORRECTION_HOURS);
+    }
+
+    /**
+     * The moment the name can be changed again, or null when it can be changed
+     * now (never changed, still in the correction window, or 30 days have passed).
+     * Checked when a name is saved; nothing runs on a schedule.
+     */
+    public function nameLockedUntil(): ?\Illuminate\Support\Carbon
+    {
+        if (! $this->name_changed_at) {
+            return null;
+        }
+        if (now()->lt($this->nameCorrectionUntil())) {
+            return null;
+        }
+        $until = $this->name_changed_at->copy()->addDays(self::NAME_CHANGE_DAYS);
+
+        return now()->lt($until) ? $until : null;
+    }
+
+    /** Whether these names differ from the saved ones (ignoring spaces at the ends). */
+    public function nameDiffersFrom(?string $first, ?string $middle, ?string $last): bool
+    {
+        $norm = fn ($v) => trim((string) $v);
+
+        return $norm($first) !== $norm($this->first_name)
+            || $norm($middle) !== $norm($this->middle_name)
+            || $norm($last) !== $norm($this->last_name);
+    }
+
+    /**
+     * Applies the 30-day rule to a customer's name change. Returns an error
+     * message when it's refused; otherwise sets name_changed_at on the model
+     * (a correction inside the 24-hour window keeps the original time, so
+     * corrections can't push the 30 days back). The caller saves.
+     */
+    public function guardNameChange(?string $first, ?string $middle, ?string $last): ?string
+    {
+        if (! $this->nameDiffersFrom($first, $middle, $last)) {
+            return null;
+        }
+        if ($until = $this->nameLockedUntil()) {
+            return 'You can change your name once every '.self::NAME_CHANGE_DAYS.' days. You can change it again on '
+                .$until->timezone(config('app.timezone'))->format('M j, Y').'.';
+        }
+        $inCorrection = $this->name_changed_at && now()->lt($this->nameCorrectionUntil());
+        if (! $inCorrection) {
+            $this->name_changed_at = now();
+        }
+
+        return null;
     }
 
     /**

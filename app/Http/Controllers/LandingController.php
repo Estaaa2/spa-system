@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BranchProfile;
 use App\Models\Package;
+use App\Models\Promo;
 use App\Models\Rating;
 use App\Models\Spa;
 use App\Models\Treatment;
@@ -278,6 +279,87 @@ class LandingController extends Controller
         ]);
     }
 
+    /**
+     * The data a spa card hands to the spa window, for one listed branch.
+     * Shared by search results and "Spas near you" so they can't drift apart
+     * again (UI rework Phase 5): the nearby list used to read
+     * $branch->treatments, which keeps the staff-only spa_branch scope, so
+     * for a logged-in customer every nearby spa showed "No services
+     * available". Matches the Featured/Listed cards in welcome.blade.php,
+     * including today's promos.
+     */
+    private function spaCardPayload(Spa $spa, $branch, bool $featured, string $tag): array
+    {
+        $profile = $branch->profile;
+
+        $lowestPrice = Treatment::withoutGlobalScopes()
+            ->where('spa_id', $spa->id)
+            ->where('branch_id', $branch->id)
+            ->min('price');
+
+        $withTodaysPromos = ['promos' => fn ($q) => $q->withoutGlobalScope('spa_branch')->activeToday()];
+
+        $treatments = Treatment::withoutGlobalScope('spa_branch')
+            ->where('branch_id', $branch->id)
+            ->where('spa_id', $spa->id)
+            ->with($withTodaysPromos)
+            ->get();
+
+        $packages = Package::withoutGlobalScope('spa_branch')
+            ->where('branch_id', $branch->id)
+            ->where('spa_id', $spa->id)
+            ->with($withTodaysPromos)
+            ->get();
+
+        $activePromo = Promo::withoutGlobalScopes()
+            ->where('spa_id', $spa->id)
+            ->where('branch_id', $branch->id)
+            ->activeToday()
+            ->first();
+
+        $ratingAgg = Rating::query()
+            ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+            ->where('bookings.spa_id', $spa->id)
+            ->where('bookings.branch_id', $branch->id)
+            ->whereNotNull('ratings.spa_rating')
+            ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
+            ->first();
+
+        return [
+            'id' => $spa->id,
+            'name' => $spa->name,
+            'owner_name' => $spa->ownerDisplayName(),
+            'business_verified' => $spa->isBusinessVerified(),
+            'tag' => $tag,
+            'can_book_online' => $spa->hasFeature('online_reservation'),
+            'is_featured' => $featured,
+            'branch_id' => $branch->id,
+            'branch_name' => $branch->name,
+            'branch_location' => $branch->location ?? '',
+            'desc' => $profile->description ?? '',
+            'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
+            'photos' => BranchProfile::photoPayload($profile),
+            'address' => $profile->address ?? $branch->location ?? 'Location unavailable',
+            'location_summary' => BranchProfile::resolveCitySummary(
+                $profile->city ?? null,
+                $profile->address ?? null,
+                $branch->location ?? null
+            ) ?? 'Location unavailable',
+            'phone' => $profile->phone ?? '',
+            'lat' => $profile->latitude,
+            'lng' => $profile->longitude,
+            'treatments' => $treatments,
+            'packages' => $packages,
+            'has_promo' => (bool) $activePromo,
+            'promo_label' => $activePromo?->name,
+            'amenities' => $profile->amenities ?? [],
+            'is_hiring' => $profile->is_hiring ?? false,
+            'hiring_note' => $profile->hiring_note ?? null,
+            'rating_avg' => $ratingAgg?->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
+            'rating_count' => (int) ($ratingAgg->rating_count ?? 0),
+        ];
+    }
+
     private function buildSpaCards($spas): array
     {
         $cards = [];
@@ -290,9 +372,7 @@ class LandingController extends Controller
             $featured = $this->isFeatured($spa);
 
             foreach ($spa->branches as $branch) {
-                $profile = $branch->profile;
-
-                if (! $profile?->is_listed) {
+                if (! $branch->profile?->is_listed) {
                     continue;
                 }
 
@@ -300,75 +380,7 @@ class LandingController extends Controller
                     continue;
                 }
 
-                $lowestPrice = Treatment::withoutGlobalScopes()
-                    ->where('spa_id', $spa->id)
-                    ->where('branch_id', $branch->id)
-                    ->min('price');
-
-                $photos = BranchProfile::photoPayload($profile);
-
-                $branchTreatments = Treatment::withoutGlobalScope('spa_branch')
-                    ->where('branch_id', $branch->id)
-                    ->where('spa_id', $spa->id)
-                    ->get();
-
-                $branchPackages = Package::withoutGlobalScope('spa_branch')
-                    ->where('branch_id', $branch->id)
-                    ->where('spa_id', $spa->id)
-                    ->get();
-
-                $ratingAgg = Rating::query()
-                    ->join(
-                        'bookings',
-                        'bookings.id',
-                        '=',
-                        'ratings.booking_id'
-                    )
-                    ->where('bookings.spa_id', $spa->id)
-                    ->where('bookings.branch_id', $branch->id)
-                    ->whereNotNull('ratings.spa_rating')
-                    ->selectRaw(
-                        'AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count'
-                    )
-                    ->first();
-
-                $cards[] = [
-                    'id' => $spa->id,
-                    'name' => $spa->name,
-                    'owner_name' => $spa->ownerDisplayName(),
-                    'business_verified' => $spa->isBusinessVerified(),
-                    'tag' => $featured ? 'Featured Spa' : 'Spa',
-                    'can_book_online' => $spa->hasFeature('online_reservation'),
-                    'is_featured' => $featured,
-                    'branch_id' => $branch->id,
-                    'branch_name' => $branch->name,
-                    'branch_location' => $branch->location ?? '',
-                    'desc' => $profile->description ?? '',
-                    'price_note' => $lowestPrice
-                        ? number_format($lowestPrice, 2)
-                        : null,
-                    'photos' => $photos,
-                    'address' => $profile->address
-                        ?? $branch->location
-                        ?? 'Location unavailable',
-                    'location_summary' => BranchProfile::resolveCitySummary(
-                        $profile->city ?? null,
-                        $profile->address ?? null,
-                        $branch->location ?? null
-                    ) ?? 'Location unavailable',
-                    'phone' => $profile->phone ?? '',
-                    'lat' => $profile->latitude,
-                    'lng' => $profile->longitude,
-                    'treatments' => $branchTreatments,
-                    'packages' => $branchPackages,
-                    'amenities' => $profile->amenities ?? [],
-                    'is_hiring' => $profile->is_hiring ?? false,
-                    'hiring_note' => $profile->hiring_note ?? null,
-                    'rating_avg' => $ratingAgg->avg_rating
-                        ? round($ratingAgg->avg_rating, 1)
-                        : null,
-                    'rating_count' => (int) ($ratingAgg->rating_count ?? 0),
-                ];
+                $cards[] = $this->spaCardPayload($spa, $branch, $featured, $featured ? 'Featured Spa' : 'Spa');
             }
         }
 
@@ -400,7 +412,10 @@ class LandingController extends Controller
             return response()->json([]);
         }
 
-        $nearby = \DB::table('branch_profiles')
+        // Distance per listed branch, filtered in an outer query. (HAVING
+        // without GROUP BY works on MySQL/MariaDB only; this form also runs on
+        // SQLite, so it can be tested.)
+        $distances = \DB::table('branch_profiles')
             ->select('branch_id')
             ->selectRaw(
                 'ROUND(6371 * ACOS(
@@ -414,8 +429,11 @@ class LandingController extends Controller
             )
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
-            ->where('is_listed', true)
-            ->havingRaw('distance_km <= ?', [5])
+            ->where('is_listed', true);
+
+        $nearby = \DB::query()
+            ->fromSub($distances, 'd')
+            ->where('distance_km', '<=', 5)
             ->orderBy('distance_km')
             ->limit(8)
             ->get()
@@ -432,7 +450,7 @@ class LandingController extends Controller
                 $query
                     ->whereIn('id', $branchIds)
                     ->verificationCleared()
-                    ->with(['profile', 'treatments', 'packages']);
+                    ->with('profile');   // services are loaded scope-free in spaCardPayload()
             },
             'subscriptions',
             Spa::OWNER_PUBLIC_COLUMNS,
@@ -465,45 +483,8 @@ class LandingController extends Controller
                     continue;
                 }
 
-                $lowestPrice = Treatment::withoutGlobalScopes()
-                    ->where('spa_id', $spa->id)
-                    ->where('branch_id', $branch->id)
-                    ->min('price');
-
-                $result[] = [
-                    'id' => $spa->id,
-                    'name' => $spa->name,
-                    'owner_name' => $spa->ownerDisplayName(),
-                    'business_verified' => $spa->isBusinessVerified(),
-                    'tag' => 'Nearby Spa',
-                    'can_book_online' => $spa->hasFeature('online_reservation'),
-                    'is_featured' => $featured,
-                    'branch_id' => $branch->id,
-                    'branch_name' => $branch->name,
-                    'branch_location' => $branch->location ?? '',
-                    'desc' => $profile->description ?? '',
-                    'price_note' => $lowestPrice
-                        ? number_format($lowestPrice, 2)
-                        : null,
-                    'photos' => BranchProfile::photoPayload($profile),
-                    'address' => $profile->address
-                        ?? $branch->location
-                        ?? 'Location unavailable',
-                    'location_summary' => BranchProfile::resolveCitySummary(
-                        $profile->city ?? null,
-                        $profile->address ?? null,
-                        $branch->location ?? null
-                    ) ?? 'Location unavailable',
-                    'phone' => $profile->phone ?? '',
-                    'lat' => $profile->latitude,
-                    'lng' => $profile->longitude,
-                    'treatments' => $branch->treatments,
-                    'packages' => $branch->packages,
-                    'amenities' => $profile->amenities ?? [],
-                    'is_hiring' => $profile->is_hiring ?? false,
-                    'hiring_note' => $profile->hiring_note ?? null,
-                    'distance_km' => $nearby[$branch->id]->distance_km,
-                ];
+                $result[] = $this->spaCardPayload($spa, $branch, $featured, 'Nearby Spa')
+                    + ['distance_km' => $nearby[$branch->id]->distance_km];
             }
         }
 

@@ -123,7 +123,7 @@
                                         class="absolute right-0 z-50 hidden w-48 mt-2 overflow-hidden bg-white shadow-xl dark:bg-gray-800 rounded-2xl ring-1 ring-black/10 dark:ring-white/10">
                                         <div
                                             class="px-4 py-3 border-b border-black/5 dark:border-white/10 bg-[#F6EFE6]/60 dark:bg-gray-900/40">
-                                            <p class="text-xs font-semibold text-[#3C2F23] dark:text-white truncate">
+                                            <p data-account-name class="text-xs font-semibold text-[#3C2F23] dark:text-white truncate">
                                                 {{ auth()->user()?->name ?? 'Guest' }}</p>
                                             <p class="text-[11px] text-gray-400 truncate">{{ auth()->user()?->email ?? '' }}
                                             </p>
@@ -155,267 +155,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Profile Modal -->
-        @auth
-            <div id="profileModal" class="fixed inset-0 z-[130] hidden">
-                <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closeProfileModal()"></div>
-                <div class="relative mx-auto w-[92%] max-w-xl mt-6 sm:mt-12 pb-6">
-                    <div
-                        class="flex flex-col overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl ring-1 ring-black/10 dark:ring-white/10 max-h-[88vh]">
-
-                        {{-- HEADER: never scrolls. Gradient is already dark-toned brown, left as-is. --}}
-                        <div
-                            class="relative px-6 py-6 bg-gradient-to-br from-[#6F5430] to-[#8B7355] text-white text-center flex-shrink-0">
-                            {{-- Optional customer photo (D13): never a trust signal, no verified
-                             badge, not shown to spas or therapists (Q54). --}}
-                            @php $customerPhotoUrl = auth()->user()?->profilePhotoUrl(); @endphp
-                            @if ($customerPhotoUrl)
-                                <img src="{{ $customerPhotoUrl }}" alt="Your profile photo"
-                                    class="object-cover mx-auto rounded-full w-14 h-14 ring-2 ring-white/30">
-                            @else
-                                <div
-                                    class="flex items-center justify-center mx-auto text-xl font-bold rounded-full w-14 h-14 bg-white/20 ring-2 ring-white/30">
-                                    {{ strtoupper(substr(auth()->user()?->name ?? 'Guest', 0, 1)) }}
-                                </div>
-                            @endif
-                            <h3 class="mt-2 text-base font-semibold font-['Playfair_Display']">
-                                {{ auth()->user()?->name ?? 'Guest' }}
-                            </h3>
-                            <p class="mt-0.5 text-xs tracking-wide uppercase text-white/70">Customer Account</p>
-                            {{-- Account status --}}
-                            <div class="flex items-center justify-center mt-2">
-                                @if (auth()->user()->hasVerifiedEmail())
-                                    <span
-                                        class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-[#E4C76A]">
-                                        <span
-                                            class="inline-flex items-center justify-center w-4 h-4 text-[9px] text-white bg-[#60A5FA] rounded-full">
-                                            <i class="fa-solid fa-check"></i>
-                                        </span>
-                                        Verified Account
-                                    </span>
-                                @else
-                                    <span
-                                        class="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-500">
-                                        <span
-                                            class="inline-flex items-center justify-center w-4 h-4 text-[9px] text-white bg-amber-500 rounded-full">
-                                            <i class="fa-solid fa-exclamation"></i>
-                                        </span>
-                                        Unverified Account
-                                    </span>
-                                @endif
-                            </div>
-                            {{-- Photo forms sit outside the profile form (forms can't nest). --}}
-                            <div class="flex items-center justify-center gap-2 mt-3">
-                                <form method="POST" action="{{ route('profile.photo.update') }}" enctype="multipart/form-data"
-                                    id="customerPhotoForm">
-                                    @csrf
-                                    <label
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition rounded-full cursor-pointer bg-white/15 hover:bg-white/25 ring-1 ring-white/20 focus-within:ring-2 focus-within:ring-white/60">
-                                        <i class="fa-solid fa-camera" aria-hidden="true"></i>
-                                        <span id="customerPhotoLabel">{{ $customerPhotoUrl ? 'Change photo' : 'Add photo' }}</span>
-                                        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp"
-                                            class="sr-only" data-max-mb="{{ (int) round(config('identity.upload.max_kb', 5120) / 1024) }}"
-                                            onchange="submitCustomerPhoto(this)">
-                                    </label>
-                                </form>
-                                @if ($customerPhotoUrl)
-                                    <form method="POST" action="{{ route('profile.photo.destroy') }}">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition rounded-full bg-white/10 hover:bg-white/20 ring-1 ring-white/20">
-                                            <i class="fa-solid fa-trash-can" aria-hidden="true"></i> Remove
-                                        </button>
-                                    </form>
-                                @endif
-                            </div>
-                            <p class="mt-1.5 text-[11px] text-white/70">Optional. Spas and therapists don't see it.</p>
-                            <button onclick="closeProfileModal()"
-                                class="absolute flex items-center justify-center w-8 h-8 transition top-3 right-3 rounded-xl bg-white/10 hover:bg-white/20">
-                                <i class="text-sm fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-
-                        <form method="POST" action="{{ route('customer.profile.update') }}"
-                            class="flex flex-col flex-1 min-h-0">
-                            @csrf
-                            @method('PATCH')
-
-                            {{-- SCROLLABLE BODY --}}
-                            <div class="flex-1 p-5 space-y-6 overflow-y-auto">
-
-                                {{-- Errors use a named bag ('customerProfile') set in ProfileController so a
-                             failed job-application form on this same page can't also pop this modal. --}}
-                                @if ($errors->hasBag('photo') && $errors->getBag('photo')->any())
-                                    <div
-                                        class="p-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
-                                        <p class="font-semibold">Your photo wasn't saved:</p>
-                                        <p class="mt-0.5">{{ $errors->getBag('photo')->first() }}</p>
-                                    </div>
-                                @endif
-
-                                @if ($errors->hasBag('customerProfile') && $errors->getBag('customerProfile')->any())
-                                    <div
-                                        class="p-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
-                                        <p class="mb-1 font-semibold">Please fix the following:</p>
-                                        <ul class="pl-4 list-disc space-y-0.5">
-                                            @foreach ($errors->getBag('customerProfile')->all() as $error)
-                                                <li>{{ $error }}</li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                @endif
-
-                                {{-- PERSONAL INFORMATION --}}
-                                <div>
-                                    <h4
-                                        class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] dark:text-[#C4A97D] uppercase">
-                                        <i class="fa-solid fa-user"></i> Personal Information
-                                    </h4>
-                                    <div class="grid grid-cols-3 gap-3">
-                                        <div class="space-y-1">
-                                            <label
-                                                class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">First</label>
-                                            <input type="text" name="first_name"
-                                                value="{{ old('first_name', auth()->user()->first_name) }}"
-                                                class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
-                                        </div>
-                                        <div class="space-y-1">
-                                            <label
-                                                class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Middle</label>
-                                            <input type="text" name="middle_name"
-                                                value="{{ old('middle_name', auth()->user()->middle_name) }}"
-                                                class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
-                                        </div>
-                                        <div class="space-y-1">
-                                            <label
-                                                class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Last</label>
-                                            <input type="text" name="last_name"
-                                                value="{{ old('last_name', auth()->user()->last_name) }}"
-                                                class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <hr class="border-[#E8DDD0] dark:border-gray-700">
-
-                                {{-- CONTACT & LOCATION --}}
-                                <div>
-                                    <h4
-                                        class="flex items-center gap-2 mb-3 text-xs font-bold tracking-widest text-[#8B7355] dark:text-[#C4A97D] uppercase">
-                                        <i class="fa-solid fa-location-dot"></i> Contact & Location
-                                    </h4>
-
-                                    <div class="space-y-4">
-                                        {{-- Email --}}
-                                        <div class="space-y-1">
-                                            <label
-                                                class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Email
-                                                Address</label>
-                                            @php
-                                                $email = auth()->user()?->email ?? '';
-                                                $parts = explode('@', $email);
-                                                $name = $parts[0];
-                                                $domain = $parts[1] ?? '';
-                                                $maskedName =
-                                                    strlen($name) > 3
-                                                        ? substr($name, 0, 2) . str_repeat('*', strlen($name) - 2)
-                                                        : str_repeat('*', strlen($name));
-                                                $maskedEmail = $maskedName . '@' . $domain;
-                                            @endphp
-                                            <div
-                                                class="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-700 ring-1 ring-black/5 dark:ring-white/10">
-                                                <p id="emailDisplay"
-                                                    class="flex-1 text-sm text-[#3C2F23] dark:text-gray-100 truncate">
-                                                    {{ $maskedEmail }}</p>
-                                                <button type="button" id="emailToggleBtn" onclick="toggleEmail(this)"
-                                                    data-masked="{{ $maskedEmail }}" data-real="{{ $email }}"
-                                                    class="text-[#8B7355] hover:text-[#6F5430] dark:hover:text-[#C4A97D] transition flex-shrink-0">
-                                                    <i id="emailToggleIcon" class="text-xs fa-solid fa-eye"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {{-- Phone --}}
-                                        <div class="space-y-1">
-                                            <label
-                                                class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Phone
-                                                Number</label>
-                                            <input type="text" name="phone" id="phone" maxlength="11"
-                                                pattern="^09\d{9}$" value="{{ old('phone', auth()->user()->phone) }}"
-                                                placeholder="09xxxxxxxxx"
-                                                class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
-                                            <p class="text-[11px] text-gray-400">Used for booking updates, and to speed up
-                                                GCash/Maya checkout.</p>
-                                        </div>
-
-                                        {{-- Address --}}
-                                        <div class="space-y-1">
-                                            <label
-                                                class="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Location
-                                                / Address</label>
-                                            <div class="relative">
-                                                <input type="text" name="address" id="address" autocomplete="off"
-                                                    value="{{ old('address', auth()->user()->address) }}"
-                                                    placeholder="Search your barangay, subdivision, or city"
-                                                    class="w-full rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40 text-sm">
-                                                {{-- Autocomplete suggestions dropdown, populated by welcome.js --}}
-                                                <div id="addressSuggestions"
-                                                    class="absolute z-20 hidden w-full mt-1 overflow-hidden overflow-y-auto bg-white border border-gray-200 shadow-lg max-h-48 rounded-xl dark:bg-gray-700 dark:border-gray-600">
-                                                </div>
-                                            </div>
-                                            <p class="text-[11px] text-gray-400">Search above, or fine-tune by dragging the
-                                                pin below. Cavite locations only — used to recommend nearby spas.</p>
-
-                                            {{-- Leaflet/OSM tiles can't be themed via CSS, so a dimming
-                                         overlay tints the map to sit better against the dark
-                                         modal. pointer-events-none keeps the map fully clickable. --}}
-                                            <div class="relative">
-                                                <div id="map"
-                                                    class="w-full h-52 rounded-xl border border-[#E8DDD0] dark:border-gray-600 overflow-hidden">
-                                                </div>
-                                                <div
-                                                    class="absolute inset-0 hidden pointer-events-none dark:block rounded-xl bg-gray-900/30 mix-blend-multiply">
-                                                </div>
-                                            </div>
-                                            <div class="flex justify-end">
-                                                <button type="button" id="profileLocationReset"
-                                                    class="text-[11px] font-semibold text-[#8B7355] dark:text-[#C4A97D] hover:text-[#6F5430] dark:hover:text-white">
-                                                    <i class="mr-1 fa-solid fa-rotate-left"></i>Reset to saved location
-                                                </button>
-                                            </div>
-
-                                            <input type="hidden" name="latitude" id="latitude"
-                                                value="{{ old('latitude', auth()->user()->latitude) }}">
-                                            <input type="hidden" name="longitude" id="longitude"
-                                                value="{{ old('longitude', auth()->user()->longitude) }}">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <hr class="border-[#E8DDD0] dark:border-gray-700">
-
-                            </div>{{-- end scrollable body --}}
-
-                            {{-- FOOTER: always visible --}}
-                            <div
-                                class="flex flex-shrink-0 gap-2 px-5 py-4 bg-white border-t dark:bg-gray-800 border-black/5 dark:border-white/10">
-                                <button type="submit"
-                                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition">
-                                    Save Changes
-                                </button>
-                                <button type="button" onclick="closeProfileModal()"
-                                    class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#8B7355] dark:text-[#C4A97D] border border-[#8B7355] dark:border-[#C4A97D] hover:bg-[#F6EFE6] dark:hover:bg-gray-700 transition">
-                                    Cancel
-                                </button>
-                            </div>
-
-                        </form>
-                    </div>
-                </div>
-            </div>
-        @endauth
 
         <div id="mobile-menu"
             class="hidden bg-[#F6EFE6]/95 dark:bg-gray-900/95 border-t border-black/10 dark:border-white/10 shadow-lg md:hidden">
@@ -525,6 +264,281 @@
 
             <div class="h-10 bg-gradient-to-b from-transparent to-[#F6EFE6]"></div>
         </section>
+
+        <!-- Profile window (UI rework Phase 5) =========================================
+             Lives outside <nav>: the nav's backdrop-filter makes it the containing
+             block for position:fixed, which squeezed the old window into the bar.
+             Same shell as Booking details: a sheet on phones, a dialog from sm up.
+             Opens read-only; each row (name, phone, home location) has its own
+             editor that replaces the main view, with Back and its own Save. The
+             home location is only changed in its editor, and GPS never writes to
+             it on its own. Filled and saved by the "PROFILE WINDOW" block in
+             welcome.js; every class it toggles is written out here. -->
+        @auth
+            @php
+                $pfUser  = auth()->user();
+                $pfPhoto = $pfUser->profilePhotoUrl();
+                $pfData  = [
+                    'first_name'  => $pfUser->first_name,
+                    'middle_name' => $pfUser->middle_name,
+                    'last_name'   => $pfUser->last_name,
+                    'name'        => $pfUser->name,
+                    'phone'       => $pfUser->phone,
+                    'address'     => $pfUser->address,
+                    'latitude'    => $pfUser->latitude !== null ? (float) $pfUser->latitude : null,
+                    'longitude'   => $pfUser->longitude !== null ? (float) $pfUser->longitude : null,
+                    'save_url'    => route('customer.profile.update'),
+                ] + \App\Http\Controllers\ProfileController::nameRule($pfUser);
+                $pfInput = 'w-full mt-1.5 min-h-[44px] rounded-xl border-black/15 text-sm text-[#3C2F23] placeholder:text-gray-400 dark:border-white/15 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-500 focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/30 dark:focus:border-[#C4A97D] dark:focus:ring-[#C4A97D]/30';
+                $pfLabel = 'block text-sm font-medium text-[#3C2F23] dark:text-gray-100';
+                $pfError = 'hidden mt-1 text-xs text-red-700 dark:text-red-400';
+            @endphp
+            <script id="pfData" type="application/json">{!! json_encode($pfData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) !!}</script>
+
+            <div id="profileModal" class="fixed inset-0 z-[130] hidden" role="dialog" aria-modal="true" aria-labelledby="pfTitle">
+                <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onclick="pfBackdropClick()"></div>
+                <div class="absolute inset-x-0 bottom-0 pointer-events-none sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+                    <div id="pfPanel"
+                        class="bd-panel pointer-events-auto flex flex-col w-full sm:max-w-lg overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-t-3xl sm:rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
+                        {{-- overflow-hidden: the brown header must follow the panel's rounded corners. --}}
+
+                        <!-- Editor bar (hidden in the main view, which has the warm header) -->
+                        <div id="pfBar" class="hidden items-center gap-2 px-4 py-3 border-b shrink-0 sm:px-6 border-black/5 dark:border-white/10">
+                            <button type="button" id="pfBackBtn" onclick="pfShowView('main')" aria-label="Back to your profile"
+                                class="hidden items-center justify-center -ml-2 w-11 h-11 shrink-0 transition rounded-xl text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                            </button>
+                            <h2 id="pfTitle" tabindex="-1" class="flex-1 text-lg font-semibold text-[#3C2F23] dark:text-white focus:outline-none">Your profile</h2>
+                            <button type="button" onclick="closeProfileModal()" aria-label="Close"
+                                class="flex items-center justify-center -mr-2 w-11 h-11 shrink-0 transition rounded-xl text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                <i class="text-lg fa-solid fa-xmark" aria-hidden="true"></i>
+                            </button>
+                        </div>
+
+                        <div id="pfBody" class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+
+                            <!-- ===== Main view: read-only, warm header (option B) ===== -->
+                            <div id="pfMain">
+                                <div class="pf-hero relative px-4 pt-7 pb-6 text-center text-white sm:px-6">
+                                    <button type="button" onclick="closeProfileModal()" aria-label="Close"
+                                        class="absolute flex items-center justify-center transition top-2 right-2 w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                                        <i class="text-lg fa-solid fa-xmark" aria-hidden="true"></i>
+                                    </button>
+
+                                    <div class="relative mx-auto w-[76px] h-[76px]">
+                                        @if ($pfPhoto)
+                                            <img src="{{ $pfPhoto }}" alt="Your profile photo" class="object-cover w-[76px] h-[76px] rounded-full ring-2 ring-white/40">
+                                        @else
+                                            <span aria-hidden="true" class="flex items-center justify-center w-[76px] h-[76px] text-3xl font-semibold rounded-full bg-white/20 ring-2 ring-inset ring-white/35">{{ strtoupper(substr($pfUser->name ?? 'C', 0, 1)) }}</span>
+                                        @endif
+                                        {{-- Photo forms post as before (the page reloads and this window reopens). --}}
+                                        <form method="POST" action="{{ route('profile.photo.update') }}" enctype="multipart/form-data" id="customerPhotoForm">
+                                            @csrf
+                                            <label title="{{ $pfPhoto ? 'Change photo' : 'Add photo' }}"
+                                                class="absolute flex items-center justify-center w-8 h-8 transition bg-white rounded-full shadow cursor-pointer -right-1 -bottom-1 text-[#6F5430] hover:bg-[#F6EFE6] focus-within:ring-2 focus-within:ring-white focus-within:ring-offset-2 focus-within:ring-offset-[#8B7355]">
+                                                <i class="text-xs fa-solid fa-camera" aria-hidden="true"></i>
+                                                <span id="customerPhotoLabel" class="sr-only">{{ $pfPhoto ? 'Change photo' : 'Add photo' }}</span>
+                                                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="sr-only"
+                                                    data-max-mb="{{ (int) round(config('identity.upload.max_kb', 5120) / 1024) }}"
+                                                    onchange="submitCustomerPhoto(this)">
+                                            </label>
+                                        </form>
+                                    </div>
+
+                                    <p id="pfNameHeading" tabindex="-1" class="mt-3 text-xl font-semibold leading-snug font-['Playfair_Display'] break-words focus:outline-none">{{ $pfUser->name }}</p>
+                                    @if ($pfUser->hasVerifiedEmail())
+                                        <p class="inline-flex items-center gap-1.5 px-2.5 py-1 mt-2.5 text-xs font-semibold rounded-full bg-white/15">
+                                            <i class="fa-solid fa-circle-check" aria-hidden="true"></i> Email verified
+                                        </p>
+                                    @else
+                                        <p class="inline-flex items-center gap-1.5 px-2.5 py-1 mt-2.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-900">
+                                            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Email not verified
+                                        </p>
+                                    @endif
+                                    <p class="mt-2.5 text-xs text-white/85">Photo is optional. Spas and therapists don't see it.</p>
+                                    @if ($pfPhoto)
+                                        <form method="POST" action="{{ route('profile.photo.destroy') }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="inline-flex items-center min-h-[44px] -mb-3 px-2 text-xs font-semibold underline underline-offset-2 text-white/90 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-lg">Remove photo</button>
+                                        </form>
+                                    @endif
+                                </div>
+
+                                @if ($errors->hasBag('photo') && $errors->getBag('photo')->any())
+                                    <div role="alert" class="flex items-start gap-2 p-3 mx-4 mt-4 text-sm text-red-700 rounded-2xl bg-red-50 ring-1 ring-red-200 sm:mx-6 dark:bg-red-900/20 dark:ring-red-800 dark:text-red-300">
+                                        <i class="mt-0.5 fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                                        <span>Your photo wasn't saved. {{ $errors->getBag('photo')->first() }}</span>
+                                    </div>
+                                @endif
+
+                                <!-- Personal information -->
+                                <section aria-labelledby="pfInfoTitle">
+                                    <h3 id="pfInfoTitle" class="pf-section-title">
+                                        <i class="fa-solid fa-user" aria-hidden="true"></i> Personal information
+                                    </h3>
+                                    <dl class="divide-y divide-black/5 dark:divide-white/10">
+                                        <div class="flex items-start gap-3 px-4 py-3 sm:px-6">
+                                            <div class="flex-1 min-w-0">
+                                                <dt class="text-xs text-gray-600 dark:text-gray-400">Name</dt>
+                                                <dd id="pfRowName" class="mt-0.5 text-sm font-medium text-[#3C2F23] dark:text-white break-words"></dd>
+                                                {{-- Once every 30 days, with 24 hours to fix a typo; filled by welcome.js. --}}
+                                                <dd id="pfNameNote" class="hidden mt-0.5 text-xs text-gray-600 dark:text-gray-400"></dd>
+                                            </div>
+                                            <button type="button" id="pfNameEdit" onclick="pfShowView('name')" aria-label="Edit name" class="pf-edit">Edit</button>
+                                            <span id="pfNameLock" class="pf-locked hidden" title="You can't change your name yet">
+                                                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                                <span class="sr-only">Can't be changed yet</span>
+                                            </span>
+                                        </div>
+                                        <div class="flex items-start gap-3 px-4 py-3 sm:px-6">
+                                            <div class="flex-1 min-w-0">
+                                                <dt class="text-xs text-gray-600 dark:text-gray-400">Email</dt>
+                                                <dd class="mt-0.5 text-sm font-medium text-[#3C2F23] dark:text-white break-all">{{ $pfUser->email }}</dd>
+                                                <dd class="mt-0.5 text-xs text-gray-600 dark:text-gray-400">To change your email, contact Levictas support.</dd>
+                                            </div>
+                                            {{-- Not a button: the email can't be edited here. --}}
+                                            <span class="pf-locked" title="Your email can't be changed here">
+                                                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                                <span class="sr-only">Can't be changed here</span>
+                                            </span>
+                                        </div>
+                                        <div class="flex items-start gap-3 px-4 py-3 sm:px-6">
+                                            <div class="flex-1 min-w-0">
+                                                <dt class="text-xs text-gray-600 dark:text-gray-400">Phone</dt>
+                                                <dd id="pfRowPhone" class="mt-0.5 text-sm font-medium text-[#3C2F23] dark:text-white"></dd>
+                                            </div>
+                                            <button type="button" onclick="pfShowView('phone')" aria-label="Edit phone" class="pf-edit">Edit</button>
+                                        </div>
+                                    </dl>
+                                </section>
+
+                                <!-- Home location -->
+                                <section aria-labelledby="pfLocTitle" class="border-t border-black/5 dark:border-white/10">
+                                    <h3 id="pfLocTitle" class="pf-section-title">
+                                        <i class="fa-solid fa-location-dot" aria-hidden="true"></i> Home location
+                                    </h3>
+                                    <div class="px-4 pt-1 pb-4 sm:px-6">
+                                        {{-- Preview only: it can't be clicked or dragged. --}}
+                                        <div id="pfMapPreviewWrap" class="hidden mb-3">
+                                            <div id="pfMapPreview" aria-hidden="true" class="pf-map-preview"></div>
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <div class="flex-1 min-w-0">
+                                                <p id="pfRowLocation" class="text-sm font-medium text-[#3C2F23] dark:text-white break-words"></p>
+                                                <p class="mt-0.5 text-xs text-gray-600 dark:text-gray-400">Fills in the address when you book a home service.</p>
+                                            </div>
+                                            <button type="button" onclick="pfShowView('location')" aria-label="Edit home location" class="pf-edit">Edit</button>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <!-- Find spas near (this device) -->
+                                <section aria-labelledby="pfNearbyTitle" class="px-4 pt-4 pb-5 border-t sm:px-6 border-black/5 dark:border-white/10">
+                                    <h3 id="pfNearbyTitle" class="text-sm font-semibold text-[#3C2F23] dark:text-white">Find spas near</h3>
+                                    <p class="mt-0.5 text-xs text-gray-600 dark:text-gray-400">This choice is remembered on this device only. Your home location above is saved to your account.</p>
+                                    <div class="pf-seg mt-2" role="radiogroup" aria-labelledby="pfNearbyTitle">
+                                        <label class="pf-seg-opt">
+                                            <input type="radio" name="pfNearbyFrom" value="home" class="sr-only" onchange="pfSetNearbyFrom('home')">
+                                            <i class="fa-solid fa-house" aria-hidden="true"></i><span>My home</span>
+                                        </label>
+                                        <label class="pf-seg-opt">
+                                            <input type="radio" name="pfNearbyFrom" value="here" class="sr-only" onchange="pfSetNearbyFrom('here')">
+                                            <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i><span>Where I am now</span>
+                                        </label>
+                                    </div>
+                                    <p id="pfNearbyHomeHint" class="mt-2 text-xs text-gray-600 dark:text-gray-400"></p>
+                                    <p id="pfNearbyStatus" class="hidden mt-1 text-xs" role="status"></p>
+                                </section>
+                            </div>
+
+                            <!-- ===== Editor: name ===== -->
+                            <div id="pfEditName" class="hidden px-4 py-5 space-y-4 sm:px-6">
+                                <p id="pfNameRuleHint" class="flex items-start gap-2 p-3 text-xs text-gray-700 rounded-2xl bg-[#F6EFE6]/70 dark:bg-gray-900/40 dark:text-gray-300">
+                                    <i class="mt-0.5 fa-solid fa-circle-info text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                    <span id="pfNameRuleText"></span>
+                                </p>
+                                <div>
+                                    <label for="pfFirstName" class="{{ $pfLabel }}">First name</label>
+                                    <input type="text" id="pfFirstName" autocomplete="given-name" maxlength="255" class="{{ $pfInput }}" aria-describedby="pfErr-first_name">
+                                    <p id="pfErr-first_name" class="{{ $pfError }}"></p>
+                                </div>
+                                <div>
+                                    <label for="pfMiddleName" class="{{ $pfLabel }}">Middle name <span class="font-normal text-gray-600 dark:text-gray-400">(optional)</span></label>
+                                    <input type="text" id="pfMiddleName" autocomplete="additional-name" maxlength="255" class="{{ $pfInput }}" aria-describedby="pfErr-middle_name">
+                                    <p id="pfErr-middle_name" class="{{ $pfError }}"></p>
+                                </div>
+                                <div>
+                                    <label for="pfLastName" class="{{ $pfLabel }}">Last name</label>
+                                    <input type="text" id="pfLastName" autocomplete="family-name" maxlength="255" class="{{ $pfInput }}" aria-describedby="pfErr-last_name">
+                                    <p id="pfErr-last_name" class="{{ $pfError }}"></p>
+                                </div>
+                            </div>
+
+                            <!-- ===== Editor: phone ===== -->
+                            <div id="pfEditPhone" class="hidden px-4 py-5 space-y-2 sm:px-6">
+                                <label for="pfPhone" class="{{ $pfLabel }}">Mobile number</label>
+                                <input type="tel" id="pfPhone" inputmode="numeric" autocomplete="tel" maxlength="11" placeholder="09171234567"
+                                    class="{{ $pfInput }}" aria-describedby="pfPhoneHint pfErr-phone">
+                                <p id="pfErr-phone" class="{{ $pfError }}"></p>
+                                <p id="pfPhoneHint" class="text-xs text-gray-600 dark:text-gray-400">11 digits starting with 09. Used for booking updates and to speed up GCash/Maya checkout.</p>
+                            </div>
+
+                            <!-- ===== Editor: home location ===== -->
+                            <div id="pfEditLocation" class="hidden px-4 py-5 space-y-4 sm:px-6">
+                                <button type="button" id="pfUseHere" onclick="pfUseCurrentLocation()"
+                                    class="inline-flex items-center justify-center w-full gap-2 min-h-[44px] px-4 text-sm font-semibold transition border rounded-xl text-[#3C2F23] border-black/15 hover:bg-[#F6EFE6]/70 dark:text-white dark:border-white/15 dark:hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                    <i class="fa-solid fa-location-crosshairs text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                    <span>Use my current location</span>
+                                </button>
+
+                                <div class="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400" aria-hidden="true">
+                                    <span class="flex-1 h-px bg-black/10 dark:bg-white/10"></span>or<span class="flex-1 h-px bg-black/10 dark:bg-white/10"></span>
+                                </div>
+
+                                <div>
+                                    <label for="address" class="{{ $pfLabel }}">Address</label>
+                                    <div class="flex gap-2 mt-1.5">
+                                        <input type="text" id="address" autocomplete="street-address" maxlength="255"
+                                            placeholder="Barangay, subdivision or street"
+                                            class="{{ str_replace('mt-1.5 ', '', $pfInput) }}" aria-describedby="pfAddressHint pfErr-address">
+                                        <button type="button" id="pfSearchBtn" onclick="pfSearchAddress()"
+                                            class="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 text-sm font-semibold transition border shrink-0 rounded-xl text-[#3C2F23] border-black/15 hover:bg-[#F6EFE6]/70 dark:text-white dark:border-white/15 dark:hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] disabled:opacity-60">
+                                            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>Search</span>
+                                        </button>
+                                    </div>
+                                    <p id="pfErr-address" class="{{ $pfError }}"></p>
+                                    <p id="pfAddressHint" class="mt-1 text-xs text-gray-600 dark:text-gray-400">Search, then confirm the pin. You can add a house number or landmark after.</p>
+                                    <ul id="pfSearchResults" class="hidden mt-2 overflow-hidden border divide-y rounded-xl border-black/10 divide-black/5 dark:border-white/10 dark:divide-white/10" aria-label="Search results"></ul>
+                                </div>
+
+                                <div>
+                                    <div class="relative">
+                                        <div id="map" class="pf-map-edit" aria-label="Map. Tap to place your pin, or drag it to adjust."></div>
+                                    </div>
+                                    <p id="pfLocStatus" class="mt-2 text-xs text-gray-600 dark:text-gray-400" role="status">Tap the map to place your pin, then drag it to fine-tune. Cavite only.</p>
+                                    <p id="pfErr-latitude" class="{{ $pfError }}"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer: only in an editor -->
+                        <div id="pfFooter" class="hidden bd-footer px-4 pt-3 border-t shrink-0 sm:px-6 border-black/5 dark:border-white/10">
+                            <div class="flex gap-2">
+                                <button type="button" onclick="pfShowView('main')"
+                                    class="inline-flex items-center justify-center flex-1 min-h-[48px] px-4 text-sm font-semibold transition bg-white border rounded-xl text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                    Cancel
+                                </button>
+                                <button type="button" id="pfSaveBtn" onclick="pfSave()"
+                                    class="inline-flex items-center justify-center flex-[2] gap-2 min-h-[48px] px-4 text-sm font-semibold text-white transition shadow-md rounded-xl booking-btn hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] dark:focus-visible:ring-offset-gray-800">
+                                    <span id="pfSaveLabel">Save</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endauth
 
         <!-- ================= MY APPOINTMENTS (sheet on phones, dialog from sm) =================
              UI rework Phase 2. Same shell as Booking details: header, tabs and a
@@ -2653,7 +2667,10 @@
                                         <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300">
                                             Home Address <span class="text-red-500">*</span>
                                         </label>
+                                        {{-- Prefilled from the saved home location (UI rework Phase 5); still editable per booking. --}}
                                         <input type="text" name="customer_address" id="bookingAddressInput"
+                                            data-default-address="{{ auth()->user()?->address }}"
+                                            value="{{ auth()->user()?->address }}"
                                             class="w-full mt-1 rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40"
                                             placeholder="Enter your full address">
                                         <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Required for home

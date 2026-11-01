@@ -322,14 +322,20 @@ class AuthController extends Controller
             }
         }
 
-        $user->update([
+        // Customers: once every 30 days, the same rule as the web profile window.
+        if ($user->hasRole('customer')
+            && ($refused = $user->guardNameChange($request->first_name, $request->middle_name, $request->last_name))) {
+            return response()->json(['message' => $refused, 'errors' => ['first_name' => [$refused]]], 422);
+        }
+
+        $user->fill([
             'first_name'  => $request->first_name,
             'middle_name' => $request->middle_name,
             'last_name'   => $request->last_name,
             'address'     => $request->address,
             'latitude'    => $request->latitude,
             'longitude'   => $request->longitude,
-        ]);
+        ])->save();
 
         return response()->json([
             'message' => 'Profile updated successfully.',
@@ -579,6 +585,6 @@ class AuthController extends Controller
             'initials'                => $user->initials(),
             'is_treatment_provider'   => $user->isTreatmentProvider(),
             'identity_verified'       => $user->isIdentityVerified(),
-        ];
+        ] + \App\Http\Controllers\ProfileController::nameRule($user);
     }
 }

@@ -50,8 +50,11 @@ class DecisionSupportController extends Controller
             : null;
         $avgPerDay     = round($totalCurrent / $periodDays, 1);
 
-        $revenueCurrent = $currentBookings->sum('total_amount');
-        $revenuePrev    = $prevBookings->sum('total_amount');
+        // Completed bookings only, the same rule as the Revenue and Reports pages
+        // (UI rework Phase 5). Cancelled, no-show and still-upcoming bookings
+        // were counted before, so this card disagreed with those pages.
+        $revenueCurrent = $currentBookings->where('status', 'completed')->sum('total_amount');
+        $revenuePrev    = $prevBookings->where('status', 'completed')->sum('total_amount');
         $revenueGrowth  = $revenuePrev > 0
             ? round((($revenueCurrent - $revenuePrev) / $revenuePrev) * 100, 1)
             : null;

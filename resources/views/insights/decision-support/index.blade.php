@@ -100,8 +100,9 @@
                     {{ $kpis['revenue_growth'] >= 0 ? '▲' : '▼' }} {{ abs($kpis['revenue_growth']) }}% vs prior period
                 </p>
             @else
-                <p class="mt-1 text-xs text-gray-400">No prior data</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">No prior data</p>
             @endif
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">From completed bookings</p>
         </div>
 
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">

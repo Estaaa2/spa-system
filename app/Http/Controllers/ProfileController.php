@@ -91,42 +91,88 @@ class ProfileController extends Controller
      */
     private const CUSTOMER_PROFILE_ERROR_BAG = 'customerProfile';
 
+    /**
+     * Customer profile window (UI rework Phase 5). Each row of the window
+     * (name, phone, home location) is edited on its own, so a request may send
+     * just one `section` and only that section is validated and saved. A
+     * request without `section` saves everything, as before.
+     *
+     * The window posts with fetch and gets JSON back; a plain form post still
+     * redirects back with the named error bag.
+     */
     public function updateCustomer(Request $request)
     {
         $user = $request->user();
 
-        $validated = $request->validateWithBag(self::CUSTOMER_PROFILE_ERROR_BAG, [
-            'first_name'  => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name'   => 'required|string|max:255',
-            'phone'       => ['nullable', 'string', 'regex:/^09\d{9}$/'],
-            'address'     => 'nullable|string|max:255',
-            'latitude'    => 'nullable|numeric|between:-90,90',
-            'longitude'   => 'nullable|numeric|between:-180,180',
-        ], [
-            'phone.regex' => 'Enter a valid mobile number (09xxxxxxxxx).',
-        ]);
+        $rules = [
+            'name'     => [
+                'first_name'  => 'required|string|max:255',
+                'middle_name' => 'nullable|string|max:255',
+                'last_name'   => 'required|string|max:255',
+            ],
+            'phone'    => [
+                'phone' => ['nullable', 'string', 'regex:/^09\d{9}$/'],
+            ],
+            'location' => [
+                'address'   => 'nullable|string|max:255',
+                'latitude'  => 'nullable|numeric|between:-90,90|required_with:longitude',
+                'longitude' => 'nullable|numeric|between:-180,180|required_with:latitude',
+            ],
+        ];
 
-        if ($request->filled('latitude') && $request->filled('longitude')) {
-            $lat = (float) $validated['latitude'];
-            $lng = (float) $validated['longitude'];
+        $section = $request->input('section');
+        if ($section !== null && ! array_key_exists($section, $rules)) {
+            abort(422, 'Unknown profile section.');
+        }
+        $sectionRules = $section ? $rules[$section] : array_merge(...array_values($rules));
 
-            if (!$this->withinCavite($lat, $lng)) {
-                return back()
-                    ->withErrors(['latitude' => 'Pinned location must be within Cavite. Please adjust the pin and try again.'], self::CUSTOMER_PROFILE_ERROR_BAG)
-                    ->withInput();
+        $messages = ['phone.regex' => 'Enter a valid mobile number (09xxxxxxxxx).'];
+
+        $validated = $request->expectsJson()
+            ? $request->validate($sectionRules, $messages)
+            : $request->validateWithBag(self::CUSTOMER_PROFILE_ERROR_BAG, $sectionRules, $messages);
+
+        if (array_key_exists('latitude', $sectionRules) && $request->filled('latitude') && $request->filled('longitude')
+            && ! $this->withinCavite((float) $validated['latitude'], (float) $validated['longitude'])) {
+            $message = 'Pinned location must be within Cavite. Please adjust the pin and try again.';
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $message, 'errors' => ['latitude' => [$message]]], 422)
+                : back()->withErrors(['latitude' => $message], self::CUSTOMER_PROFILE_ERROR_BAG)->withInput();
+        }
+
+        // Name: once every 30 days, with 24 hours to fix a typo (User::guardNameChange).
+        if (array_key_exists('first_name', $sectionRules)) {
+            $refused = $user->guardNameChange($validated['first_name'], $validated['middle_name'] ?? null, $validated['last_name']);
+            if ($refused) {
+                return $request->expectsJson()
+                    ? response()->json(['message' => $refused, 'errors' => ['first_name' => [$refused]]], 422)
+                    : back()->withErrors(['first_name' => $refused], self::CUSTOMER_PROFILE_ERROR_BAG)->withInput();
             }
         }
 
-        $user->update([
-            'first_name'  => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name'   => $validated['last_name'],
-            'phone'       => $validated['phone'] ?? null,
-            'address'     => $validated['address'] ?? null,
-            'latitude'    => $validated['latitude'] ?? null,
-            'longitude'   => $validated['longitude'] ?? null,
-        ]);
+        // Only the fields of the section that was sent; empty optional fields clear.
+        $user->fill(collect($sectionRules)->keys()
+            ->mapWithKeys(fn ($field) => [$field => $validated[$field] ?? null])
+            ->all())->save();
+
+        if ($request->expectsJson()) {
+            $fresh = $user->fresh();
+
+            return response()->json([
+                'message' => 'Profile updated.',
+                'user'    => [
+                    'name'        => $fresh->name,
+                    'first_name'  => $fresh->first_name,
+                    'middle_name' => $fresh->middle_name,
+                    'last_name'   => $fresh->last_name,
+                    'phone'       => $fresh->phone,
+                    'address'     => $fresh->address,
+                    'latitude'    => $fresh->latitude !== null ? (float) $fresh->latitude : null,
+                    'longitude'   => $fresh->longitude !== null ? (float) $fresh->longitude : null,
+                ] + self::nameRule($fresh),
+            ]);
+        }
 
         return back()->with('success', 'Profile updated successfully!');
     }
@@ -159,7 +205,12 @@ class ProfileController extends Controller
             }
         }
 
-        $user->update([
+        // Same 30-day name rule as the web, so the app can't be used to bypass it.
+        if ($refused = $user->guardNameChange($validated['first_name'], $validated['middle_name'] ?? null, $validated['last_name'])) {
+            return response()->json(['message' => $refused, 'errors' => ['first_name' => [$refused]]], 422);
+        }
+
+        $user->fill([
             'first_name'  => $validated['first_name'],
             'middle_name' => $validated['middle_name'] ?? null,
             'last_name'   => $validated['last_name'],
@@ -167,7 +218,7 @@ class ProfileController extends Controller
             'address'     => $validated['address'] ?? null,
             'latitude'    => $validated['latitude'] ?? null,
             'longitude'   => $validated['longitude'] ?? null,
-        ]);
+        ])->save();
 
         $fresh = $user->fresh();
 
@@ -185,8 +236,24 @@ class ProfileController extends Controller
                 'address'     => $fresh->address,
                 'latitude'    => $fresh->latitude,
                 'longitude'   => $fresh->longitude,
-            ],
+            ] + self::nameRule($fresh),
         ]);
+    }
+
+    /**
+     * When the customer can next change their name, for the profile window and
+     * the app: name_locked_until is null when they can change it now;
+     * name_correction_until is set while a just-made change can still be fixed.
+     */
+    public static function nameRule(\App\Models\User $user): array
+    {
+        $correction = $user->nameCorrectionUntil();
+
+        return [
+            'name_locked_until'     => $user->nameLockedUntil()?->toIso8601String(),
+            'name_correction_until' => $correction && now()->lt($correction) ? $correction->toIso8601String() : null,
+            'name_change_days'      => \App\Models\User::NAME_CHANGE_DAYS,
+        ];
     }
 
     private function withinCavite(float $lat, float $lng): bool

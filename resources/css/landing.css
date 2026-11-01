@@ -37,10 +37,6 @@
             line-height: 1 !important;
             -webkit-text-fill-color: #ffffff !important;
         }
-        #profileModal .rounded-full {
-            -webkit-text-fill-color: #ffffff !important;
-            font-family: ui-sans-serif, system-ui, sans-serif !important;
-        }
 
         /* ============ Dark mode (prefers-color-scheme) ============
            No .dark class is ever added in this file — dark mode here is
@@ -122,7 +118,7 @@ main.pt-20 {
    footer) capped at the viewport, so long content scrolls inside it instead
    of running off-screen behind a locked body. Heights are raw CSS with an
    @supports guard rather than Tailwind's h-dvh (design language §8). */
-#bookingDetailsModal, #appointmentsModal {
+#bookingDetailsModal, #appointmentsModal, #scheduleModal, #profileModal {
     /* The sheet sits on the bottom edge; its last row adds the safe area instead. */
     padding-bottom: 0;
 }
@@ -417,5 +413,118 @@ main.pt-20 {
 
 /* Spa cards darken the bottom of a photo so the badges stay readable. On the
    "no photo" placeholder that gradient just looks muddy, so drop it there. */
-img[src*="placeholder-spa"] + .bg-gradient-to-t { display: none; }
+img[src*="placeholder-spa"] + .bg-gradient-to-t,
+img[data-fell-back] + .bg-gradient-to-t { display: none; }
 
+/* ============ Profile window (UI rework Phase 5) ============
+   Row "Edit" links, the "Find spas near" choices, search results and the two
+   maps. Plain CSS with a dark block, like the other runtime-styled parts. */
+.pf-edit {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; min-width: 44px; margin: -.625rem -.5rem -.625rem 0; padding: 0 .5rem;
+    font-size: .875rem; font-weight: 600; color: #6F5430; border-radius: .75rem;
+}
+.pf-edit:hover { background: rgba(139, 115, 85, .08); }
+.pf-edit:focus-visible { outline: 2px solid #8B7355; outline-offset: -2px; }
+
+/* Darker than the CTA gradient on purpose: white text here needs AA contrast
+   (white on #7A6348 is 5.67:1; on #8B7355 it misses AA, design language §7). */
+.pf-hero { background: linear-gradient(135deg, #5A4526 0%, #6F5430 55%, #7A6348 100%); }
+
+.pf-section-title {
+    display: flex; align-items: center; gap: .5rem;
+    margin: 0; padding: 1.125rem 1rem .25rem;
+    font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6F5430;
+}
+@media (min-width: 640px) { .pf-section-title { padding-left: 1.5rem; padding-right: 1.5rem; } }
+
+/* The email row's lock: a marker, not a control. */
+.pf-locked {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; min-height: 44px; margin: -.625rem -.75rem -.625rem 0;
+    font-size: .8125rem; color: #6b7280;
+}
+
+/* Find spas near: two radios drawn as a segmented switch. */
+.pf-seg { display: flex; gap: 4px; padding: 4px; border-radius: .875rem; background: #F6EFE6; }
+.pf-seg-opt {
+    position: relative; flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    min-height: 44px; padding: 0 .5rem; border-radius: .625rem; cursor: pointer;
+    font-size: .8125rem; font-weight: 600; color: #6F5430; text-align: center;
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.pf-seg-opt i { font-size: .75rem; }
+.pf-seg-opt:has(input:checked) { background: #ffffff; color: #3C2F23; box-shadow: 0 1px 2px rgba(0, 0, 0, .1); }
+.pf-seg-opt:has(input:focus-visible) { outline: 2px solid #8B7355; outline-offset: 1px; }
+
+.pf-result {
+    display: flex; align-items: flex-start; gap: .625rem; width: 100%;
+    min-height: 44px; padding: .625rem .75rem; text-align: left;
+    font-size: .875rem; color: #374151; transition: background-color .15s ease;
+}
+.pf-result i { margin-top: .2rem; font-size: .75rem; color: #8B7355; }
+.pf-result:hover, .pf-result:focus-visible { background: rgba(246, 239, 230, .8); outline: none; }
+
+.pf-map-preview {
+    height: 7.5rem; border-radius: .75rem; overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, .08); pointer-events: none;
+}
+.pf-map-edit {
+    height: 16rem; border-radius: .875rem; overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, .1);
+}
+.pf-map-preview .leaflet-control-attribution { font-size: 9px; }
+
+@media (prefers-color-scheme: dark) {
+    .pf-edit { color: #C4A97D; }
+    .pf-edit:hover { background: rgba(196, 169, 125, .1); }
+    .pf-edit:focus-visible { outline-color: #C4A97D; }
+    .pf-hero { background: linear-gradient(135deg, #3F2F1B 0%, #5A4526 55%, #6F5430 100%); }
+    .pf-section-title { color: #C4A97D; }
+    .pf-locked { color: #9ca3af; }
+    .pf-seg { background: rgba(255, 255, 255, .06); }
+    .pf-seg-opt { color: #C4A97D; }
+    .pf-seg-opt:has(input:checked) { background: #374151; color: #ffffff; box-shadow: none; }
+    .pf-seg-opt:has(input:focus-visible) { outline-color: #C4A97D; }
+    .pf-result { color: #e5e7eb; }
+    .pf-result i { color: #C4A97D; }
+    .pf-result:hover, .pf-result:focus-visible { background: rgba(255, 255, 255, .06); }
+    .pf-map-preview, .pf-map-edit { border-color: rgba(255, 255, 255, .12); }
+    /* OSM tiles can't be themed; dim them so they sit in a dark window. */
+    .pf-map-preview .leaflet-tile-pane, .pf-map-edit .leaflet-tile-pane { filter: brightness(.8) contrast(1.05); }
+}
+
+
+/* ============ Window polish (UI rework Phase 5) ============
+   1. The panels clip their content, so a header or map can't paint over the
+      rounded corners (the profile's brown header did).
+   2. A thin, brand-tinted scrollbar on a transparent track instead of the
+      wide grey Windows default. Not hidden: mouse users still need to see
+      that the window scrolls. Standard properties (Chrome 121+, Firefox,
+      Safari 18.2+); the -webkit- rules cover older Chrome and Safari. */
+.bd-panel, .ap-panel { overflow: hidden; }
+
+#pfBody, #bdBody, #scBody, #appointmentsContent {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(111, 84, 48, .35) transparent;
+    scrollbar-gutter: auto;
+}
+#pfBody::-webkit-scrollbar, #bdBody::-webkit-scrollbar,
+#scBody::-webkit-scrollbar, #appointmentsContent::-webkit-scrollbar { width: 8px; }
+#pfBody::-webkit-scrollbar-track, #bdBody::-webkit-scrollbar-track,
+#scBody::-webkit-scrollbar-track, #appointmentsContent::-webkit-scrollbar-track { background: transparent; }
+#pfBody::-webkit-scrollbar-thumb, #bdBody::-webkit-scrollbar-thumb,
+#scBody::-webkit-scrollbar-thumb, #appointmentsContent::-webkit-scrollbar-thumb {
+    background: rgba(111, 84, 48, .35); border-radius: 999px;
+    border: 2px solid transparent; background-clip: padding-box;
+}
+@media (prefers-color-scheme: dark) {
+    #pfBody, #bdBody, #scBody, #appointmentsContent { scrollbar-color: rgba(196, 169, 125, .35) transparent; }
+    #pfBody::-webkit-scrollbar-thumb, #bdBody::-webkit-scrollbar-thumb,
+    #scBody::-webkit-scrollbar-thumb, #appointmentsContent::-webkit-scrollbar-thumb { background-color: rgba(196, 169, 125, .35); }
+}
+
+/* .pf-edit and .pf-locked set their own display, which would beat Tailwind's
+   .hidden (landing.css loads after it): keep hidden meaning hidden. */
+.pf-edit.hidden, .pf-locked.hidden { display: none; }

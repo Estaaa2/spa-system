@@ -65,7 +65,7 @@ class LandingAndCustomerPhotoTest extends TestCase
     {
         // welcome.blade.php declares a PHP function, so it can render only once per test.
         $this->actingAs($this->customer)->get('/')->assertOk()->assertSee('Add photo')
-            ->assertSee("Optional. Spas and therapists don't see it.", false);
+            ->assertSee("Photo is optional. Spas and therapists don't see it.", false);
     }
 
     public function test_customer_adds_a_photo_from_the_profile_window(): void
