@@ -145,7 +145,9 @@
     // "Manage branches" shortcut inside the switcher: the owner's All Branches page.
     $canManageBranches = $isOwner && $canAllBranches && ($user?->hasBranchPermission('view branches') ?? false);
 
-    $brandHref = route('dashboard');
+    // The logo opens the same page login lands on: never a page the user can't open
+    // (e.g. the dashboard while the current branch is locked — Phase 6 matrix).
+    $brandHref = $nav['landingUrl'] ?? route('profile.edit');
 
     $mobileContextLabel = $currentBranch?->name ?? $spa?->name ?? 'Levictas';
 @endphp
