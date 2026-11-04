@@ -55,13 +55,13 @@ class PayrollRunPagesTest extends TestCase
 
         $this->seed(\Database\Seeders\RolePermissionSeeder::class);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        Permission::findOrCreate('view payroll', 'web');
-        Permission::findOrCreate('edit payroll', 'web');
-        Role::findOrCreate('hr', 'web')->syncPermissions(['view payroll', 'edit payroll']);
+        // RBAC refactor: the test actor is a spa-wide HR Head holding every payroll
+        // permission (the shape of an owner fallback). The viewer is branch-scoped.
+        Role::findOrCreate('hr_head', 'web')->syncPermissions(\App\Services\Payroll\PayrollPermissions::ALL);
         Role::findOrCreate('payroll-viewer', 'web')->syncPermissions(['view payroll']);
 
         $this->hr = PayrollUserFactory::new()->create(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id]);
-        $this->hr->assignRole('hr');
+        $this->hr->assignRole('hr_head');
         $this->viewer = PayrollUserFactory::new()->create(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id]);
         $this->viewer->assignRole('payroll-viewer');
         foreach ([$this->hr, $this->viewer, $this->user] as $u) {
@@ -151,7 +151,7 @@ class PayrollRunPagesTest extends TestCase
             ->assertSee('Branch B')
             ->assertSee(route('payroll.setup.index', ['tab' => 'wages']), false)
             ->assertSee(route('payroll.staff.index', ['filter' => 'no_profile']), false)
-            ->assertSee('1 active staff member(s) have no pay profile');
+            ->assertSee('have no pay profile in effect today');
     }
 
     // =====================================================================
@@ -200,7 +200,78 @@ class PayrollRunPagesTest extends TestCase
             ->assertSee('Earlier appointment')
             ->assertSee('10% of ₱1,500.00')
             ->assertSee($this->user->name)
-            ->assertSee('Rates version');
+            ->assertDontSee('Rates version');
+    }
+
+    // =====================================================================
+    // Phase 6 step 3 — plain wording (W1–W4, R1, R2)
+    // =====================================================================
+
+    public function test_warnings_use_plain_words_with_the_record_reference_muted(): void
+    {
+        $this->workSeptemberCutoffOne();
+        // Total 0 and a service that no longer exists → no list price → warning.
+        $this->booking('2026-09-04', ['total_amount' => '0.00', 'treatment' => 'treatment_999999']);
+        $run = $this->generateC1();
+
+        $messages = collect(app(PayrollRunWarnings::class)->get($run->fresh())['warnings'] ?? [])->pluck('message')->implode("\n");
+        $this->assertStringContainsString('a deleted treatment has no list price', $messages);
+        $this->assertStringContainsString('[ref: treatment_999999]', $messages);
+        $this->assertStringNotContainsString('total_amount', $messages);
+
+        $res = $this->dumpHtml('run_show_phase6', $this->actingAs($this->hr)->get(route('payroll.runs.show', $run)))->assertOk();
+        $res->assertSee('Ref: treatment_999999')
+            ->assertDontSee('[ref:', false)
+            ->assertDontSee('UNVERIFIED')
+            ->assertDontSee('rates sheet')
+            ->assertDontSee('title="SSS', false)
+            ->assertSee('Legend');
+    }
+
+    public function test_new_run_year_is_this_year_or_last_and_the_server_refuses_others(): void
+    {
+        $this->dumpHtml('payroll_index_phase6', $this->actingAs($this->hr)->get(route('payroll.index')))
+            ->assertOk()
+            ->assertSee('<select', false)
+            ->assertSee('<option value="2025"', false)
+            ->assertDontSee('<option value="2027"', false)
+            ->assertDontSee('type="number"', false)
+            ->assertSee('Due on or before December 24 (PD 851).')
+            ->assertDontSee('Labor Advisory');
+
+        $this->actingAs($this->hr)->from(route('payroll.index'))
+            ->post(route('payroll.runs.store'), ['run_type' => 'regular', 'year' => 2024, 'month' => 9, 'cutoff_no' => 1])
+            ->assertRedirect(route('payroll.index'));
+        $this->assertSame(0, PayrollRun::count());
+    }
+
+    public function test_thirteenth_month_notes_cite_pd_851_only(): void
+    {
+        $res = $this->actingAs($this->hr)->getJson(route('payroll.runs.preview', ['run_type' => 'thirteenth_month', 'year' => 2026, 'pay_date' => '2026-12-28']))
+            ->assertOk();
+        $notes = implode(' ', $res->json('notes'));
+        $this->assertStringContainsString('PD 851 requires', $notes);
+        $this->assertStringNotContainsString('Advisory', $notes);
+    }
+
+    public function test_staff_pay_shows_id_formats_and_plain_rest_day_text(): void
+    {
+        $this->dumpHtml('staff_pay_phase6', $this->actingAs($this->hr)->get(route('payroll.staff.show', $this->staff)))
+            ->assertOk()
+            ->assertSee('10 digits.')
+            ->assertSee('grouped XX-XXXXXXXXX-X')
+            ->assertSee('9 digits, plus a 3- or 5-digit branch code')
+            ->assertSee('data-rest-set', false)
+            ->assertDontSee('DOLE days-per-year');
+    }
+
+    private function dumpHtml(string $name, $res)
+    {
+        if ($dir = getenv('RBAC_HTML_DUMP')) {
+            file_put_contents($dir.'/'.$name.'.html', $res->getContent());
+        }
+
+        return $res;
     }
 
     public function test_generate_validation_and_engine_errors_return_to_the_modal(): void
@@ -289,7 +360,7 @@ class PayrollRunPagesTest extends TestCase
 
         $this->actingAs($this->viewer)->get(route('payroll.runs.show', $run))
             ->assertOk()
-            ->assertSee('Approved by the person who generated it')
+            ->assertSee('Approved by the person who prepared it')
             ->assertSee($this->hr->name)
             ->assertDontSee('Add Adjustment');
     }
@@ -347,10 +418,13 @@ class PayrollRunPagesTest extends TestCase
         $run = $this->generateC1();
 
         $owner = PayrollUserFactory::new()->create();
-        $otherSpa = SpaFactory::new()->create(['owner_id' => $owner->id]);
-        $otherBranch = BranchFactory::new()->create(['spa_id' => $otherSpa->id]);
+        $otherSpa = SpaFactory::new()->create([
+            'owner_id' => $owner->id, 'verification_status' => 'verified',
+            'trial_used' => true, 'trial_started_at' => now()->subDay(), 'trial_ends_at' => now()->addYear(),
+        ]);
+        $otherBranch = BranchFactory::new()->create(['spa_id' => $otherSpa->id, 'verification_status' => 'verified']);
         $outsider = PayrollUserFactory::new()->create(['spa_id' => $otherSpa->id, 'branch_id' => $otherBranch->id]);
-        $outsider->assignRole('hr');
+        $outsider->assignRole('hr_head');   // every payroll permission, spa-wide — but another spa
 
         $this->actingAs($outsider)->get(route('payroll.runs.show', $run))->assertNotFound();
         $this->actingAs($outsider)->post(route('payroll.runs.approve', $run))->assertNotFound();

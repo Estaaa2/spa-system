@@ -9,7 +9,7 @@ use App\Models\Payslip;
 use App\Models\PayslipLine;
 use Illuminate\Support\Collection;
 
-/**
+/*
  * Builds the employee copy of a payslip for resources/views/hr/payroll/partials/payslip
  * (Unit 6). Every value is a display-ready string, so the partial does no arithmetic.
  *

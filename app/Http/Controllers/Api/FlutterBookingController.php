@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Branch;
 use App\Models\OnlineReservationPayment;
 use App\Models\OperatingHours;
 use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Models\Spa;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +37,32 @@ class FlutterBookingController extends Controller
             'total_amount'       => 'required|numeric',
             'downpayment_amount' => 'required|numeric',
         ]);
+
+        $spa = Spa::find($validated['spa_id']);
+
+        if (! $spa || ! $spa->hasFeature('online_reservation')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Online reservations are not available for this spa right now. Please contact the spa directly.',
+            ], 422);
+        }
+
+        // The branch must belong to this spa and be approved to operate.
+        $branch = Branch::where('id', $validated['branch_id'])
+            ->where('spa_id', $spa->id)
+            ->first();
+
+        if (
+            $spa->verification_status !== 'verified' ||
+            ! $branch ||
+            ! $branch->isOperational() ||
+            ! $branch->isReadyForBookings()
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This branch is not accepting online reservations right now. Please contact the spa directly.',
+            ], 422);
+        }
 
         $serviceTypeDb = $validated['service_type'] === 'In-Branch' ? 'in_branch' : 'in_home';
 
@@ -155,7 +183,7 @@ class FlutterBookingController extends Controller
         $successUrl = route('flutter.payment.success', ['reservation' => $pending->id]);
         $cancelUrl  = route('flutter.payment.cancel',  ['reservation' => $pending->id]);
 
-        $secretKey = env('PAYMONGO_SECRET_KEY');
+        $secretKey = \App\Services\PayMongo::secretKey();
         $response  = Http::withBasicAuth($secretKey, '')
             ->acceptJson()
             ->timeout(30)->post('https://api.paymongo.com/v1/checkout_sessions', [
@@ -177,7 +205,7 @@ class FlutterBookingController extends Controller
                             'quantity'    => 1,
                             'description' => '20% downpayment for appointment reservation',
                         ]],
-                        'payment_method_types' => ['gcash', 'paymaya', 'card'],
+                        'payment_method_types' => \App\Services\PayMongo::paymentMethods(['gcash', 'paymaya', 'card']),
                         'success_url'          => $successUrl, // ✅ Through Laravel first
                         'cancel_url'           => $cancelUrl,  // ✅ Through Laravel first
                         'metadata'             => [
@@ -231,7 +259,7 @@ class FlutterBookingController extends Controller
     public function paymentSuccess(Request $request)
     {
         $reservationId = $request->query('reservation');
-        $flutterWebUrl = env('FLUTTER_WEB_URL', 'http://localhost:5000');
+        $flutterWebUrl = config('services.flutter.web_url');
 
         if (!$reservationId) {
             return redirect($flutterWebUrl . '/#/payment-cancel');
@@ -248,7 +276,7 @@ class FlutterBookingController extends Controller
 
             // Verify with PayMongo
             if ($reservation->paymongo_checkout_session_id) {
-                $secretKey      = env('PAYMONGO_SECRET_KEY');
+                $secretKey      = \App\Services\PayMongo::secretKey();
                 $verifyResponse = Http::withBasicAuth($secretKey, '')
                     ->acceptJson()
                     ->get('https://api.paymongo.com/v1/checkout_sessions/' . $reservation->paymongo_checkout_session_id);
@@ -262,7 +290,11 @@ class FlutterBookingController extends Controller
                         // ✅ Fallback: create booking if webhook hasn't done it yet
                         if (!$reservation->booking_id) {
                             try {
-                                $this->createBookingFromReservation($reservation);
+                                // Same confirmation email as the webhook sends; only when
+                                // this request made the booking (not the webhook).
+                                if ($created = $this->createBookingFromReservation($reservation)) {
+                                    app(\App\Services\Bookings\BookingNotifier::class)->confirmed($created);
+                                }
                             } catch (\Throwable $e) {
                                 Log::error('Fallback booking creation failed in paymentSuccess', [
                                     'reservation_id' => $reservation->id,
@@ -287,7 +319,7 @@ class FlutterBookingController extends Controller
     public function paymentCancel(Request $request)
     {
         $reservationId = $request->query('reservation');
-        $flutterWebUrl = env('FLUTTER_WEB_URL', 'http://localhost:5000');
+        $flutterWebUrl = config('services.flutter.web_url');
 
         if ($reservationId) {
             OnlineReservationPayment::where('id', $reservationId)
@@ -299,6 +331,77 @@ class FlutterBookingController extends Controller
         }
 
         return redirect($flutterWebUrl . '/#/payment-cancel?reservation=' . $reservationId);
+    }
+
+        /**
+     * GET /api/bookings/online/status?reservation_id=
+     * Same answer as checkBookingStatus(), but only for the logged-in
+     * customer's own reservation.
+     */
+    public function reservationStatus(Request $request)
+    {
+        $request->validate(['reservation_id' => ['required', 'integer']]);
+
+        $reservation = OnlineReservationPayment::where('id', $request->reservation_id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (! $reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reservation not found.',
+            ], 404);
+        }
+
+        return response()->json([
+            'success'            => true,
+            'payment_status'     => $reservation->payment_status,
+            'reservation_status' => $reservation->reservation_status,
+            'payment_option'     => $reservation->payment_option ?? 'downpayment',
+            'amount_charged'     => (float) ($reservation->amount_charged ?? $reservation->downpayment_amount),
+            'booking_id'         => $reservation->booking_id,
+            'booking_created'    => ! is_null($reservation->booking_id),
+        ]);
+    }
+
+    /**
+     * GET /api/bookings/online/my-dates
+     * Dates within the 30-day booking window on which the customer already
+     * has an active booking. The app marks them with a dot on the calendar.
+     */
+    public function myBookedDates(Request $request)
+    {
+        $dates = Booking::withoutGlobalScopes()
+            ->where('customer_user_id', $request->user()->id)
+            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+            ->whereBetween('appointment_date', [
+                today()->toDateString(),
+                today()->addDays(30)->toDateString(),
+            ])
+            ->pluck('appointment_date')
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
+            ->unique()
+            ->values();
+
+        return response()->json(['dates' => $dates]);
+    }
+
+    public function cancelReservation(Request $request)
+    {
+        $request->validate(['reservation_id' => ['required', 'integer']]);
+
+        $updated = OnlineReservationPayment::where('id', $request->reservation_id)
+            ->where('user_id', $request->user()->id)
+            ->where('payment_status', 'pending')
+            ->update([
+                'reservation_status' => 'cancelled',
+                'payment_status'     => 'cancelled',
+            ]);
+
+        return response()->json([
+            'success'   => true,
+            'cancelled' => $updated > 0,
+        ]);
     }
 
     public function checkBookingStatus(Request $request)
@@ -325,9 +428,15 @@ class FlutterBookingController extends Controller
      * ✅ reservation_status uses enum: 'reserved' (not 'confirmed')
      * ✅ end_time recalculated from duration (no end_time on reservation table)
      */
-    private function createBookingFromReservation(OnlineReservationPayment $reservation): void
+    private function createBookingFromReservation(OnlineReservationPayment $reservation): ?Booking
     {
-        DB::transaction(function () use ($reservation) {
+        return DB::transaction(function () use ($reservation) {
+            // The webhook may have created the booking while PayMongo was being
+            // checked: re-read the row under a lock and stop if it did.
+            $reservation = OnlineReservationPayment::whereKey($reservation->id)->lockForUpdate()->first();
+            if (! $reservation || $reservation->booking_id) {
+                return null;
+            }
 
             // Recalculate end_time from duration since it's not stored on reservation
             $durationMinutes = 60;
@@ -347,36 +456,21 @@ class FlutterBookingController extends Controller
             // ✅ treatment column must be "treatment_5" or "package_3" format
             $treatmentCode = $reservation->bookable_type . '_' . $reservation->bookable_id;
 
-            // Find least-busy available therapist (same logic as BookingController)
-            $therapists = User::role('therapist')
-                ->whereHas('staff', function ($q) use ($reservation) {
-                    $q->where('spa_id', $reservation->spa_id)
-                      ->where('branch_id', $reservation->branch_id)
-                      ->where('employment_status', 'active');
-                })
-                ->orderBy('first_name')
-                ->get();
+            // Shared rule with the webhook (TherapistAssigner): least busy, leave
+            // and Schedule availability respected, verified only for home service.
+            // Nobody free: booked without a therapist for the branch to assign (Q17).
+            $assignedTherapist = app(\App\Services\Bookings\TherapistAssigner::class)->pick(
+                (int) $reservation->spa_id,
+                (int) $reservation->branch_id,
+                Carbon::parse($reservation->appointment_date)->toDateString(),
+                Carbon::parse($reservation->start_time)->format('H:i'),
+                Carbon::parse($endTime)->format('H:i'),
+                \App\Services\Bookings\TherapistAssigner::requiresVerified('online', $reservation->service_type)
+            );
 
-            $busyIds = Booking::query()
-                ->where('spa_id', $reservation->spa_id)
-                ->where('branch_id', $reservation->branch_id)
-                ->where('appointment_date', $reservation->appointment_date)
-                ->whereIn('therapist_id', $therapists->pluck('id'))
-                ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-                ->where(function ($q) use ($reservation, $endTime) {
-                    $q->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $reservation->start_time);
-                })
-                ->pluck('therapist_id')
-                ->unique();
-
-            $assignedTherapist = $therapists
-                ->reject(fn($t) => $busyIds->contains($t->id))
-                ->first();
-
-            if (!$assignedTherapist) {
-                throw new \RuntimeException('No therapist available for this reservation.');
-            }
+            $totalAmount = (float) $reservation->full_amount;
+            $amountPaid  = (float) ($reservation->amount_charged ?? $reservation->downpayment_amount);
+            $balance     = max(round($totalAmount - $amountPaid, 2), 0);
 
             $booking = Booking::create([
                 'spa_id'             => $reservation->spa_id,
@@ -385,10 +479,12 @@ class FlutterBookingController extends Controller
                 'created_by_user_id' => null,
                 'booking_source'     => 'online',
                 'status'             => 'reserved',
-                'payment_status'     => 'partially_paid',
-                'amount_paid'        => $reservation->downpayment_amount,
-                'total_amount'       => $reservation->full_amount,
-                'balance_amount'     => $reservation->full_amount - $reservation->downpayment_amount,
+                // Same amounts as the webhook (Q40): what PayMongo charged, so a
+                // full payment is recorded as paid, not as a downpayment.
+                'payment_status'     => $balance <= 0 ? 'paid' : 'partially_paid',
+                'amount_paid'        => $amountPaid,
+                'total_amount'       => $totalAmount,
+                'balance_amount'     => $balance,
                 'service_type'       => $reservation->service_type,
                 'treatment'          => $treatmentCode,              // ✅ "treatment_5" format
                 'customer_name'      => $reservation->customer_name,
@@ -398,7 +494,7 @@ class FlutterBookingController extends Controller
                 'appointment_date'   => $reservation->appointment_date,
                 'start_time'         => $reservation->start_time,
                 'end_time'           => $endTime,                    // ✅ recalculated
-                'therapist_id'       => $assignedTherapist->id,
+                'therapist_id'       => $assignedTherapist?->id,
             ]);
 
             $reservation->update([
@@ -407,6 +503,8 @@ class FlutterBookingController extends Controller
                 'paid_at'            => now(),
                 'booking_id'         => $booking->id,
             ]);
+
+            return $booking;
         });
     }
 }

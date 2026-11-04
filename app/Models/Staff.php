@@ -15,7 +15,11 @@ class Staff extends Model
         'user_id',
         'spa_id',
         'branch_id',
+        'applicant_id',
         'employment_status',
+        'performs_treatments',
+        'keep_active',
+        'plan_paused_at',
         'hire_date',
         'tin',
         'sss_no',
@@ -31,11 +35,20 @@ class Staff extends Model
     ];
 
     protected $casts = [
+        'keep_active'    => 'boolean',
+        'performs_treatments' => 'boolean',
+        'plan_paused_at' => 'datetime',
         'tin'           => 'encrypted',
         'sss_no'        => 'encrypted',
         'philhealth_no' => 'encrypted',
         'pagibig_no'    => 'encrypted',
     ];
+
+    /** Paused by the system because the spa is over its plan's staff limit. */
+    public function isPlanPaused(): bool
+    {
+        return $this->plan_paused_at !== null;
+    }
 
     public function user()
     {
@@ -82,5 +95,10 @@ class Staff extends Model
     public function payslips(): HasMany
     {
         return $this->hasMany(Payslip::class);
+    }
+
+    public function applicant()
+    {
+        return $this->belongsTo(Applicant::class);
     }
 }

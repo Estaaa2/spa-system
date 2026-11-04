@@ -70,7 +70,7 @@ class DashboardController extends Controller
 
         // ── KPI / shared counts ───────────────────────────────────────────
         $todayCount = $ongoingToday = $pendingToday = $reservedToday = null;
-        $completedToday = $cancelledToday = $upcomingWeek = null;
+        $completedToday = $cancelledToday = $noShowToday = $upcomingWeek = null;
 
         if ($needsKpis) {
             $todayCount     = $todayBase()->count();
@@ -79,6 +79,7 @@ class DashboardController extends Controller
             $reservedToday  = $todayBase()->where('status', 'reserved')->count();
             $completedToday = $todayBase()->where('status', 'completed')->count();
             $cancelledToday = $todayBase()->where('status', 'cancelled')->count();
+            $noShowToday    = $todayBase()->where('status', Booking::NO_SHOW)->count();
             $upcomingWeek   = $base()
                 ->whereDate('appointment_date', '>', $today)
                 ->whereDate('appointment_date', '<=', now()->addDays(7)->toDateString())
@@ -118,9 +119,11 @@ class DashboardController extends Controller
                 ->whereTime('start_time', '<', now()->format('H:i:s'))
                 ->count();
 
-            $noShows = $cancelledToday ?? $todayBase()->where('status', 'cancelled')->count();
+            // Real no-shows only (UI rework Phase 3, decision 3A). Cancellations
+            // keep their own count in the KPI cards and the status split.
+            $noShows = $todayBase()->where('status', Booking::NO_SHOW)->count();
 
-            $therapistIds = User::role('therapist')
+            $therapistIds = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
                     ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
@@ -129,7 +132,7 @@ class DashboardController extends Controller
 
             $overbookedTherapists = (int) $todayBase()
                 ->whereIn('therapist_id', $therapistIds)
-                ->whereNotIn('status', ['cancelled'])
+                ->whereNotIn('status', ['cancelled', Booking::NO_SHOW])
                 ->select('therapist_id', DB::raw('COUNT(*) as cnt'))
                 ->groupBy('therapist_id')
                 ->havingRaw('cnt > 8')
@@ -176,7 +179,7 @@ class DashboardController extends Controller
         $therapists = collect();
 
         if ($user->hasBranchPermission('view dashboard therapist status')) {
-            $therapists = User::role('therapist')
+            $therapists = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
                     ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
@@ -187,7 +190,7 @@ class DashboardController extends Controller
                     'assignedBookings as total_today' => fn($q) => $q
                         ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
                         ->whereDate('appointment_date', $today)
-                        ->whereNotIn('status', ['cancelled']),
+                        ->whereNotIn('status', ['cancelled', Booking::NO_SHOW]),
                     'assignedBookings as ongoing_count' => fn($q) => $q
                         ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
                         ->whereDate('appointment_date', $today)
@@ -210,7 +213,7 @@ class DashboardController extends Controller
         $myNextAppointment   = null;
         $myAttendanceToday   = null;
 
-        if ($user->hasBranchPermission('view dashboard my today')) {
+        if ($user->seesMyTodayWidget()) {
             $myStaffRecordForNudge = \App\Models\Staff::where('user_id', $user->id)
                 ->where('spa_id', $spaId)
                 ->where('employment_status', 'active')
@@ -258,7 +261,7 @@ class DashboardController extends Controller
 
         return view('dashboard', compact(
             'todayCount', 'ongoingToday', 'pendingToday', 'reservedToday',
-            'completedToday', 'cancelledToday', 'upcomingWeek',
+            'completedToday', 'cancelledToday', 'noShowToday', 'upcomingWeek',
             'collectedToday', 'onlineToday', 'walkInToday', 'topServiceLabel',
             'lateAppointments', 'noShows', 'overbookedTherapists',
             'pendingLeaveRequests', 'pendingReassignments',
@@ -322,6 +325,7 @@ class DashboardController extends Controller
                 'reserved_today' => $todayBase()->where('status', 'reserved')->count(),
                 'completed_today'=> $todayBase()->where('status', 'completed')->count(),
                 'cancelled_today'=> $todayBase()->where('status', 'cancelled')->count(),
+                'no_show_today'  => $todayBase()->where('status', Booking::NO_SHOW)->count(),
                 'upcoming_week'  => $base()
                     ->whereDate('appointment_date', '>', $today)
                     ->whereDate('appointment_date', '<=', now()->addDays(7)->toDateString())
@@ -348,7 +352,7 @@ class DashboardController extends Controller
 
         // ── Alerts ────────────────────────────────────────────────────────
         if ($user->hasBranchPermission('view dashboard alerts')) {
-            $therapistIds = User::role('therapist')
+            $therapistIds = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
                     ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
@@ -357,10 +361,10 @@ class DashboardController extends Controller
 
             $payload['alerts'] = [
                 'late_appointments'    => $todayBase()->where('status', 'pending')->whereTime('start_time', '<', now()->format('H:i:s'))->count(),
-                'no_shows'             => $todayBase()->where('status', 'cancelled')->count(),
+                'no_shows'             => $todayBase()->where('status', Booking::NO_SHOW)->count(),
                 'overbooked_therapists'=> (int) $todayBase()
                     ->whereIn('therapist_id', $therapistIds)
-                    ->whereNotIn('status', ['cancelled'])
+                    ->whereNotIn('status', ['cancelled', Booking::NO_SHOW])
                     ->select('therapist_id', DB::raw('COUNT(*) as cnt'))
                     ->groupBy('therapist_id')
                     ->havingRaw('cnt > 8')
@@ -402,7 +406,7 @@ class DashboardController extends Controller
 
         // ── Therapist status panel ────────────────────────────────────────
         if ($user->hasBranchPermission('view dashboard therapist status')) {
-            $therapists = User::role('therapist')
+            $therapists = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
                     ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
@@ -412,7 +416,7 @@ class DashboardController extends Controller
                 ->withCount([
                     'assignedBookings as total_today' => fn($q) => $q
                         ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
-                        ->whereDate('appointment_date', $today)->whereNotIn('status', ['cancelled']),
+                        ->whereDate('appointment_date', $today)->whereNotIn('status', ['cancelled', Booking::NO_SHOW]),
                     'assignedBookings as ongoing_count' => fn($q) => $q
                         ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
                         ->whereDate('appointment_date', $today)->where('status', 'ongoing'),
@@ -439,7 +443,7 @@ class DashboardController extends Controller
         }
 
         // ── My Today (therapist personal view) ────────────────────────────
-        if ($user->hasBranchPermission('view dashboard my today')) {
+        if ($user->seesMyTodayWidget()) {
             $myStaffRecordForNudge = \App\Models\Staff::where('user_id', $user->id)
                 ->where('spa_id', $spaId)
                 ->where('employment_status', 'active')

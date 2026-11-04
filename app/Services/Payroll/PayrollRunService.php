@@ -242,7 +242,7 @@ final class PayrollRunService
             }
             if ($mweCount > 0) {
                 $warnings[] = new RunWarning(RunWarning::UNVERIFIED_RULE,
-                    "{$mweCount} payslip(s) are treated as minimum wage earners: daily rate ≤ home-branch minimum wage (rates sheet §5 — UNVERIFIED test; exempt-component mapping UNVERIFIED).");
+                    "{$mweCount} payslip(s) are treated as minimum wage earners (daily rate at or below the home branch's minimum wage), so no tax is withheld on their basic pay. Check that each of them qualifies.");
             }
 
             return new RunResult($run->refresh(), $regenerated, $this->totals($run), $this->dedupe($this->foldCumulativeAverage($warnings, $names)));
@@ -286,10 +286,10 @@ final class PayrollRunService
             $deadline = "{$year}-".$this->timing('thirteenth_month_deadline');
             if ($payDate > $deadline) {
                 $warnings[] = new RunWarning(RunWarning::PAY_DATE_LATE,
-                    "Pay date {$payDate} is after {$deadline}. PD 851 and DOLE Labor Advisory 16-25 require 13th-month pay on or before December 24, with no deferment.");
+                    'Pay date '.Carbon::parse($payDate)->format('F j, Y').' is after '.Carbon::parse($deadline)->format('F j').'. PD 851 requires 13th-month pay on or before December 24.');
             }
             $warnings[] = new RunWarning(RunWarning::UNVERIFIED_RULE,
-                'No SSS, PhilHealth or Pag-IBIG is computed on the 13th-month run (UNVERIFIED — SSS excludes it per §1 VERIFY, PhilHealth MBS excludes it per §2, Pag-IBIG treatment not confirmed).');
+                'Levictas does not compute SSS, PhilHealth or Pag-IBIG contributions on the 13th-month run.');
             array_push($warnings, ...$this->unfinalizedCutoffWarnings($spa, $year));
 
             $existing = $this->clearComputedLines($run);
@@ -319,11 +319,15 @@ final class PayrollRunService
                     $warnings[] = new RunWarning(RunWarning::HOME_BRANCH_MISSING, "{$who}: home branch is missing or deleted — no 13th-month payslip.", $staffId);
                     continue;
                 }
-                if (! $home->has_workforce_finance_suite) {
+                if (!$spa->hasAccess() || !$spa->hasFeature('payroll')) {
                     if (Decimal::isPositive($b['sum'])) {
-                        $warnings[] = new RunWarning(RunWarning::NOT_IN_SUITE_BRANCH,
-                            "{$who}: home branch \"{$home->name}\" does not have the Workforce & Finance Suite — no 13th-month payslip.", $staffId);
+                        $warnings[] = new RunWarning(
+                            RunWarning::NOT_IN_SUITE_BRANCH,
+                            "{$who}: the spa does not have active Premium payroll access — no 13th-month payslip.",
+                            $staffId
+                        );
                     }
+
                     continue;
                 }
 
@@ -716,9 +720,9 @@ final class PayrollRunService
     // =====================================================================
 
     /**
-     * Generating or regenerating a run needs the Professional plan, the same gate the
-     * rest of the app uses for the Workforce & Finance Suite (a lapsed subscription
-     * drops the spa to basic but leaves the branch suite flags on). Everything else
+     * Generating or regenerating a run requires active payroll access: the spa must have
+     * access and its plan must include payroll (Premium). The per-branch suite flag is no
+     * longer an access rule; it is only kept in the run snapshot. Everything else
      * keeps working after a downgrade: existing runs can still be approved, finalized
      * and released so wages already computed are paid, and every run and payslip stays
      * readable (payroll records must be kept 3 years — Labor Code IRR Book III, Rule X,
@@ -728,9 +732,9 @@ final class PayrollRunService
      */
     private function assertPlanAllowsGeneration(Spa $spa): void
     {
-        if (($spa->business_tier ?? null) !== 'professional') {
+        if (!$spa->hasAccess() || !$spa->hasFeature('payroll')) {
             throw new PayrollSetupException(
-                "Spa \"{$spa->name}\" is not on the Professional plan, so new payroll runs cannot be generated. Existing runs can still be finished and viewed."
+                "Spa \"{$spa->name}\" does not have active Premium payroll access, so new payroll runs cannot be generated. Existing runs can still be finished and viewed."
             );
         }
     }
@@ -990,9 +994,20 @@ final class PayrollRunService
         if ($home === null || $home->trashed()) {
             return ['warning' => new RunWarning(RunWarning::HOME_BRANCH_MISSING, "{$who}: home branch is missing or deleted — not paid.", $id)];
         }
-        if (! $home->has_workforce_finance_suite) {
-            return ['warning' => new RunWarning(RunWarning::NOT_IN_SUITE_BRANCH,
-                "{$who}: home branch \"{$home->name}\" does not have the Workforce & Finance Suite — not paid by this run.", $id)];
+        $spa = Spa::query()->find($run->spa_id);
+
+        if (
+            !$spa ||
+            !$spa->hasAccess() ||
+            !$spa->hasFeature('payroll')
+        ) {
+            return [
+                'warning' => new RunWarning(
+                    RunWarning::NOT_IN_SUITE_BRANCH,
+                    "{$who}: the spa does not have active Premium payroll access — not paid by this run.",
+                    $id
+                ),
+            ];
         }
 
         $timeline = $this->rates->timelineFor($staff, $end);
@@ -1007,8 +1022,8 @@ final class PayrollRunService
                     $this->calc->eemrFactor($p->payBasis, count($p->restDays), $end);
                 } catch (InvalidArgumentException) {
                     return ['warning' => new RunWarning(RunWarning::MISSING_EEMR_FACTOR, sprintf(
-                        '%s: daily-paid pay profile #%d has %d rest day(s) per week; only 1 or 2 have a DOLE days-per-year factor (rates sheet §10). Fix the profile — not paid.',
-                        $who, $p->id, count($p->restDays),
+                        '%s: not paid — the daily-paid pay profile has %d rest day(s) a week, but daily-paid staff need 1 or 2. Fix it on Staff Pay. [ref: pay profile #%d]',
+                        $who, count($p->restDays), $p->id,
                     ), $id)];
                 }
             }
@@ -1194,7 +1209,7 @@ final class PayrollRunService
             $sid = (int) $sid;
             if (! isset($processed[$sid])) {
                 $warnings[] = new RunWarning(RunWarning::CONTRIBUTIONS_SKIPPED, sprintf(
-                    '%s (staff #%d): paid in cutoff 1 but not in this cutoff. Contributions are computed on cutoff 2 only, so none were computed for %s — yet the full month is due whenever there was pay in the month (rates sheet §13). Settle them manually.',
+                    '%s (staff #%d): paid in cutoff 1 but not in this cutoff. Contributions are computed on cutoff 2 only, so none were computed for %s — yet the full month is due whenever there was pay in the month. Settle them manually.',
                     $names[$sid] ?? "Staff #{$sid}", $sid, $run->period_start->format('F Y'),
                 ), $sid);
             }
@@ -1444,7 +1459,7 @@ final class PayrollRunService
 
         $who = array_map(fn (int $id): string => (($names[$id] ?? '') ?: 'Staff')." (#{$id})", array_values($ids));
         $rest[] = new RunWarning(RunWarning::CUMULATIVE_AVERAGE, sprintf(
-            '%d payslip(s) receive supplementary pay (e.g. commission) while regular pay is below the withholding level, or supplementary ≥ regular: %s. RR 11-2018 Sec. 2.79(B)(5)(a) prescribes the cumulative average method for them; Levictas withholds per cutoff (locked rule), so a peak-commission cutoff can over-withhold until the year-end annualization refunds it. Decision E is open.',
+            '%d payslip(s) receive supplementary pay (e.g. commission) while regular pay is below the withholding level, or supplementary ≥ regular: %s. RR 11-2018 Sec. 2.79(B)(5)(a) prescribes the cumulative average method for them; Levictas withholds per cutoff instead, so a high-commission cutoff can over-withhold until the year-end annualization refunds it.',
             count($ids), implode(', ', $who),
         ));
 

@@ -192,7 +192,7 @@ class EarningsCalculatorTest extends TestCase
         $this->assertSame($b->id, $line->sourceId);
         $this->assertSame('2026-09-10', $line->date);
         $this->assertStringContainsString('appt 2026-09-10', $line->note);
-        $this->assertStringContainsString('base ₱1,000.00 (total_amount)', $line->note);
+        $this->assertStringContainsString('base ₱1,000.00 (booking total)', $line->note);
     }
 
     public function test_commission_falls_back_to_list_price_when_total_is_zero(): void
@@ -211,7 +211,7 @@ class EarningsCalculatorTest extends TestCase
 
         $line = $this->lines($this->calculate(), 'COMMISSION')[0];
         $this->assertSame('150.00', $line->amount);
-        $this->assertStringContainsString('list price of treatment_'.$t->id, $line->note);
+        $this->assertStringContainsString('list price of '.$t->name, $line->note);
     }
 
     public function test_no_double_commission_but_regenerating_the_same_run_is_not_blocked(): void

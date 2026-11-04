@@ -33,12 +33,41 @@
     $spa            = $spa ?? $branch->spa;
     $operatingHours = collect($operatingHours ?? []);
 
-    $spaTier      = $spa?->business_tier;
-    $canUseHiring = $spaTier === 'professional';
+    $spaTier = strtolower((string) ($spa?->currentPlan() ?: 'basic'));
+
+    if ($spaTier === 'professional') {
+        $spaTier = 'premium';
+    }
+
+    if (! in_array($spaTier, ['basic', 'premium', 'business'], true)) {
+        $spaTier = 'basic';
+    }
+
+    $hasSpaAccess = $spa?->hasAccess() ?? false;
+
+    $canUseHiring = $hasSpaAccess
+        && ($spa?->hasFeature('manpower') ?? false);
+
+    $planBadgeClasses = [
+        'basic' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+        'premium' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        'business' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    ];
+
+    $planBadgeClass = $planBadgeClasses[$spaTier];
 
     // Count the number of days that are open (not closed) in the operating hours. This is used to display the number of open days in the branch overview.
     $openDayCount = $operatingHours->filter(fn($h) => !($h->is_closed ?? false))->count();
-    $isListed     = (bool) optional($branch->profile)->is_listed;
+    $canPublicListing = $spa?->hasFeature('branch_public_listing') ?? false;
+
+    // Why this branch cannot be listed right now, or null when it can.
+    // Same rules BranchController::updateProfile() enforces on save.
+    $listingBlocker = ! $branch->isOperational()
+        ? 'This branch must be approved and active before it can be listed publicly.'
+        : $branch->bookingReadinessMessage();
+
+    // "Listed" here means actually visible to customers.
+    $isListed = (bool) optional($branch->profile)->is_listed && ! $listingBlocker;
 @endphp
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -143,10 +172,26 @@
         <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <div class="flex items-start justify-between gap-2">
                 <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Plan</p>
-                <i class="fa-solid {{ $spaTier === 'professional' ? 'fa-crown' : 'fa-lock' }} {{ $spaTier === 'professional' ? 'text-amber-500' : 'text-gray-400' }} text-sm shrink-0" aria-hidden="true"></i>
+                <i
+                    class="fa-solid {{ $hasSpaAccess ? 'fa-crown' : 'fa-lock' }} {{ $hasSpaAccess ? 'text-amber-500' : 'text-gray-400' }} shrink-0 text-sm"
+                    aria-hidden="true">
+                </i>
             </div>
-            <p class="mt-2 text-base font-semibold text-gray-900 sm:text-lg dark:text-white">{{ $spaTier === 'professional' ? 'Professional' : 'Basic' }}</p>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $spaTier === 'professional' ? 'All branch features unlocked' : 'Some features are locked' }}</p>
+            <p class="mt-2 text-base font-semibold text-gray-900 capitalize sm:text-lg dark:text-white">
+                {{ $spaTier }}
+            </p>
+
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                @if ($hasSpaAccess)
+                    Current plan is active
+                @else
+                    Choose a subscription plan to unlock access
+                @endif
+            </p>
+
+            <span class="mt-2 inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold {{ $planBadgeClass }}">
+                {{ ucfirst($spaTier) }}
+            </span>
         </div>
     </div>
 
@@ -178,14 +223,6 @@
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
-                    </div>
-                @endif
-
-                <!-- Success flash -->
-                @if(session('tab_success') === 'general')
-                    <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
-                        Branch information updated successfully.
                     </div>
                 @endif
 
@@ -298,12 +335,6 @@
                     </div>
                 @endif
 
-                @if(session('tab_success') === 'hours')
-                    <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
-                        Operating hours updated successfully.
-                    </div>
-                @endif
 
                 @if($operatingHours->isEmpty())
                     {{-- Only reachable if the view rendered without $operatingHours.
@@ -451,6 +482,7 @@
             <form method="POST"
                   action="{{ route('branches.update.profile', $branch->id) }}"
                   enctype="multipart/form-data"
+                  id="branchProfileForm"
                   class="space-y-5">
                 @csrf
                 @method('PUT')
@@ -467,57 +499,137 @@
                     </div>
                 @endif
 
-                {{-- @if(session('tab_success') === 'profile')
-                    <div class="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-2xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800 dark:text-green-300">
-                        <i class="flex-shrink-0 fa-solid fa-circle-check"></i>
-                        Public profile updated successfully.
-                    </div>
-                @endif --}}
-
                 <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
                     <!-- ══════════════ LEFT COLUMN (2/3 width) ══════════════ -->
                     <div class="space-y-5 lg:col-span-2">
 
                         {{-- ── Public Listing + Job Posting — one combined card ── --}}
-                        <div class="p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:divide-x sm:divide-gray-100 dark:sm:divide-gray-700">
 
                                 {{-- Public Listing --}}
-                                <div class="sm:pr-6" x-data="{ listed: {{ optional($branch->profile)->is_listed ? 'true' : 'false' }} }">
-                                    <div class="flex items-start justify-between gap-4">
-                                        <div>
-                                            <h2 class="text-base font-semibold text-gray-900 dark:text-white">Public Listing</h2>
-                                            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                                                Shown to customers on the landing page.
+                                @if ($canPublicListing && $listingBlocker)
+                                    <div class="sm:pr-6">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div>
+                                                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                                                    Public Listing
+                                                </h2>
+
+                                                <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                                    Shown to customers on the landing page.
+                                                </p>
+                                            </div>
+
+                                            {{-- Disabled: sends 0, so saving can never list it. --}}
+                                            <input type="hidden" name="is_listed" value="0">
+
+                                            <span class="relative inline-flex items-center cursor-not-allowed shrink-0 opacity-60" aria-hidden="true">
+                                                <span class="h-6 bg-gray-200 rounded-full w-11 dark:bg-gray-600"></span>
+                                                <span class="absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full"></span>
+                                            </span>
+                                        </div>
+
+                                        <div class="flex items-start gap-3 px-3 py-3 mt-4 border border-amber-200 rounded-xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800" role="status">
+                                            <i class="mt-0.5 text-amber-600 fa-solid fa-triangle-exclamation dark:text-amber-400" aria-hidden="true"></i>
+
+                                            <div>
+                                                <p class="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                                    This branch can't be listed yet.
+                                                </p>
+
+                                                <p class="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
+                                                    {{ $listingBlocker }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @elseif ($canPublicListing)
+                                    <div
+                                        class="sm:pr-6"
+                                        x-data="{ listed: {{ optional($branch->profile)->is_listed ? 'true' : 'false' }} }"
+                                    >
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div>
+                                                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                                                    Public Listing
+                                                </h2>
+
+                                                <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                                    Shown to customers on the landing page.
+                                                </p>
+                                            </div>
+
+                                            <label class="relative inline-flex items-center flex-shrink-0 cursor-pointer">
+                                                <input type="hidden" name="is_listed" value="0">
+
+                                                <input
+                                                    type="checkbox"
+                                                    name="is_listed"
+                                                    value="1"
+                                                    x-model="listed"
+                                                    {{ optional($branch->profile)->is_listed ? 'checked' : '' }}
+                                                    class="sr-only peer"
+                                                >
+
+                                                <div
+                                                    class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
+                                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
+                                                        peer-checked:after:translate-x-5"
+                                                ></div>
+                                            </label>
+                                        </div>
+
+                                        <div
+                                            x-show="listed"
+                                            x-transition
+                                            class="flex items-center gap-2 px-3 py-2 mt-4 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800"
+                                        >
+                                            <i class="text-xs text-green-500 fa-solid fa-circle-check"></i>
+
+                                            <p class="text-xs font-medium text-green-700 dark:text-green-300">
+                                                Visible on the public landing page.
                                             </p>
                                         </div>
-                                        <label class="relative inline-flex items-center flex-shrink-0 cursor-pointer">
-                                            <input type="hidden" name="is_listed" value="0">
-                                            <input type="checkbox" name="is_listed" value="1"
-                                                   x-model="listed"
-                                                   {{ optional($branch->profile)->is_listed ? 'checked' : '' }}
-                                                   class="sr-only peer">
-                                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
-                                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
-                                                        peer-checked:after:translate-x-5"></div>
-                                        </label>
                                     </div>
+                                @else
+                                    <div class="sm:pr-6">
+                                        <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                                            Public Listing
+                                        </h2>
 
-                                    <div x-show="listed" x-transition class="flex items-center gap-2 px-3 py-2 mt-4 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
-                                        <i class="text-xs text-green-500 fa-solid fa-circle-check"></i>
-                                        <p class="text-xs font-medium text-green-700 dark:text-green-300">Visible on the public landing page.</p>
+                                        <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                                            Public listing needs an active Levictas plan.
+                                        </p>
+
+                                        <div class="flex items-start gap-3 px-3 py-3 mt-4 border border-yellow-200 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800">
+                                            <i class="mt-0.5 text-yellow-600 fa-solid fa-lock dark:text-yellow-400"></i>
+
+                                            <div>
+                                                <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                                    Upgrade to list this branch publicly.
+                                                </p>
+
+                                                @role('owner')
+                                                    <a
+                                                        href="{{ route('owner.subscription.index') }}"
+                                                        class="inline-flex items-center mt-1 text-xs font-semibold text-yellow-800 underline dark:text-yellow-200"
+                                                    >
+                                                        Upgrade plan
+                                                    </a>
+                                                @endrole
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                @endif
 
-                                {{-- Job Posting — Professional tier only.
-                                     On Basic the whole control is replaced by an
-                                     upgrade prompt and no is_hiring / hiring_note
-                                     input is rendered, so a Basic spa cannot post
-                                     even by resubmitting a stale form. --}}
+                                {{-- Job Posting requires the manpower feature.
+                                The locked state intentionally renders no is_hiring or hiring_note
+                                inputs, so a plan without this feature cannot submit stale values. --}}
                                 @if(!$canUseHiring)
                                     <div class="sm:pl-6">
-                                        <div class="flex items-start gap-3 p-4 border border-dashed border-gray-300 rounded-2xl bg-gray-50 dark:bg-gray-900/20 dark:border-gray-600">
+                                        <div class="flex items-start gap-3 p-4 border border-gray-300 border-dashed rounded-2xl bg-gray-50 dark:bg-gray-900/20 dark:border-gray-600">
                                             <div class="flex items-center justify-center w-10 h-10 text-gray-500 bg-gray-200 shrink-0 rounded-xl dark:bg-gray-700 dark:text-gray-300">
                                                 <i class="fa-solid fa-lock" aria-hidden="true"></i>
                                             </div>
@@ -525,17 +637,17 @@
                                                 <div class="flex flex-wrap items-center gap-2">
                                                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Job Posting</h2>
                                                     <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                                        Professional
+                                                        Business Feature
                                                     </span>
                                                 </div>
                                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                                     Publish a "We're Hiring" badge on this branch's public card and collect
-                                                    applications. Available on the Professional plan.
+                                                    applications. Available when your plan includes manpower features.
                                                 </p>
                                                 @role('owner')
                                                     <a href="{{ route('owner.subscription.index') }}"
                                                        class="inline-flex items-center gap-2 mt-3 min-h-[44px] -my-2 text-sm font-medium text-[#8B7355] dark:text-[#C4A97D] hover:underline">
-                                                        <i class="fa-solid fa-crown text-yellow-500" aria-hidden="true"></i>
+                                                        <i class="text-yellow-500 fa-solid fa-crown" aria-hidden="true"></i>
                                                         Upgrade to enable
                                                     </a>
                                                 @else
@@ -591,7 +703,7 @@
                         </div>
 
                         {{-- ── Branch Details + Branch Location Pin — one combined card ── --}}
-                        <div class="space-y-6 p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                        <div class="p-4 space-y-6 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
                             {{-- Branch Details --}}
                             <div class="space-y-5">
@@ -620,8 +732,10 @@
                                         <label for="city" class="block text-sm font-medium text-gray-700 dark:text-gray-300">City / Municipality</label>
                                         <input type="text" name="city" id="city"
                                             value="{{ old('city', optional($branch->profile)->city) }}"
-                                            placeholder="e.g. Trece Martires City"
-                                            class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                                            readonly
+                                            tabindex="-1"
+                                            placeholder="Automatically detected"
+                                            class="block w-full mt-2 text-gray-600 border-gray-200 shadow-sm cursor-not-allowed bg-gray-50 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-400 sm:text-sm">
                                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             Auto-filled when you search or pin the address.
                                         </p>
@@ -660,6 +774,17 @@
                                 </div>
                                 <input type="hidden" name="latitude"  id="latitude"  value="{{ old('latitude',  optional($branch->profile)->latitude) }}">
                                 <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude', optional($branch->profile)->longitude) }}">
+                                <input type="hidden"
+                                name="location_confirmed"
+                                id="location_confirmed"
+                                value="{{ old(
+                                    'location_confirmed',
+                                    optional($branch->profile)->address &&
+                                    optional($branch->profile)->latitude &&
+                                    optional($branch->profile)->longitude
+                                        ? '1'
+                                        : '0'
+                                ) }}">
                                 <div id="profileMap" class="w-full overflow-hidden border border-gray-200 h-72 rounded-xl dark:border-gray-600"></div>
                                 <div id="caviteToast" class="flex items-center hidden gap-2 p-3 mt-3 text-sm text-red-600 bg-red-50 rounded-xl ring-1 ring-red-200 dark:bg-red-900/10 dark:ring-red-800 dark:text-red-400">
                                     <i class="flex-shrink-0 fa-solid fa-location-crosshairs"></i>
@@ -670,7 +795,7 @@
                         </div>
 
                         {{-- ── Amenities — now in the left column, wider grid ── --}}
-                        <div class="p-4 sm:p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+                        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700"
                             x-data="amenitiesManager()">
 
                             <div class="flex items-center justify-between mb-5">
@@ -1071,7 +1196,7 @@ function initLeafletMap() {
             '<div class="flex flex-col items-center justify-center h-full gap-2 p-6 text-center">' +
             '<i class="text-xl text-gray-400 fa-solid fa-map-location-dot"></i>' +
             '<p class="text-sm font-medium text-gray-600 dark:text-gray-300">Map could not be loaded</p>' +
-            '<p class="text-xs text-gray-500 dark:text-gray-400">Check your connection and reload. You can still type the address and coordinates manually.</p>' +
+            '<p class="text-xs text-gray-500 dark:text-gray-400">Check your connection and reload before changing the branch location.</p>' +
             '</div>';
         return;
     }
@@ -1122,6 +1247,7 @@ function initLeafletMap() {
                 const a = document.getElementById('address');
                 if (a && data.display_name) a.value = data.display_name;
                 fillCityFromNominatimAddress(data.address);
+                document.getElementById('location_confirmed').value = '1';
             })
             .catch(() => {
                 showCaviteToast('Could not verify that location. Please try again.');
@@ -1280,6 +1406,8 @@ function selectAddressSuggestion(index) {
     document.getElementById('longitude').value = lng.toFixed(7);
     fillCityFromNominatimAddress(item.address);
 
+    document.getElementById('location_confirmed').value = '1';
+
     if (leafletMapInstance) {
         leafletMapInstance.setView(latlng, 16);
         leafletMapInstance.eachLayer(layer => {
@@ -1304,8 +1432,18 @@ function setupAddressAutocomplete() {
 
     addressInput.addEventListener('input', function () {
         clearTimeout(addressGeocodeTimeout);
+
+        document.getElementById('location_confirmed').value = '0';
+        document.getElementById('latitude').value = '';
+        document.getElementById('longitude').value = '';
+        document.getElementById('city').value = '';
+
         const query = this.value.trim();
-        addressGeocodeTimeout = setTimeout(() => fetchAddressSuggestions(query), 500);
+
+        addressGeocodeTimeout = setTimeout(
+            () => fetchAddressSuggestions(query),
+            500
+        );
     });
 
     // Keyboard navigation (up/down/enter)
@@ -1360,6 +1498,31 @@ function bindResetHandlers() {
         });
     });
 }
+
+document.getElementById('branchProfileForm')?.addEventListener('submit', function (event) {
+    const confirmed = document.getElementById('location_confirmed');
+    const address = document.getElementById('address');
+    const city = document.getElementById('city');
+    const latitude = document.getElementById('latitude');
+    const longitude = document.getElementById('longitude');
+
+    if (
+        !confirmed ||
+        confirmed.value !== '1' ||
+        !address.value.trim() ||
+        !city.value.trim() ||
+        !latitude.value ||
+        !longitude.value
+    ) {
+        event.preventDefault();
+
+        showCaviteToast(
+            'Choose an address suggestion or pin the exact branch location before saving.'
+        );
+
+        address.focus();
+    }
+});
 
 document.addEventListener('DOMContentLoaded', function () {
     bindResetHandlers();

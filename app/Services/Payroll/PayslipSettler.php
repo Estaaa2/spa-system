@@ -155,7 +155,7 @@ final class PayslipSettler
 
             if ($this->meetsCumulativeAverageCondition($earnings, (bool) $payslip->is_mwe, $payDate)) {
                 $warnings[] = new RunWarning(RunWarning::CUMULATIVE_AVERAGE, sprintf(
-                    '%s: supplementary pay (e.g. commission) with regular pay below the withholding level, or supplementary ≥ regular. RR 11-2018 Sec. 2.79(B)(5)(a) prescribes the cumulative average method; Levictas withholds per cutoff (locked rule) and the year-end annualization settles the difference.',
+                    '%s: supplementary pay (e.g. commission) with regular pay below the withholding level, or supplementary ≥ regular. RR 11-2018 Sec. 2.79(B)(5)(a) prescribes the cumulative average method; Levictas withholds per cutoff instead and the year-end annualization settles the difference.',
                     $who,
                 ), $staffId);
             }
@@ -303,7 +303,7 @@ final class PayslipSettler
             usort($profiles, static fn (PayProfileSnapshot $a, PayProfileSnapshot $b): int => strcmp($a->effectiveFrom, $b->effectiveFrom));
             $profile = $profiles[array_key_last($profiles)];
             $warnings[] = new RunWarning(RunWarning::UNVERIFIED_RULE,
-                "{$who}: no pay profile on {$end}; PhilHealth MBS used the latest profile in the period (#{$profile->id}, UNVERIFIED fallback).", $staffId);
+                "{$who}: the pay profile ended before the cutoff's last day ({$end}), so PhilHealth used the latest profile in the cutoff. [ref: pay profile #{$profile->id}]", $staffId);
         }
 
         $factor = $this->calc->eemrFactor($profile->payBasis, count($profile->restDays), $end);
@@ -325,9 +325,9 @@ final class PayslipSettler
         }
         $mbs = $this->calc->equivalentMonthlyRate(Decimal::round2(Decimal::of((string) $wage)), $factor);
         $warnings[] = new RunWarning(RunWarning::UNVERIFIED_RULE,
-            "{$who}: base rate is 0, so PhilHealth MBS = branch minimum wage ₱".Decimal::peso(Decimal::of((string) $wage))." × {$factor} ÷ 12 (rates sheet §2 — UNVERIFIED design default).", $staffId);
+            "{$who}: base rate is ₱0, so the PhilHealth monthly salary was taken from the branch minimum wage (₱".Decimal::peso(Decimal::of((string) $wage))." × {$factor} ÷ 12). Set a base rate on Staff Pay if this is not right.", $staffId);
 
-        return [$mbs, sprintf('MBS ₱%s = branch min. wage ₱%s × %s ÷ 12 (base rate 0 — UNVERIFIED)', Decimal::peso($mbs), Decimal::peso(Decimal::of((string) $wage)), $factor)];
+        return [$mbs, sprintf('MBS ₱%s = branch min. wage ₱%s × %s ÷ 12 (base rate ₱0)', Decimal::peso($mbs), Decimal::peso(Decimal::of((string) $wage)), $factor)];
     }
 
     // ── Tax ──────────────────────────────────────────────────────────────────

@@ -12,6 +12,12 @@ class Applicant extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_INTERVIEW = 'interview';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+    public const STATUS_HIRED = 'hired';
+
     protected $fillable = [
         'job_posting_id',
         'spa_id',
@@ -62,5 +68,10 @@ class Applicant extends Model
     public function interview(): HasOne
     {
         return $this->hasOne(Interview::class);
+    }
+
+    public function staff(): HasOne
+    {
+        return $this->hasOne(Staff::class);
     }
 }

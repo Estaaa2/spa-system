@@ -16,6 +16,8 @@ class TreatmentController extends Controller
             'service_type' => 'required|in:in_branch_only,in_branch_and_home',
             'description'  => 'nullable|string',
             'image'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'image_2'      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'cover'        => 'nullable|in:1,2',
         ]);
 
         $branchId = session('current_branch_id') ?? auth()->user()->branch_id;
@@ -24,10 +26,7 @@ class TreatmentController extends Controller
             return back()->withErrors(['branch_id' => 'Please select a branch before adding a treatment.'])->withInput();
         }
 
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('treatments', 'public');
-        }
+        [$imagePath, $imagePath2] = $this->resolveImages($request, 'treatments');
 
         Treatment::create([
             'spa_id'       => auth()->user()->spa_id,
@@ -38,6 +37,7 @@ class TreatmentController extends Controller
             'service_type' => $validated['service_type'],
             'description'  => $validated['description'] ?? null,
             'image_path'   => $imagePath,
+            'image_path_2' => $imagePath2,
         ]);
 
         return redirect()
@@ -53,24 +53,34 @@ class TreatmentController extends Controller
     public function update(Request $request, Treatment $treatment)
     {
         $validated = $request->validate([
-            'name'         => 'required|string|max:255',
-            'duration'     => 'required|integer|min:1',
-            'price'        => 'required|numeric|min:0',
-            'service_type' => 'required|in:in_branch_only,in_branch_and_home',
-            'description'  => 'nullable|string',
-            'image'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'name'           => 'required|string|max:255',
+            'duration'       => 'required|integer|min:1',
+            'price'          => 'required|numeric|min:0',
+            'service_type'   => 'required|in:in_branch_only,in_branch_and_home',
+            'description'    => 'nullable|string',
+            'image'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'image_2'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'remove_image'   => 'nullable|boolean',
+            'remove_image_2' => 'nullable|boolean',
+            'cover'          => 'nullable|in:1,2',
         ]);
 
-        if ($request->hasFile('image')) {
-            if ($treatment->image_path) {
-                Storage::disk('public')->delete($treatment->image_path);
-            }
-            $validated['image_path'] = $request->file('image')->store('treatments', 'public');
-        }
+        [$imagePath, $imagePath2] = $this->resolveImages(
+            $request,
+            'treatments',
+            $treatment->image_path,
+            $treatment->image_path_2
+        );
 
-        unset($validated['image']);
-
-        $treatment->update($validated);
+        $treatment->update([
+            'name'         => $validated['name'],
+            'duration'     => $validated['duration'],
+            'price'        => $validated['price'],
+            'service_type' => $validated['service_type'],
+            'description'  => $validated['description'] ?? null,
+            'image_path'   => $imagePath,
+            'image_path_2' => $imagePath2,
+        ]);
 
         return redirect()
             ->route('services.index')
@@ -79,8 +89,10 @@ class TreatmentController extends Controller
 
     public function destroy(Treatment $treatment)
     {
-        if ($treatment->image_path) {
-            Storage::disk('public')->delete($treatment->image_path);
+        foreach ([$treatment->image_path, $treatment->image_path_2] as $path) {
+            if ($path) {
+                Storage::disk('public')->delete($path);
+            }
         }
 
         $treatment->delete();
@@ -88,5 +100,48 @@ class TreatmentController extends Controller
         return redirect()
             ->route('services.index')
             ->with('success', 'Treatment deleted successfully.');
+    }
+
+    /**
+     * Works out the two image paths after an add or edit.
+     * Each slot: a new upload replaces the old file; otherwise a ticked
+     * "remove" box deletes it; otherwise it is kept as is.
+     * cover=2 swaps the slots, and a lone second image moves up to slot 1,
+     * so image_path is always the cover.
+     */
+    private function resolveImages(Request $request, string $folder, ?string $first = null, ?string $second = null): array
+    {
+        $disk = Storage::disk('public');
+
+        if ($request->hasFile('image')) {
+            if ($first) {
+                $disk->delete($first);
+            }
+            $first = $request->file('image')->store($folder, 'public');
+        } elseif ($request->boolean('remove_image') && $first) {
+            $disk->delete($first);
+            $first = null;
+        }
+
+        if ($request->hasFile('image_2')) {
+            if ($second) {
+                $disk->delete($second);
+            }
+            $second = $request->file('image_2')->store($folder, 'public');
+        } elseif ($request->boolean('remove_image_2') && $second) {
+            $disk->delete($second);
+            $second = null;
+        }
+
+        if ($request->input('cover') === '2' && $first && $second) {
+            [$first, $second] = [$second, $first];
+        }
+
+        if (!$first && $second) {
+            $first = $second;
+            $second = null;
+        }
+
+        return [$first, $second];
     }
 }

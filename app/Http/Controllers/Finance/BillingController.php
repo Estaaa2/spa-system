@@ -52,11 +52,12 @@ class BillingController extends Controller
             : now()->endOfMonth();
 
         // ── Billing Table ───────────────────────────────────────────────────
-        // Billing = all non-cancelled bookings (regardless of status),
+        // Billing = all bookings that weren't cancelled or missed (no-show is
+        // handled like a cancellation, UI rework Phase 3 decision 2A),
         // showing what customers owe or have paid.
         $billingRecords = Booking::where('spa_id', $spa->id)
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->whereNotIn('status', ['cancelled'])
+            ->whereNotIn('status', ['cancelled', Booking::NO_SHOW])
             ->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])
             ->with('therapist')
             ->latest('appointment_date')

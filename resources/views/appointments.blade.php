@@ -8,7 +8,9 @@
 
     $canEdit    = $user?->hasBranchPermission('edit appointments') ?? false;
     $canDelete  = $user?->hasBranchPermission('delete appointments') ?? false;
-    $canRequestReassignment = $user?->hasBranchPermission('request appointment reassignment') ?? false;
+    // Permission or "Performs treatments" (answer P16). The button only shows on
+    // the user's own bookings: a flagged receptionist sees the whole branch.
+    $canRequestReassignment = $user?->canRequestReassignment() ?? false;
     $showActions = $canEdit || $canDelete;
     $showUpcomingActions = $showActions || $canRequestReassignment;
 
@@ -18,6 +20,7 @@
         'ongoing'   => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
         'completed' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
         'cancelled' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+        'no_show'   => 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
     ];
 
     $sourceClasses = [
@@ -27,7 +30,7 @@
         ''        => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
     ];
 
-    // Used when $booking->status is not one of the five known values.
+    // Used when $booking->status is not one of the known values.
     $statusFallback = 'bg-gray-100 text-gray-700';
 
     // The button classes are defined here to ensure consistent styling across
@@ -199,6 +202,59 @@
         </div>
     </div>
 
+    {{-- ── Paid online bookings with no therapist yet (staff verification, decision Q17) ── --}}
+    @if($canEdit && ($unassignedBookings ?? collect())->isNotEmpty())
+        <div class="overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
+            <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-4 border-b sm:px-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                <div>
+                    <h2 class="text-base font-semibold text-amber-900 dark:text-amber-200">No Therapist Assigned</h2>
+                    <p class="text-sm text-amber-700 dark:text-amber-300">
+                        These were paid online, but nobody suitable was free when the payment came in. Choose a therapist with Edit.
+                        Home service needs a verified therapist.
+                    </p>
+                </div>
+                <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    {{ $unassignedTotal ?? $unassignedBookings->count() }} to assign
+                </span>
+            </div>
+            <ul class="divide-y divide-gray-200 dark:divide-gray-700">
+                @foreach($unassignedBookings as $booking)
+                    <li class="flex flex-col gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm">
+                            <p class="font-medium text-gray-900 dark:text-white">{{ $booking->customer_name ?? 'Customer' }} · {{ $booking->treatment_label }}</p>
+                            <p class="text-gray-500 dark:text-gray-400">
+                                {{ $booking->appointment_date?->format('M d, Y') }},
+                                {{ \Carbon\Carbon::parse($booking->start_time)->format('h:i A') }}
+                                · {{ $booking->service_type_label }}
+                            </p>
+                        </div>
+                        <button type="button"
+                                onclick="openEditModal(this)"
+                                data-id="{{ $booking->id }}"
+                                data-customer-name="{{ $booking->customer_name }}"
+                                data-customer-email="{{ $booking->customer_email }}"
+                                data-customer-phone="{{ $booking->customer_phone }}"
+                                data-customer-address="{{ $booking->customer_address }}"
+                                data-service-type="{{ $booking->service_type }}"
+                                data-treatment="{{ $booking->treatment }}"
+                                data-therapist-id=""
+                                data-branch-id="{{ $booking->branch_id }}"
+                                data-source="{{ $booking->booking_source }}"
+                                data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
+                                data-start-time="{{ $booking->start_time }}"
+                                data-status="{{ $booking->status }}"
+                                class="{{ $btn['process'] }}">
+                            <i class="fa-solid fa-user-plus" aria-hidden="true"></i>Assign therapist
+                        </button>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- Online home-service visits and the arrival code (staff verification Phase 5). --}}
+    @include('partials.home-visits')
+
     @include('appointments.partials.reassignment-requests-modal')
 
     @if($canRequestReassignment)
@@ -266,7 +322,7 @@
                                 <div class="flex flex-wrap gap-2 md:flex-col">
                                     <span class="inline-flex w-fit items-center px-3 py-1 text-xs font-medium rounded-full
                                                  {{ $statusClasses[$booking->status] ?? $statusFallback }}">
-                                        {{ ucfirst($booking->status) }}
+                                        {{ \App\Models\Booking::statusLabel($booking->status) }}
                                     </span>
                                     <span class="inline-flex w-fit items-center px-3 py-1 text-xs font-medium rounded-full
                                                  {{ $sourceClasses[$booking->booking_source ?? ''] ?? $sourceClasses[''] }}">
@@ -319,6 +375,7 @@
                                                     data-treatment="{{ $booking->treatment }}"
                                                     data-therapist-id="{{ $booking->therapist_id }}"
                                                     data-branch-id="{{ $booking->branch_id }}"
+                                                    data-source="{{ $booking->booking_source }}"
                                                     data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
                                                     data-start-time="{{ $booking->start_time }}"
                                                     data-status="{{ $booking->status }}"
@@ -400,7 +457,7 @@
                             <td role="cell" data-label="Status" class="px-6 py-4">
                                 <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full
                                              {{ $statusClasses[$booking->status] ?? $statusFallback }}">
-                                    {{ ucfirst($booking->status) }}
+                                    {{ \App\Models\Booking::statusLabel($booking->status) }}
                                 </span>
                             </td>
                             @if($showUpcomingActions)
@@ -418,6 +475,7 @@
                                                     data-treatment="{{ $booking->treatment }}"
                                                     data-therapist-id="{{ $booking->therapist_id }}"
                                                     data-branch-id="{{ $booking->branch_id }}"
+                                                    data-source="{{ $booking->booking_source }}"
                                                     data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
                                                     data-start-time="{{ $booking->start_time }}"
                                                     data-status="{{ $booking->status }}"
@@ -431,7 +489,7 @@
                                                 <i class="fa-solid fa-trash" aria-hidden="true"></i>{{ $btnLabel['remove'] }}
                                             </button>
                                         @endif
-                                        @if($canRequestReassignment && in_array($booking->status, ['reserved', 'pending']))
+                                        @if($canRequestReassignment && (int) $booking->therapist_id === (int) $user->id && in_array($booking->status, ['reserved', 'pending']))
                                             @if($booking->has_pending_reassignment)
                                                 <span class="{{ $reassignPendingBadge }}">
                                                     <i class="fa-solid fa-clock" aria-hidden="true"></i> Pending
@@ -515,7 +573,7 @@
                             <td role="cell" data-label="Status" class="px-6 py-4">
                                 <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full
                                              {{ $statusClasses[$booking->status] ?? $statusFallback }}">
-                                    {{ ucfirst($booking->status) }}
+                                    {{ \App\Models\Booking::statusLabel($booking->status) }}
                                 </span>
                             </td>
                         </tr>
@@ -588,6 +646,10 @@
                     <select id="process_status" name="status"
                             class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></select>
                 </div>
+                <p id="process_end_note" class="hidden p-3 text-sm text-gray-700 rounded-xl bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-700/40 dark:text-gray-200 dark:ring-gray-700">
+                    <i class="mr-1 fa-solid fa-circle-info text-gray-500 dark:text-gray-400" aria-hidden="true"></i>
+                    No payment is collected. Anything already paid stays recorded as it is.
+                </p>
                 <div id="process_amount_wrapper">
                     <label for="process_amount_paid" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Amount Collected Now</label>
                     <input type="number" step="0.01" min="0" id="process_amount_paid" name="amount_paid"
@@ -718,11 +780,16 @@
                                 class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="">— No Therapist Assigned —</option>
                             @foreach($therapists as $therapist)
-                                <option value="{{ $therapist->id }}" data-branch="{{ $therapist->branch_id }}">
+                                <option value="{{ $therapist->id }}" data-branch="{{ $therapist->branch_id }}"
+                                        data-verified="{{ $therapist->isIdentityVerified() ? '1' : '0' }}"
+                                        data-name="{{ $therapist->name }}">
                                     {{ $therapist->name }}
                                 </option>
                             @endforeach
                         </select>
+                        <p id="edit_therapist_hint" class="hidden mt-1 text-xs text-amber-700 dark:text-amber-300">
+                            This is an online home-service booking, so only identity-verified therapists can be chosen.
+                        </p>
                     </div>
                 </div>
                 <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
@@ -789,6 +856,7 @@
     const CAN_EDIT   = {{ $canEdit   ? 'true' : 'false' }};
     const CAN_DELETE = {{ $canDelete ? 'true' : 'false' }};
     const CAN_REQUEST_REASSIGNMENT = {{ $canRequestReassignment ? 'true' : 'false' }};
+    const CURRENT_USER_ID = {{ (int) $user?->id }};
     const SHOW_ACTIONS = CAN_EDIT || CAN_DELETE;
     const SHOW_UPCOMING_ACTIONS = SHOW_ACTIONS || CAN_REQUEST_REASSIGNMENT;
     const TODAY_COLS  = SHOW_ACTIONS ? 7 : 6;
@@ -798,6 +866,7 @@
     const STATUS_CLASSES  = @json($statusClasses);
     const SOURCE_CLASSES  = @json($sourceClasses);
     const STATUS_FALLBACK = @json($statusFallback);
+    const STATUS_LABELS   = @json(\App\Models\Booking::STATUS_LABELS);
     const BTN             = @json($btn);
     const BTN_LABEL       = @json($btnLabel);
     const REASSIGN_BADGE  = @json($reassignPendingBadge);
@@ -816,6 +885,8 @@
     function esc(s)        { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
     function php(n)        { return '₱' + Number(n).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2}); }
     function ucfirst(s)    { return String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1); }
+    // Same words as Booking::statusLabel(), so the poll never shows a raw status value.
+    function stLabel(st)   { return STATUS_LABELS[st] ?? ucfirst(String(st || '').replace(/_/g, ' ')); }
 
     // Local calendar date, matching booking.blade.php's todayString().
     // toISOString() returns UTC, which is yesterday in Manila between 00:00–08:00.
@@ -908,20 +979,27 @@
 @if($canEdit)
     // Only these two statuses can reach the Process button, but the fallback
     // guarantees the select is never empty (which would submit status=).
+    // Both appear only after the start time (the clock sets them), which is
+    // when a no-show can be recorded (UI rework Phase 3, decision 1A).
     const PROCESS_OPTIONS = {
         pending: [
             { value: 'ongoing',   label: 'Mark as Ongoing (customer has arrived)' },
-            { value: 'cancelled', label: 'Cancel (customer called / no-show)' },
+            { value: 'no_show',   label: 'Mark as No-show (customer didn\'t come)' },
+            { value: 'cancelled', label: 'Cancel (customer called to cancel)' },
         ],
         ongoing: [
-            { value: 'cancelled', label: 'Cancel (customer did not proceed / no-show)' },
+            { value: 'no_show',   label: 'Mark as No-show (customer didn\'t come)' },
+            { value: 'cancelled', label: 'Cancel (customer didn\'t proceed)' },
         ],
     };
 
+    // Cancel and no-show collect nothing; payments already received stay as they are.
     function togglePaymentField() {
         const statusSelect  = document.getElementById('process_status');
         const amountWrapper = document.getElementById('process_amount_wrapper');
-        amountWrapper.classList.toggle('hidden', statusSelect.value === 'cancelled');
+        const endsBooking   = ['cancelled', 'no_show'].includes(statusSelect.value);
+        amountWrapper.classList.toggle('hidden', endsBooking);
+        document.getElementById('process_end_note')?.classList.toggle('hidden', !endsBooking);
     }
 
     function openProcessModal(btn) {
@@ -1031,6 +1109,8 @@
             opt.hidden = opt.dataset.branch != d.branchId;
         });
         therapistSelect.value = d.therapistId || '';
+        editBookingSource = d.source || '';
+        syncEditTherapistRule();
 
         // Always re-lock the phone field for each newly opened booking, so a
         // previously-unlocked phone from a different customer's edit session
@@ -1047,6 +1127,26 @@
         document.getElementById('editForm').action = routeFor(ROUTE_UPDATE, d.id);
         openModal('editModal', '#edit_service_type');
     }
+
+    // Online home service needs an identity-verified therapist (staff
+    // verification, D2). The server enforces it; this only marks the choices.
+    let editBookingSource = '';
+
+    function syncEditTherapistRule() {
+        const select = document.getElementById('edit_therapist_id');
+        const needsVerified = editBookingSource === 'online'
+            && document.getElementById('edit_service_type').value === 'in_home';
+
+        Array.from(select.options).forEach(opt => {
+            if (opt.value === '') return;
+            const unverified = opt.dataset.verified !== '1';
+            opt.disabled = needsVerified && unverified;
+            opt.textContent = opt.dataset.name + (needsVerified && unverified ? ' (not verified)' : '');
+        });
+        document.getElementById('edit_therapist_hint')?.classList.toggle('hidden', !needsVerified);
+    }
+
+    document.getElementById('edit_service_type')?.addEventListener('change', syncEditTherapistRule);
 
     function validateEditPhone() {
         const phoneInput = document.getElementById('edit_customer_phone');
@@ -1300,6 +1400,7 @@
             data-treatment="${esc(b.treatment)}"
             data-therapist-id="${b.therapist_id ?? ''}"
             data-branch-id="${b.branch_id ?? ''}"
+            data-source="${esc(b.booking_source ?? '')}"
             data-appointment-date="${esc(b.appointment_date_raw)}"
             data-start-time="${esc(b.start_time)}"
             data-status="${b.status}"
@@ -1318,6 +1419,7 @@
 
     function reassignBtn(b) {
         if (!CAN_REQUEST_REASSIGNMENT) return '';
+        if (Number(b.therapist_id) !== CURRENT_USER_ID) return '';
         if (!['reserved', 'pending'].includes(b.status)) return '';
         if (b.has_pending_reassignment) {
             return `<span class="${REASSIGN_BADGE}">
@@ -1455,7 +1557,7 @@
                 <td role="cell" data-label="Status" class="px-6 py-4">
                     <div class="flex flex-wrap gap-2 md:flex-col">
                         <span class="inline-flex w-fit items-center px-3 py-1 text-xs font-medium rounded-full ${stClass(b.status)}">
-                            ${ucfirst(b.status)}
+                            ${stLabel(b.status)}
                         </span>
                         <span class="inline-flex w-fit items-center px-3 py-1 text-xs font-medium rounded-full ${srcClass(b.booking_source)}">
                             ${(b.booking_source || 'STAFF').toUpperCase()}
@@ -1511,7 +1613,7 @@
                 <td role="cell" data-label="Therapist" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">${esc(b.therapist_name)}</td>
                 <td role="cell" data-label="Status" class="px-6 py-4">
                     <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${stClass(b.status)}">
-                        ${ucfirst(b.status)}
+                        ${stLabel(b.status)}
                     </span>
                 </td>
                 ${actionCell}

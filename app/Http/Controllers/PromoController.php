@@ -6,6 +6,7 @@ use App\Models\Promo;
 use App\Models\Treatment;
 use App\Models\Package;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PromoController extends Controller
 {
@@ -20,17 +21,32 @@ class PromoController extends Controller
             ->latest()
             ->get();
 
-        $treatments = Treatment::withoutGlobalScopes()
+        // Drop only the named branch scope. withoutGlobalScopes() (plural) also
+        // removes SoftDeletes' scope, which listed deleted treatments and packages.
+        $treatments = Treatment::withoutGlobalScope('spa_branch')
             ->where('spa_id', $spaId)
             ->where('branch_id', $branchId)
             ->get();
 
-        $packages = Package::withoutGlobalScopes()
+        $packages = Package::withoutGlobalScope('spa_branch')
             ->where('spa_id', $spaId)
             ->where('branch_id', $branchId)
             ->get();
 
         return view('services.promos.index', compact('promos', 'treatments', 'packages'));
+    }
+
+    /**
+     * A treatment/package id is only acceptable if it belongs to this spa and
+     * branch and has not been deleted. A bare `exists:treatments,id` accepts
+     * soft-deleted rows and rows from other spas.
+     */
+    private function selectableRule(string $table): \Illuminate\Validation\Rules\Exists
+    {
+        return Rule::exists($table, 'id')
+            ->where('spa_id', auth()->user()->spa_id)
+            ->where('branch_id', session('current_branch_id') ?? auth()->user()->branch_id)
+            ->whereNull('deleted_at');
     }
 
     public function store(Request $request)
@@ -42,9 +58,9 @@ class PromoController extends Controller
             'start_date'     => ['required', 'date'],
             'end_date'       => ['required', 'date', 'after_or_equal:start_date'],
             'treatment_ids'  => ['nullable', 'array'],
-            'treatment_ids.*'=> ['exists:treatments,id'],
+            'treatment_ids.*'=> [$this->selectableRule('treatments')],
             'package_ids'    => ['nullable', 'array'],
-            'package_ids.*'  => ['exists:packages,id'],
+            'package_ids.*'  => [$this->selectableRule('packages')],
         ]);
 
         if ($validated['discount_type'] === 'percent' && $validated['discount_value'] > 100) {
@@ -82,7 +98,9 @@ class PromoController extends Controller
             'end_date'       => ['required', 'date', 'after_or_equal:start_date'],
             'is_active'      => ['boolean'],
             'treatment_ids'  => ['nullable', 'array'],
+            'treatment_ids.*'=> [$this->selectableRule('treatments')],
             'package_ids'    => ['nullable', 'array'],
+            'package_ids.*'  => [$this->selectableRule('packages')],
         ]);
 
         $promo->update($validated);

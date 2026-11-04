@@ -34,7 +34,7 @@ class ReportsController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $allStatuses   = ['reserved', 'pending', 'ongoing', 'completed', 'cancelled'];
+        $allStatuses   = ['reserved', 'pending', 'ongoing', 'completed', 'cancelled', Booking::NO_SHOW];
         $statusSummary = collect($allStatuses)->mapWithKeys(fn($s) => [$s => (int) ($statusCounts[$s] ?? 0)]);
         $totalBookings = $statusSummary->sum();
 

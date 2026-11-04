@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\HR\Concerns\AuthorizesPayroll;
 use App\Http\Controllers\HR\Concerns\HandlesPayrollSetupForms;
 use App\Models\Branch;
 use App\Models\Spa;
 use App\Models\Staff;
 use App\Models\StaffPayProfile;
 use App\Models\StaffRecurringItem;
+use App\Services\Payroll\PayrollPermissions as P;
 use App\Services\Payroll\PayrollSetupService;
 use App\Services\Payroll\StatutoryCalculator;
 use App\Services\Payroll\Support\Decimal;
@@ -23,11 +25,13 @@ use InvalidArgumentException;
 
 /**
  * Staff pay setup (Unit 5 B): index of active staff and the per-staff page (pay
- * profiles, statutory IDs, recurring items). Spa-wide. Routes (Unit 7): view with
- * `view payroll`, writes with `edit payroll`, via branch.permission.
+ * profiles, statutory IDs, recurring items). Access: view with `view payroll`, writes
+ * with `manage payroll setup`, full ID numbers with `reveal statutory ids`. HR Head,
+ * Finance Head and the owner see every branch; other roles only their own branch's staff.
  */
 class StaffPayProfileController extends Controller
 {
+    use AuthorizesPayroll;
     use HandlesPayrollSetupForms;
 
     public const ID_FIELDS = [
@@ -60,6 +64,7 @@ class StaffPayProfileController extends Controller
             ->with(['user.roles', 'branch' => fn ($q) => $q->withTrashed()])
             ->where('spa_id', $spa->id)
             ->where('employment_status', 'active')
+            ->when($this->payrollScope() !== null, fn ($q) => $q->where('branch_id', $this->payrollScope()))
             ->orderBy('id')
             ->get();
 
@@ -68,7 +73,7 @@ class StaffPayProfileController extends Controller
         $upcoming = StaffPayProfile::query()->whereIn('staff_id', $staff->pluck('id'))->where('effective_from', '>', $today)
             ->orderBy('effective_from')->get()->unique('staff_id')->keyBy('staff_id');
 
-        $rows = $staff->map(function (Staff $s) use ($current, $upcoming) {
+        $rows = $staff->map(function (Staff $s) use ($current, $upcoming, $spa) {
             $missingIds = array_keys(array_filter($this->idState($s), fn ($st) => $st !== 'set'));
 
             return [
@@ -78,8 +83,11 @@ class StaffPayProfileController extends Controller
                 'profile'      => $current->get($s->id),
                 'upcoming'     => $upcoming->get($s->id),
                 'missing_ids'  => array_map(fn ($k) => self::ID_FIELDS[$k], $missingIds),
-                'in_payroll'   => $s->branch !== null && ! $s->branch->trashed() && (bool) $s->branch->has_workforce_finance_suite,
-            ];
+                'in_payroll' => $spa->hasAccess()
+                && $spa->hasFeature('payroll')
+                && $s->branch !== null
+                && ! $s->branch->trashed(),
+                        ];
         });
 
         $counts = [
@@ -112,7 +120,7 @@ class StaffPayProfileController extends Controller
         $spa = $this->currentSpa();
         $this->assertOwned($staff, $spa);
 
-        $canEdit = Auth::user()?->hasBranchPermission('edit payroll') ?? false;
+        $canEdit = $this->canPayroll(P::MANAGE_SETUP);
         $home = $staff->branch_id ? Branch::withTrashed()->find($staff->branch_id) : null;
         $usage = $this->setup->staffUsage($staff);
 
@@ -145,8 +153,12 @@ class StaffPayProfileController extends Controller
             'staff'          => $staff->load('user.roles'),
             'name'           => $this->displayName($staff),
             'home'           => $home,
-            'inPayroll'      => $home !== null && ! $home->trashed() && (bool) $home->has_workforce_finance_suite,
+            'inPayroll' => $spa?->hasAccess()
+                && $spa?->hasFeature('payroll')
+                && $home !== null
+                && ! $home->trashed(),
             'canEdit'        => $canEdit,
+            'canReveal'      => $this->canPayroll(P::REVEAL_IDS),
             'profiles'       => $profiles,
             'profileUsage'   => $usage['profiles'],
             'wageChecks'     => $wageChecks,
@@ -165,6 +177,7 @@ class StaffPayProfileController extends Controller
 
     public function storeProfile(Request $request, Staff $staff)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
 
         return $this->handleForm($request, 'profileCreate', $this->profileRules($request), function (array $data) use ($staff) {
@@ -180,6 +193,7 @@ class StaffPayProfileController extends Controller
 
     public function updateProfile(Request $request, Staff $staff, StaffPayProfile $profile)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $profile->staff_id === (int) $staff->id, 404);
 
@@ -193,6 +207,7 @@ class StaffPayProfileController extends Controller
 
     public function destroyProfile(Request $request, Staff $staff, StaffPayProfile $profile)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $profile->staff_id === (int) $staff->id, 404);
 
@@ -212,6 +227,7 @@ class StaffPayProfileController extends Controller
      */
     public function updateStatutoryIds(Request $request, Staff $staff)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
         $this->assertOwned($staff, $spa);
 
@@ -250,10 +266,11 @@ class StaffPayProfileController extends Controller
      * Returns the plaintext numbers for the Reveal button. POST (CSRF-protected, never
      * prefetched or cached) and logged: the Data Privacy Act treats government-issued
      * numbers as sensitive personal information (RA 10173 Sec. 3(l)), and access logs
-     * are an expected technical safeguard (Sec. 20). Route: `edit payroll`.
+     * are an expected technical safeguard (Sec. 20). Route: `reveal statutory ids`.
      */
     public function revealStatutoryIds(Request $request, Staff $staff): JsonResponse
     {
+        $this->authorizePayroll(P::REVEAL_IDS);
         $spa = $this->currentSpa();
         $this->assertOwned($staff, $spa);
 
@@ -279,6 +296,7 @@ class StaffPayProfileController extends Controller
 
     public function storeRecurring(Request $request, Staff $staff)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         $kind = $request->input('kind');
 
@@ -306,6 +324,7 @@ class StaffPayProfileController extends Controller
 
     public function stopRecurring(Request $request, Staff $staff, StaffRecurringItem $item)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $item->staff_id === (int) $staff->id, 404);
 
@@ -320,6 +339,7 @@ class StaffPayProfileController extends Controller
 
     public function destroyRecurring(Request $request, Staff $staff, StaffRecurringItem $item)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $item->staff_id === (int) $staff->id, 404);
 
@@ -338,6 +358,7 @@ class StaffPayProfileController extends Controller
     private function assertOwned(Staff $staff, Spa $spa): void
     {
         abort_unless((int) $staff->spa_id === (int) $spa->id, 404);
+        $this->abortUnlessBranchInScope($staff->branch_id);
     }
 
     private function toStaff(Staff $staff, string $section)
@@ -370,7 +391,7 @@ class StaffPayProfileController extends Controller
         return function ($v) use ($request) {
             $n = count(array_unique((array) $request->input('rest_days', [])));
             if ($request->input('pay_basis') === StaffPayProfile::BASIS_DAILY && ! in_array($n, [1, 2], true)) {
-                $v->errors()->add('rest_days', 'Daily-paid staff need 1 or 2 rest days a week — only those have a DOLE days-per-year factor (313 or 261). Other counts are skipped by payroll.');
+                $v->errors()->add('rest_days', 'Daily-paid staff need 1 or 2 rest days a week.');
             }
             if ($request->input('pay_basis') === StaffPayProfile::BASIS_MONTHLY && ($n < 1 || $n > 6)) {
                 $v->errors()->add('rest_days', 'Choose at least one weekly rest day (Labor Code Art. 91).');
@@ -416,10 +437,10 @@ class StaffPayProfileController extends Controller
 
     /**
      * Non-blocking hints (never reject a save):
-     *  - digit count differs from the commonly published format — UNVERIFIED: no
-     *    agency text read directly; TIN 9 digits + 3- or 5-digit branch code
-     *    (5-digit codes: RMC 36-2026 per secondary sources), SSS 10, PhilHealth 12,
-     *    Pag-IBIG MID 12;
+     *  - digit count differs from the agency format: SSS 10 (SSS form R-3),
+     *    PhilHealth 12 (PhilHealth Claim Form guidelines), Pag-IBIG MID 12 (Member's
+     *    Data Form PFF039), TIN 9 (BIR RMO 23-91) + 3- or 5-digit branch code
+     *    (eBIRForms 7.9.6.0 / RMC 36-2026, as reported by PwC PH — secondary);
      *  - the same number is on file for another active staff member of this spa
      *    (almost always a typing error, and it would misdirect remittances).
      *

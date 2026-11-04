@@ -24,7 +24,10 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            // Levictas splits the name (no `name` column) and has a `status` column.
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            'status' => 'active',
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

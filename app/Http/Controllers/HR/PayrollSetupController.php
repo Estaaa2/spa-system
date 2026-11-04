@@ -4,12 +4,14 @@ namespace App\Http\Controllers\HR;
 
 use App\Exceptions\PayrollSetupException;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\HR\Concerns\AuthorizesPayroll;
 use App\Http\Controllers\HR\Concerns\HandlesPayrollSetupForms;
 use App\Models\Branch;
 use App\Models\CommissionRule;
 use App\Models\Package;
 use App\Models\Spa;
 use App\Models\Treatment;
+use App\Services\Payroll\PayrollPermissions as P;
 use App\Services\Payroll\PayrollRunService;
 use App\Services\Payroll\PayrollSetupService;
 use App\Services\Payroll\StatutoryCalculator;
@@ -23,11 +25,14 @@ use InvalidArgumentException;
 
 /**
  * Payroll setup page (Unit 5 A): Schedule, Branch minimum wage, Commission rules.
- * Spa-wide data (consolidated payroll). Routes (Unit 7): view with `view payroll`,
- * every write with `edit payroll`, via branch.permission.
+ * Spa-wide data (consolidated payroll). Access: view with `view payroll`, writes
+ * with `manage payroll setup`. The pay schedule and "All branches" commission rules
+ * affect every branch, so they also need a spa-wide role; branch-scoped roles can
+ * change only their own branch's wage and branch-specific rules.
  */
 class PayrollSetupController extends Controller
 {
+    use AuthorizesPayroll;
     use HandlesPayrollSetupForms;
 
     public const TABS = ['schedule', 'wages', 'commission'];
@@ -75,6 +80,9 @@ class PayrollSetupController extends Controller
             'factors'       => $this->factors($today),
             'maxInterval'   => (int) config('payroll.payment_timing.max_pay_interval_days'),
             'today'         => $today,
+            'canEdit'       => $this->canPayroll(P::MANAGE_SETUP),
+            'spaWide'       => $this->isSpaWidePayroll(),
+            'scopeBranchId' => $this->payrollScope(),
         ]);
     }
 
@@ -84,6 +92,7 @@ class PayrollSetupController extends Controller
 
     public function updateSchedule(Request $request)
     {
+        $this->authorizeSpaWide(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
         $max = (int) config('payroll.payment_timing.max_pay_interval_days');   // 16 — rates sheet §12, Art. 103 (VERIFY)
 
@@ -122,8 +131,10 @@ class PayrollSetupController extends Controller
 
     public function updateBranchWage(Request $request, Branch $branch)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
         abort_unless((int) $branch->spa_id === (int) $spa->id, 404);
+        $this->abortUnlessBranchInScope($branch->id);
 
         return $this->handleForm($request, 'wage', [
             'min_daily_wage'          => ['required', 'regex:/^\d{1,8}(\.\d{1,2})?$/', 'not_regex:/^0+(\.0+)?$/'],
@@ -154,7 +165,10 @@ class PayrollSetupController extends Controller
 
     public function storeRule(Request $request)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
+        $this->pinServiceBranch($request, $spa, false);
+        $this->authorizeRuleBranch($request->filled('branch_id') ? (int) $request->input('branch_id') : null);
 
         return $this->handleForm($request, 'ruleCreate', $this->ruleRules($spa, $request), function (array $data) use ($spa) {
             $rule = $this->setup->createRule($spa, $this->normalizeTarget($data), Auth::user());
@@ -166,8 +180,12 @@ class PayrollSetupController extends Controller
 
     public function updateRule(Request $request, CommissionRule $rule)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
         $this->assertOwned($rule, $spa);
+        $this->authorizeRuleBranch($rule->branch_id);
+        $this->pinServiceBranch($request, $spa, true);
+        $this->authorizeRuleBranch($request->filled('branch_id') ? (int) $request->input('branch_id') : null);
 
         return $this->handleForm($request, 'ruleEdit', $this->ruleRules($spa, $request, true), function (array $data) use ($rule) {
             $this->setup->updateRule($rule, $this->normalizeTarget($data));
@@ -179,8 +197,10 @@ class PayrollSetupController extends Controller
 
     public function supersedeRule(Request $request, CommissionRule $rule)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
         $this->assertOwned($rule, $spa);
+        $this->authorizeRuleBranch($rule->branch_id);
 
         return $this->handleForm($request, 'ruleChange', [
             'method'         => ['required', Rule::in([CommissionRule::METHOD_PERCENT, CommissionRule::METHOD_FLAT])],
@@ -197,8 +217,10 @@ class PayrollSetupController extends Controller
 
     public function endRule(Request $request, CommissionRule $rule)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
         $this->assertOwned($rule, $spa);
+        $this->authorizeRuleBranch($rule->branch_id);
 
         return $this->handleForm($request, 'ruleEnd', [
             'effective_to' => ['required', 'date_format:Y-m-d'],
@@ -212,8 +234,10 @@ class PayrollSetupController extends Controller
 
     public function destroyRule(Request $request, CommissionRule $rule)
     {
+        $this->authorizePayroll(P::MANAGE_SETUP);
         $spa = $this->currentSpa();
         $this->assertOwned($rule, $spa);
+        $this->authorizeRuleBranch($rule->branch_id);
 
         return $this->handleForm($request, 'ruleDelete', [], function () use ($rule) {
             $id = $rule->id;
@@ -271,6 +295,23 @@ class PayrollSetupController extends Controller
         abort_unless((int) $rule->spa_id === (int) $spa->id, 404);
     }
 
+    /** "All branches" (null) needs a spa-wide role; a branch rule needs that branch in scope. */
+    private function authorizeRuleBranch(?int $branchId): void
+    {
+        if ($branchId === null) {
+            abort_unless(
+                $this->isSpaWidePayroll(),
+                403,
+                'Rules for all branches need the HR Head, the Finance Head or the owner.'
+            );
+
+            return;
+        }
+
+        $scope = $this->payrollScope();
+        abort_unless($scope === null || $scope === $branchId, 403, 'You can only change rules for your own branch.');
+    }
+
     /** @return array<string, mixed> */
     private function ruleRules(Spa $spa, Request $request, bool $isEdit = false): array
     {
@@ -322,6 +363,28 @@ class PayrollSetupController extends Controller
     }
 
     /** @return int|null|false branch id of the target, null if it has none, false if not found */
+    /**
+     * A treatment or package belongs to one branch and bookings only offer the booking
+     * branch's own list, so a rule for it can only ever apply at that branch. The form
+     * locks the Branch field; this does the same server-side so a stale or crafted
+     * "All branches" submit cannot create a new spa-wide service rule (Phase 6, S9).
+     * Runs before authorization, so a branch-scoped user is checked against the
+     * service's branch. Services without a branch keep what was submitted.
+     */
+    private function pinServiceBranch(Request $request, Spa $spa, bool $isEdit): void
+    {
+        $type = $request->input('target_type');
+        $id   = $request->input('target_id');
+        if (! in_array($type, [CommissionRule::TARGET_TREATMENT, CommissionRule::TARGET_PACKAGE], true)
+            || ! is_numeric($id)) {
+            return;
+        }
+        $branch = $this->targetBranchId($spa, $type, (int) $id, $isEdit);
+        if (is_int($branch)) {
+            $request->merge(['branch_id' => $branch]);
+        }
+    }
+
     private function targetBranchId(Spa $spa, string $type, int $id, bool $includeTrashed): int|null|false
     {
         $model = $type === CommissionRule::TARGET_TREATMENT ? Treatment::class : Package::class;

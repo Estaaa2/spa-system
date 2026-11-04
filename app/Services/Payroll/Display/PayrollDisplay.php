@@ -61,7 +61,7 @@ final class PayrollDisplay
         ],
         'run' => [
             'label' => 'Run-level notes',
-            'hint'  => 'Dates, deadlines and rules marked UNVERIFIED in the rates sheet.',
+            'hint'  => 'Dates, deadlines and how some pay rules were applied to this run.',
             'class' => 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/10',
             'text'  => 'text-blue-800 dark:text-blue-300',
             'icon'  => 'fa-circle-info',
@@ -218,5 +218,21 @@ final class PayrollDisplay
     public static function componentLabel(string $code): string
     {
         return (string) (config("payroll.components.{$code}.label") ?? $code);
+    }
+
+    /**
+     * Splits a warning into its plain sentence and the trailing "[ref: …]" record
+     * reference (service code, branch or profile ID), which the run page shows in
+     * small muted text for troubleshooting. Messages saved before Phase 6 have no ref.
+     *
+     * @return array{0: string, 1: ?string}
+     */
+    public static function splitRef(string $message): array
+    {
+        if (preg_match('/^(.*?)\s*\[ref: ([^\]]+)\]\s*$/su', $message, $m) === 1) {
+            return [$m[1], $m[2]];
+        }
+
+        return [$message, null];
     }
 }

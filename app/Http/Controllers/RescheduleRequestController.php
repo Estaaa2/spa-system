@@ -30,10 +30,18 @@ class RescheduleRequestController extends Controller
             ->where('customer_user_id', Auth::id())
             ->firstOrFail();
 
-        // Only allow reschedule if booking is reserved or pending
-        if (!in_array($booking->status, ['reserved', 'pending'])) {
+        // Only before the appointment starts (Booking::canRequestReschedule).
+        // The app API posts here too, so this covers both.
+        if (! $booking->canRequestReschedule()) {
             return response()->json([
-                'message' => 'This booking can no longer be rescheduled.'
+                'message' => 'This appointment has already started or ended, so it can no longer be rescheduled. Please call the branch.'
+            ], 422);
+        }
+
+        // A time earlier today is not a valid new slot.
+        if (Carbon::parse($validated['requested_date'].' '.$validated['requested_time'])->lte(now())) {
+            return response()->json([
+                'message' => 'Please choose a time that hasn\'t passed yet.'
             ], 422);
         }
 
@@ -129,6 +137,48 @@ class RescheduleRequestController extends Controller
         $newStart = Carbon::parse($rescheduleRequest->requested_time);
         $newEnd   = $newStart->copy()->addMinutes($durationMinutes);
 
+        // Re-check operating hours at approval time — the requested slot was
+        // validated at submission, but re-confirm here too since hours can
+        // change between request and review.
+        $dayOfWeek = Carbon::parse($rescheduleRequest->requested_date)->format('l');
+        $hours = OperatingHours::where('branch_id', $booking->branch_id)
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+
+        if (!$hours || $hours->is_closed) {
+            return response()->json([
+                'message' => 'The branch is closed on the requested day. Please reject and ask the customer to resubmit.',
+            ], 422);
+        }
+
+        $closing = Carbon::parse($hours->closing_time);
+        if ($newEnd->gt($closing)) {
+            return response()->json([
+                'message' => 'The requested time would end after closing hours. Please reject and ask the customer to resubmit.',
+            ], 422);
+        }
+
+        // Re-check therapist availability at approval time — the slot may
+        // have filled in the gap between submission and review. Same pattern
+        // used in ReassignmentRequestController::approve().
+        $conflict = Booking::query()
+            ->where('id', '!=', $booking->id)
+            ->where('branch_id', $booking->branch_id)
+            ->where('appointment_date', $rescheduleRequest->requested_date)
+            ->where('therapist_id', $booking->therapist_id)
+            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
+            ->where(function ($q) use ($newStart, $newEnd) {
+                $q->where('start_time', '<', $newEnd->format('H:i:s'))
+                  ->where('end_time', '>', $newStart->format('H:i:s'));
+            })
+            ->exists();
+
+        if ($conflict) {
+            return response()->json([
+                'message' => 'The assigned therapist already has another appointment at the requested time. Please reject and ask the customer to pick a different time, or reassign the therapist first.',
+            ], 422);
+        }
+
         // Update the booking — appointment_date, start_time, AND end_time
         $booking->update([
             'appointment_date' => $rescheduleRequest->requested_date,
@@ -220,16 +270,9 @@ class RescheduleRequestController extends Controller
     {
         $booking = $r->booking;
 
-        $treatmentName = 'Unknown';
-        if (str_starts_with($booking->treatment, 'treatment_')) {
-            $id = (int) str_replace('treatment_', '', $booking->treatment);
-            $treatment = \App\Models\Treatment::withoutGlobalScopes()->find($id);
-            $treatmentName = $treatment?->name ?? 'Unknown Treatment';
-        } elseif (str_starts_with($booking->treatment, 'package_')) {
-            $id = (int) str_replace('package_', '', $booking->treatment);
-            $package = \App\Models\Package::withoutGlobalScopes()->find($id);
-            $treatmentName = $package ? $package->name . ' (Package)' : 'Unknown Package';
-        }
+        $treatmentName = $booking->packageRecord
+        ? $booking->packageRecord->name . ' (Package)'
+        : ($booking->treatmentRecord->name ?? 'Unknown');
 
         return [
             'id'                  => $r->id,

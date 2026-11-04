@@ -9,6 +9,75 @@ use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
+    /** Also used by the 2026_10_23 payroll RBAC transition migration. */
+    public const HR_HEAD_PERMISSIONS = [
+        'view business dashboard',
+        'view dashboard kpis',
+
+        'view staff',
+        'create staff',
+        'edit staff',
+        'delete staff',
+
+        'view branches',
+        'view schedule',
+
+        'view attendance',
+        'edit attendance',
+        'view leave requests',
+        'create leave requests',
+        'edit leave requests',
+
+        'view hiring',
+        'create hiring',
+        'edit hiring',
+        'delete hiring',
+
+        'view applications',
+        'edit applications',
+
+        'view interviews',
+        'create interviews',
+        'edit interviews',
+
+        'view deployments',
+        'create deployments',
+        'delete deployments',
+
+        'view payroll',
+        'manage payroll setup',
+        'prepare payroll runs',
+        'reveal statutory ids',
+
+    ];
+
+    public const FINANCE_HEAD_PERMISSIONS = [
+        'view business dashboard',
+        'view dashboard kpis',
+        'view dashboard revenue',
+
+        'view branches',
+
+        'view revenue',
+        'view billing',
+        'create billing',
+        'edit billing',
+
+        'view vendor bills',
+        'create vendor bills',
+        'match vendor bills',
+        'edit vendor bills',
+
+        'view payroll',
+        'approve payroll runs',
+        'release payroll runs',
+        'reveal statutory ids',
+
+        'view reports',
+        'view decision support',
+
+    ];
+
     public function run(): void
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
@@ -47,7 +116,7 @@ class RolePermissionSeeder extends Seeder
             'view leave requests',
             'create leave requests',
             'edit leave requests',
-            'delete leave requests',
+            'delete leave requests',   // RETIRED: gates no action. Kept defined, assigned to no role.
 
             // ── Branches ──────────────────────────────────────────────────────
             'view branches',
@@ -79,7 +148,7 @@ class RolePermissionSeeder extends Seeder
 
             // ── Insights & Reports ────────────────────────────────────────────
             'view reports',
-            'export reports',
+            'export reports', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
             'view decision support',
 
             // ── Inventory ─────────────────────────────────────────────────────
@@ -88,14 +157,38 @@ class RolePermissionSeeder extends Seeder
             'create inventory items',
             'edit inventory items',
             'delete inventory items',
-            'view product inventory',
-            'create product inventory',
-            'edit product inventory',
-            'delete product inventory',
-            'view product logs',
+            'view product inventory', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
+            'create product inventory', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
+            'edit product inventory', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
+            'delete product inventory', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
+            'view product logs', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
+            'view replenishment',
+
+            // ── Inventory Stock Transfers ───────────────────────────────────────
+            'view stock transfers',
+            'create stock transfers',
+            'process stock transfers',
+            'cancel stock transfers',
+
+            // ── Procurement ───────────────────────────────────────────────────
+            'view suppliers',
+            'create suppliers',
+            'edit suppliers',
+            'manage supplier products',
+
+            'view purchase orders',
+            'create purchase orders',
+            'manage purchase orders',
+
+            'view purchase requests',
+            'create purchase requests',
+            'review purchase requests',
+
+            'view goods receipts',
+            'receive goods',
 
             // ── Staff-side Settings ───────────────────────────────────────────
-            'edit own profile',
+            'edit own profile', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
             'view spa profile',
             'edit spa profile',
 
@@ -111,6 +204,7 @@ class RolePermissionSeeder extends Seeder
             'edit system roles',
             'edit admin profile',
             'manage system settings',
+            'verify staff identity',   // approve/reject staff ID + selfie (platform admin only)
 
             // ── HR (Workforce Suite) ──────────────────────────────────────────
             'view hiring',
@@ -119,30 +213,44 @@ class RolePermissionSeeder extends Seeder
             'delete hiring',
             'view applications',
             'edit applications',
-            'delete applications',
+            'delete applications', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
             'view interviews',
             'create interviews',
             'edit interviews',
-            'delete interviews',
-            'view payroll',
-            'edit payroll',
+            'delete interviews', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
             'view deployments',
             'create deployments',
             'approve deployments',
             'delete deployments',
+
+            // ── Payroll (Premium) ─────────────────────────────────────────────
+            // Role defaults: App\Services\Payroll\PayrollPermissions::DEFAULTS.
+            'view payroll',
+            'manage payroll setup',
+            'prepare payroll runs',
+            'approve payroll runs',
+            'release payroll runs',
+            'reveal statutory ids',
+            // RETIRED: split into the permissions above. Kept defined so a lingering
+            // reference cannot throw PermissionDoesNotExist; assigned to no role.
+            'edit payroll',
 
             // ── Finance (Finance Suite) ───────────────────────────────────────
             'view revenue',
             'view billing',
             'create billing',
             'edit billing',
-            'delete billing',
-            'view finance inventory',
-            'edit finance inventory',
+            'delete billing', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
+            'view finance inventory', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
+            'edit finance inventory', // RETIRED (Phase 1): see PermissionRules::RETIRED_PHASE1
+            'view vendor bills',
+            'create vendor bills',
+            'match vendor bills',
+            'edit vendor bills',
         ];
 
         // Optional: uncomment to clean up stale permissions after all code has been updated
-        Permission::whereNotIn('name', $permissions)->delete();
+        // Permission::whereNotIn('name', $permissions)->delete();
 
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['name' => $perm]);
@@ -157,9 +265,11 @@ class RolePermissionSeeder extends Seeder
         $customer     = Role::firstOrCreate(['name' => 'customer']);
         $hr           = Role::firstOrCreate(['name' => 'hr']);
         $finance      = Role::firstOrCreate(['name' => 'finance']);
+        $hrHead       = Role::firstOrCreate(['name' => 'hr_head']);
+        $financeHead  = Role::firstOrCreate(['name' => 'finance_head']);
 
         // ── Admin ─────────────────────────────────────────────────────────────
-        $admin->syncPermissions([
+        $this->seedRole($admin, [
             'view admin dashboard',
             'view registered users',
             'edit registered users',
@@ -172,13 +282,14 @@ class RolePermissionSeeder extends Seeder
             'edit system roles',
             'edit admin profile',
             'manage system settings',
+            'verify staff identity',
         ]);
 
         // ── Owner ─────────────────────────────────────────────────────────────
         // Full visibility across all dashboard widgets, operations, HR, and finance.
         // Note: view owner dashboard is intentionally excluded — view business dashboard
         // is the correct permission going forward.
-        $owner->syncPermissions([
+        $this->seedRole($owner, [
             'view business dashboard',
             'view dashboard kpis',
             'view dashboard revenue',
@@ -199,7 +310,6 @@ class RolePermissionSeeder extends Seeder
             'view leave requests',
             'create leave requests',
             'edit leave requests',
-            'delete leave requests',
 
             'view branches',
             'create branches',
@@ -226,7 +336,6 @@ class RolePermissionSeeder extends Seeder
             'delete promos',
 
             'view reports',
-            'export reports',
             'view decision support',
 
             'view inventory',
@@ -234,13 +343,29 @@ class RolePermissionSeeder extends Seeder
             'create inventory items',
             'edit inventory items',
             'delete inventory items',
-            'view product inventory',
-            'create product inventory',
-            'edit product inventory',
-            'delete product inventory',
-            'view product logs',
+            'view replenishment',
 
-            'edit own profile',
+            'view stock transfers',
+            'create stock transfers',
+            'process stock transfers',
+            'cancel stock transfers',
+
+            'view suppliers',
+            'create suppliers',
+            'edit suppliers',
+            'manage supplier products',
+
+            'view purchase requests',
+            'create purchase requests',
+            'review purchase requests',
+
+            'view purchase orders',
+            'create purchase orders',
+            'manage purchase orders',
+
+            'view goods receipts',
+            'receive goods',
+
             'view spa profile',
             'edit spa profile',
 
@@ -250,13 +375,12 @@ class RolePermissionSeeder extends Seeder
             'delete hiring',
             'view applications',
             'edit applications',
-            'delete applications',
             'view interviews',
             'create interviews',
             'edit interviews',
-            'delete interviews',
+            // Payroll: view only by default; the owner can grant themselves more
+            // on Roles & Permissions when there is no HR Head / Finance Head.
             'view payroll',
-            'edit payroll',
             'view deployments',
             'create deployments',
             'approve deployments',
@@ -266,15 +390,16 @@ class RolePermissionSeeder extends Seeder
             'view billing',
             'create billing',
             'edit billing',
-            'delete billing',
-            'view finance inventory',
-            'edit finance inventory',
+            'view vendor bills',
+            'create vendor bills',
+            'match vendor bills',
+            'edit vendor bills',
         ]);
 
         // ── Manager ───────────────────────────────────────────────────────────
         // Operational + financial visibility. No branch/spa settings,
         // no delete permissions on staff or services.
-        $manager->syncPermissions([
+        $this->seedRole($manager, [
             'view business dashboard',
             'view dashboard kpis',
             'view dashboard revenue',
@@ -319,11 +444,29 @@ class RolePermissionSeeder extends Seeder
             'view inventory logs',
             'create inventory items',
             'edit inventory items',
-            'view product inventory',
-            'edit product inventory',
-            'view product logs',
+            'view replenishment',
 
-            'edit own profile',
+            'view stock transfers',
+            'create stock transfers',
+            'process stock transfers',
+            'cancel stock transfers',
+
+            'view suppliers',
+            'create suppliers',
+            'edit suppliers',
+            'manage supplier products',
+
+            'view purchase requests',
+            'create purchase requests',
+            'review purchase requests',
+
+            'view goods receipts',
+            'receive goods',
+
+            'view purchase orders',
+            'create purchase orders',
+            'manage purchase orders',
+
             'view spa profile',
 
             'view deployments',
@@ -332,7 +475,7 @@ class RolePermissionSeeder extends Seeder
         // ── Therapist ─────────────────────────────────────────────────────────
         // Personal-only dashboard view: their own schedule widget only.
         // No branch-wide data, no revenue, no booking creation.
-        $therapist->syncPermissions([
+        $this->seedRole($therapist, [
             'view business dashboard',
             'view dashboard my today',
 
@@ -343,13 +486,12 @@ class RolePermissionSeeder extends Seeder
             'view leave requests',
             'create leave requests',
 
-            'edit own profile',
         ]);
 
         // ── Receptionist ──────────────────────────────────────────────────────
         // Operational focus: can book and see the timeline and alerts.
         // No revenue data, no financial or HR information.
-        $receptionist->syncPermissions([
+        $this->seedRole($receptionist, [
             'view business dashboard',
             'view dashboard kpis',
             'view dashboard timeline',
@@ -362,7 +504,6 @@ class RolePermissionSeeder extends Seeder
 
             'view schedule',
             'view branches',
-            'edit branch profile',
             'view staff',
             'view services',
             'view promos',
@@ -372,12 +513,11 @@ class RolePermissionSeeder extends Seeder
             'view leave requests',
             'create leave requests',
 
-            'edit own profile',
         ]);
 
         // ── HR ────────────────────────────────────────────────────────────────
         // People-focused. KPI cards for context only; no timeline, revenue, or alerts.
-        $hr->syncPermissions([
+        $this->seedRole($hr, [
             'view business dashboard',
             'view dashboard kpis',
 
@@ -394,7 +534,6 @@ class RolePermissionSeeder extends Seeder
             'view leave requests',
             'create leave requests',
             'edit leave requests',
-            'delete leave requests',
 
             'view hiring',
             'create hiring',
@@ -403,27 +542,26 @@ class RolePermissionSeeder extends Seeder
 
             'view applications',
             'edit applications',
-            'delete applications',
 
             'view interviews',
             'create interviews',
             'edit interviews',
-            'delete interviews',
 
             'view deployments',
             'create deployments',
             'delete deployments',
 
+            // Branch HR: own branch only (User::payrollBranchScope()).
             'view payroll',
-            'edit payroll',
+            'manage payroll setup',
+            'reveal statutory ids',
 
-            'edit own profile',
         ]);
 
         // ── Finance ───────────────────────────────────────────────────────────
         // Financial focus: KPIs + revenue data. No operational widgets,
         // no HR, no appointment management.
-        $finance->syncPermissions([
+        $this->seedRole($finance, [
             'view business dashboard',
             'view dashboard kpis',
             'view dashboard revenue',
@@ -432,17 +570,47 @@ class RolePermissionSeeder extends Seeder
             'view billing',
             'create billing',
             'edit billing',
-            'delete billing',
-            'view finance inventory',
-            'edit finance inventory',
+
+            'view vendor bills',
+            'create vendor bills',
+            'match vendor bills',
+            'edit vendor bills',
+
+            // Branch Finance: own branch rows only.
+            'view payroll',
 
             'view reports',
             'view decision support',
 
-            'edit own profile',
         ]);
 
+        // ── HR Head (central) ─────────────────────────────────────────────────
+        // Same people permissions as Branch HR, used on any branch through the
+        // branch switcher, plus payroll preparation for the whole spa.
+        $this->seedRole($hrHead, self::HR_HEAD_PERMISSIONS);
+
+        // ── Finance Head (central) ────────────────────────────────────────────
+        // Same finance permissions as Branch Finance on any branch, plus payroll
+        // approval and release for the whole spa. `view branches` is needed for
+        // the branch switcher route.
+        $this->seedRole($financeHead, self::FINANCE_HEAD_PERMISSIONS);
+
         // ── Customer ──────────────────────────────────────────────────────────
-        $customer->syncPermissions([]);
+        // Customer: no permissions.
+    }
+
+    /**
+     * Fills a role only when it is new or has no permissions yet (answer P17).
+     * Re-running this seeder no longer resets roles an admin edited on the Admin
+     * Roles & Permissions page. Changes to existing roles' defaults ship as data
+     * migrations instead (e.g. the *_nav_rbac_phase1_permission_cleanup migration).
+     *
+     * @param  list<string>  $permissions
+     */
+    private function seedRole(Role $role, array $permissions): void
+    {
+        if ($role->wasRecentlyCreated || $role->permissions()->count() === 0) {
+            $role->syncPermissions($permissions);
+        }
     }
 }

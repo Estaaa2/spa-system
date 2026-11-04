@@ -19,6 +19,8 @@ class OnlineReservationPayment extends Model
         'bookable_name',
         'full_amount',
         'downpayment_amount',
+        'payment_option',
+        'amount_charged',
         'service_type',
         'appointment_date',
         'start_time',
@@ -39,5 +41,6 @@ class OnlineReservationPayment extends Model
         'paymongo_payload' => 'array',
         'full_amount' => 'decimal:2',
         'downpayment_amount' => 'decimal:2',
+        'amount_charged' => 'decimal:2',
     ];
 }

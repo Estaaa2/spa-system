@@ -34,68 +34,67 @@
     $kindLabels = $D::KIND;
     $isDraft    = $run->isDraft();
     $isThirteenth = $run->run_type === \App\Models\PayrollRun::TYPE_THIRTEENTH_MONTH;
-    $canAdjust  = $canEdit && $isDraft;
+    $canAdjust  = ($perm['adjust'] ?? false) && $isDraft;
     $expandId   = (int) (session('expand') ?? (old('_modal') === 'adjustModal' ? old('_record') : 0));
     $warningCount = collect($warnings)->flatten(1)->count();
     $me = auth()->id();
 
     // ── Step actions: ONE source for button, modal copy and route (emitted to JS via @json) ──
+    // Each step has its own permission (PayrollController passes $perm; the server checks the same).
     $actions = [];
-    if ($canEdit) {
-        if ($run->canRegenerate()) {
-            $actions['regenerate'] = [
-                'label' => 'Regenerate', 'icon' => 'fa-rotate', 'style' => 'edit', 'button' => 'primary',
-                'title' => 'Regenerate this draft?',
-                'body'  => 'Every computed line is rebuilt from current attendance, bookings, pay profiles and rates. Manual adjustment lines are kept. '
-                         . ($isThirteenth ? 'The pay date stays ' . $header['pay_date'] . '.' : 'The dates follow the current pay schedule.'),
-                'confirm' => 'Regenerate', 'url' => route('payroll.runs.regenerate', $run), 'method' => 'POST',
-            ];
-        }
-        if ($run->canApprove()) {
-            $actions['approve'] = [
-                'label' => 'Approve', 'icon' => 'fa-circle-check', 'style' => 'primary', 'button' => 'primary',
-                'title' => 'Approve this run?',
-                'body'  => 'Approving freezes the payslips: no regenerating and no adjustments unless the run is sent back to draft. '
-                         . ($warningCount > 0 ? "There are {$warningCount} warning(s) on this run — review them first. " : '')
-                         . ((int) $run->generated_by === (int) $me ? 'You generated this run; approving it yourself will be shown on the run. ' : '')
-                         . ($header['config_current'] ? '' : "Payroll rates changed since this draft was generated ({$header['config_version']} → {$header['current_config']}); regenerate before approving."),
-                'confirm' => 'Approve Run', 'url' => route('payroll.runs.approve', $run), 'method' => 'POST',
-            ];
-        }
-        if ($run->canDelete()) {
-            $actions['delete'] = [
-                'label' => 'Delete', 'icon' => 'fa-trash', 'style' => 'remove', 'button' => 'remove',
-                'title' => 'Delete this draft run?',
-                'body'  => 'The run, all of its payslips and every manual adjustment line are permanently deleted. Commission for its bookings becomes payable again in a new run.',
-                'confirm' => 'Yes, Delete', 'url' => route('payroll.runs.destroy', $run), 'method' => 'DELETE',
-            ];
-        }
-        if ($run->canSendBack()) {
-            $actions['send_back'] = [
-                'label' => 'Send Back to Draft', 'icon' => 'fa-arrow-rotate-left', 'style' => 'warn', 'button' => 'warn',
-                'title' => 'Send this run back to draft?',
-                'body'  => 'The approval is cleared. The run can then be regenerated or adjusted, and must be approved again before it can be finalized.',
-                'confirm' => 'Send Back', 'url' => route('payroll.runs.send-back', $run), 'method' => 'POST',
-            ];
-        }
-        if ($run->canFinalize()) {
-            $actions['finalize'] = [
-                'label' => 'Finalize', 'icon' => 'fa-lock', 'style' => 'primary', 'button' => 'primary',
-                'title' => 'Finalize this run?',
-                'body'  => 'Finalizing locks the register; later corrections go into a future run as adjustments. This cannot be undone.'
-                         . ($run->cutoff_no === 1 ? ' Cutoff 2 of this month can be generated once this is finalized.' : '')
-                         . ($isThirteenth ? '' : ' Its earnings then count toward the 13th-month basis.'),
-                'confirm' => 'Finalize Run', 'url' => route('payroll.runs.finalize', $run), 'method' => 'POST',
-            ];
-        }
-        if ($run->canRelease()) {
-            $actions['release'] = [
-                'label' => 'Release Payslips', 'icon' => 'fa-paper-plane', 'style' => 'primary', 'button' => 'primary',
-                'title' => 'Release payslips to staff?',
-                'body'  => 'Every staff member on this run will see their payslip under My Payslips. Release after pay has gone out. This cannot be undone.',
-                'confirm' => 'Release', 'url' => route('payroll.runs.release', $run), 'method' => 'POST',
-            ];
-        }
+    if (($perm['prepare_run'] ?? false) && $run->canRegenerate()) {
+        $actions['regenerate'] = [
+            'label' => 'Regenerate', 'icon' => 'fa-rotate', 'style' => 'edit', 'button' => 'primary',
+            'title' => 'Regenerate this draft?',
+            'body'  => 'Every computed line is rebuilt from current attendance, bookings, pay profiles and rates. Manual adjustment lines are kept. '
+                     . ($isThirteenth ? 'The pay date stays ' . $header['pay_date'] . '.' : 'The dates follow the current pay schedule.'),
+            'confirm' => 'Regenerate', 'url' => route('payroll.runs.regenerate', $run), 'method' => 'POST',
+        ];
+    }
+    if (($perm['approve'] ?? false) && $run->canApprove()) {
+        $actions['approve'] = [
+            'label' => 'Approve', 'icon' => 'fa-circle-check', 'style' => 'primary', 'button' => 'primary',
+            'title' => 'Approve this run?',
+            'body'  => 'Approving freezes the payslips: no regenerating and no adjustments unless the run is sent back to draft. '
+                     . ($warningCount > 0 ? "There are {$warningCount} warning(s) on this run — review them first. " : '')
+                     . (($preparedByMe ?? false) ? 'You prepared this run (generated it or added adjustments); approving it yourself will be shown on the run. ' : '')
+                     . ($header['config_current'] ? '' : 'Payroll rates were updated after this draft was made — regenerate it before approving.'),
+            'confirm' => 'Approve Run', 'url' => route('payroll.runs.approve', $run), 'method' => 'POST',
+        ];
+    }
+    if (($perm['prepare_run'] ?? false) && $run->canDelete()) {
+        $actions['delete'] = [
+            'label' => 'Delete', 'icon' => 'fa-trash', 'style' => 'remove', 'button' => 'remove',
+            'title' => 'Delete this draft run?',
+            'body'  => 'The run, all of its payslips and every manual adjustment line are permanently deleted. Commission for its bookings becomes payable again in a new run.',
+            'confirm' => 'Yes, Delete', 'url' => route('payroll.runs.destroy', $run), 'method' => 'DELETE',
+        ];
+    }
+    if (($perm['approve'] ?? false) && $run->canSendBack()) {
+        $actions['send_back'] = [
+            'label' => 'Send Back to Draft', 'icon' => 'fa-arrow-rotate-left', 'style' => 'warn', 'button' => 'warn',
+            'title' => 'Send this run back to draft?',
+            'body'  => 'The approval is cleared. The run can then be regenerated or adjusted, and must be approved again before it can be finalized.',
+            'confirm' => 'Send Back', 'url' => route('payroll.runs.send-back', $run), 'method' => 'POST',
+        ];
+    }
+    if (($perm['release'] ?? false) && $run->canFinalize()) {
+        $actions['finalize'] = [
+            'label' => 'Finalize', 'icon' => 'fa-lock', 'style' => 'primary', 'button' => 'primary',
+            'title' => 'Finalize this run?',
+            'body'  => 'Finalizing locks the register; later corrections go into a future run as adjustments. This cannot be undone.'
+                     . ($run->cutoff_no === 1 ? ' Cutoff 2 of this month can be generated once this is finalized.' : '')
+                     . ($isThirteenth ? '' : ' Its earnings then count toward the 13th-month basis.'),
+            'confirm' => 'Finalize Run', 'url' => route('payroll.runs.finalize', $run), 'method' => 'POST',
+        ];
+    }
+    if (($perm['release'] ?? false) && $run->canRelease()) {
+        $actions['release'] = [
+            'label' => 'Release Payslips', 'icon' => 'fa-paper-plane', 'style' => 'primary', 'button' => 'primary',
+            'title' => 'Release payslips to staff?',
+            'body'  => 'Every staff member on this run will see their payslip under My Payslips. Release after pay has gone out. This cannot be undone.',
+            'confirm' => 'Release', 'url' => route('payroll.runs.release', $run), 'method' => 'POST',
+        ];
     }
 
     $manualOptions = [
@@ -126,25 +125,25 @@
                         <i class="fa-solid {{ $statusMeta[$run->status]['icon'] }} text-[10px]" aria-hidden="true"></i>{{ $statusMeta[$run->status]['label'] }}
                     </span>
                     @if($header['self_approved'])
-                        <span class="{{ $badgeBase }} bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300" title="Allowed for small teams; the owner reviews as the compensating control">
-                            <i class="fa-solid fa-user-check text-[10px]" aria-hidden="true"></i> Approved by the person who generated it
+                        <span class="{{ $badgeBase }} bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+                            <i class="fa-solid fa-user-check text-[10px]" aria-hidden="true"></i> Approved by the person who prepared it
                         </span>
                     @endif
                 </div>
-                <dl class="grid grid-cols-2 text-sm gap-x-8 gap-y-2 sm:grid-cols-4">
+                @if($header['self_approved'])
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Allowed for small teams; the owner reviews the run instead of a second approver.</p>
+                @endif
+                <dl class="grid grid-cols-2 text-sm gap-x-8 gap-y-2 sm:grid-cols-3">
                     <div><dt class="text-xs text-gray-500 dark:text-gray-400">Period</dt><dd class="font-medium text-gray-900 dark:text-white">{{ $header['period'] }}</dd></div>
                     <div><dt class="text-xs text-gray-500 dark:text-gray-400">Cutoff</dt><dd class="font-medium text-gray-900 dark:text-white">{{ $header['cutoff'] }}</dd></div>
                     <div><dt class="text-xs text-gray-500 dark:text-gray-400">Pay date</dt><dd class="font-medium text-gray-900 dark:text-white">{{ $header['pay_date'] }}</dd></div>
-                    <div>
-                        <dt class="text-xs text-gray-500 dark:text-gray-400">Rates version</dt>
-                        <dd class="font-medium text-gray-900 dark:text-white">
-                            {{ $header['config_version'] }}
-                            @if(! $header['config_current'] && $isDraft)
-                                <span class="block text-xs font-normal text-amber-700 dark:text-amber-300">Current is {{ $header['current_config'] }} — regenerate</span>
-                            @endif
-                        </dd>
-                    </div>
                 </dl>
+                @if(! $header['config_current'] && $isDraft)
+                    <p class="flex items-start gap-2 p-3 text-sm border rounded-xl border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300" role="status">
+                        <i class="mt-0.5 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                        <span>Payroll rates were updated after this draft was made. Regenerate it before approving.</span>
+                    </p>
+                @endif
             </div>
 
             @if($actions)
@@ -238,7 +237,8 @@
                                 <p class="mb-2 text-xs {{ $g['text'] }}">{{ $g['hint'] }}</p>
                                 <ul class="space-y-2 text-sm text-gray-800 dark:text-gray-200">
                                     @foreach($list as $w)
-                                        <li class="flex gap-2"><span aria-hidden="true" class="{{ $g['text'] }}">•</span><span>{{ $w['message'] }}</span></li>
+                                        @php [$wText, $wRef] = $D::splitRef((string) $w['message']); @endphp
+                                        <li class="flex gap-2"><span aria-hidden="true" class="{{ $g['text'] }}">•</span><span>{{ $wText }}@if($wRef)<span class="block text-xs text-gray-500 dark:text-gray-400"><span class="sr-only">Reference: </span>Ref: {{ $wRef }}</span>@endif</span></li>
                                     @endforeach
                                 </ul>
                             </div>
@@ -262,7 +262,7 @@
                     <i class="text-xs fa-solid fa-print" aria-hidden="true"></i> Print Payslips
                 </a>
             @endif
-            @if(count($register['branches']) > 1)
+            @if(! ($branchLocked ?? false) && count($register['branches']) > 1)
                 <form method="GET" action="{{ route('payroll.runs.show', $run) }}" class="flex items-end gap-2" aria-label="Filter by home branch">
                     <div>
                         <label for="f_branch" class="{{ $labelClass }}">Home branch</label>
@@ -285,11 +285,11 @@
                         <th role="columnheader" scope="col" class="{{ $th }}">Home Branch</th>
                         <th role="columnheader" scope="col" class="{{ $thR }}">Days</th>
                         <th role="columnheader" scope="col" class="{{ $thR }}">Gross</th>
-                        <th role="columnheader" scope="col" class="{{ $thR }}" title="SSS, PhilHealth and Pag-IBIG employee shares">Emp. Contrib.</th>
+                        <th role="columnheader" scope="col" class="{{ $thR }}">Emp. Contrib.<sup aria-hidden="true">1</sup></th>
                         <th role="columnheader" scope="col" class="{{ $thR }}">WTAX</th>
                         <th role="columnheader" scope="col" class="{{ $thR }}">Other Ded.</th>
                         <th role="columnheader" scope="col" class="{{ $thR }}">Net</th>
-                        <th role="columnheader" scope="col" class="{{ $thR }}" title="SSS, EC, PhilHealth and Pag-IBIG employer shares">Employer Contrib.</th>
+                        <th role="columnheader" scope="col" class="{{ $thR }}">Employer Contrib.<sup aria-hidden="true">2</sup></th>
                         <th role="columnheader" scope="col" class="{{ $th }}"><span class="sr-only">Details</span></th>
                     </tr>
                 </thead>
@@ -300,10 +300,10 @@
                             <td role="cell" data-label="Staff" class="{{ $td }}">
                                 <p class="font-medium text-gray-900 dark:text-white">{{ $row['name'] }}</p>
                                 <div class="flex flex-wrap gap-1 mt-1">
-                                    @if($row['is_mwe'])<span class="{{ $badgeBase }} bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300" title="Minimum wage earner for withholding tax (UNVERIFIED test — rates sheet §5)">MWE</span>@endif
+                                    @if($row['is_mwe'])<span class="{{ $badgeBase }} bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300">Minimum wage earner</span>@endif
                                     @if($row['manual'] > 0)<span class="{{ $badgeBase }} bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">{{ $row['manual'] }} adjustment(s)</span>@endif
-                                    @if($row['short'])<span class="{{ $badgeBase }} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title="Net pay reached ₱0 before every deduction was taken">Short deduction</span>@endif
-                                    @if($row['orphan'])<span class="{{ $badgeBase }} bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" title="Not eligible at the last generation; kept only for its manual lines">Manual lines only</span>@endif
+                                    @if($row['short'])<span class="{{ $badgeBase }} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Short deduction</span>@endif
+                                    @if($row['orphan'])<span class="{{ $badgeBase }} bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">Manual lines only</span>@endif
                                 </div>
                             </td>
                             <td role="cell" data-label="Home Branch" class="{{ $td }} whitespace-nowrap">{{ $row['branch'] }}</td>
@@ -435,6 +435,19 @@
                 @endif
             </table>
         </div>
+        @if($register['count'] > 0)
+            @php $rowsC = collect($register['rows']); @endphp
+            <div class="px-4 py-3 text-xs text-gray-500 border-t border-gray-200 sm:px-6 dark:border-gray-700 dark:text-gray-400">
+                <p class="font-semibold text-gray-600 dark:text-gray-300">Legend</p>
+                <ul class="mt-1 space-y-0.5">
+                    <li><sup>1</sup> Emp. Contrib. — SSS, PhilHealth and Pag-IBIG employee shares, deducted from pay.</li>
+                    <li><sup>2</sup> Employer Contrib. — SSS, EC, PhilHealth and Pag-IBIG employer shares, paid on top of gross.</li>
+                    @if($rowsC->contains('is_mwe', true))<li><strong class="font-medium">Minimum wage earner</strong> — daily rate at or below the home branch's minimum wage, so no tax is withheld on basic pay.</li>@endif
+                    @if($rowsC->contains('short', true))<li><strong class="font-medium">Short deduction</strong> — net pay reached ₱0 before every deduction was taken.</li>@endif
+                    @if($rowsC->contains('orphan', true))<li><strong class="font-medium">Manual lines only</strong> — not eligible at the last generation; the payslip is kept only for its manual adjustment lines.</li>@endif
+                </ul>
+            </div>
+        @endif
     </section>
 
     {{-- ── Monthly contribution summary (cutoff 2 only) ─────────────── --}}
@@ -479,7 +492,7 @@
                                     <td class="{{ $tdMoney }}">
                                         {{ $r[$c] }}
                                         @if($r[$c.'_short'] ?? false)
-                                            <span class="block text-xs text-amber-700 dark:text-amber-300" title="Net pay reached ₱0 — the employer advances the difference">withheld {{ $r[$c.'_withheld'] }}</span>
+                                            <span class="block text-xs text-amber-700 dark:text-amber-300">withheld {{ $r[$c.'_withheld'] }}<span class="sr-only"> — net pay reached ₱0, the employer advances the difference</span></span>
                                         @endif
                                     </td>
                                 @endforeach
@@ -498,6 +511,11 @@
                     @endif
                 </table>
             </div>
+            @if(collect($summary['rows'])->contains(fn ($r) => collect($codes)->contains(fn ($c) => $r[$c[0].'_short'] ?? false)))
+                <p class="px-4 py-3 text-xs text-gray-500 border-t border-gray-200 sm:px-6 dark:border-gray-700 dark:text-gray-400">
+                    “withheld” is the amount actually deducted: net pay reached ₱0, so the employer advances the difference.
+                </p>
+            @endif
         </section>
     @endif
 </div>

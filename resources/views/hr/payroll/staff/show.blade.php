@@ -56,6 +56,20 @@
     $oldRecord = old('_record');
     $role = $staff->user?->getRoleNames()->first();
 @endphp
+@php
+    // P2 — expected formats, from each agency's own form or issuance (Phase 6 research):
+    // SSS 10 digits (SSS form R-3 instructions); PhilHealth PIN 12 digits, 2-9-1 grouping
+    // (PhilHealth Claim Form guidelines); Pag-IBIG MID 12 digits (Member's Data Form
+    // PFF039); TIN 9 digits (BIR RMO 23-91) plus a 3- or 5-digit branch code (BIR
+    // eBIRForms 7.9.6.0, RMC 36-2026 as reported by PwC PH). Hints only — saving is
+    // never blocked, matching statutoryIdWarnings().
+    $idHints = [
+        'tin'           => '9 digits, plus a 3- or 5-digit branch code if your record shows one.',
+        'sss_no'        => '10 digits.',
+        'philhealth_no' => '12 digits, grouped XX-XXXXXXXXX-X.',
+        'pagibig_no'    => '12 digits (Pag-IBIG MID number).',
+    ];
+@endphp
 
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
     <x-page-header :title="$name" :subtitle="($role ? ucfirst($role) . ' · ' : '') . ($home?->name ?? 'No home branch')">
@@ -70,7 +84,7 @@
         <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
             <p class="text-sm text-amber-800 dark:text-amber-300">
                 <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                Not included in payroll — {{ $home ? "home branch “{$home->name}” does not have the Workforce & Finance Suite" : 'no home branch is assigned' }}. You can still prepare the setup below.
+                Not included in payroll — {{ $home ? 'the spa does not have an active Premium plan with payroll' : 'no home branch is assigned' }}. You can still prepare the setup below.
             </p>
         </div>
     @endunless
@@ -165,7 +179,7 @@
                 <p id="pc_rate_hint" class="text-xs text-gray-500 dark:text-gray-400" data-rate-hint
                    data-daily="{{ $minDaily !== null ? 'Branch minimum: ₱' . number_format((float) $minDaily, 2) . ' a day. A lower rate is allowed — payroll tops each worked day up to the minimum.' : 'The home branch has no minimum wage set yet.' }}"
                    data-monthly="{{ $minMonthly !== null ? 'Branch minimum is about ₱' . number_format((float) $minMonthly, 2) . ' a month (daily minimum × 365 ÷ 12). A lower rate is allowed — payroll tops each worked day up.' : 'The home branch has no minimum wage set yet.' }}"></p>
-                <fieldset>
+                <fieldset data-rest-set>
                     <legend class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Weekly rest days</legend>
                     <div class="flex flex-wrap gap-2">
                         @php $oldRest = $oldModal ? ['Sunday'] : (array) old('rest_days', ['Sunday']); @endphp
@@ -177,7 +191,7 @@
                             </label>
                         @endforeach
                     </div>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Daily-paid staff need 1 or 2 rest days (only those have a DOLE days-per-year factor).</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" data-rest-hint aria-live="polite">Daily-paid staff need 1 or 2 rest days a week.</p>
                     @if($eb->has('rest_days'))<p class="{{ $errText }}">{{ $eb->first('rest_days') }}</p>@endif
                 </fieldset>
                 @foreach(['pay_basis', 'commission_enabled', 'profile'] as $f)
@@ -300,14 +314,18 @@
                 <h2 id="idsTitle" class="text-base font-semibold text-gray-900 dark:text-white">Statutory IDs</h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Stored encrypted. Contributions and tax are computed without them, but remittance needs every number.</p>
             </div>
-            @if($canEdit)
+            @if($canEdit || ($canReveal ?? false))
                 <div class="flex flex-wrap gap-2 shrink-0">
-                    <button type="button" id="revealIds" class="{{ $btn['neutral'] }}" aria-pressed="false" onclick="toggleReveal()">
-                        <i class="text-xs fa-solid fa-eye" aria-hidden="true"></i><span>Reveal</span>
-                    </button>
-                    <button type="button" class="{{ $btn['edit'] }}" onclick="openIdsModal()">
-                        <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span>Edit IDs</span>
-                    </button>
+                    @if($canReveal ?? false)
+                        <button type="button" id="revealIds" class="{{ $btn['neutral'] }}" aria-pressed="false" onclick="toggleReveal()">
+                            <i class="text-xs fa-solid fa-eye" aria-hidden="true"></i><span>Reveal</span>
+                        </button>
+                    @endif
+                    @if($canEdit)
+                        <button type="button" class="{{ $btn['edit'] }}" onclick="openIdsModal()">
+                            <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span>Edit IDs</span>
+                        </button>
+                    @endif
                 </div>
             @endif
         </div>
@@ -318,7 +336,7 @@
                     <dd class="mt-2">
                         @if($i['state'] === 'set')
                             <span class="font-mono text-sm text-gray-900 dark:text-white" data-masked>{{ $i['masked'] }}</span>
-                            @if($canEdit)
+                            @if($canReveal ?? false)
                                 {{-- Filled only by the logged Reveal request; never rendered server-side. --}}
                                 <span class="hidden font-mono text-sm text-gray-900 dark:text-white" data-plain="{{ $attr }}"></span>
                             @endif
@@ -546,7 +564,7 @@
                                class="w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
                         Earns commission
                     </label>
-                    <fieldset>
+                    <fieldset data-rest-set>
                         <legend class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Weekly rest days</legend>
                         <div class="flex flex-wrap gap-2" id="pe_rest" data-old='@json($isOld ? (array) old('rest_days', []) : null)'>
                             @foreach($dayNames as $d)
@@ -556,6 +574,7 @@
                                 </label>
                             @endforeach
                         </div>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" data-rest-hint aria-live="polite">Daily-paid staff need 1 or 2 rest days a week.</p>
                     </fieldset>
                     @if($eb->any())
                         <ul class="space-y-1 text-xs text-red-600 dark:text-red-400">@foreach($eb->all() as $m)<li>{{ $m }}</li>@endforeach</ul>
@@ -617,8 +636,12 @@
                         <div>
                             <label for="id_{{ $attr }}" class="{{ $labelClass }}">{{ $i['label'] }} number</label>
                             <input type="text" id="id_{{ $attr }}" name="{{ $attr }}" maxlength="20" inputmode="numeric" spellcheck="false" autocomplete="off"
+                                   @if(isset($idHints[$attr])) aria-describedby="id_{{ $attr }}_hint" @endif
                                    class="{{ $inputClass }} font-mono"
                                    placeholder="{{ $i['state'] === 'set' ? 'On file: ' . $i['masked'] . ' — blank keeps it' : 'Not on file' }}">
+                            @if(isset($idHints[$attr]))
+                                <p id="id_{{ $attr }}_hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $idHints[$attr] }} Spaces and hyphens are fine.</p>
+                            @endif
                             @if($i['state'] !== 'missing')
                                 <label class="inline-flex items-center gap-2 mt-1 min-h-[44px] text-xs text-gray-600 cursor-pointer dark:text-gray-400">
                                     <input type="checkbox" name="clear[]" value="{{ $attr }}" class="w-4 h-4 text-red-700 border-gray-300 rounded focus:ring-red-700 dark:border-gray-600 dark:bg-gray-700">
@@ -701,12 +724,39 @@
         const basis = form.querySelector('[data-basis]');
         const label = form.querySelector('[data-rate-label]');
         const hint  = form.querySelector('[data-rate-hint]');
+        const restSet = form.querySelector('[data-rest-set]');
+        const restHint = form.querySelector('[data-rest-hint]');
+        const MAX_DAILY_REST = 2;   // server rule: daily-paid needs 1 or 2 rest days
+
+        // P1: daily-paid can pick at most 2 rest days — the other boxes are disabled
+        // once 2 are ticked. Monthly-paid only needs at least one.
+        function syncRest() {
+            if (!restSet || !basis) return;
+            const boxes = Array.from(restSet.querySelectorAll('input[type="checkbox"]'));
+            const n = boxes.filter(b => b.checked).length;
+            const daily = basis.value !== 'monthly';
+            boxes.forEach(b => {
+                const lock = daily && n >= MAX_DAILY_REST && !b.checked;
+                b.disabled = lock;
+                const lbl = b.closest('label');
+                if (lbl) lbl.classList.toggle('opacity-50', lock);
+            });
+            if (restHint) {
+                restHint.textContent = daily
+                    ? n + ' of 1–2 rest days chosen. Daily-paid staff need 1 or 2 rest days a week.'
+                    : 'Choose at least one weekly rest day.';
+                restHint.classList.toggle('text-red-600', n === 0);
+                restHint.classList.toggle('dark:text-red-400', n === 0);
+            }
+        }
         function sync() {
             if (!basis) return;
             const monthly = basis.value === 'monthly';
             if (label) label.textContent = monthly ? 'Monthly rate (₱)' : 'Daily rate (₱)';
             if (hint) hint.textContent = monthly ? hint.dataset.monthly : hint.dataset.daily;
+            syncRest();
         }
+        if (restSet) restSet.addEventListener('change', syncRest);
         if (basis) basis.addEventListener('change', sync);
         form._syncBasis = sync;
         sync();
@@ -740,6 +790,9 @@
         syncKind(codeSel.dataset.old);
     }
 
+@endif
+
+@if($canReveal ?? false)
     // ── Statutory IDs: masked by default. Reveal asks the server (POST, logged, no-store);
     //    the numbers are dropped from the DOM again on Hide.
     const ROUTE_REVEAL = @json(route('payroll.staff.ids.reveal', $staff));
@@ -774,6 +827,9 @@
         document.querySelectorAll('#ids [data-masked]').forEach(el => el.classList.toggle('hidden', show));
     }
     window.toggleReveal = toggleReveal;
+@endif
+
+@if($canEdit)
 
     // ════════════════════════════════════════════════════════════════
     // SHARED MODAL BEHAVIOUR (same as staff/index.blade.php)

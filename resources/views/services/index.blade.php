@@ -31,8 +31,21 @@
     $showPackageActions   = $canEditPackages   || $canDeletePackages;
     // ── END STOP-AND-FLAG ZONE ───────────────────────────────────────────────
 
+    // Same test the Manage Promos link has always used (union of the two old
+    // section-level gates).
+    $showPromosLink = $canViewPromos && ($canManageTreatments || $canManagePackages);
+
     $hasTreatments = $treatments->count() > 0;
     $hasPackages   = $packages->count() > 0;
+
+    $recipeProductOptions = $recipeProducts->map(function ($product) {
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'brand' => $product->brand,
+            'usage_unit' => $product->usage_unit,
+        ];
+    })->values();
 
     // One source for the upload limit — used in the hint text and the JS
     // pre-check below. ⚠️ This does NOT change server-side validation.
@@ -122,6 +135,7 @@
         $canDeleteTreatments ? 'deleteTreatmentModal' : null,
         $canCreatePackages   ? 'addPackageModal'      : null,
         $canEditPackages     ? 'editPackageModal'     : null,
+        $canEditTreatments ? 'treatmentRecipeModal' : null,
         $canDeletePackages   ? 'deletePackageModal'   : null,
         'treatmentImportHelpModal',
         'packageImportHelpModal',
@@ -152,16 +166,14 @@
 
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
 
+    {{-- Page-level action sits in the header's `right` slot, beside the clock —
+         the same placement as Dashboard (New Booking) and Payroll (New Run). --}}
     <x-page-header
         title="Services"
         subtitle="Manage your treatments and packages."
     >
-        {{-- Promos are page-scoped, not section-scoped, so this sits in the
-             header's right slot instead of being repeated in both section
-             toolbars. The permission test is the union of what the two old
-             copies were gated on, so nobody gains or loses access to it. --}}
         <x-slot name="right">
-            @if($canViewPromos && ($canManageTreatments || $canManagePackages))
+            @if($showPromosLink)
                 <a href="{{ route('promos.index') }}"
                    class="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 text-sm font-semibold text-white rounded-xl
                           bg-gradient-to-r from-[#8B7355] to-[#6F5430] shadow-sm hover:opacity-90 transition-opacity active:translate-y-0.5
@@ -314,7 +326,7 @@
         </div>
 
         <div class="md:overflow-x-auto">
-            <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
                 <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                     <tr role="row">
                         <th role="columnheader" class="{{ $th }}">Service Name</th>
@@ -370,6 +382,14 @@
                                     <div class="flex flex-wrap gap-2">
                                         @if($canEditTreatments)
                                             <button type="button"
+                                                    onclick="openTreatmentRecipeModal(this)"
+                                                    data-id="{{ $treatment->id }}"
+                                                    data-name="{{ $treatment->name }}"
+                                                    class="{{ $btn['outline'] }}">
+                                                <i class="fa-solid fa-flask" aria-hidden="true"></i>
+                                                <span>Recipe</span>
+                                            </button>
+                                            <button type="button"
                                                     onclick="openEditTreatmentModal(this)"
                                                     data-id="{{ $treatment->id }}"
                                                     data-name="{{ $treatment->name }}"
@@ -378,6 +398,7 @@
                                                     data-service-type="{{ $treatment->service_type }}"
                                                     data-description="{{ $treatment->description }}"
                                                     data-image="{{ $treatment->image_url }}"
+                                                    data-image2="{{ $treatment->image_url_2 }}"
                                                     class="{{ $btn['secondary'] }}">
                                                 <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                                 <span>Edit</span>
@@ -474,7 +495,7 @@
         </div>
 
         <div class="md:overflow-x-auto">
-            <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
                 <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                     <tr role="row">
                         <th role="columnheader" class="{{ $th }}">Package Name</th>
@@ -553,6 +574,7 @@
                                                     data-description="{{ $package->description }}"
                                                     data-treatments="{{ $members->pluck('id')->join(',') }}"
                                                     data-image="{{ $package->image_url }}"
+                                                    data-image2="{{ $package->image_url_2 }}"
                                                     class="{{ $btn['secondary'] }}">
                                                 <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                                 <span>Edit</span>
@@ -645,11 +667,7 @@
                     </select>
                 </div>
 
-                <div>
-                    <label for="add_treatment_image" class="{{ $label }}">Image</label>
-                    <input type="file" name="image" id="add_treatment_image" accept="image/*" class="{{ $input }}">
-                    <p class="{{ $hint }}">JPG, PNG or WEBP, max {{ $maxImageMb }}MB.</p>
-                </div>
+                @include('services.partials.image-picker', ['prefix' => 'add_treatment'])
 
                 <div>
                     <label for="add_treatment_description" class="{{ $label }}">Description</label>
@@ -725,13 +743,7 @@
                     </select>
                 </div>
 
-                <div>
-                    <label for="edit_treatment_image_input" class="{{ $label }}">Image</label>
-                    <img id="edit_treatment_image_preview" src="" alt=""
-                         class="hidden object-cover w-20 h-20 mb-2 border border-gray-300 rounded-xl dark:border-gray-600">
-                    <input type="file" name="image" id="edit_treatment_image_input" accept="image/*" class="{{ $input }}">
-                    <p class="{{ $hint }}">Leave blank to keep current image.</p>
-                </div>
+                @include('services.partials.image-picker', ['prefix' => 'edit_treatment'])
 
                 <div>
                     <label for="edit_treatment_description" class="{{ $label }}">Description</label>
@@ -741,6 +753,90 @@
                 <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
                     <button type="button" onclick="closeModalById('editTreatmentModal')" class="{{ $btn['dismiss'] }}">Cancel</button>
                     <button type="submit" class="{{ $btn['primary'] }}">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+@if($canEditTreatments)
+<div id="treatmentRecipeModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="treatmentRecipeTitle"
+             class="w-full max-w-2xl bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                <div>
+                    <h2 id="treatmentRecipeTitle" class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Treatment Recipe
+                    </h2>
+                    <p id="treatmentRecipeName" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
+                </div>
+
+                <button type="button"
+                        onclick="closeModalById('treatmentRecipeModal')"
+                        aria-label="Close dialog"
+                        class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <form id="treatmentRecipeForm" method="POST" class="px-4 py-6 space-y-5 sm:px-6">
+                @csrf
+                @method('PUT')
+
+                <div id="treatmentRecipeError"
+                     role="alert"
+                     class="hidden p-3 text-sm text-red-700 border border-red-200 rounded-xl bg-red-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                </div>
+
+                <div class="p-3 text-sm text-blue-800 border border-blue-200 rounded-xl bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                    Add the products normally used when completing one session of this treatment.
+                    Quantities use each product's inventory usage unit.
+                </div>
+
+                <div class="grid grid-cols-12 gap-2 px-1 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    <div class="col-span-12 sm:col-span-6">Product</div>
+                    <div class="hidden sm:block sm:col-span-3">Quantity</div>
+                    <div class="hidden sm:block sm:col-span-2">Unit</div>
+                    <div class="hidden sm:block sm:col-span-1">
+                        <span class="sr-only">Remove</span>
+                    </div>
+                </div>
+
+                <div id="treatmentRecipeItems" class="space-y-3"></div>
+
+                <p id="treatmentRecipeEmptyHint" class="hidden text-sm text-gray-500 dark:text-gray-400">
+                    This treatment currently has no inventory products assigned.
+                </p>
+
+                <div class="flex flex-col-reverse gap-2 pt-4 border-t border-gray-200 sm:flex-row sm:justify-end dark:border-gray-700">
+                    <button type="button"
+                            onclick="closeModalById('treatmentRecipeModal')"
+                            class="{{ $btn['dismiss'] }}">
+                        Cancel
+                    </button>
+
+                    <div class="relative group">
+                        <button type="button"
+                                id="addTreatmentRecipeItem"
+                                aria-describedby="addTreatmentRecipeItemHelp"
+                                class="{{ $btn['outline'] }}">
+                            <span>Add Product</span>
+                        </button>
+
+                        <div id="addTreatmentRecipeItemHelp"
+                            role="tooltip"
+                            class="absolute z-20 hidden w-64 px-3 py-2 mb-2 text-xs text-center text-white -translate-x-1/2 bg-gray-900 shadow-lg pointer-events-none bottom-full left-1/2 rounded-xl group-hover:block group-focus-within:block">
+                            Add another inventory product used for one session of this treatment.
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                            id="treatmentRecipeSaveBtn"
+                            class="{{ $btn['primary'] }}">
+                        Save Recipe
+                    </button>
                 </div>
             </form>
         </div>
@@ -837,11 +933,7 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="add_package_image" class="{{ $label }}">Image</label>
-                    <input type="file" name="image" id="add_package_image" accept="image/*" class="{{ $input }}">
-                    <p class="{{ $hint }}">JPG, PNG or WEBP, max {{ $maxImageMb }}MB.</p>
-                </div>
+                @include('services.partials.image-picker', ['prefix' => 'add_package'])
 
                 <div>
                     <label for="add_package_description" class="{{ $label }}">Description</label>
@@ -932,13 +1024,7 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="edit_package_image_input" class="{{ $label }}">Image</label>
-                    <img id="edit_package_image_preview" src="" alt=""
-                         class="hidden object-cover w-20 h-20 mb-2 border border-gray-300 rounded-xl dark:border-gray-600">
-                    <input type="file" name="image" id="edit_package_image_input" accept="image/*" class="{{ $input }}">
-                    <p class="{{ $hint }}">Leave blank to keep current image.</p>
-                </div>
+                @include('services.partials.image-picker', ['prefix' => 'edit_package'])
 
                 <div>
                     <label for="edit_package_description" class="{{ $label }}">Description</label>
@@ -1073,6 +1159,10 @@
     const ROUTE_TREATMENT_DESTROY = @json(route('treatments.destroy', '__ID__'));
     const ROUTE_PACKAGE_UPDATE    = @json(route('packages.update', '__ID__'));
     const ROUTE_PACKAGE_DESTROY   = @json(route('packages.destroy', '__ID__'));
+    const ROUTE_TREATMENT_RECIPE_SHOW   = @json(route('treatments.recipe.show', '__ID__'));
+    const ROUTE_TREATMENT_RECIPE_UPDATE = @json(route('treatments.recipe.update', '__ID__'));
+
+    const RECIPE_PRODUCTS = @json($recipeProductOptions);
 
     function routeFor(template, id) {
         return template.replace('__ID__', encodeURIComponent(id));
@@ -1167,6 +1257,145 @@
 
 
     // ════════════════════════════════════════════════════════════════
+    // IMAGE PICKER — two tiles in one row
+    // ════════════════════════════════════════════════════════════════
+    // One picker per form, keyed by its prefix. Empty tile: click opens the
+    // file picker. Filled tile: click selects it and shows the action row.
+    // The server reads image / image_2 / remove_image / remove_image_2 / cover.
+    const imagePickers = {};
+
+    function setupImagePicker(root) {
+        const tiles   = {};
+        const files   = {};
+        const removes = {};
+        [1, 2].forEach(function (slot) {
+            tiles[slot]   = root.querySelector('[data-slot="' + slot + '"]');
+            files[slot]   = root.querySelector('[data-file="' + slot + '"]');
+            removes[slot] = root.querySelector('[data-remove="' + slot + '"]');
+        });
+        const coverInput = root.querySelector('[data-cover]');
+        const actions    = root.querySelector('[data-actions]');
+        const coverBtn   = root.querySelector('[data-action="cover"]');
+
+        const state = {
+            existing: { 1: '', 2: '' },   // URLs already saved on the server
+            fresh:    { 1: '', 2: '' },   // preview URLs of newly picked files
+            selected: null,
+            cover:    1,
+        };
+
+        function urlOf(slot) {
+            return state.fresh[slot] || state.existing[slot];
+        }
+
+        // The cover must be a tile that actually has a photo.
+        function coverSlot() {
+            if (urlOf(state.cover)) return state.cover;
+            const other = state.cover === 1 ? 2 : 1;
+            return urlOf(other) ? other : 1;
+        }
+
+        function clearFresh(slot) {
+            if (state.fresh[slot]) URL.revokeObjectURL(state.fresh[slot]);
+            state.fresh[slot] = '';
+        }
+
+        function render() {
+            if (state.selected !== null && !urlOf(state.selected)) state.selected = null;
+            const cover = coverSlot();
+
+            [1, 2].forEach(function (slot) {
+                const tile  = tiles[slot];
+                const url   = urlOf(slot);
+                const img   = tile.querySelector('img');
+                const plus  = tile.querySelector('i');
+                const badge = tile.querySelector('.svc-img-cover-badge');
+
+                if (url) img.src = url; else img.removeAttribute('src');
+                img.hidden   = !url;
+                plus.hidden  = !!url;
+                badge.hidden = !(url && cover === slot);
+
+                tile.dataset.filled = url ? 'true' : 'false';
+                tile.setAttribute('aria-pressed', state.selected === slot ? 'true' : 'false');
+                tile.setAttribute('aria-label', url
+                    ? 'Image ' + slot + (cover === slot ? ' (cover)' : '') + ', show options'
+                    : 'Add image ' + slot);
+            });
+
+            actions.classList.toggle('hidden', state.selected === null);
+            coverBtn.classList.toggle('hidden', state.selected === null || state.selected === cover);
+            coverInput.value = String(cover);
+        }
+
+        [1, 2].forEach(function (slot) {
+            tiles[slot].addEventListener('click', function () {
+                if (!urlOf(slot)) {
+                    files[slot].click();
+                    return;
+                }
+                state.selected = state.selected === slot ? null : slot;
+                render();
+            });
+
+            files[slot].addEventListener('change', function () {
+                const file = this.files && this.files[0];
+                clearFresh(slot);
+                // An oversized file is cleared (and explained) by the shared
+                // size check further down, so it gets no preview here.
+                if (file && file.size <= MAX_IMAGE_MB * 1024 * 1024) {
+                    state.fresh[slot] = URL.createObjectURL(file);
+                    removes[slot].value = '0';
+                }
+                render();
+            });
+        });
+
+        actions.addEventListener('click', function (e) {
+            const btn  = e.target.closest('[data-action]');
+            const slot = state.selected;
+            if (!btn || slot === null) return;
+
+            if (btn.dataset.action === 'cover') {
+                state.cover = slot;
+                state.selected = null;
+            } else if (btn.dataset.action === 'replace') {
+                files[slot].click();
+                return;
+            } else if (btn.dataset.action === 'remove') {
+                clearFresh(slot);
+                files[slot].value = '';
+                if (state.existing[slot]) {
+                    removes[slot].value = '1';
+                    state.existing[slot] = '';
+                }
+                state.selected = null;
+            }
+            render();
+        });
+
+        imagePickers[root.dataset.imagePicker] = {
+            // Resets the picker and shows the saved images (empty strings for none).
+            load: function (url1, url2) {
+                [1, 2].forEach(function (slot) {
+                    clearFresh(slot);
+                    files[slot].value = '';
+                    removes[slot].value = '0';
+                });
+                state.existing = { 1: url1 || '', 2: url2 || '' };
+                state.selected = null;
+                state.cover = 1;
+                render();
+            },
+        };
+
+        render();
+    }
+
+    document.querySelectorAll('[data-image-picker]').forEach(setupImagePicker);
+
+
+    // ════════════════════════════════════════════════════════════════
     // TREATMENTS
     // ════════════════════════════════════════════════════════════════
     const ADD_TREATMENT_FIELDS = [
@@ -1184,6 +1413,7 @@
         const form = document.getElementById('addTreatmentForm');
         if (form) form.reset();
         clearErrors(ADD_TREATMENT_FIELDS);
+        imagePickers.add_treatment?.load('', '');
         openModalById('addTreatmentModal', '#add_treatment_name');
     }
 
@@ -1220,13 +1450,7 @@
         }
         durationSelect.value = stored;
 
-        const preview = document.getElementById('edit_treatment_image_preview');
-        const imageInput = document.getElementById('edit_treatment_image_input');
-        if (imageInput) imageInput.value = '';
-        if (preview) {
-            preview.src = d.image || '';
-            preview.classList.toggle('hidden', !d.image);
-        }
+        imagePickers.edit_treatment?.load(d.image, d.image2);
 
         openModalById('editTreatmentModal', '#edit_treatment_name');
     }
@@ -1292,6 +1516,310 @@
     wireTreatmentForm('addTreatmentForm',  'add_treatment',  ADD_TREATMENT_FIELDS);
     wireTreatmentForm('editTreatmentForm', 'edit_treatment', EDIT_TREATMENT_FIELDS);
 
+    // ════════════════════════════════════════════════════════════════
+    // TREATMENT RECIPE
+    // ════════════════════════════════════════════════════════════════
+
+    const recipeItemsContainer = document.getElementById('treatmentRecipeItems');
+    const recipeForm = document.getElementById('treatmentRecipeForm');
+    const recipeError = document.getElementById('treatmentRecipeError');
+    const recipeEmptyHint = document.getElementById('treatmentRecipeEmptyHint');
+    const recipeSaveBtn = document.getElementById('treatmentRecipeSaveBtn');
+
+    function setRecipeError(message) {
+        if (!recipeError) return;
+
+        recipeError.textContent = message || '';
+        recipeError.classList.toggle('hidden', !message);
+    }
+
+    function recipeProductById(id) {
+        return RECIPE_PRODUCTS.find(product => String(product.id) === String(id));
+    }
+
+    function selectedRecipeProductIds(exceptRow) {
+        if (!recipeItemsContainer) return new Set();
+
+        return new Set(
+            Array.from(recipeItemsContainer.querySelectorAll('.recipe-item-row'))
+                .filter(row => row !== exceptRow)
+                .map(row => row.querySelector('.recipe-product-select')?.value)
+                .filter(Boolean)
+        );
+    }
+
+    function buildRecipeProductOptions(selectedId, currentRow) {
+        const selected = selectedRecipeProductIds(currentRow);
+
+        let html = '<option value="">Select product</option>';
+
+        RECIPE_PRODUCTS.forEach(product => {
+            const value = String(product.id);
+            const isCurrent = value === String(selectedId || '');
+
+            if (selected.has(value) && !isCurrent) return;
+
+            const brand = product.brand ? ' — ' + product.brand : '';
+
+            html += '<option value="' + value + '"' + (isCurrent ? ' selected' : '') + '>'
+                + escapeHtml(product.name + brand)
+                + '</option>';
+        });
+
+        return html;
+    }
+
+    function escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML;
+    }
+
+    function refreshRecipeProductOptions() {
+        if (!recipeItemsContainer) return;
+
+        recipeItemsContainer.querySelectorAll('.recipe-item-row').forEach(row => {
+            const select = row.querySelector('.recipe-product-select');
+            if (!select) return;
+
+            const current = select.value;
+            select.innerHTML = buildRecipeProductOptions(current, row);
+            select.value = current;
+        });
+    }
+
+    function refreshRecipeEmptyState() {
+        if (!recipeItemsContainer || !recipeEmptyHint) return;
+
+        recipeEmptyHint.classList.toggle(
+            'hidden',
+            recipeItemsContainer.querySelector('.recipe-item-row') !== null
+        );
+    }
+
+    function updateRecipeUnit(row) {
+        const select = row.querySelector('.recipe-product-select');
+        const unit = row.querySelector('.recipe-unit');
+        if (!select || !unit) return;
+
+        const product = recipeProductById(select.value);
+        unit.textContent = product?.usage_unit || '—';
+    }
+
+    function addTreatmentRecipeRow(item = null) {
+        if (!recipeItemsContainer) return;
+
+        const row = document.createElement('div');
+        row.className = 'recipe-item-row grid grid-cols-12 gap-2 p-3 border border-gray-200 rounded-xl dark:border-gray-700';
+
+        row.innerHTML = `
+            <div class="col-span-12 sm:col-span-6">
+                <label class="block mb-1 text-xs font-medium text-gray-500 sm:hidden dark:text-gray-400">
+                    Product
+                </label>
+                <select class="recipe-product-select {{ $input }}" required>
+                    ${buildRecipeProductOptions(item?.product_id ?? '', row)}
+                </select>
+            </div>
+
+            <div class="col-span-8 sm:col-span-3">
+                <label class="block mb-1 text-xs font-medium text-gray-500 sm:hidden dark:text-gray-400">
+                    Quantity
+                </label>
+                <input type="number"
+                    class="recipe-quantity {{ $input }}"
+                    min="0.001"
+                    max="20000"
+                    step="0.001"
+                    value="${item?.quantity ?? ''}"
+                    placeholder="0.000"
+                    required>
+            </div>
+
+            <div class="col-span-3 sm:col-span-2">
+                <label class="block mb-1 text-xs font-medium text-gray-500 sm:hidden dark:text-gray-400">
+                    Unit
+                </label>
+                <div class="recipe-unit flex items-center min-h-[44px] px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-xl dark:bg-gray-900 dark:text-gray-300">
+                    —
+                </div>
+            </div>
+
+            <div class="flex items-end justify-end col-span-1 sm:items-center">
+                <button type="button"
+                        class="recipe-remove-item inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-red-600 rounded-xl hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                        aria-label="Remove product">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+        `;
+
+        recipeItemsContainer.appendChild(row);
+
+        const select = row.querySelector('.recipe-product-select');
+        select.value = item?.product_id ? String(item.product_id) : '';
+
+        updateRecipeUnit(row);
+        refreshRecipeProductOptions();
+        refreshRecipeEmptyState();
+
+        select.addEventListener('change', function () {
+            updateRecipeUnit(row);
+            refreshRecipeProductOptions();
+            setRecipeError(null);
+        });
+
+        row.querySelector('.recipe-remove-item').addEventListener('click', function () {
+            row.remove();
+            refreshRecipeProductOptions();
+            refreshRecipeEmptyState();
+            setRecipeError(null);
+        });
+    }
+
+    async function openTreatmentRecipeModal(btn) {
+        if (!recipeItemsContainer || !recipeForm) return;
+
+        const id = btn.dataset.id;
+        const name = btn.dataset.name || '';
+
+        document.getElementById('treatmentRecipeName').textContent = name;
+        recipeForm.action = routeFor(ROUTE_TREATMENT_RECIPE_UPDATE, id);
+
+        recipeItemsContainer.innerHTML = '';
+        setRecipeError(null);
+        refreshRecipeEmptyState();
+
+        if (recipeSaveBtn) {
+            recipeSaveBtn.disabled = true;
+            recipeSaveBtn.textContent = 'Loading...';
+        }
+
+        openModalById('treatmentRecipeModal');
+
+        try {
+            const response = await fetch(routeFor(ROUTE_TREATMENT_RECIPE_SHOW, id), {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Unable to load treatment recipe.');
+            }
+
+            const data = await response.json();
+
+            recipeItemsContainer.innerHTML = '';
+
+            (data.items || []).forEach(item => addTreatmentRecipeRow(item));
+
+            refreshRecipeEmptyState();
+        } catch (error) {
+            setRecipeError(error.message || 'Unable to load treatment recipe.');
+        } finally {
+            if (recipeSaveBtn) {
+                recipeSaveBtn.disabled = false;
+                recipeSaveBtn.textContent = 'Save Recipe';
+            }
+        }
+    }
+
+    const addRecipeItemBtn = document.getElementById('addTreatmentRecipeItem');
+
+    if (addRecipeItemBtn) {
+        addRecipeItemBtn.addEventListener('click', function () {
+            if (recipeItemsContainer?.querySelectorAll('.recipe-item-row').length >= RECIPE_PRODUCTS.length) {
+                setRecipeError('All available products are already included in this recipe.');
+                return;
+            }
+
+            addTreatmentRecipeRow();
+        });
+    }
+
+    if (recipeForm) {
+        recipeForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            setRecipeError(null);
+
+            const rows = Array.from(
+                recipeItemsContainer.querySelectorAll('.recipe-item-row')
+            );
+
+            const items = [];
+            const productIds = new Set();
+
+            for (const row of rows) {
+                const productId = row.querySelector('.recipe-product-select')?.value;
+                const quantity = parseFloat(row.querySelector('.recipe-quantity')?.value);
+
+                if (!productId) {
+                    setRecipeError('Select a product for every recipe row.');
+                    return;
+                }
+
+                if (!Number.isFinite(quantity) || quantity < 0.001 || quantity > 20000) {
+                    setRecipeError('Each quantity must be between 0.001 and 20,000.');
+                    return;
+                }
+
+                if (productIds.has(productId)) {
+                    setRecipeError('The same product cannot be added more than once.');
+                    return;
+                }
+
+                productIds.add(productId);
+
+                items.push({
+                    product_id: Number(productId),
+                    quantity: quantity,
+                });
+            }
+
+            if (recipeSaveBtn) {
+                recipeSaveBtn.disabled = true;
+                recipeSaveBtn.textContent = 'Saving...';
+            }
+
+            try {
+                const response = await fetch(recipeForm.action, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': recipeForm.querySelector('input[name="_token"]').value,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ items }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errors = data.errors
+                        ? Object.values(data.errors).flat()
+                        : [];
+
+                    throw new Error(
+                        errors[0] || data.message || 'Unable to save treatment recipe.'
+                    );
+                }
+
+                closeModalById('treatmentRecipeModal');
+
+                showSpaToast(data.message || 'Treatment recipe updated successfully.', 'success');
+            } catch (error) {
+                showSpaToast(error.message || 'Unable to save treatment recipe.', 'error');
+            } finally {
+                if (recipeSaveBtn) {
+                    recipeSaveBtn.disabled = false;
+                    recipeSaveBtn.textContent = 'Save Recipe';
+                }
+            }
+        });
+    }
 
     // ════════════════════════════════════════════════════════════════
     // PACKAGES
@@ -1333,6 +1861,7 @@
         setFieldError('add_package_name', 'add_package_name_error', false);
         setFieldError('addIncludedTreatments', 'add_package_treatments_error', false);
         updateAddPackageTotals();
+        imagePickers.add_package?.load('', '');
         openModalById('addPackageModal', '#add_package_name');
     }
 
@@ -1360,13 +1889,7 @@
         if (warning) warning.classList.toggle('hidden', missing.length === 0);
         if (count) count.textContent = String(missing.length);
 
-        const preview = document.getElementById('edit_package_image_preview');
-        const imageInput = document.getElementById('edit_package_image_input');
-        if (imageInput) imageInput.value = '';
-        if (preview) {
-            preview.src = d.image || '';
-            preview.classList.toggle('hidden', !d.image);
-        }
+        imagePickers.edit_package?.load(d.image, d.image2);
 
         openModalById('editPackageModal', '#edit_package_name');
         updateEditPackageTotals();
@@ -1469,7 +1992,7 @@
             if (!file) return;
             if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
                 const mb = (file.size / (1024 * 1024)).toFixed(1);
-                alert('That image is ' + mb + 'MB. The limit is ' + MAX_IMAGE_MB + 'MB — pick a smaller file.');
+                showSpaToast('That image is ' + mb + 'MB. The limit is ' + MAX_IMAGE_MB + 'MB — pick a smaller file.', 'error');
                 this.value = '';
             }
         });
@@ -1486,6 +2009,7 @@
     window.openAddPackageModal      = openAddPackageModal;
     window.openEditPackageModal     = openEditPackageModal;
     window.openDeletePackageModal   = openDeletePackageModal;
+    window.openTreatmentRecipeModal = openTreatmentRecipeModal;
     window.triggerCsvPicker         = triggerCsvPicker;
 
 }()); // end page script
@@ -1531,6 +2055,48 @@
 
 @media (max-width: 767px) and (prefers-color-scheme: dark) {
     .rt td[data-label]::before { color: #9ca3af; }
+}
+
+/* Image picker tiles. Plain CSS because the filled / selected states are
+   driven by attributes the script sets (data-filled, aria-pressed). */
+.svc-img-tile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 5rem;
+    height: 5rem;
+    padding: 0;
+    overflow: hidden;
+    border: 1px dashed #d1d5db;
+    border-radius: 0.75rem;
+    background: #f9fafb;
+    color: #6b7280;
+    cursor: pointer;
+}
+.svc-img-tile[data-filled="true"] { border-style: solid; }
+.svc-img-tile img { width: 100%; height: 100%; object-fit: cover; }
+.svc-img-tile [hidden] { display: none !important; }
+.svc-img-tile:focus-visible,
+.svc-img-tile[aria-pressed="true"] {
+    outline: 2px solid #8B7355;
+    outline-offset: 2px;
+}
+.svc-img-cover-badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+    .svc-img-tile { border-color: #4b5563; background: #374151; color: #9ca3af; }
+    .svc-img-tile:focus-visible,
+    .svc-img-tile[aria-pressed="true"] { outline-color: #C4A97D; }
 }
 
 /* Invalid-field outline. darkMode is 'media', so there is no .dark class on

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Payroll;
 
 use App\Models\Booking;
+use App\Models\Branch;
+use App\Models\Package;
+use App\Models\Treatment;
 use App\Models\CommissionRule;
 use App\Models\PayslipLine;
 use App\Models\Staff;
@@ -35,6 +38,11 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  */
 final class CommissionEarnings
 {
+    /** @var array<string, string> display names, per run (warnings and line notes only) */
+    private array $serviceNames = [];
+    /** @var array<int, string> */
+    private array $branchNames = [];
+
     public function __construct(
         private readonly StatutoryCalculator $calc,
         private readonly ServicePriceResolver $prices,
@@ -75,11 +83,12 @@ final class CommissionEarnings
 
         foreach ($bookings as $booking) {
             $date = $booking->appointment_date->toDateString();
+            $on = 'Booking #'.$booking->id.' on '.$booking->appointment_date->format('M j, Y');
             $profile = $ctx->timeline->on($date);
 
             if ($profile === null) {
                 if ($ctx->contains($date)) {
-                    $warnings[] = "Booking #{$booking->id} ({$date}): no pay profile on the appointment date — no commission.";
+                    $warnings[] = "{$on}: no commission — there was no pay profile on that date.";
                 }
                 continue;
             }
@@ -93,7 +102,7 @@ final class CommissionEarnings
                 : $this->prices->listPrice($booking->treatment);
 
             if (! Decimal::isPositive($base)) {
-                $warnings[] = "Booking #{$booking->id} ({$date}): total_amount is 0 and no list price was found for [{$booking->treatment}] — no commission.";
+                $warnings[] = "{$on}: no commission — the booking total is ₱0 and {$this->serviceName($booking->treatment)} has no list price. [ref: {$this->ref($booking->treatment)}]";
                 continue;
             }
 
@@ -107,7 +116,7 @@ final class CommissionEarnings
             );
 
             if ($rule === null) {
-                $warnings[] = "Booking #{$booking->id} ({$date}): no commission rule in effect for [{$booking->treatment}] at branch #{$booking->branch_id} — no commission.";
+                $warnings[] = "{$on}: no commission — no commission rule covers {$this->serviceName($booking->treatment)} at {$this->branchName($booking->branch_id)} on that date. Add one in Payroll Setup. [ref: {$this->ref($booking->treatment)} · branch #{$booking->branch_id}]";
                 continue;
             }
 
@@ -123,8 +132,8 @@ final class CommissionEarnings
     private function line(ComponentFlags $c, Booking $booking, CommissionRule $rule, string $base, bool $fromTotal, string $date): ?EarningLine
     {
         $value = Decimal::fromDb($rule->value, 'commission_rules.value');
-        $baseNote = sprintf('base ₱%s (%s)', Decimal::peso($base), $fromTotal ? 'total_amount' : "list price of {$booking->treatment}");
-        $ruleNote = sprintf('rule #%d (%s%s)', $rule->id, $rule->branch_id === null ? 'spa' : 'branch', $rule->target_type === CommissionRule::TARGET_DEFAULT ? ' default' : ' + '.$rule->target_type);
+        $baseNote = sprintf('base ₱%s (%s)', Decimal::peso($base), $fromTotal ? 'booking total' : 'list price of '.$this->serviceName($booking->treatment));
+        $ruleNote = sprintf('rule #%d (%s, %s)', $rule->id, $rule->branch_id === null ? 'all branches' : 'this branch', $rule->target_type === CommissionRule::TARGET_DEFAULT ? 'default' : 'this '.$rule->target_type);
 
         if ($rule->method === CommissionRule::METHOD_PERCENT) {
             $amount = Decimal::div(Decimal::mul($base, $value), '100');
@@ -138,5 +147,39 @@ final class CommissionEarnings
         }
 
         return Decimal::isPositive($line->amount) ? $line : null;
+    }
+
+    /** "Hot Stone Massage" for treatment_12; a readable fallback when the record is gone. */
+    private function serviceName(?string $code): string
+    {
+        $key = (string) $code;
+        if (! isset($this->serviceNames[$key])) {
+            $target = $this->prices->parse($code);
+            $name = null;
+            if ($target !== null) {
+                $model = $target['type'] === CommissionRule::TARGET_TREATMENT ? Treatment::class : Package::class;
+                $name = $model::withoutGlobalScopes()->whereKey($target['id'])->value('name');
+            }
+            $this->serviceNames[$key] = $name !== null
+                ? (string) $name
+                : ($target !== null ? 'a deleted '.$target['type'] : ($key !== '' ? '“'.$key.'”' : 'an unnamed service'));
+        }
+
+        return $this->serviceNames[$key];
+    }
+
+    private function branchName(mixed $branchId): string
+    {
+        if ($branchId === null) {
+            return 'its branch';
+        }
+        $id = (int) $branchId;
+
+        return $this->branchNames[$id] ??= (string) (Branch::withoutGlobalScopes()->whereKey($id)->value('name') ?? 'a deleted branch');
+    }
+
+    private function ref(?string $code): string
+    {
+        return $code === null || $code === '' ? 'no service' : $code;
     }
 }
