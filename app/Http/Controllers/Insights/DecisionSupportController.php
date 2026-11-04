@@ -50,8 +50,11 @@ class DecisionSupportController extends Controller
             : null;
         $avgPerDay     = round($totalCurrent / $periodDays, 1);
 
-        $revenueCurrent = $currentBookings->sum('total_amount');
-        $revenuePrev    = $prevBookings->sum('total_amount');
+        // Completed bookings only, the same rule as the Revenue and Reports pages
+        // (UI rework Phase 5). Cancelled, no-show and still-upcoming bookings
+        // were counted before, so this card disagreed with those pages.
+        $revenueCurrent = $currentBookings->where('status', 'completed')->sum('total_amount');
+        $revenuePrev    = $prevBookings->where('status', 'completed')->sum('total_amount');
         $revenueGrowth  = $revenuePrev > 0
             ? round((($revenueCurrent - $revenuePrev) / $revenuePrev) * 100, 1)
             : null;
@@ -59,6 +62,12 @@ class DecisionSupportController extends Controller
         $cancelledCount = $currentBookings->where('status', 'cancelled')->count();
         $cancelRate     = $totalCurrent > 0
             ? round(($cancelledCount / $totalCurrent) * 100, 1)
+            : 0;
+
+        // Shown next to the cancel rate (UI rework Phase 3, decision 3A).
+        $noShowCount = $currentBookings->where('status', Booking::NO_SHOW)->count();
+        $noShowRate  = $totalCurrent > 0
+            ? round(($noShowCount / $totalCurrent) * 100, 1)
             : 0;
 
         // ── Spa Rating KPIs ───────────────────────────────────────────────
@@ -215,6 +224,7 @@ class DecisionSupportController extends Controller
                 'revenue'           => $revenueCurrent,
                 'revenue_growth'    => $revenueGrowth,
                 'cancel_rate'       => $cancelRate,
+                'no_show_rate'      => $noShowRate,
                 'avg_spa_rating'    => $avgSpaRating,
                 'spa_rating_prev'   => $avgSpaRatingPrev,
                 'spa_rating_growth' => $spaRatingGrowth,

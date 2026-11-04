@@ -1,192 +1,212 @@
-<x-guest-layout>
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2 rounded-2xl">
+    <title>Reset Password | Levictas Spa & Wellness</title>
 
-        <!-- LEFT IMAGE PANEL -->
-        <div class="relative hidden lg:block min-h-[640px]">
-            <img
-                src="{{ asset('images/face.jpeg') }}"
-                alt="Spa"
-                class="absolute inset-0 object-cover w-full h-full"
-            />
-            <div class="absolute inset-0 bg-black/25"></div>
+    <link rel="icon" type="image/png" href="{{ asset('images/1.png') }}">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-            <div class="relative z-10 flex items-end h-full p-10">
-                <div class="text-white">
-                    <p class="text-3xl font-light font-['Playfair_Display'] leading-tight">
-                        Almost There.<br/>New Password.
-                    </p>
-                    <p class="max-w-sm mt-3 text-white/85">
-                        Choose a strong new password to secure your account.
-                    </p>
-                </div>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+
+<body class="min-h-screen antialiased bg-[#F8F5F1] dark:bg-gray-900">
+
+<main class="min-h-screen lg:grid lg:grid-cols-2">
+
+    <section class="relative hidden overflow-hidden lg:block">
+
+        <img
+            src="{{ asset('images/face.jpeg') }}"
+            alt="Spa"
+            class="absolute inset-0 object-cover w-full h-full">
+
+        <div class="absolute inset-0 bg-black/30"></div>
+
+        <div class="relative z-10 flex items-end min-h-screen p-12">
+            <div class="max-w-md text-white">
+                <h1 class="text-4xl font-light font-['Playfair_Display']">
+                    Almost there.<br>Choose a new password.
+                </h1>
+
+                <p class="mt-4 leading-7 text-white/85">
+                    Choose a strong new password to secure your Levictas account.
+                </p>
             </div>
         </div>
+    </section>
 
-        <!-- RIGHT FORM PANEL -->
-        <div class="p-8 bg-white dark:bg-gray-800 sm:p-12">
-            <div class="max-w-md mx-auto">
+    <section class="flex items-center min-h-screen px-4 py-8 bg-white sm:px-8 dark:bg-gray-800">
 
-                <!-- Logo Section -->
-                <div class="mb-10 text-center">
-                    <div class="relative flex items-center justify-center mb-6">
-                        <!-- Back Button on Left -->
-                        <a href="{{ url('/login') }}"
-                           class="absolute left-0 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-[#8B7355] dark:hover:text-[#8B7355] transition-colors duration-200">
-                            <i class="fa-solid fa-circle-chevron-left text-3xl text-[#8B7355]"></i>
-                        </a>
+        <div class="w-full max-w-md mx-auto">
 
-                        <!-- Logo in Center -->
-                        <img
-                            src="{{ asset('images/1.png') }}"
-                            alt="Levictas"
-                            class="w-auto h-16 mt-2 rounded-md"
-                        />
+            <div class="relative flex items-center justify-center mb-6">
+
+                <a
+                    href="{{ route('login') }}"
+                    aria-label="Back to login"
+                    class="absolute left-0 inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-[#6F5430] rounded-xl hover:bg-[#F8F5F1] dark:text-[#C4A97D] dark:hover:bg-gray-700">
+
+                    <i class="text-xl fa-solid fa-chevron-left"></i>
+                </a>
+
+                <img
+                    src="{{ asset('images/1.png') }}"
+                    alt="Levictas"
+                    class="w-auto rounded-md h-14">
+            </div>
+
+            <div class="mb-8 text-center">
+                <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display']">
+                    Reset Password
+                </h2>
+
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Enter and confirm your new password.
+                </p>
+            </div>
+
+            <form
+                method="POST"
+                action="{{ route('password.store') }}"
+                class="space-y-5">
+
+                @csrf
+
+                <input
+                    type="hidden"
+                    name="token"
+                    value="{{ $request->route('token') }}">
+
+                <div>
+                    <label for="email"
+                        class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Email Address
+                    </label>
+
+                    <div class="relative">
+                        <i class="absolute text-gray-400 -translate-y-1/2 fa-solid fa-envelope left-3 top-1/2"></i>
+
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value="{{ old('email', $request->email) }}"
+                            required
+                            autofocus
+                            autocomplete="username"
+                            class="w-full min-h-[44px] py-2 pr-3 text-sm bg-white border border-gray-300 rounded-xl pl-10 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                     </div>
 
-                    <h2 class="text-3xl font-light text-[#2D3748] dark:text-white font-['Playfair_Display'] mb-2">
-                        Reset Password
-                    </h2>
-                    <p class="text-gray-600 dark:text-gray-400">
-                        Enter your new password below.
-                    </p>
+                    @error('email')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                <form method="POST" action="{{ route('password.store') }}" class="space-y-6">
-                    @csrf
+                <div>
+                    <label for="password"
+                        class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        New Password
+                    </label>
 
-                    <!-- Password Reset Token -->
-                    <input type="hidden" name="token" value="{{ $request->route('token') }}">
+                    <div class="relative">
+                        <i class="absolute text-gray-400 -translate-y-1/2 fa-solid fa-lock left-3 top-1/2"></i>
 
-                    <!-- Email Address -->
-                    <div>
-                        <x-input-label for="email" :value="__('Email')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
-                        <div class="relative mt-2">
-                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                            <x-text-input
-                                id="email"
-                                class="block w-full pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
-                                type="email"
-                                name="email"
-                                :value="old('email', $request->email)"
-                                required
-                                autofocus
-                                autocomplete="username"
-                                placeholder="Enter your email"
-                            />
-                        </div>
-                        <x-input-error :messages="$errors->get('email')" class="mt-2" />
-                    </div>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            required
+                            autocomplete="new-password"
+                            placeholder="Enter new password"
+                            class="w-full min-h-[44px] py-2 pr-12 text-sm bg-white border border-gray-300 rounded-xl pl-10 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
-                    <!-- New Password -->
-                    <div>
-                        <x-input-label for="password" :value="__('New Password')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
-                        <div class="relative mt-2">
-                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            </div>
-                            <x-text-input
-                                id="password"
-                                class="block w-full pl-10 pr-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
-                                type="password"
-                                name="password"
-                                required
-                                autocomplete="new-password"
-                                placeholder="Enter new password"
-                            />
-                            <button type="button"
-                                    class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
-                                    data-target="password"
-                                    aria-label="Show password"
-                                    tabindex="-1">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </div>
-                        <x-input-error :messages="$errors->get('password')" class="mt-2" />
-                    </div>
+                        <button
+                            type="button"
+                            data-target="password"
+                            aria-label="Show password"
+                            tabindex="-1"
+                            class="toggle-password absolute inset-y-0 right-0 inline-flex items-center justify-center min-w-[44px] text-[#8B7355]">
 
-                    <!-- Confirm Password -->
-                    <div>
-                        <x-input-label for="password_confirmation" :value="__('Confirm Password')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
-                        <div class="relative mt-2">
-                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                            </div>
-                            <x-text-input
-                                id="password_confirmation"
-                                class="block w-full pl-10 pr-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 focus:border-[#8B7355] focus:ring-[#8B7355] transition-colors duration-200"
-                                type="password"
-                                name="password_confirmation"
-                                required
-                                autocomplete="new-password"
-                                placeholder="Confirm new password"
-                            />
-                            <button type="button"
-                                    class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 text-[#8B7355] hover:text-[#8B7355] transition-colors duration-200"
-                                    data-target="password_confirmation"
-                                    aria-label="Show password"
-                                    tabindex="-1">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </div>
-                        <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-                    </div>
-
-                    <!-- Submit Button -->
-                    <div class="pt-4">
-                        <button type="submit"
-                                class="w-full bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:from-[#6F5430] hover:to-[#5A4526] text-white font-medium py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-[#8B7355] focus:ring-offset-2 shadow-lg hover:shadow-xl">
-                            <span class="flex items-center justify-center">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                                </svg>
-                                {{ __('Reset Password') }}
-                            </span>
+                            <i class="fa-solid fa-eye"></i>
                         </button>
                     </div>
 
-                    <!-- Back to Login -->
-                    <div class="pt-6 text-center border-t border-gray-200 dark:border-gray-800">
-                        <p class="text-gray-600 dark:text-gray-400">
-                            Remembered your password?
-                            <a href="{{ route('login') }}" class="font-medium text-[#8B7355] hover:text-[#6F5430] dark:text-[#8B7355] dark:hover:text-[#6F5430] transition-colors duration-200 ml-1">
-                                Back to Login
-                            </a>
-                        </p>
+                    @error('password')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="password_confirmation"
+                        class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Confirm Password
+                    </label>
+
+                    <div class="relative">
+                        <i class="absolute text-gray-400 -translate-y-1/2 fa-solid fa-lock left-3 top-1/2"></i>
+
+                        <input
+                            id="password_confirmation"
+                            name="password_confirmation"
+                            type="password"
+                            required
+                            autocomplete="new-password"
+                            placeholder="Confirm new password"
+                            class="w-full min-h-[44px] py-2 pr-12 text-sm bg-white border border-gray-300 rounded-xl pl-10 focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+
+                        <button
+                            type="button"
+                            data-target="password_confirmation"
+                            aria-label="Show password"
+                            tabindex="-1"
+                            class="toggle-password absolute inset-y-0 right-0 inline-flex items-center justify-center min-w-[44px] text-[#8B7355]">
+
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
                     </div>
-                </form>
+                </div>
 
-            </div>
+                <button
+                    type="submit"
+                    class="inline-flex items-center justify-center w-full min-h-[48px] px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-[#6F5430] to-[#8B7355] rounded-xl shadow-sm">
+
+                    <i class="mr-2 fa-solid fa-key"></i>
+                    Reset Password
+                </button>
+
+            </form>
         </div>
-    </div>
+    </section>
 
-    <script>
-        document.querySelectorAll('.toggle-password').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                const target = document.getElementById(btn.dataset.target);
-                const icon = btn.querySelector('i');
-                if (!target) return;
+</main>
 
-                if (target.type === 'password') {
-                    target.type = 'text';
-                    icon.classList.remove('fa-eye');
-                    icon.classList.add('fa-eye-slash');
-                    btn.setAttribute('aria-label', 'Hide password');
-                } else {
-                    target.type = 'password';
-                    icon.classList.remove('fa-eye-slash');
-                    icon.classList.add('fa-eye');
-                    btn.setAttribute('aria-label', 'Show password');
-                }
-            });
-        });
-    </script>
-</x-guest-layout>
+<script>
+document.querySelectorAll('.toggle-password').forEach(function (button) {
+    button.addEventListener('click', function () {
+        const target = document.getElementById(button.dataset.target);
+        const icon = button.querySelector('i');
+
+        if (!target || !icon) return;
+
+        if (target.type === 'password') {
+            target.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+            button.setAttribute('aria-label', 'Hide password');
+        } else {
+            target.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+            button.setAttribute('aria-label', 'Show password');
+        }
+    });
+});
+</script>
+
+</body>
+</html>

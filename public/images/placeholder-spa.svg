@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="No photo yet">
+  <!-- Levictas photo placeholder (UI rework Phase 4). Neutral on purpose: it
+       must not pass for a real photo of the spa or treatment. The mark sits in
+       the centre so it survives object-cover crops from wide cards to square
+       thumbnails. Dark colours follow the OS setting, like the rest of the site. -->
+  <style>
+    .bg   { fill: #F6EFE6; }
+    .mark { fill: #C4A97D; }
+    .soft { fill: #C4A97D; opacity: .55; }
+    .line { stroke: #C4A97D; stroke-width: 10; stroke-linecap: round; fill: none; }
+    @media (prefers-color-scheme: dark) {
+      .bg   { fill: #262B33; }
+      .mark { fill: #8B7355; }
+      .soft { fill: #8B7355; opacity: .6; }
+      .line { stroke: #8B7355; }
+    }
+  </style>
+  <rect class="bg" width="800" height="600"/>
+  <g transform="translate(400 300)">
+    <path class="soft" d="M0 40 C -70 30 -118 -18 -112 -78 C -62 -66 -22 -30 0 40 Z"/>
+    <path class="soft" d="M0 40 C 70 30 118 -18 112 -78 C 62 -66 22 -30 0 40 Z"/>
+    <path class="mark" d="M0 40 C -40 0 -40 -62 0 -112 C 40 -62 40 0 0 40 Z"/>
+    <path class="line" d="M-92 70 C -40 86 40 86 92 70"/>
+  </g>
+</svg>

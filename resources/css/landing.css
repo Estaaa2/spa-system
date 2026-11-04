@@ -37,10 +37,6 @@
             line-height: 1 !important;
             -webkit-text-fill-color: #ffffff !important;
         }
-        #profileModal .rounded-full {
-            -webkit-text-fill-color: #ffffff !important;
-            font-family: ui-sans-serif, system-ui, sans-serif !important;
-        }
 
         /* ============ Dark mode (prefers-color-scheme) ============
            No .dark class is ever added in this file — dark mode here is
@@ -97,7 +93,7 @@ main.pt-20 {
    buttons aren't hidden behind Android gesture bars or the iOS home
    indicator, and aren't clipped under a notch in landscape. */
 #appointmentsModal, #scheduleModal, #logoutModal, #bookingDetailsModal,
-#rescheduleModal, #spaModal, #bookingModal, #applicationModal,
+#spaModal, #bookingModal, #applicationModal,
 #businessInfoModal, #termsModal, #ratingModal, #rateReminderModal,
 #profileModal, #photoLightbox {
     padding-bottom: var(--safe-bottom);
@@ -116,3 +112,419 @@ main.pt-20 {
 .nav-glass {
     background-clip: padding-box;
 }
+
+/* ============ Booking details: sheet on phones, dialog from sm ============
+   UI rework Phase 1. The panel is a flex column (header / scrolling body /
+   footer) capped at the viewport, so long content scrolls inside it instead
+   of running off-screen behind a locked body. Heights are raw CSS with an
+   @supports guard rather than Tailwind's h-dvh (design language §8). */
+#bookingDetailsModal, #appointmentsModal, #scheduleModal, #profileModal {
+    /* The sheet sits on the bottom edge; its last row adds the safe area instead. */
+    padding-bottom: 0;
+}
+.bd-panel, .ap-panel {
+    max-height: calc(100vh - 1.5rem);
+    animation: bd-sheet-in .28s cubic-bezier(.2, .8, .2, 1);
+}
+@supports (height: 100dvh) {
+    .bd-panel, .ap-panel { max-height: calc(100dvh - 1.5rem); }
+}
+.bd-footer {
+    padding-bottom: calc(1rem + var(--safe-bottom));
+}
+@media (min-width: 640px) {
+    .bd-panel, .ap-panel {
+        max-height: calc(100vh - 4rem);
+        animation-name: bd-dialog-in;
+        animation-duration: .2s;
+    }
+    @supports (height: 100dvh) {
+        .bd-panel, .ap-panel { max-height: calc(100dvh - 4rem); }
+    }
+    .bd-footer { padding-bottom: 1.25rem; }
+}
+@keyframes bd-sheet-in {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@keyframes bd-dialog-in {
+    from { transform: scale(.98); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bd-panel, .ap-panel { animation: none; }
+}
+
+/* ============ My appointments list (UI rework Phase 2) ============
+   Built at runtime in welcome.js, so it is plain CSS with a dark-scheme
+   block (design language §4), like .svc-card. Surface colours match the
+   panel: white / gray-800. Text on white: #3C2F23 (titles), #4b5563
+   (gray-600, 7.6:1) for secondary, #6b7280 (gray-500, 4.8:1) minimum. */
+.ap-body { padding-bottom: calc(.75rem + var(--safe-bottom)); }
+
+.ap-tab {
+    flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    min-height: 48px;
+    font-size: .875rem; font-weight: 600;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s ease, border-color .15s ease;
+}
+.ap-tab:hover { color: #6F5430; }
+.ap-tab[aria-selected="true"] { color: #6F5430; border-bottom-color: #8B7355; }
+.ap-tab:focus-visible { outline: 2px solid #8B7355; outline-offset: -4px; border-radius: .75rem; }
+.ap-tab-count {
+    min-width: 1.25rem; padding: 0 .4rem;
+    font-size: .75rem; line-height: 1.25rem; font-weight: 600;
+    border-radius: 999px; background: #F6EFE6; color: #6F5430;
+}
+
+.apt-group { padding: .25rem 0 .5rem; }
+.apt-group-title {
+    position: sticky; top: 0; z-index: 1;
+    margin: 0; padding: .875rem 1rem .5rem;
+    font-size: .75rem; font-weight: 600; letter-spacing: .01em;
+    color: #4b5563; background: #ffffff;
+}
+.apt-group-title--now { color: #047857; }
+.apt-list { list-style: none; margin: 0; padding: 0; }
+.apt-item + .apt-item { border-top: 1px solid rgba(0, 0, 0, .06); }
+
+.apt-row {
+    display: flex; align-items: flex-start; gap: .875rem;
+    width: 100%; min-height: 44px;
+    padding: .875rem 1rem;
+    text-align: left; background: transparent; cursor: pointer;
+    transition: background-color .15s ease;
+}
+.apt-row:hover { background: rgba(246, 239, 230, .6); }
+.apt-row:focus-visible { outline: 2px solid #8B7355; outline-offset: -2px; border-radius: .75rem; }
+
+.apt-when { flex: none; width: 4.5rem; padding-top: .0625rem; }
+.apt-when-main { display: block; font-size: .875rem; font-weight: 600; color: #3C2F23; font-variant-numeric: tabular-nums; }
+.apt-when-sub  { display: block; margin-top: .125rem; font-size: .75rem; color: #6b7280; font-variant-numeric: tabular-nums; }
+
+.apt-main { flex: 1; min-width: 0; }
+.apt-title, .apt-sub { display: block; }
+.apt-title { margin: 0; font-size: .9375rem; font-weight: 600; line-height: 1.35; color: #3C2F23; }
+.apt-sub   { margin: .125rem 0 0; font-size: .8125rem; color: #4b5563; }
+.apt-chips { display: flex; flex-wrap: wrap; gap: .375rem; margin-top: .5rem; }
+.apt-chip {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .125rem .5rem;
+    font-size: .75rem; font-weight: 500; line-height: 1.25rem;
+    border-radius: 999px; background: #F6EFE6; color: #6F5430;
+}
+.apt-chip i { font-size: .6875rem; }
+.apt-chip--verified i { color: #047857; }
+.apt-chip--warn { background: #fef3c7; color: #92400e; }
+.apt-chip--now  { background: #d1fae5; color: #065f46; }
+.apt-pill {
+    display: inline-flex; align-items: center;
+    padding: .125rem .5rem;
+    font-size: .75rem; font-weight: 600; line-height: 1.25rem;
+    border-radius: 999px;
+}
+.apt-pill--confirmed  { background: #dbeafe; color: #1d4ed8; }
+.apt-pill--progress   { background: #d1fae5; color: #047857; }
+.apt-pill--completed  { background: #f1f5f9; color: #334155; }
+.apt-pill--cancelled  { background: #fee2e2; color: #b91c1c; }
+.apt-pill--missed     { background: #ffedd5; color: #9a3412; }
+.apt-pill--ended      { background: #f1f5f9; color: #334155; }
+.apt-chev { flex: none; margin-top: .125rem; color: #9ca3af; font-size: .75rem; }
+
+/* Second line of actions under a row (rate / rated), aligned with the title. */
+.apt-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem;
+    padding: 0 1rem .875rem calc(1rem + 4.5rem + .875rem);
+}
+.apt-rate {
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    min-height: 44px; padding: 0 1rem;
+    font-size: .875rem; font-weight: 600;
+    color: #6F5430; background: transparent;
+    border: 1px solid rgba(139, 115, 85, .45); border-radius: .75rem;
+    transition: background-color .15s ease;
+}
+.apt-rate:hover { background: rgba(139, 115, 85, .08); }
+.apt-rate:focus-visible { outline: 2px solid #8B7355; outline-offset: 2px; }
+.apt-rated { display: inline-flex; align-items: center; gap: .375rem; font-size: .8125rem; color: #4b5563; }
+.apt-rated .fa-star { font-size: .75rem; color: #d1d5db; }
+.apt-rated .fa-star.is-on { color: #D2A85B; }
+
+.apt-empty { padding: 3rem 1.5rem; text-align: center; }
+.apt-empty-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 3rem; height: 3rem; border-radius: 999px;
+    background: #F6EFE6; color: #8B7355; font-size: 1.125rem;
+}
+.apt-empty-title { margin: .875rem 0 0; font-size: 1rem; font-weight: 600; color: #3C2F23; }
+.apt-empty-text  { margin: .25rem auto 0; max-width: 20rem; font-size: .875rem; color: #4b5563; }
+.apt-empty-cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    min-height: 44px; margin-top: 1.25rem; padding: 0 1.25rem;
+    font-size: .875rem; font-weight: 600; color: #fff; border-radius: .75rem;
+}
+.apt-empty-cta:focus-visible { outline: 2px solid #8B7355; outline-offset: 2px; }
+
+@media (min-width: 640px) {
+    .apt-group-title, .apt-row { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .apt-actions { padding-left: calc(1.5rem + 4.5rem + .875rem); padding-right: 1.5rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+    .ap-tab { color: #9ca3af; }
+    .ap-tab:hover, .ap-tab[aria-selected="true"] { color: #C4A97D; }
+    .ap-tab[aria-selected="true"] { border-bottom-color: #C4A97D; }
+    .ap-tab:focus-visible { outline-color: #C4A97D; }
+    .ap-tab-count { background: rgba(196, 169, 125, .14); color: #C4A97D; }
+
+    .apt-group-title { color: #9ca3af; background: #1f2937; }
+    .apt-group-title--now { color: #6ee7b7; }
+    .apt-item + .apt-item { border-top-color: rgba(255, 255, 255, .07); }
+    .apt-row:hover { background: rgba(255, 255, 255, .04); }
+    .apt-row:focus-visible { outline-color: #C4A97D; }
+    .apt-when-main, .apt-title { color: #ffffff; }
+    .apt-when-sub { color: #9ca3af; }
+    .apt-sub { color: #d1d5db; }
+    .apt-chip { background: rgba(196, 169, 125, .12); color: #C4A97D; }
+    .apt-chip--verified i { color: #6ee7b7; }
+    .apt-chip--warn { background: rgba(245, 158, 11, .15); color: #fcd34d; }
+    .apt-chip--now  { background: rgba(16, 185, 129, .15); color: #6ee7b7; }
+    .apt-pill--confirmed { background: rgba(30, 58, 138, .4); color: #93c5fd; }
+    .apt-pill--progress  { background: rgba(6, 78, 59, .4); color: #6ee7b7; }
+    .apt-pill--completed, .apt-pill--ended { background: rgba(15, 23, 42, .4); color: #cbd5e1; }
+    .apt-pill--cancelled { background: rgba(127, 29, 29, .4); color: #fca5a5; }
+    .apt-pill--missed    { background: rgba(124, 45, 18, .4); color: #fdba74; }
+    .apt-chev { color: #6b7280; }
+    .apt-rate { color: #C4A97D; border-color: rgba(196, 169, 125, .35); }
+    .apt-rate:hover { background: rgba(196, 169, 125, .08); }
+    .apt-rate:focus-visible, .apt-empty-cta:focus-visible { outline-color: #C4A97D; }
+    .apt-rated { color: #d1d5db; }
+    .apt-rated .fa-star { color: #4b5563; }
+    .apt-rated .fa-star.is-on { color: #D2A85B; }
+    .apt-empty-icon { background: rgba(196, 169, 125, .12); color: #C4A97D; }
+    .apt-empty-title { color: #ffffff; }
+    .apt-empty-text { color: #d1d5db; }
+}
+
+
+.apt-pill.hidden { display: none; }
+
+/* The list keeps one height while switching tabs, so the sheet doesn't jump:
+   full sheet height on phones, a steady minimum from sm up. */
+.ap-panel { height: calc(100vh - 1.5rem); }
+@supports (height: 100dvh) {
+    .ap-panel { height: calc(100dvh - 1.5rem); }
+}
+@media (min-width: 640px) {
+    .ap-panel { height: auto; min-height: min(36rem, calc(100vh - 4rem)); }
+}
+
+/* ============ My schedule (UI rework Phase 4) ============
+   Month controls, the List/Calendar switch and the calendar grid. Built in
+   welcome.js, so plain CSS with a dark block (design language §4). State
+   lives on attributes: aria-pressed (switch, selected day), .is-today,
+   .has-booking. Day cells are 44px tall (internal touch-target standard). */
+.sc-icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border-radius: .75rem;
+    color: #374151; transition: background-color .15s ease;
+}
+.sc-icon-btn:hover:not(:disabled) { background: rgba(0, 0, 0, .05); }
+.sc-icon-btn:disabled { color: #d1d5db; cursor: default; }
+.sc-icon-btn:focus-visible { outline: 2px solid #8B7355; outline-offset: -2px; }
+
+.sc-seg { display: inline-flex; padding: 3px; border-radius: .875rem; background: #F6EFE6; }
+.sc-seg-btn {
+    display: inline-flex; align-items: center; gap: .375rem;
+    min-height: 38px; padding: 0 .75rem;
+    font-size: .8125rem; font-weight: 600; color: #6F5430;
+    border-radius: .625rem; transition: background-color .15s ease, color .15s ease;
+}
+.sc-seg-btn i { font-size: .75rem; }
+.sc-seg-btn[aria-pressed="true"] { background: #ffffff; color: #3C2F23; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+.sc-seg-btn:focus-visible { outline: 2px solid #8B7355; outline-offset: 1px; }
+/* Phones: icon-only switch (the label stays for screen readers) so the month
+   controls and the switch fit on one row at 390px. */
+@media (max-width: 479px) {
+    .sc-seg-btn { width: 44px; justify-content: center; padding: 0; }
+    .sc-seg-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+.sc-cal { padding: .75rem 1rem .25rem; }
+.sc-weekdays, .sc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.sc-weekdays span { padding: .25rem 0 .5rem; text-align: center; font-size: .75rem; font-weight: 600; color: #6b7280; }
+.sc-day {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    height: 44px; border-radius: .75rem;
+    font-size: .875rem; font-variant-numeric: tabular-nums; color: #374151;
+    transition: background-color .15s ease;
+}
+.sc-day:hover:not(:disabled) { background: rgba(246, 239, 230, .9); }
+.sc-day:disabled { color: #c4c7cc; cursor: default; }
+.sc-day.is-today { font-weight: 700; color: #6F5430; box-shadow: inset 0 0 0 1.5px #8B7355; }
+.sc-day.has-booking { font-weight: 600; color: #3C2F23; }
+.sc-day.has-booking::after {
+    content: ''; position: absolute; bottom: 6px; left: 50%;
+    width: 5px; height: 5px; margin-left: -2.5px; border-radius: 999px; background: #8B7355;
+}
+.sc-day[aria-pressed="true"],
+.sc-day[aria-pressed="true"]:hover:not(:disabled) { background: #7A6348; color: #ffffff; box-shadow: none; }
+.sc-day[aria-pressed="true"]::after { background: #ffffff; }
+.sc-day:focus-visible { outline: 2px solid #8B7355; outline-offset: 1px; }
+
+.sc-empty-day { padding: 1.25rem 1.5rem 1.5rem; text-align: center; font-size: .875rem; color: #4b5563; }
+.sc-next {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    min-height: 44px; margin-top: 1rem; padding: 0 1rem;
+    font-size: .875rem; font-weight: 600; color: #6F5430;
+    border: 1px solid rgba(139, 115, 85, .45); border-radius: .75rem;
+}
+.sc-next:hover { background: rgba(139, 115, 85, .08); }
+.sc-next:focus-visible { outline: 2px solid #8B7355; outline-offset: 2px; }
+@media (min-width: 640px) { .sc-cal { padding-left: 1.5rem; padding-right: 1.5rem; } }
+
+@media (prefers-color-scheme: dark) {
+    .sc-icon-btn { color: #d1d5db; }
+    .sc-icon-btn:hover:not(:disabled) { background: rgba(255, 255, 255, .08); }
+    .sc-icon-btn:disabled { color: #4b5563; }
+    .sc-icon-btn:focus-visible, .sc-seg-btn:focus-visible, .sc-day:focus-visible, .sc-next:focus-visible { outline-color: #C4A97D; }
+    .sc-seg { background: rgba(255, 255, 255, .06); }
+    .sc-seg-btn { color: #C4A97D; }
+    .sc-seg-btn[aria-pressed="true"] { background: #374151; color: #ffffff; box-shadow: none; }
+    .sc-weekdays span { color: #9ca3af; }
+    .sc-day { color: #d1d5db; }
+    .sc-day:hover:not(:disabled) { background: rgba(255, 255, 255, .06); }
+    .sc-day:disabled { color: #4b5563; }
+    .sc-day.is-today { color: #C4A97D; box-shadow: inset 0 0 0 1.5px #C4A97D; }
+    .sc-day.has-booking { color: #ffffff; }
+    .sc-day.has-booking::after { background: #C4A97D; }
+    .sc-day[aria-pressed="true"],
+    .sc-day[aria-pressed="true"]:hover:not(:disabled) { background: #C4A97D; color: #1f2937; }
+    .sc-day[aria-pressed="true"]::after { background: #1f2937; }
+    .sc-empty-day { color: #d1d5db; }
+    .sc-next { color: #C4A97D; border-color: rgba(196, 169, 125, .35); }
+    .sc-next:hover { background: rgba(196, 169, 125, .08); }
+}
+
+/* Spa cards darken the bottom of a photo so the badges stay readable. On the
+   "no photo" placeholder that gradient just looks muddy, so drop it there. */
+img[src*="placeholder-spa"] + .bg-gradient-to-t,
+img[data-fell-back] + .bg-gradient-to-t { display: none; }
+
+/* ============ Profile window (UI rework Phase 5) ============
+   Row "Edit" links, the "Find spas near" choices, search results and the two
+   maps. Plain CSS with a dark block, like the other runtime-styled parts. */
+.pf-edit {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; min-width: 44px; margin: -.625rem -.5rem -.625rem 0; padding: 0 .5rem;
+    font-size: .875rem; font-weight: 600; color: #6F5430; border-radius: .75rem;
+}
+.pf-edit:hover { background: rgba(139, 115, 85, .08); }
+.pf-edit:focus-visible { outline: 2px solid #8B7355; outline-offset: -2px; }
+
+/* Darker than the CTA gradient on purpose: white text here needs AA contrast
+   (white on #7A6348 is 5.67:1; on #8B7355 it misses AA, design language §7). */
+.pf-hero { background: linear-gradient(135deg, #5A4526 0%, #6F5430 55%, #7A6348 100%); }
+
+.pf-section-title {
+    display: flex; align-items: center; gap: .5rem;
+    margin: 0; padding: 1.125rem 1rem .25rem;
+    font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6F5430;
+}
+@media (min-width: 640px) { .pf-section-title { padding-left: 1.5rem; padding-right: 1.5rem; } }
+
+/* The email row's lock: a marker, not a control. */
+.pf-locked {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; min-height: 44px; margin: -.625rem -.75rem -.625rem 0;
+    font-size: .8125rem; color: #6b7280;
+}
+
+/* Find spas near: two radios drawn as a segmented switch. */
+.pf-seg { display: flex; gap: 4px; padding: 4px; border-radius: .875rem; background: #F6EFE6; }
+.pf-seg-opt {
+    position: relative; flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    min-height: 44px; padding: 0 .5rem; border-radius: .625rem; cursor: pointer;
+    font-size: .8125rem; font-weight: 600; color: #6F5430; text-align: center;
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.pf-seg-opt i { font-size: .75rem; }
+.pf-seg-opt:has(input:checked) { background: #ffffff; color: #3C2F23; box-shadow: 0 1px 2px rgba(0, 0, 0, .1); }
+.pf-seg-opt:has(input:focus-visible) { outline: 2px solid #8B7355; outline-offset: 1px; }
+
+.pf-result {
+    display: flex; align-items: flex-start; gap: .625rem; width: 100%;
+    min-height: 44px; padding: .625rem .75rem; text-align: left;
+    font-size: .875rem; color: #374151; transition: background-color .15s ease;
+}
+.pf-result i { margin-top: .2rem; font-size: .75rem; color: #8B7355; }
+.pf-result:hover, .pf-result:focus-visible { background: rgba(246, 239, 230, .8); outline: none; }
+
+.pf-map-preview {
+    height: 7.5rem; border-radius: .75rem; overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, .08); pointer-events: none;
+}
+.pf-map-edit {
+    height: 16rem; border-radius: .875rem; overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, .1);
+}
+.pf-map-preview .leaflet-control-attribution { font-size: 9px; }
+
+@media (prefers-color-scheme: dark) {
+    .pf-edit { color: #C4A97D; }
+    .pf-edit:hover { background: rgba(196, 169, 125, .1); }
+    .pf-edit:focus-visible { outline-color: #C4A97D; }
+    .pf-hero { background: linear-gradient(135deg, #3F2F1B 0%, #5A4526 55%, #6F5430 100%); }
+    .pf-section-title { color: #C4A97D; }
+    .pf-locked { color: #9ca3af; }
+    .pf-seg { background: rgba(255, 255, 255, .06); }
+    .pf-seg-opt { color: #C4A97D; }
+    .pf-seg-opt:has(input:checked) { background: #374151; color: #ffffff; box-shadow: none; }
+    .pf-seg-opt:has(input:focus-visible) { outline-color: #C4A97D; }
+    .pf-result { color: #e5e7eb; }
+    .pf-result i { color: #C4A97D; }
+    .pf-result:hover, .pf-result:focus-visible { background: rgba(255, 255, 255, .06); }
+    .pf-map-preview, .pf-map-edit { border-color: rgba(255, 255, 255, .12); }
+    /* OSM tiles can't be themed; dim them so they sit in a dark window. */
+    .pf-map-preview .leaflet-tile-pane, .pf-map-edit .leaflet-tile-pane { filter: brightness(.8) contrast(1.05); }
+}
+
+
+/* ============ Window polish (UI rework Phase 5) ============
+   1. The panels clip their content, so a header or map can't paint over the
+      rounded corners (the profile's brown header did).
+   2. A thin, brand-tinted scrollbar on a transparent track instead of the
+      wide grey Windows default. Not hidden: mouse users still need to see
+      that the window scrolls. Standard properties (Chrome 121+, Firefox,
+      Safari 18.2+); the -webkit- rules cover older Chrome and Safari. */
+.bd-panel, .ap-panel { overflow: hidden; }
+
+#pfBody, #bdBody, #scBody, #appointmentsContent {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(111, 84, 48, .35) transparent;
+    scrollbar-gutter: auto;
+}
+#pfBody::-webkit-scrollbar, #bdBody::-webkit-scrollbar,
+#scBody::-webkit-scrollbar, #appointmentsContent::-webkit-scrollbar { width: 8px; }
+#pfBody::-webkit-scrollbar-track, #bdBody::-webkit-scrollbar-track,
+#scBody::-webkit-scrollbar-track, #appointmentsContent::-webkit-scrollbar-track { background: transparent; }
+#pfBody::-webkit-scrollbar-thumb, #bdBody::-webkit-scrollbar-thumb,
+#scBody::-webkit-scrollbar-thumb, #appointmentsContent::-webkit-scrollbar-thumb {
+    background: rgba(111, 84, 48, .35); border-radius: 999px;
+    border: 2px solid transparent; background-clip: padding-box;
+}
+@media (prefers-color-scheme: dark) {
+    #pfBody, #bdBody, #scBody, #appointmentsContent { scrollbar-color: rgba(196, 169, 125, .35) transparent; }
+    #pfBody::-webkit-scrollbar-thumb, #bdBody::-webkit-scrollbar-thumb,
+    #scBody::-webkit-scrollbar-thumb, #appointmentsContent::-webkit-scrollbar-thumb { background-color: rgba(196, 169, 125, .35); }
+}
+
+/* .pf-edit and .pf-locked set their own display, which would beat Tailwind's
+   .hidden (landing.css loads after it): keep hidden meaning hidden. */
+.pf-edit.hidden, .pf-locked.hidden { display: none; }

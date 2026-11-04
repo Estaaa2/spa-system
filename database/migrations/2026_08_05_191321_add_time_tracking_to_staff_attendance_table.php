@@ -19,9 +19,7 @@ return new class extends Migration
             $table->foreign('marked_by')->references('id')->on('users')->nullOnDelete();
         });
 
-        // MySQL/MariaDB needs a raw statement to widen an existing ENUM column
-        // (Schema::table()->enum() only works for adding a brand-new column).
-        DB::statement("ALTER TABLE staff_attendance MODIFY COLUMN status ENUM('present','late','absent','on_leave') NOT NULL DEFAULT 'present'");
+        $this->setStatusValues(['present', 'late', 'absent', 'on_leave']);
     }
 
     public function down(): void
@@ -31,6 +29,25 @@ return new class extends Migration
             $table->dropColumn(['time_in', 'time_out', 'marked_by', 'source', 'auto_closed']);
         });
 
-        DB::statement("ALTER TABLE staff_attendance MODIFY COLUMN status ENUM('present','absent','late') NOT NULL DEFAULT 'present'");
+        $this->setStatusValues(['present', 'absent', 'late']);
+    }
+
+    /**
+     * MySQL/MariaDB keep the original raw MODIFY (unchanged behaviour on the server).
+     * Other drivers (SQLite in the test suite) don't support MODIFY, so they use the
+     * schema builder, which rebuilds the column with the new CHECK constraint.
+     */
+    private function setStatusValues(array $values): void
+    {
+        if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            $list = implode(',', array_map(fn ($v) => "'{$v}'", $values));
+            DB::statement("ALTER TABLE staff_attendance MODIFY COLUMN status ENUM({$list}) NOT NULL DEFAULT 'present'");
+
+            return;
+        }
+
+        Schema::table('staff_attendance', function (Blueprint $table) use ($values) {
+            $table->enum('status', $values)->default('present')->change();
+        });
     }
 };

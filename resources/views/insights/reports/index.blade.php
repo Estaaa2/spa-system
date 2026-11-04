@@ -107,6 +107,7 @@
                         'pending'   => ['label' => 'Pending',   'color' => 'bg-amber-500'],
                         'reserved'  => ['label' => 'Reserved',  'color' => 'bg-blue-500'],
                         'cancelled' => ['label' => 'Cancelled', 'color' => 'bg-red-500'],
+                        'no_show'   => ['label' => 'No-show',   'color' => 'bg-orange-500'],
                     ];
                 @endphp
                 <div class="space-y-2.5">

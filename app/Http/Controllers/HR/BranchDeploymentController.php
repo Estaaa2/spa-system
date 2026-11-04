@@ -144,6 +144,12 @@ class BranchDeploymentController extends Controller
             abort(403, 'This staff member does not belong to your spa.');
         }
 
+        // HR Head / Finance Head already work across every branch; a deployment
+        // would only move their home branch (users.branch_id).
+        if ($staff->user?->isHead()) {
+            return back()->with('error', 'HR Head and Finance Head accounts work across all branches and cannot be deployed.');
+        }
+
         // Block if an open request already exists
         $hasBlockingRequest = StaffBranchDeployment::where('staff_id', $staff->id)
             ->whereIn('status', ['pending', 'approved', 'active'])
@@ -225,6 +231,10 @@ class BranchDeploymentController extends Controller
 
         if (!$staff) {
             abort(403, 'No staff record found for this account.');
+        }
+
+        if ($user->isHead()) {
+            return back()->with('error', 'HR Head and Finance Head accounts work across all branches and cannot be deployed.');
         }
 
         if ((int) $validated['to_branch_id'] === $staff->branch_id) {

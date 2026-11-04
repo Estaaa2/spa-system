@@ -3,224 +3,301 @@
 namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
-use App\Mail\SubscriptionPaid;
-use App\Models\Spa;
 use App\Models\Subscription;
+use App\Services\Subscription\SubscriptionBilling;
+use App\Services\PayMongo;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SubscriptionController extends Controller
 {
+    public function __construct(
+        private readonly SubscriptionBilling $billing,
+    ) {}
+
     public function index()
     {
         $spa = auth()->user()->spa;
 
-        $subscription = Subscription::where('spa_id', $spa->id)
-            ->where('payment_status', 'paid')
-            ->latest()
-            ->first();
+        abort_unless($spa, 403);
 
-        // Auto-downgrade: if the latest paid subscription has passed its
-        // expiry date but the spa's business_tier hasn't caught up yet
-        // (e.g. owner never visited this page since expiry, or cron hasn't
-        // run), correct it here so the badge/tier shown is always accurate.
-        if (
-            $subscription
-            && $subscription->expires_at
-            && $subscription->expires_at->isPast()
-            && $spa->business_tier === 'professional'
-        ) {
-            $spa->update(['business_tier' => 'basic']);
-            $spa->refresh();
+        $plans = collect(SubscriptionBilling::purchasablePlans())
+            ->mapWithKeys(fn (string $key) => [$key => config("plans.{$key}")])
+            ->filter(fn ($plan) => is_array($plan))
+            ->all();
 
-            Log::info("Spa {$spa->id} auto-downgraded to basic on page load (subscription #{$subscription->id} expired {$subscription->expires_at})");
+        // Price and dates for every plan and cycle, so the page can show
+        // exactly what the owner will pay before going to PayMongo.
+        $quotes = [];
+
+        foreach (array_keys($plans) as $planKey) {
+            foreach (SubscriptionBilling::CYCLES as $cycle) {
+                $quotes[$planKey][$cycle] = $this->billing->quote($spa, $planKey, $cycle);
+            }
         }
 
-        return view('owner.subscription.index', compact('spa', 'subscription'));
+        // Paid periods (including queued and credited ones) and checkouts
+        // still waiting for PayMongo. Failed and abandoned ones are hidden.
+        $subscriptionHistory = $spa->subscriptions()
+            ->whereIn('payment_status', ['paid', 'pending'])
+            ->latest('id')
+            ->get();
+
+        // In grace or locked: customer bookings on or after the lock date.
+        // They are not cancelled; the owner decides whether to contact them.
+        $affected = $spa->bookingsAffectedByLock();
+
+        return view('owner.subscription.index', [
+            'spa' => $spa,
+            // The paid period in effect now (null during the trial or grace).
+            'subscription' => $spa->currentPeriod(),
+            'scheduledPeriods' => $spa->scheduledPeriods(),
+            'paidThroughAt' => $spa->paidThroughAt(),
+            'subscriptionHistory' => $subscriptionHistory,
+            'plans' => $plans,
+            'quotes' => $quotes,
+            'lockDate' => $spa->lockDate(),
+            'affectedBookingCount' => $affected ? (clone $affected)->count() : 0,
+            'affectedBookings' => $affected ? $affected->with('branch')->take(10)->get() : collect(),
+        ]);
     }
 
-    public function checkout()
+    public function checkout(Request $request): RedirectResponse
     {
-        $owner = auth()->user();
+        $validated = $this->validatePlanChoice($request);
+
+        $owner = $request->user();
         $spa = $owner->spa;
 
+        abort_unless($spa, 403);
+
+        $quote = $this->billing->quote($spa, $validated['plan'], $validated['billing_cycle']);
+
+        if (! $quote->allowed) {
+            return back()->withErrors(['payment' => $quote->message]);
+        }
+
+        $plan = config("plans.{$quote->plan}");
+        $planName = $plan['name'] ?? ucfirst($quote->plan);
+
         $subscription = Subscription::create([
-            'spa_id'         => $spa->id,
-            'business_tier'  => 'professional',
-            'amount'         => 200.00,
+            'spa_id' => $spa->id,
+            'business_tier' => $quote->plan,
+            'kind' => $quote->kind,
+            'amount' => $quote->amount,
+            'credit_amount' => $quote->credit,
+            'billing_cycle' => $quote->cycle,
             'payment_status' => 'pending',
+            'status' => 'pending',
+            'livemode' => PayMongo::isLive(),
         ]);
 
         $ownerName = trim(($owner->first_name ?? '') . ' ' . ($owner->last_name ?? ''));
 
-        $response = Http::withBasicAuth(env('PAYMONGO_SECRET_KEY'), '')
-            ->post('https://api.paymongo.com/v1/checkout_sessions', [
-                'data' => [
-                    'attributes' => [
-                        'line_items' => [[
-                            'currency' => 'PHP',
-                            'amount'   => 20000,
-                            'name'     => 'Professional Tier Upgrade',
-                            'quantity' => 1,
-                        ]],
-                        'payment_method_types' => ['gcash'],
-                        'billing' => [
-                            'name'  => $ownerName ?: null,
-                            'email' => $owner->email ?? null,
-                            'phone' => $owner->phone ?? null,
+        $itemName = sprintf('%s Plan - %s', $planName, ucfirst($quote->cycle));
+
+        $description = match ($quote->kind) {
+            'upgrade' => sprintf(
+                'Upgrade to %s (%s) for %s. Unused Basic time credited: PHP %s.',
+                $planName,
+                $quote->cycle,
+                $spa->name,
+                number_format($quote->credit, 2)
+            ),
+            default => sprintf(
+                '%s plan (%s) for %s, %s to %s.',
+                $planName,
+                $quote->cycle,
+                $spa->name,
+                $quote->startsAt->format('M d, Y'),
+                $quote->expiresAt->format('M d, Y')
+            ),
+        };
+
+        try {
+            $response = Http::withBasicAuth(PayMongo::secretKey(), '')
+                ->timeout(15)
+                ->acceptJson()
+                ->post('https://api.paymongo.com/v1/checkout_sessions', [
+                    'data' => [
+                        'attributes' => [
+                            'send_email_receipt' => true,
+                            'show_description' => true,
+                            'show_line_items' => true,
+                            'description' => $description,
+                            'line_items' => [
+                                [
+                                    'currency' => 'PHP',
+                                    'amount' => (int) round($quote->amount * 100),
+                                    'name' => $itemName,
+                                    'quantity' => 1,
+                                ],
+                            ],
+                            'payment_method_types' => PayMongo::paymentMethods(config('subscription.payment_methods', ['gcash'])),
+                            'billing' => array_filter([
+                                'name' => $ownerName ?: null,
+                                'email' => $owner->email ?? null,
+                                'phone' => $owner->phone ?? null,
+                            ]),
+                            'metadata' => [
+                                'type' => 'subscription',
+                                'subscription_id' => (string) $subscription->id,
+                                'spa_id' => (string) $spa->id,
+                                'plan' => $quote->plan,
+                                'billing_cycle' => $quote->cycle,
+                                'kind' => $quote->kind,
+                            ],
+                            'success_url' => route('owner.subscription.success'),
+                            'cancel_url' => route('owner.subscription.cancel'),
                         ],
-                        'success_url' => route('owner.subscription.success'),
-                        'cancel_url'  => route('owner.subscription.cancel'),
                     ],
-                ],
+                ]);
+        } catch (ConnectionException $e) {
+            $subscription->update(['status' => 'cancelled', 'payment_status' => 'failed']);
+
+            Log::error('PayMongo subscription checkout: connection failed', [
+                'subscription_id' => $subscription->id,
+                'message' => $e->getMessage(),
             ]);
 
-        $checkout    = $response->json();
-        $checkoutId  = $checkout['data']['id'] ?? null;
-        $checkoutUrl = $checkout['data']['attributes']['checkout_url'] ?? null;
-
-        if ($checkoutId) {
-            $subscription->update(['paymongo_checkout_id' => $checkoutId]);
+            return back()->withErrors([
+                'payment' => 'Unable to reach the payment gateway. Please check your connection and try again.',
+            ]);
         }
 
-        if (! $checkoutUrl) {
-            return back()->withErrors(['payment' => 'Could not initiate payment. Please try again.']);
+        $checkoutId = $response->json('data.id');
+        $checkoutUrl = $response->json('data.attributes.checkout_url');
+
+        if ($response->failed() || ! $checkoutId || ! $checkoutUrl) {
+            $subscription->update(['status' => 'cancelled', 'payment_status' => 'failed']);
+
+            Log::error('PayMongo subscription checkout failed', [
+                'subscription_id' => $subscription->id,
+                'status' => $response->status(),
+                'response' => $response->json(),
+            ]);
+
+            return back()->withErrors([
+                'payment' => 'Could not start the payment. Please try again.',
+            ]);
         }
+
+        $subscription->update(['paymongo_checkout_id' => $checkoutId]);
 
         session(['pending_subscription_id' => $subscription->id]);
-        return redirect($checkoutUrl);
+
+        return redirect()->away($checkoutUrl);
+    }
+
+    /**
+     * CSV of the customer bookings affected by the lock, so a locked owner
+     * (who can only open Billing) can still reach those customers.
+     */
+    public function affectedBookingsCsv(): StreamedResponse|RedirectResponse
+    {
+        $spa = auth()->user()->spa;
+
+        abort_unless($spa, 403);
+
+        $affected = $spa->bookingsAffectedByLock();
+
+        if ($affected === null) {
+            return redirect()
+                ->route('owner.subscription.index')
+                ->with('success', 'Your spa is active, so no bookings are affected.');
+        }
+
+        $bookings = $affected->with('branch')->get();
+
+        // Cells starting with these characters run as formulas in Excel.
+        $cell = function ($value): string {
+            $value = (string) $value;
+
+            return $value !== '' && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)
+                ? "'" . $value
+                : $value;
+        };
+
+        $filename = 'affected-bookings-' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($bookings, $cell) {
+            $out = fopen('php://output', 'w');
+
+            fputcsv($out, ['Date', 'Start', 'End', 'Branch', 'Customer', 'Phone', 'Email', 'Service', 'Status']);
+
+            foreach ($bookings as $booking) {
+                fputcsv($out, array_map($cell, [
+                    $booking->appointment_date?->format('Y-m-d'),
+                    $booking->start_time ? Carbon::parse($booking->start_time)->format('h:i A') : '',
+                    $booking->end_time ? Carbon::parse($booking->end_time)->format('h:i A') : '',
+                    $booking->branch?->name,
+                    $booking->customer_name,
+                    $booking->customer_phone,
+                    $booking->customer_email,
+                    $booking->treatment_label,
+                    ucfirst((string) $booking->status),
+                ]));
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function downloadReceipt(Subscription $subscription)
     {
-        abort_unless($subscription->spa_id === auth()->user()->spa->id, 403);
+        $spa = auth()->user()->spa;
+
+        abort_unless($spa && (int) $subscription->spa_id === (int) $spa->id, 403);
         abort_unless($subscription->payment_status === 'paid', 404);
 
-        $spa = $subscription->spa()->with('owner')->first();
+        $subscription->load('spa.owner');
 
         $pdf = Pdf::loadView('owner.subscription.receipt', [
             'subscription' => $subscription,
-            'spa'           => $spa,
+            'spa' => $subscription->spa,
         ])->setPaper('a4', 'portrait');
 
-        return $pdf->download('receipt-' . $subscription->paymongo_checkout_id . '.pdf');
+        return $pdf->download(
+            'receipt-' . ($subscription->paymongo_checkout_id ?? $subscription->id) . '.pdf'
+        );
     }
 
     public function success()
     {
+        $spa = auth()->user()->spa;
+
+        abort_unless($spa, 403);
+
         $subscription = Subscription::find(session('pending_subscription_id'));
 
-        // Fallback if session got dropped somehow (e.g. different browser tab)
-        if (! $subscription) {
-            $subscription = Subscription::where('spa_id', auth()->user()->spa->id)
-                ->latest()
-                ->first();
+        if (! $subscription || (int) $subscription->spa_id !== (int) $spa->id) {
+            $subscription = $spa->subscriptions()->latest()->first();
         }
 
-        session()->forget('pending_subscription_id');
-
+        // Kept in the session so "Refresh Status" can re-check the same row
+        // while the webhook is still on its way.
         return view('owner.subscription.success', compact('subscription'));
     }
 
     public function cancel()
     {
+        session()->forget('pending_subscription_id');
+
         return view('owner.subscription.cancel');
     }
 
-    public function webhook(Request $request)
+    /** @return array{plan: string, billing_cycle: string} */
+    private function validatePlanChoice(Request $request): array
     {
-        $rawPayload = $request->getContent();
-        $sigHeader  = $request->header('Paymongo-Signature');
-
-        if (! $this->verifyWebhookSignature($rawPayload, $sigHeader)) {
-            Log::warning('PayMongo webhook: invalid signature');
-            return response()->json(['error' => 'Invalid signature'], 401);
-        }
-
-        $payload = json_decode($rawPayload, true);
-        $type    = $payload['data']['attributes']['type'] ?? null;
-
-        Log::info('PayMongo webhook received', ['type' => $type]);
-
-        if ($type === 'checkout_session.payment.paid') {
-            $checkoutId = $payload['data']['attributes']['data']['id'] ?? null;
-
-            if ($checkoutId) {
-                $subscription = Subscription::where('paymongo_checkout_id', $checkoutId)->first();
-
-                if ($subscription) {
-                    $subscription->update([
-                        'payment_status' => 'paid',
-                        'starts_at'      => now(),
-                        'expires_at'     => now()->addMonth(),
-                        'paymongo_payment_id' => $payload['data']['attributes']['data']['attributes']['payments'][0]['id'] ?? null,
-                        'payment_method'      => $payload['data']['attributes']['data']['attributes']['payments'][0]['attributes']['source']['type'] ?? null,
-                    ]);
-
-                    // ✅ Eager load owner too for the email
-                    $spa = Spa::with(['branches.profile', 'owner'])->find($subscription->spa_id);
-
-                    if ($spa) {
-                        // Upgrade tier
-                        $spa->update(['business_tier' => 'professional']);
-
-                        // ✅ Send confirmation email to owner
-                        $ownerEmail = $spa->owner->email ?? null;
-                        if ($ownerEmail) {
-                            try {
-                                Mail::to($ownerEmail)
-                                    ->send(new SubscriptionPaid($spa, $subscription));
-                                Log::info("Subscription email sent to {$ownerEmail}");
-                            } catch (\Exception $e) {
-                                // Don't fail the webhook if email fails
-                                Log::error("Failed to send subscription email: " . $e->getMessage());
-                            }
-                        }
-
-                        Log::info("Spa {$spa->id} upgraded to professional and branches listed");
-                    }
-                }
-            }
-        }
-
-        return response()->json(['status' => 'ok']);
-    }
-
-    public function cancelSubscription()
-    {
-        $spa = auth()->user()->spa;
-
-        $subscription = Subscription::where('spa_id', $spa->id)
-            ->where('payment_status', 'paid')
-            ->latest()
-            ->first();
-
-        if ($subscription) {
-            $subscription->update(['expires_at' => now()]);
-
-            $spa->update(['business_tier' => 'basic']);
-        }
-
-        return redirect()->route('owner.subscription.index')
-            ->with('success', 'Subscription cancelled.');
-    }
-
-    private function verifyWebhookSignature(string $payload, ?string $sigHeader): bool
-    {
-        if (! $sigHeader) return false;
-
-        $secret = env('PAYMONGO_WEBHOOK_SECRET');
-
-        preg_match('/t=(\d+)/', $sigHeader, $tMatch);
-        preg_match('/te=([a-f0-9]+)/', $sigHeader, $teMatch);
-
-        if (empty($tMatch[1]) || empty($teMatch[1])) return false;
-
-        $computed = hash_hmac('sha256', $tMatch[1] . '.' . $payload, $secret);
-
-        return hash_equals($computed, $teMatch[1]);
+        return $request->validate([
+            'plan' => ['required', 'string', 'in:' . implode(',', SubscriptionBilling::purchasablePlans())],
+            'billing_cycle' => ['required', 'string', 'in:' . implode(',', SubscriptionBilling::CYCLES)],
+        ]);
     }
 }

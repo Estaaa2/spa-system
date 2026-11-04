@@ -3,37 +3,117 @@
 namespace App\Http\Controllers;
 
 use App\Models\BranchProfile;
+use App\Models\Package;
+use App\Models\Promo;
+use App\Models\Rating;
 use App\Models\Spa;
 use App\Models\Treatment;
-use App\Models\Package;
-use App\Models\Rating;
 use Illuminate\Http\Request;
 
 class LandingController extends Controller
 {
-    // This method handles the search request for spas based on the provided place and treatment.
+    /**
+     * A spa is publicly listable when it is verified, has active access,
+     * and its plan includes normal public listing (Basic, Premium, Business).
+     */
+    private function isPubliclyListable(Spa $spa): bool
+    {
+        return $spa->verification_status === 'verified'
+            && $spa->hasAccess()
+            && $spa->hasFeature('branch_public_listing');
+    }
+
+    /**
+     * A spa is Featured only when it is publicly listable AND its plan
+     * includes the separate featured_listing feature (Premium, Business).
+     */
+    private function isFeatured(Spa $spa): bool
+    {
+        return $this->isPubliclyListable($spa)
+            && $spa->hasFeature('featured_listing');
+    }
+
+    /**
+     * True when the branch is approved, inside the plan's branch limit,
+     * and its Business Permit has not expired past the grace period.
+     */
+    private function branchIsOperational(Spa $spa, $branch): bool
+    {
+        $branch->setRelation('spa', $spa);
+
+        // Approved and allowed to operate, AND it has a therapist and
+        // at least one service, so a customer can actually book it.
+        $operational = $branch->isOperational()
+            && $branch->isReadyForBookings();
+
+        // Unset again so the spa is not nested inside each branch
+        // when these models are passed to a view or turned into JSON.
+        $branch->unsetRelation('spa');
+
+        return $operational;
+    }
+
+    /** Drops every branch of the spa that the public must not see. */
+    private function keepOperationalBranches(Spa $spa): void
+    {
+        $spa->setRelation(
+            'branches',
+            $spa->branches
+                ->filter(fn ($branch) => $this->branchIsOperational($spa, $branch))
+                ->values()
+        );
+    }
+
+    private $publicSpaIdsCache = null;
+
+    private function publicSpaIds()
+    {
+        // index() and its helpers call this several times per request;
+        // compute it once.
+        return $this->publicSpaIdsCache ??= Spa::query()
+            ->where('verification_status', 'verified')
+            ->get()
+            ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
+            ->pluck('id');
+    }
+
     private function spaSearchQuery(string $place, string $treatment)
     {
+        $publicSpaIds = $this->publicSpaIds();
+
         $branchMatches = function ($query) use ($place, $treatment) {
-            $query->whereHas('profile', fn($p) => $p->where('is_listed', 1));
+            $query->verificationCleared();
+
+            $query->whereHas('profile', function ($profileQuery) {
+                $profileQuery->where('is_listed', true);
+            });
 
             if ($place) {
-                $query->where(function ($sub) use ($place) {
-                    $sub->where('location', 'LIKE', "%{$place}%")
-                        ->orWhere('name', 'LIKE', "%{$place}%")
-                        ->orWhereIn('spa_id', Spa::query()
-                            ->where('name', 'LIKE', "%{$place}%")
-                            ->select('id'));
+                $query->where(function ($subQuery) use ($place) {
+                    $subQuery
+                        ->where('location', 'like', "%{$place}%")
+                        ->orWhere('name', 'like', "%{$place}%")
+                        ->orWhereIn(
+                            'spa_id',
+                            Spa::query()
+                                ->where('name', 'like', "%{$place}%")
+                                ->select('id')
+                        );
                 });
             }
 
             if ($treatment) {
-                $query->where(function ($sub) use ($treatment) {
-                    $sub->whereHas('treatments', function ($t) use ($treatment) {
-                            $t->withoutGlobalScope('spa_branch')->where('name', 'LIKE', "%{$treatment}%");
+                $query->where(function ($subQuery) use ($treatment) {
+                    $subQuery
+                        ->whereHas('treatments', function ($treatmentQuery) use ($treatment) {
+                            $treatmentQuery
+                                ->withoutGlobalScope('spa_branch')
+                                ->where('name', 'like', "%{$treatment}%");
                         })
-                        ->orWhereHas('packages', function ($p) use ($treatment) {
-                            $p->withoutGlobalScope('spa_branch')->where('name', 'LIKE', "%{$treatment}%");
+                        ->orWhereHas('packages', function ($packageQuery) use ($treatment) {
+                            $packageQuery
+                                ->withoutGlobalScope('spa_branch')
+                                ->where('name', 'like', "%{$treatment}%");
                         });
                 });
             }
@@ -45,16 +125,22 @@ class LandingController extends Controller
                 $query->with(['profile', 'treatments', 'packages']);
             },
             'subscriptions',
+            Spa::OWNER_PUBLIC_COLUMNS,
         ])
-        ->where('verification_status', 'verified')
-        ->whereHas('branches', $branchMatches);
+            ->whereIn('id', $publicSpaIds)
+            ->whereHas('branches', $branchMatches);
     }
 
-    // This method retrieves treatment suggestions based on the most popular treatments and packages across all listed spas.
-    private function treatmentSuggestions(): array
+    public function treatmentSuggestions(): array
     {
+        $publicSpaIds = $this->publicSpaIds();
+
         $treatmentNames = Treatment::withoutGlobalScope('spa_branch')
-            ->whereHas('branch.profile', fn($q) => $q->where('is_listed', 1))
+            ->whereIn('spa_id', $publicSpaIds)
+            ->whereHas('branch.profile', function ($query) {
+                $query->where('is_listed', true);
+            })
+            ->whereHas('branch', fn ($query) => $query->verificationCleared()->readyForBookings())
             ->select('name')
             ->selectRaw('COUNT(*) as cnt')
             ->groupBy('name')
@@ -62,78 +148,216 @@ class LandingController extends Controller
             ->pluck('name');
 
         $packageNames = Package::withoutGlobalScope('spa_branch')
-            ->whereHas('branch.profile', fn($q) => $q->where('is_listed', 1))
+            ->whereIn('spa_id', $publicSpaIds)
+            ->whereHas('branch.profile', function ($query) {
+                $query->where('is_listed', true);
+            })
+            ->whereHas('branch', fn ($query) => $query->verificationCleared()->readyForBookings())
             ->select('name')
             ->selectRaw('COUNT(*) as cnt')
             ->groupBy('name')
             ->orderByDesc('cnt')
             ->pluck('name');
 
-        return $treatmentNames->merge($packageNames)->unique()->values()->take(40)->all();
+        return $treatmentNames
+            ->merge($packageNames)
+            ->unique()
+            ->values()
+            ->take(40)
+            ->all();
     }
 
-    // This method combines the results of spa searches based on place and treatment, sorts them by professional status, and builds the spa cards for display.
     private function unifiedResults(string $place, string $treatment): array
     {
-        $allSpas = $this->spaSearchQuery($place, $treatment)->get();
+        $spas = $this->spaSearchQuery($place, $treatment)
+            ->get()
+            ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
+            ->values();
 
-        $sorted = $allSpas->sortByDesc(fn($spa) => $spa->isProfessional() ? 1 : 0)->values();
-
-        return $this->buildSpaCards($sorted);
+        // Featured spas are shown first in search results.
+        return collect($this->buildSpaCards($spas))
+            ->sortByDesc('is_featured')
+            ->values()
+            ->all();
     }
 
     public function index(Request $request)
     {
-        $place     = trim($request->input('place', ''));
+        $place = trim($request->input('place', ''));
         $treatment = trim($request->input('treatment', ''));
 
-        // Falls back to the older single-field `search`/`city` params from
-        // earlier iterations of this page, treating them as a Place search.
-        if (!$place && !$treatment) {
-            $legacy = trim($request->input('search', $request->input('city', '')));
+        if (! $place && ! $treatment) {
+            $legacy = trim(
+                $request->input(
+                    'search',
+                    $request->input('city', '')
+                )
+            );
+
             if ($legacy) {
                 $place = $legacy;
             }
         }
 
         $isSearching = (bool) ($place || $treatment);
+        $publicSpaIds = $this->publicSpaIds();
 
-        // Always compute the default browse listing, even while searching,
-        // so clearing the search restores it instantly with no round trip.
-        $allSpas = Spa::with([
-                'branches' => fn($q) => $q->whereHas('profile', fn($p) => $p->where('is_listed', 1))
-                    ->with(['profile', 'treatments', 'packages']),
-                'subscriptions',
-            ])
-            ->where('verification_status', 'verified')
-            ->whereHas('branches', fn($q) => $q->whereHas('profile', fn($p) => $p->where('is_listed', 1)))
-            ->get();
+        $eligible = Spa::with([
+            'branches' => function ($query) {
+                $query
+                    ->verificationCleared()
+                    ->whereHas('profile', function ($profileQuery) {
+                        $profileQuery->where('is_listed', true);
+                    })
+                    ->with(['profile', 'treatments', 'packages']);
+            },
+            'subscriptions',
+            Spa::OWNER_PUBLIC_COLUMNS,
+        ])
+            ->whereIn('id', $publicSpaIds)
+            ->whereHas('branches', function ($query) {
+                $query
+                    ->verificationCleared()
+                    ->whereHas('profile', function ($profileQuery) {
+                        $profileQuery->where('is_listed', true);
+                    });
+            })
+            ->get()
+            ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
+            ->each(fn (Spa $spa) => $this->keepOperationalBranches($spa))
+            ->filter(fn (Spa $spa) => $spa->branches->isNotEmpty())
+            ->values();
 
-        $spas      = $allSpas->filter(fn($spa) => $spa->isProfessional());
-        $basicSpas = $allSpas->filter(fn($spa) => !$spa->isProfessional());
+        // $spas = Featured section (Premium and Business only).
+        $spas = $eligible
+            ->filter(fn (Spa $spa) => $this->isFeatured($spa))
+            ->values();
 
-        $results = $isSearching ? $this->unifiedResults($place, $treatment) : [];
+        // $basicSpas = normal public listing (Basic).
+        // Featured spas are excluded so they don't appear twice.
+        $basicSpas = $eligible
+            ->reject(fn (Spa $spa) => $this->isFeatured($spa))
+            ->values();
 
-        $treatments = Treatment::withoutGlobalScope('spa_branch')->get()->groupBy('branch_id');
-        $packages   = Package::withoutGlobalScope('spa_branch')->get()->groupBy('branch_id');
+        $results = $isSearching
+            ? $this->unifiedResults($place, $treatment)
+            : [];
+
+        $treatments = Treatment::withoutGlobalScope('spa_branch')
+            ->whereIn('spa_id', $publicSpaIds)
+            ->get()
+            ->groupBy('branch_id');
+
+        $packages = Package::withoutGlobalScope('spa_branch')
+            ->whereIn('spa_id', $publicSpaIds)
+            ->get()
+            ->groupBy('branch_id');
 
         return view('welcome', compact(
-            'spas', 'basicSpas', 'treatments', 'packages',
-            'isSearching', 'place', 'treatment', 'results'
-        ) + ['treatmentSuggestions' => $this->treatmentSuggestions()]);
+            'spas',
+            'basicSpas',
+            'treatments',
+            'packages',
+            'isSearching',
+            'place',
+            'treatment',
+            'results'
+        ) + [
+            'treatmentSuggestions' => $this->treatmentSuggestions(),
+        ]);
     }
 
-    // This method handles the search request for spas based on the provided place and treatment.
     public function searchSpas(Request $request)
     {
-        $place     = trim($request->input('place', ''));
+        $place = trim($request->input('place', ''));
         $treatment = trim($request->input('treatment', ''));
 
         return response()->json([
-            'place'      => $place,
-            'treatment'  => $treatment,
-            'results'    => $this->unifiedResults($place, $treatment),
+            'place' => $place,
+            'treatment' => $treatment,
+            'results' => $this->unifiedResults($place, $treatment),
         ]);
+    }
+
+    /**
+     * The data a spa card hands to the spa window, for one listed branch.
+     * Shared by search results and "Spas near you" so they can't drift apart
+     * again (UI rework Phase 5): the nearby list used to read
+     * $branch->treatments, which keeps the staff-only spa_branch scope, so
+     * for a logged-in customer every nearby spa showed "No services
+     * available". Matches the Featured/Listed cards in welcome.blade.php,
+     * including today's promos.
+     */
+    private function spaCardPayload(Spa $spa, $branch, bool $featured, string $tag): array
+    {
+        $profile = $branch->profile;
+
+        $lowestPrice = Treatment::withoutGlobalScopes()
+            ->where('spa_id', $spa->id)
+            ->where('branch_id', $branch->id)
+            ->min('price');
+
+        $withTodaysPromos = ['promos' => fn ($q) => $q->withoutGlobalScope('spa_branch')->activeToday()];
+
+        $treatments = Treatment::withoutGlobalScope('spa_branch')
+            ->where('branch_id', $branch->id)
+            ->where('spa_id', $spa->id)
+            ->with($withTodaysPromos)
+            ->get();
+
+        $packages = Package::withoutGlobalScope('spa_branch')
+            ->where('branch_id', $branch->id)
+            ->where('spa_id', $spa->id)
+            ->with($withTodaysPromos)
+            ->get();
+
+        $activePromo = Promo::withoutGlobalScopes()
+            ->where('spa_id', $spa->id)
+            ->where('branch_id', $branch->id)
+            ->activeToday()
+            ->first();
+
+        $ratingAgg = Rating::query()
+            ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
+            ->where('bookings.spa_id', $spa->id)
+            ->where('bookings.branch_id', $branch->id)
+            ->whereNotNull('ratings.spa_rating')
+            ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
+            ->first();
+
+        return [
+            'id' => $spa->id,
+            'name' => $spa->name,
+            'owner_name' => $spa->ownerDisplayName(),
+            'business_verified' => $spa->isBusinessVerified(),
+            'tag' => $tag,
+            'can_book_online' => $spa->hasFeature('online_reservation'),
+            'is_featured' => $featured,
+            'branch_id' => $branch->id,
+            'branch_name' => $branch->name,
+            'branch_location' => $branch->location ?? '',
+            'desc' => $profile->description ?? '',
+            'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
+            'photos' => BranchProfile::photoPayload($profile),
+            'address' => $profile->address ?? $branch->location ?? 'Location unavailable',
+            'location_summary' => BranchProfile::resolveCitySummary(
+                $profile->city ?? null,
+                $profile->address ?? null,
+                $branch->location ?? null
+            ) ?? 'Location unavailable',
+            'phone' => $profile->phone ?? '',
+            'lat' => $profile->latitude,
+            'lng' => $profile->longitude,
+            'treatments' => $treatments,
+            'packages' => $packages,
+            'has_promo' => (bool) $activePromo,
+            'promo_label' => $activePromo?->name,
+            'amenities' => $profile->amenities ?? [],
+            'is_hiring' => $profile->is_hiring ?? false,
+            'hiring_note' => $profile->hiring_note ?? null,
+            'rating_avg' => $ratingAgg?->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
+            'rating_count' => (int) ($ratingAgg->rating_count ?? 0),
+        ];
     }
 
     private function buildSpaCards($spas): array
@@ -141,65 +365,22 @@ class LandingController extends Controller
         $cards = [];
 
         foreach ($spas as $spa) {
-            $isFeatured = $spa->isProfessional();
+            if (! $this->isPubliclyListable($spa)) {
+                continue;
+            }
+
+            $featured = $this->isFeatured($spa);
 
             foreach ($spa->branches as $branch) {
-                $profile = $branch->profile;
-                if (!$profile?->is_listed) continue;
+                if (! $branch->profile?->is_listed) {
+                    continue;
+                }
 
-                $lowestPrice = Treatment::withoutGlobalScopes()
-                    ->where('spa_id', $spa->id)
-                    ->where('branch_id', $branch->id)
-                    ->min('price');
+                if (! $this->branchIsOperational($spa, $branch)) {
+                    continue;
+                }
 
-                $photos = BranchProfile::photoPayload($profile);
-
-                $branchTreatments = Treatment::withoutGlobalScope('spa_branch')
-                    ->where('branch_id', $branch->id)
-                    ->where('spa_id', $spa->id)
-                    ->get();
-
-                $branchPackages = Package::withoutGlobalScope('spa_branch')
-                    ->where('branch_id', $branch->id)
-                    ->where('spa_id', $spa->id)
-                    ->get();
-
-                $ratingAgg = Rating::query()
-                ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
-                ->where('bookings.spa_id', $spa->id)
-                ->where('bookings.branch_id', $branch->id)
-                ->whereNotNull('ratings.spa_rating')
-                ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
-                ->first();
-
-                $cards[] = [
-                    'id'              => $spa->id,
-                    'name'            => $spa->name,
-                    'tag'             => $isFeatured ? 'Featured Spa' : 'Listed Spa',
-                    'is_featured'     => $isFeatured,
-                    'branch_id'       => $branch->id,
-                    'branch_name'     => $branch->name,
-                    'branch_location' => $branch->location ?? '',
-                    'desc'            => $profile->description ?? '',
-                    'price_note'      => $lowestPrice ? number_format($lowestPrice, 2) : null,
-                    'photos'          => $photos,
-                    'address'         => $profile->address ?? $branch->location ?? 'Location unavailable',
-                    'location_summary'=> BranchProfile::resolveCitySummary(
-                        $profile->city ?? null,
-                        $profile->address ?? null,
-                        $branch->location ?? null
-                    ) ?? 'Location unavailable',
-                    'phone'           => $profile->phone ?? '',
-                    'lat'             => $profile->latitude,
-                    'lng'             => $profile->longitude,
-                    'treatments'      => $branchTreatments,
-                    'packages'        => $branchPackages,
-                    'amenities'       => $profile->amenities ?? [],
-                    'is_hiring'       => $profile->is_hiring ?? false,
-                    'hiring_note'     => $profile->hiring_note ?? null,
-                    'rating_avg'      => $ratingAgg->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
-                    'rating_count'    => (int) ($ratingAgg->rating_count ?? 0),
-                ];
+                $cards[] = $this->spaCardPayload($spa, $branch, $featured, $featured ? 'Featured Spa' : 'Spa');
             }
         }
 
@@ -208,29 +389,51 @@ class LandingController extends Controller
 
     public function nearbySpasList(Request $request)
     {
+        $validated = $request->validate([
+            'lat' => 'nullable|numeric|between:-90,90|required_with:lng',
+            'lng' => 'nullable|numeric|between:-180,180|required_with:lat',
+        ]);
+
         $user = auth()->user();
 
-        if (!$user || !$user->latitude || !$user->longitude) {
-            return response()->json(['error' => 'no_location']);
+        if (
+            isset($validated['lat'], $validated['lng'])
+        ) {
+            $lat = (float) $validated['lat'];
+            $lng = (float) $validated['lng'];
+        } elseif (
+            $user
+            && $user->latitude !== null
+            && $user->longitude !== null
+        ) {
+            $lat = (float) $user->latitude;
+            $lng = (float) $user->longitude;
+        } else {
+            return response()->json([]);
         }
 
-        $lat    = (float) $user->latitude;
-        $lng    = (float) $user->longitude;
-        $radius = 5; // km — adjust as needed
-
-        // Haversine: get branch IDs within radius, ordered by distance
-        $nearby = \DB::table('branch_profiles')
-            ->select('branch_id', \DB::raw("
-                ROUND((6371 * acos(
-                    cos(radians($lat)) * cos(radians(latitude))
-                    * cos(radians(longitude) - radians($lng))
-                    + sin(radians($lat)) * sin(radians(latitude))
-                )), 2) AS distance_km
-            "))
+        // Distance per listed branch, filtered in an outer query. (HAVING
+        // without GROUP BY works on MySQL/MariaDB only; this form also runs on
+        // SQLite, so it can be tested.)
+        $distances = \DB::table('branch_profiles')
+            ->select('branch_id')
+            ->selectRaw(
+                'ROUND(6371 * ACOS(
+                    COS(RADIANS(?))
+                    * COS(RADIANS(latitude))
+                    * COS(RADIANS(longitude) - RADIANS(?))
+                    + SIN(RADIANS(?))
+                    * SIN(RADIANS(latitude))
+                ), 2) AS distance_km',
+                [$lat, $lng, $lat]
+            )
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
-            ->where('is_listed', true)
-            ->havingRaw('distance_km < ?', [$radius])
+            ->where('is_listed', true);
+
+        $nearby = \DB::query()
+            ->fromSub($distances, 'd')
+            ->where('distance_km', '<=', 5)
             ->orderBy('distance_km')
             ->limit(8)
             ->get()
@@ -242,83 +445,70 @@ class LandingController extends Controller
 
         $branchIds = $nearby->keys()->toArray();
 
-        $spas = Spa::where('verification_status', 'verified')
-            ->with([
-                'branches' => fn($q) => $q->whereIn('id', $branchIds)->with('profile'),
-            ])
-            ->whereHas('branches', fn($q) => $q->whereIn('id', $branchIds))
-            ->get();
+        $spas = Spa::with([
+            'branches' => function ($query) use ($branchIds) {
+                $query
+                    ->whereIn('id', $branchIds)
+                    ->verificationCleared()
+                    ->with('profile');   // services are loaded scope-free in spaCardPayload()
+            },
+            'subscriptions',
+            Spa::OWNER_PUBLIC_COLUMNS,
+        ])
+            ->whereIn('id', $this->publicSpaIds())
+            ->whereHas('branches', function ($query) use ($branchIds) {
+                $query->whereIn('id', $branchIds);
+            })
+            ->get()
+            ->filter(fn (Spa $spa) => $this->isPubliclyListable($spa))
+            ->values();
 
         $result = [];
 
         foreach ($spas as $spa) {
+            $featured = $this->isFeatured($spa);
+
             foreach ($spa->branches as $branch) {
-                if (!isset($nearby[$branch->id])) continue;
+                if (! isset($nearby[$branch->id])) {
+                    continue;
+                }
 
-                $profile     = $branch->profile;
-                $lowestPrice = Treatment::withoutGlobalScopes()
-                    ->where('spa_id', $spa->id)
-                    ->where('branch_id', $branch->id)
-                    ->min('price');
+                $profile = $branch->profile;
 
-                // Same canonical payload as buildSpaCards() - see the note there.
-                $photos = BranchProfile::photoPayload($profile);
+                if (! $profile || ! $profile->is_listed) {
+                    continue;
+                }
 
-                $treatments = Treatment::withoutGlobalScope('spa_branch')
-                    ->where('branch_id', $branch->id)
-                    ->where('spa_id', $spa->id)
-                    ->get();
+                if (! $this->branchIsOperational($spa, $branch)) {
+                    continue;
+                }
 
-                $packages = Package::withoutGlobalScope('spa_branch')
-                    ->where('branch_id', $branch->id)
-                    ->where('spa_id', $spa->id)
-                    ->get();
-
-                $ratingAgg = Rating::query()
-                    ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
-                    ->where('bookings.spa_id', $spa->id)
-                    ->where('bookings.branch_id', $branch->id)
-                    ->whereNotNull('ratings.spa_rating')
-                    ->selectRaw('AVG(ratings.spa_rating) as avg_rating, COUNT(*) as rating_count')
-                    ->first();
-
-                $result[] = [
-                    'id'              => $spa->id,
-                    'name'            => $spa->name,
-                    'tag'             => 'Nearby Spa',
-                    'branch_id'       => $branch->id,
-                    'branch_name'     => $branch->name,
-                    'branch_location' => $branch->location ?? '',
-                    'desc'            => $profile->description ?? '',
-                    'price_note'      => $lowestPrice ? number_format($lowestPrice, 2) : null,
-                    'photos'          => $photos,
-                    'address'         => $profile->address ?? $branch->location ?? 'Location unavailable',
-                    'location_summary'=> BranchProfile::resolveCitySummary(
-                        $profile->city ?? null,
-                        $profile->address ?? null,
-                        $branch->location ?? null
-                    ) ?? 'Location unavailable',
-                    'phone'           => $profile->phone ?? '',
-                    'lat'             => $profile->latitude,
-                    'lng'             => $profile->longitude,
-                    'treatments'      => $treatments,
-                    'packages'        => $packages,
-                    'amenities'       => $profile->amenities ?? [],
-                    'distance_km'     => $nearby[$branch->id]->distance_km,
-                    'rating_avg'      => $ratingAgg->avg_rating ? round($ratingAgg->avg_rating, 1) : null,
-                    'rating_count'    => (int) ($ratingAgg->rating_count ?? 0),
-                ];
+                $result[] = $this->spaCardPayload($spa, $branch, $featured, 'Nearby Spa')
+                    + ['distance_km' => $nearby[$branch->id]->distance_km];
             }
         }
 
-        // Sort by distance (cross-branch edge case)
-        usort($result, fn($a, $b) => $a['distance_km'] <=> $b['distance_km']);
+        usort(
+            $result,
+            fn ($a, $b) => $a['distance_km'] <=> $b['distance_km']
+        );
 
         return response()->json($result);
     }
 
-        public function spaReviews(Request $request, $spaId, $branchId)
+    public function spaReviews(Request $request, $spaId, $branchId)
     {
+        $spa = Spa::find($spaId);
+
+        if (! $spa || ! $this->isPubliclyListable($spa)) {
+            return response()->json([
+                'total' => 0,
+                'counts' => [],
+                'reviews' => [],
+                'message' => "This spa isn't taking bookings right now.",
+            ], 404);
+        }
+
         $base = Rating::query()
             ->join('bookings', 'bookings.id', '=', 'ratings.booking_id')
             ->join('users', 'users.id', '=', 'ratings.customer_id')
@@ -332,13 +522,15 @@ class LandingController extends Controller
             ->pluck('total', 'rating');
 
         $counts = [];
+
         for ($i = 5; $i >= 1; $i--) {
             $counts[$i] = (int) ($countsRaw[$i] ?? 0);
         }
 
-        $reviews = $base->orderByDesc('ratings.created_at')
+        $reviews = $base
+            ->orderByDesc('ratings.created_at')
             ->get([
-                'ratings.id as rating_id',   // ADDED — needed to fetch photos
+                'ratings.id as rating_id',
                 'ratings.spa_rating as rating',
                 'ratings.spa_comment as comment',
                 'ratings.created_at',
@@ -346,25 +538,31 @@ class LandingController extends Controller
                 'users.last_name',
             ]);
 
-        // ADDED — one query for all photos across this page of reviews,
-        // instead of N+1'ing inside the map() below.
-        $photosByRating = \App\Models\RatingPhoto::whereIn('rating_id', $reviews->pluck('rating_id'))
+        $photosByRating = \App\Models\RatingPhoto::whereIn(
+            'rating_id',
+            $reviews->pluck('rating_id')
+        )
             ->get()
             ->groupBy('rating_id');
 
-        $reviews = $reviews->map(fn($r) => [
-            'rating'  => (int) $r->rating,
-            'comment' => $r->comment,
-            'name'    => trim($r->first_name . ' ' . substr($r->last_name ?? '', 0, 1) . '.'),
-            'date'    => $r->created_at?->format('M d, Y'),
-            'photos'  => ($photosByRating[$r->rating_id] ?? collect())
-                            ->map(fn($p) => $p->url)
-                            ->values(),
+        $reviews = $reviews->map(fn ($review) => [
+            'rating' => (int) $review->rating,
+            'comment' => $review->comment,
+            'name' => trim(
+                $review->first_name
+                . ' '
+                . substr($review->last_name ?? '', 0, 1)
+                . '.'
+            ),
+            'date' => $review->created_at?->format('M d, Y'),
+            'photos' => ($photosByRating[$review->rating_id] ?? collect())
+                ->map(fn ($photo) => $photo->url)
+                ->values(),
         ]);
 
         return response()->json([
-            'total'   => $reviews->count(),
-            'counts'  => $counts,
+            'total' => $reviews->count(),
+            'counts' => $counts,
             'reviews' => $reviews,
         ]);
     }

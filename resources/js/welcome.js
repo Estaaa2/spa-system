@@ -11,13 +11,6 @@ window.addEventListener('scroll', () => {
 let selectedSpa = null;
 let spaMap      = null;
 
-// ── Customer profile: shared Leaflet marker + last-saved snapshot ──────────
-// (`marker` used to only be declared with `let` inside the map-init
-// DOMContentLoaded callback further down, so openProfileModal() reading it
-// from a different function threw "marker is not defined" the first time a
-// customer with an already-saved pin opened their profile.)
-let profileMapMarker     = null;
-let profileSavedLocation = { address: '', lat: null, lng: null };
 
 // Cavite bounding box — plain numbers here (Leaflet's L.latLngBounds is only
 // constructed later, inside the map-init block, so this doesn't depend on
@@ -77,64 +70,25 @@ document.addEventListener('click', function (e) {
     if (wrapper && !wrapper.contains(e.target)) closeProfileDropdown();
 });
 
-function openProfileModal() {
-    const profileModalEl = document.getElementById('profileModal');
-    if (!profileModalEl) {
-        console.warn('openProfileModal: #profileModal is not in the DOM (guest session?) — skipping.');
+// Customer profile photo (D13): checks the size here so a too-large photo
+// doesn't upload for nothing, then submits #customerPhotoForm.
+function submitCustomerPhoto(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    const maxMb = parseInt(input.dataset.maxMb || '5', 10);
+    if (file.size > maxMb * 1024 * 1024) {
+        input.value = '';
+        if (typeof window.showSpaToast === 'function') {
+            window.showSpaToast(`The photo must be ${maxMb} MB or smaller.`, 'error');
+        }
         return;
     }
 
-    profileModalEl.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-
-    // Snapshot the DB-saved location now, before anything on the map or in
-    // the autocomplete can touch the inputs — this is what "Reset to saved
-    // location" restores, regardless of what happens while the modal is open.
-    const addressField = document.getElementById('address');
-    const latInput      = document.getElementById('latitude');
-    const lngInput       = document.getElementById('longitude');
-    profileSavedLocation = {
-        address: addressField ? addressField.value : '',
-        lat: latInput && latInput.value ? parseFloat(latInput.value) : null,
-        lng: lngInput && lngInput.value ? parseFloat(lngInput.value) : null,
-    };
-
-    const suggestions = document.getElementById('addressSuggestions');
-    if (suggestions) suggestions.classList.add('hidden');
-
-    setTimeout(() => {
-        if (window.profileMap) {
-            window.profileMap.invalidateSize();
-        }
-
-        // If user already has a pinned location, show it
-        if (!latInput || !lngInput) return;
-
-        const savedLat = profileSavedLocation.lat;
-        const savedLng = profileSavedLocation.lng;
-        if (savedLat && savedLng && window.profileMap) {
-            window.profileMap.setView([savedLat, savedLng], 15);
-            if (profileMapMarker) window.profileMap.removeLayer(profileMapMarker);
-            profileMapMarker = L.marker([savedLat, savedLng], { draggable: true }).addTo(window.profileMap);
-            profileMapMarker.on('dragend', () => updateProfilePin(profileMapMarker.getLatLng()));
-        }
-    }, 300);
-}
-
-function closeProfileModal() {
-    const profileModalEl = document.getElementById('profileModal');
-    if (!profileModalEl) return;
-
-    profileModalEl.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-    const btn     = document.getElementById('emailToggleBtn');
-    const display = document.getElementById('emailDisplay');
-    const icon    = document.getElementById('emailToggleIcon');
-    if (btn && display && icon) {
-        display.textContent = btn.dataset.masked;
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-    }
+    const label = document.getElementById('customerPhotoLabel');
+    if (label) label.textContent = 'Uploading…';
+    input.closest('label')?.classList.add('opacity-60', 'pointer-events-none');
+    input.form.submit();
 }
 
 function openLogoutModal() {
@@ -150,21 +104,6 @@ function closeLogoutModal() {
 window.openLogoutModal  = openLogoutModal;
 window.closeLogoutModal = closeLogoutModal;
 
-function toggleEmail() {
-    const display = document.getElementById('emailDisplay');
-    const btn     = document.getElementById('emailToggleBtn');
-    const icon    = document.getElementById('emailToggleIcon');
-    if (!display || !btn || !icon) return;
-    const isHidden = icon.classList.contains('fa-eye');
-    if (isHidden) {
-        display.textContent = btn.dataset.real;
-        icon.classList.replace('fa-eye', 'fa-eye-slash');
-    } else {
-        display.textContent = btn.dataset.masked;
-        icon.classList.replace('fa-eye-slash', 'fa-eye');
-    }
-}
-
 // =====================================================
 // SPA MODAL
 // =====================================================
@@ -173,17 +112,47 @@ const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
 let photos     = [];
 let photoIndex = 0;
 
+// D11: "Business verified" badge and "Owned by …" under the spa name. Toggles
+// classes that exist in welcome.blade.php (hidden / flex / inline-flex).
+function renderSpaOwner(spaData) {
+    const row      = document.getElementById('spaModalOwnerRow');
+    const badge    = document.getElementById('spaModalBusinessVerified');
+    const owner    = document.getElementById('spaModalOwner');
+    const nameEl   = document.getElementById('spaModalOwnerName');
+    if (!row || !badge || !owner || !nameEl) return;
+
+    const verified = spaData.business_verified === true;
+    const name     = (spaData.owner_name || '').trim();
+
+    badge.classList.toggle('hidden', !verified);
+    badge.classList.toggle('inline-flex', verified);
+    nameEl.textContent = name;
+    owner.classList.toggle('hidden', name === '');
+    row.classList.toggle('hidden', !verified && name === '');
+    row.classList.toggle('flex', verified || name !== '');
+}
+
 function openSpaModal(spaData) {
     selectedSpa = spaData;
 
     document.getElementById('spaModalName').textContent    = spaData.name    ?? 'Spa';
     document.getElementById('spaModalTag').textContent     = spaData.tag     ?? 'Featured Spa';
+    renderSpaOwner(spaData);
     document.getElementById('spaModalDesc').textContent    = spaData.desc    ?? '';
     document.getElementById('spaModalPhone').textContent   = spaData.phone   ?? 'No contact info';
     document.getElementById('spaModalAddress').textContent = spaData.address ?? 'Address unavailable';
     document.getElementById('spaModalPrice').textContent   = spaData.price_note
     ? (spaData.has_promo ? `Starts at ₱${spaData.price_note} — ${spaData.promo_label} running` : `Starts at ₱${spaData.price_note}`)
     : 'Prices vary per treatment';
+
+    // Online reservation gate. The server sends can_book_online per spa;
+    // a missing flag counts as allowed so older payloads keep working.
+    const reserveBtn  = document.getElementById('openBookingModalBtn');
+    const noBookNote  = document.getElementById('spaModalNoBookingNote');
+    const canBookOnline = spaData.can_book_online !== false;
+    reserveBtn?.classList.toggle('hidden', !canBookOnline);
+    noBookNote?.classList.toggle('hidden', canBookOnline);
+
     const hiringBlock = document.getElementById('spaModalHiring');
     const hiringNote   = document.getElementById('spaModalHiringNote');
     const ratingBlock = document.getElementById('spaModalRating');
@@ -498,6 +467,43 @@ function resetSpaRatingPhotos() {
 function fallbackSpaImage() {
     return document.body.dataset.fallbackImage ?? '';
 }
+
+/*
+  Spa and treatment photos that fail to load (a file missing from storage, a
+  moved upload) show the same neutral placeholder as "no photo yet", instead
+  of the browser's broken-image icon and alt text (UI rework Phase 4).
+  One listener for every surface: spa cards, the spa window's photo grid and
+  the booking treatment list. Image errors don't bubble, so it listens in the
+  capture phase, and it re-checks images that already failed before this
+  module ran.
+*/
+const PHOTO_FALLBACK_SCOPE = '[data-open-spa-modal], .spa-photo-cell, .svc-card-thumb, [data-photo-fallback]';
+
+// Last resort: the same placeholder, built in, so it can't 404 even when
+// public/images/placeholder-spa.svg is missing from a deploy.
+const BUILT_IN_PHOTO_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 800 600%22 role=%22img%22 aria-label=%22No photo yet%22%3E%3Cstyle%3E .bg %7B fill: %23F6EFE6; %7D .mark %7B fill: %23C4A97D; %7D .soft %7B fill: %23C4A97D; opacity: .55; %7D .line %7B stroke: %23C4A97D; stroke-width: 10; stroke-linecap: round; fill: none; %7D %40media (prefers-color-scheme: dark) %7B .bg %7B fill: %23262B33; %7D .mark %7B fill: %238B7355; %7D .soft %7B fill: %238B7355; opacity: .6; %7D .line %7B stroke: %238B7355; %7D %7D %3C/style%3E%3Crect class=%22bg%22 width=%22800%22 height=%22600%22/%3E%3Cg transform=%22translate(400 300)%22%3E%3Cpath class=%22soft%22 d=%22M0 40 C -70 30 -118 -18 -112 -78 C -62 -66 -22 -30 0 40 Z%22/%3E%3Cpath class=%22soft%22 d=%22M0 40 C 70 30 118 -18 112 -78 C 62 -66 22 -30 0 40 Z%22/%3E%3Cpath class=%22mark%22 d=%22M0 40 C -40 0 -40 -62 0 -112 C 40 -62 40 0 0 40 Z%22/%3E%3Cpath class=%22line%22 d=%22M-92 70 C -40 86 40 86 92 70%22/%3E%3C/g%3E%3C/svg%3E";
+
+function useFallbackPhoto(img) {
+    const step = img.dataset.fellBack || '';
+    if (step === 'built-in') return;                  // nothing left to try, so it can't loop
+    const fallback = fallbackSpaImage();
+    if (step === '' && fallback && img.getAttribute('src') !== fallback) {
+        img.dataset.fellBack = 'file';
+        img.src = fallback;
+        return;
+    }
+    img.dataset.fellBack = 'built-in';
+    img.src = BUILT_IN_PHOTO_PLACEHOLDER;
+}
+
+document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (img instanceof HTMLImageElement && img.closest(PHOTO_FALLBACK_SCOPE)) useFallbackPhoto(img);
+}, true);
+
+document.querySelectorAll(`:is(${PHOTO_FALLBACK_SCOPE}) img`).forEach(img => {
+    if (img.complete && img.naturalWidth === 0 && img.getAttribute('src')) useFallbackPhoto(img);
+});
 
 /**
  * The server now sends photos as [{ url, caption }] with real uploads only
@@ -1031,6 +1037,38 @@ const bookingForm          = document.querySelector('#bookingModal form');
 const TOTAL_BOOKING_STEPS = 3;
 let currentBookingStep    = 1;
 
+// Whether the selected branch can take online home service at all (staff
+// verification, decision Q35b). null = not known yet, so nothing is blocked
+// until the server answers; checkout re-checks either way.
+let homeServiceAvailable = null;
+let homeServiceMessage   = '';
+
+async function loadHomeServiceAvailability(branchId) {
+    homeServiceAvailable = null;
+    homeServiceMessage   = '';
+    if (!branchId) return;
+
+    try {
+        const params = new URLSearchParams({ branch_id: branchId });
+        const response = await fetch(`/bookings/online/available-days?${params.toString()}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+
+        // Ignore a late answer for a branch the customer already left.
+        if (String(bookingBranchIdInput?.value) !== String(branchId)) return;
+
+        homeServiceAvailable = data.home_service_available !== false;
+        homeServiceMessage   = data.home_service_message || '';
+
+        // A treatment may already be picked: refresh its options.
+        if (getCheckedTreatmentInput()) populateServiceTypeOptions();
+    } catch (err) {
+        console.warn('Could not check home-service availability:', err);
+    }
+}
+
 function openTermsModal() {
     document.getElementById('termsModal').classList.remove('hidden');
 }
@@ -1384,6 +1422,16 @@ function populateServiceTypeOptions() {
         serviceTypeSelect.value = 'in_branch';
         serviceTypeSelect.disabled = true;
         if (serviceTypeHint) serviceTypeHint.textContent = 'This treatment is only offered in-branch.';
+    } else if (serviceType === 'in_branch_and_home' && homeServiceAvailable === false) {
+        // No verified therapist at this branch: offer In-Branch and say why.
+        serviceTypeSelect.innerHTML = `
+            <option value="in_branch">In-Branch</option>
+            <option value="in_home" disabled>Home Service (not available)</option>
+        `;
+        serviceTypeSelect.value = 'in_branch';
+        serviceTypeSelect.disabled = false;
+        if (serviceTypeHint) serviceTypeHint.textContent = homeServiceMessage
+            || 'Home service isn\'t available at this branch right now. Choose In-Branch, or try another branch.';
     } else if (serviceType === 'in_branch_and_home') {
         serviceTypeSelect.innerHTML = `
             <option value="">Select service type</option>
@@ -1414,8 +1462,19 @@ function formatTime12Hour(time) {
 
 const SLOT_REASON_LABELS = {
     fully_booked: 'Fully booked — all therapists are assigned during this time.',
+    no_verified_therapist: 'Home service needs a verified therapist, and none is free at this time. Try another time, or choose In-Branch.',
     past_closing: 'This service would end after closing.',
     past: 'This time has already passed today.',
+    already_booked: 'You already have an appointment at this time.',
+};
+
+// Short status shown on each unavailable time row.
+const SLOT_NOTE_LABELS = {
+    fully_booked: 'Booked',
+    no_verified_therapist: 'No home-service therapist',
+    past_closing: 'Too close to closing',
+    past: 'Passed',
+    already_booked: 'Your appointment',
 };
 
 function selectSlot(time, btn) {
@@ -1450,6 +1509,8 @@ async function loadAvailableSlots() {
             branch_id: branchId,
             treatment: checked.value,
             appointment_date: date,
+            // Home service only counts identity-verified therapists.
+            service_type: serviceTypeSelect?.value || 'in_branch',
         });
 
         const response = await fetch(`/bookings/online/available-slots?${params.toString()}`, {
@@ -1472,9 +1533,23 @@ async function loadAvailableSlots() {
         data.slots.forEach(slot => {
             const slotBtn = document.createElement('button');
             slotBtn.type = 'button';
-            slotBtn.textContent = formatTime12Hour(slot.time);
             slotBtn.dataset.slotTime = slot.time;
-            slotBtn.className = 'slot-btn';
+            slotBtn.className = 'slot-btn bk-slot';
+
+            const timeEl = document.createElement('span');
+            timeEl.className = 'bk-slot-time';
+            timeEl.textContent = formatTime12Hour(slot.time);
+
+            const noteEl = document.createElement('span');
+            noteEl.className = 'bk-slot-note';
+            if (slot.available) {
+                const free = Number(slot.free) || 1;
+                noteEl.textContent = `${free} left ${free === 1 ? 'is' : 'are'} available`;
+            } else {
+                noteEl.textContent = SLOT_NOTE_LABELS[slot.reason] || 'Unavailable';
+            }
+
+            slotBtn.append(timeEl, noteEl);
 
             if (slot.available) {
                 slotBtn.addEventListener('click', () => selectSlot(slot.time, slotBtn));
@@ -1487,6 +1562,16 @@ async function loadAvailableSlots() {
             grid.appendChild(slotBtn);
         });
 
+        // One line saying why, when home-service times are closed only because
+        // no verified therapist is free (decision Q35). Same message style as
+        // the other grid notes, so no new CSS is needed.
+        if (data.slots.some(slot => slot.reason === 'no_verified_therapist')) {
+            const note = document.createElement('p');
+            note.className = 'col-span-3 py-6 text-sm text-center text-gray-400 dark:text-gray-500 sm:col-span-4';
+            note.textContent = SLOT_REASON_LABELS.no_verified_therapist;
+            grid.prepend(note);
+        }
+
         legend?.classList.remove('hidden');
         legend?.classList.add('flex');
 
@@ -1498,6 +1583,138 @@ async function loadAvailableSlots() {
     }
 }
 
+// ── Step 2: month calendar (same look as My Schedule) ───────────────────────
+let bookingCalMonth  = new Date();   // the month on display
+let bookingOpenDates = new Set();    // dates the customer may book
+let bookingCalFirst  = '';           // first bookable date (today)
+let bookingCalLast   = '';           // last bookable date (30 days ahead)
+let bookingMyDates   = new Set();    // days this customer already has an appointment
+
+async function loadBookingCalendar() {
+    const grid     = document.getElementById('bookingCalGrid');
+    const branchId = bookingBranchIdInput?.value;
+
+    if (!grid || !branchId) return;
+
+    grid.innerHTML = '<p class="bk-cal-msg">Loading dates…</p>';
+
+    try {
+        const params = new URLSearchParams({ branch_id: branchId });
+        const response = await fetch(`/bookings/online/available-days?${params.toString()}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        bookingOpenDates = new Set(data.dates || []);
+        bookingCalFirst  = data.first || '';
+        bookingCalLast   = data.last || '';
+
+        // Open on the month of the chosen date, or the current month.
+        const base = bookingDateInput?.value || bookingCalFirst;
+        bookingCalMonth = base ? new Date(base + 'T00:00:00') : new Date();
+        bookingCalMonth.setDate(1);
+
+        renderBookingCalendar();
+    } catch (err) {
+        console.error('Failed to load booking dates:', err);
+        grid.innerHTML = '<p class="bk-cal-msg">Unable to load dates. Please try again.</p>';
+        return;
+    }
+
+    // The customer's own appointments, for the dot. The calendar still works
+    // if this fails.
+    try {
+        const response = await fetch('/my-schedule', { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) return;
+        const bookings = await response.json();
+        if (!Array.isArray(bookings)) return;
+
+        bookingMyDates = new Set(
+            bookings
+                .filter(b => !['cancelled', 'completed', 'no_show'].includes(String(b.status || '').toLowerCase()))
+                .map(b => b.date_raw)
+        );
+        renderBookingCalendar();
+    } catch (err) {
+        console.warn('Could not load your appointments for the calendar:', err);
+    }
+}
+
+function renderBookingCalendar() {
+    const grid  = document.getElementById('bookingCalGrid');
+    const title = document.getElementById('bookingCalTitle');
+    if (!grid) return;
+
+    const year     = bookingCalMonth.getFullYear();
+    const month    = bookingCalMonth.getMonth();
+    const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+    if (title) {
+        title.textContent = bookingCalMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    // The arrows stop at the first and last month that has bookable days.
+    const prevBtn = document.getElementById('bookingCalPrev');
+    const nextBtn = document.getElementById('bookingCalNext');
+    if (prevBtn) prevBtn.disabled = !bookingCalFirst || monthKey <= bookingCalFirst.slice(0, 7);
+    if (nextBtn) nextBtn.disabled = !bookingCalLast || monthKey >= bookingCalLast.slice(0, 7);
+
+    const firstDay    = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const selected    = bookingDateInput?.value || '';
+
+    grid.innerHTML = '';
+    for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${monthKey}-${String(d).padStart(2, '0')}`;
+        const isOpen  = bookingOpenDates.has(dateStr);
+        const isMine  = bookingMyDates.has(dateStr);
+
+        const dayBtn = document.createElement('button');
+        dayBtn.type = 'button';
+        dayBtn.className = 'bk-cal-day';
+        dayBtn.dataset.date = dateStr;
+        dayBtn.textContent = String(d);
+        dayBtn.disabled = !isOpen;
+        dayBtn.setAttribute('aria-pressed', dateStr === selected ? 'true' : 'false');
+
+        const longDate = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric',
+        });
+        dayBtn.setAttribute('aria-label',
+            longDate + (isOpen ? '' : ', not available') + (isMine ? ', you have an appointment' : ''));
+
+        if (isMine) {
+            const dot = document.createElement('span');
+            dot.className = 'bk-cal-dot';
+            dot.setAttribute('aria-hidden', 'true');
+            dayBtn.appendChild(dot);
+        }
+
+        if (isOpen) dayBtn.addEventListener('click', () => selectBookingDay(dateStr));
+
+        grid.appendChild(dayBtn);
+    }
+}
+
+function changeBookingMonth(dir) {
+    bookingCalMonth.setMonth(bookingCalMonth.getMonth() + dir);
+    renderBookingCalendar();
+}
+
+function selectBookingDay(date) {
+    if (bookingDateInput) bookingDateInput.value = date;
+    document.querySelectorAll('#bookingCalGrid .bk-cal-day').forEach(dayBtn => {
+        dayBtn.setAttribute('aria-pressed', dayBtn.dataset.date === date ? 'true' : 'false');
+    });
+    loadAvailableSlots();
+}
+
+document.getElementById('bookingCalPrev')?.addEventListener('click', () => changeBookingMonth(-1));
+document.getElementById('bookingCalNext')?.addEventListener('click', () => changeBookingMonth(1));
 // ── Step 3: recap ────────────────────────────────────────────────────────────
 function buildBookingRecap() {
     const recapServiceEl = document.getElementById('recapService');
@@ -1528,9 +1745,35 @@ function buildBookingRecap() {
         : '—';
 
     const price = checked ? parseFloat(checked.dataset.price || '0') : 0;
-    document.getElementById('recapTotalPrice').textContent = price ? formatPeso(price) : '—';
-    document.getElementById('recapDownpayment').textContent = price ? `${formatPeso(price * 0.2)}` : '—';
+        document.getElementById('recapTotalPrice').textContent = price ? formatPeso(price) : '—';
+    recapPrice = price;
+    updatePaymentRecap();
 }
+
+// Price shown in the recap, kept so the amounts can be redrawn when the
+// customer switches between the reservation fee and full payment.
+let recapPrice = 0;
+
+// Display only. The server works out the real amount from the chosen option.
+function updatePaymentRecap() {
+    const payNowEl = document.getElementById('recapPayNow');
+    if (!payNowEl) return;
+
+    const price       = recapPrice || 0;
+    const downpayment = Math.round(price * 20) / 100;   // 20%, rounded to centavos
+    const isFull      = document.querySelector('input[name="payment_option"]:checked')?.value === 'full';
+    const payNow      = isFull ? price : downpayment;
+    const show        = (amount) => (price ? formatPeso(amount) : '—');
+
+    document.getElementById('payOptDownAmount').textContent = show(downpayment);
+    document.getElementById('payOptFullAmount').textContent = show(price);
+    payNowEl.textContent = show(payNow);
+    document.getElementById('recapBalance').textContent = show(price - payNow);
+}
+
+document.addEventListener('change', (e) => {
+    if (e.target?.name === 'payment_option') updatePaymentRecap();
+});
 
 function openBookingModal() {
     if (!selectedSpa || !bookingModal) return;
@@ -1549,6 +1792,7 @@ function openBookingModal() {
     const today = getTodayLocal();
     if (bookingDateInput) bookingDateInput.min = today;
 
+    loadHomeServiceAvailability(selectedSpa.branch_id);
     populateTreatmentsForSelectedBranch();
     showBookingStep(1);
 
@@ -1569,7 +1813,7 @@ function clearBookingSelections() {
     if (slotGridEl) slotGridEl.innerHTML = '<p class="col-span-3 py-6 text-sm text-center text-gray-400 dark:text-gray-500 sm:col-span-4">Pick a date to see available times.</p>';
     document.getElementById('bookingSlotLegend')?.classList.add('hidden');
     if (addressInput) {
-        addressInput.value = '';
+        addressInput.value = addressInput.dataset.defaultAddress || '';
         addressInput.required = false;
     }
     if (addressWrapper) addressWrapper.classList.add('hidden');
@@ -1682,7 +1926,7 @@ function setupApplicationForm() {
         }
 
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Sending…</span>';
 
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -1876,6 +2120,10 @@ serviceListContainer?.addEventListener('change', function (e) {
 });
 
 serviceTypeSelect?.addEventListener('change', toggleAddressField);
+// Home service counts only verified therapists, so the times can differ.
+serviceTypeSelect?.addEventListener('change', () => {
+    if (bookingDateInput?.value && getCheckedTreatmentInput()) loadAvailableSlots();
+});
 bookingDateInput?.addEventListener('change', loadAvailableSlots);
 
 document.getElementById('bookingNextBtn')?.addEventListener('click', function () {
@@ -1883,6 +2131,7 @@ document.getElementById('bookingNextBtn')?.addEventListener('click', function ()
     if (currentBookingStep < TOTAL_BOOKING_STEPS) {
         const nextStep = currentBookingStep + 1;
         showBookingStep(nextStep);
+        if (nextStep === 2) loadBookingCalendar();
         if (nextStep === 2 && bookingDateInput?.value) loadAvailableSlots();
     }
 });
@@ -1973,16 +2222,127 @@ bookingCustomerPhone?.addEventListener('input', function () {
 let allAppointments = [];
 let currentTab      = 'upcoming';
 let _appointmentMap = {};
+let _apReturnFocus  = null;
+
+/*
+  My appointments (UI rework Phase 2).
+  - Upcoming: soonest first, grouped "Happening now" / "Today" / "Tomorrow" /
+    one group per later day. Past and Cancelled: most recent first, grouped by
+    month.
+  - Rows are <button>s styled by the .apt-* rules in landing.css (this file
+    isn't in Tailwind's content globs, so no Tailwind classes are built here).
+  - Customers see their own status words (customerStatus); staff pages keep
+    the raw statuses.
+*/
+
+const ACTIVE_BOOKING_STATUSES = ['reserved', 'pending', 'ongoing'];
+
+// Local Date for a booking's day + time ("HH:MM[:SS]"); null when missing.
+function bookingDateTime(b, time) {
+    if (!b.date_raw || !time) return null;
+    return new Date(`${b.date_raw}T${time.slice(0, 8)}`);
+}
+
+function isBookingHappeningNow(b) {
+    const start = bookingDateTime(b, b.start_time);
+    const end   = bookingDateTime(b, b.end_time);
+    const now   = Date.now();
+    return ACTIVE_BOOKING_STATUSES.includes(b.status) && !!start && !!end
+        && start.getTime() <= now && now < end.getTime();
+}
+
+/*
+  What the customer sees for a status. 'pending' and 'ongoing' are set by the
+  clock once the start time passes, so both read "In progress". An active
+  booking whose end time has passed is waiting for the status job to run, so
+  it reads "Ended" rather than claiming to be confirmed.
+*/
+function customerStatus(b) {
+    const s = b.status;
+    if (ACTIVE_BOOKING_STATUSES.includes(s) && isBookingPastNow(b)) return { key: 'ended',     label: 'Ended' };
+    if (s === 'reserved')                          return { key: 'confirmed', label: 'Confirmed' };
+    if (s === 'pending' || s === 'ongoing')        return { key: 'progress',  label: 'In progress' };
+    if (s === 'completed')                         return { key: 'completed', label: 'Completed' };
+    if (s === 'cancelled')                         return { key: 'cancelled', label: 'Cancelled' };
+    if (s === 'no_show')                           return { key: 'missed',    label: 'Missed' };
+    return { key: 'ended', label: s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '' };
+}
+
+function customerStatusPill(b) {
+    const st = customerStatus(b);
+    return `<span class="apt-pill apt-pill--${st.key}">${escapeHtml(st.label)}</span>`;
+}
+
+// Which tab a booking belongs to. Missed visits sit with past ones.
+function appointmentTab(b) {
+    if (b.status === 'cancelled') return 'cancelled';
+    if (ACTIVE_BOOKING_STATUSES.includes(b.status) && !isBookingPastNow(b)) return 'upcoming';
+    return 'past';
+}
+
+function sortForTab(list, tab) {
+    const key = b => `${b.date_raw || ''}T${(b.start_time || '').slice(0, 8)}`;
+    return [...list].sort((a, b) => tab === 'upcoming'
+        ? key(a).localeCompare(key(b))
+        : key(b).localeCompare(key(a)));
+}
+
+function addDaysLocal(dateStr, days) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d + days);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function localDateFromRaw(raw) {
+    const [y, m, d] = raw.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+// Groups for one tab, in display order: [{ key, title, now?, items: [] }].
+function groupAppointments(list, tab) {
+    const today    = getTodayLocal();
+    const tomorrow = addDaysLocal(today, 1);
+    const groups   = [];
+    const byKey    = {};
+
+    const put = (key, title, b, extra = {}) => {
+        if (!byKey[key]) { byKey[key] = { key, title, items: [], ...extra }; groups.push(byKey[key]); }
+        byKey[key].items.push(b);
+    };
+
+    sortForTab(list, tab).forEach(b => {
+        if (!b.date_raw) { put('other', 'Other', b); return; }
+        const day = localDateFromRaw(b.date_raw);
+
+        if (tab === 'upcoming') {
+            const dayLabel = day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            if (isBookingHappeningNow(b))      put('now', 'Happening now', b, { now: true });
+            else if (b.date_raw === today)     put(b.date_raw, `Today · ${dayLabel}`, b);
+            else if (b.date_raw === tomorrow)  put(b.date_raw, `Tomorrow · ${dayLabel}`, b);
+            else put(b.date_raw, day.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }), b);
+        } else {
+            put(b.date_raw.slice(0, 7), day.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), b);
+        }
+    });
+
+    // "Happening now" always leads, whatever its date.
+    groups.sort((a, b) => (b.now ? 1 : 0) - (a.now ? 1 : 0));
+    return groups;
+}
 
 function openAppointmentsModal() {
+    _apReturnFocus = document.activeElement;
     document.getElementById('appointmentsModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
     loadAppointments();
+    requestAnimationFrame(() => document.getElementById('apTitle')?.focus());
 }
 
 function closeAppointmentsModal() {
     document.getElementById('appointmentsModal').classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+    if (_apReturnFocus && document.contains(_apReturnFocus)) _apReturnFocus.focus();
+    _apReturnFocus = null;
 }
 
 function loadAppointments() {
@@ -1993,9 +2353,7 @@ function loadAppointments() {
             updateTabCounts();
             renderTab(currentTab);
 
-            const upcomingCount = data.filter(b =>
-                ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b)
-            ).length;
+            const upcomingCount = data.filter(b => appointmentTab(b) === 'upcoming').length;
             updateAppointmentsBadge(upcomingCount);
             checkUnratedBookings(data);
         });
@@ -2016,101 +2374,160 @@ function updateAppointmentsBadge(count) {
         });
 }
 
+// Counts sit on the tabs only when there is something to count.
 function updateTabCounts() {
-    document.getElementById('tab-count-upcoming').textContent =
-        allAppointments.filter(b => ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b)).length;
-    document.getElementById('tab-count-past').textContent =
-        allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'ongoing'].includes(b.status) && isBookingPastNow(b))).length;
-    document.getElementById('tab-count-cancelled').textContent =
-        allAppointments.filter(b => b.status === 'cancelled').length;
+    ['upcoming', 'past', 'cancelled'].forEach(tab => {
+        const el = document.getElementById(`tab-count-${tab}`);
+        if (!el) return;
+        const n = allAppointments.filter(b => appointmentTab(b) === tab).length;
+        el.textContent = n > 99 ? '99+' : n;
+        el.classList.toggle('hidden', n === 0);
+    });
 }
 
-function switchTab(tab) {
+// Tabs follow the ARIA tabs pattern: state lives on aria-selected (styled in
+// landing.css), and Left/Right/Home/End move between tabs.
+function switchTab(tab, focusTab = false) {
     currentTab = tab;
     ['upcoming', 'past', 'cancelled'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
-        if (t === tab) {
-            el.classList.add('border-[#8B7355]', 'dark:border-[#C4A97D]', 'text-[#8B7355]', 'dark:text-[#C4A97D]');
-            el.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-        } else {
-            el.classList.remove('border-[#8B7355]', 'dark:border-[#C4A97D]', 'text-[#8B7355]', 'dark:text-[#C4A97D]');
-            el.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-        }
+        if (!el) return;
+        el.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+        el.tabIndex = t === tab ? 0 : -1;
+        if (t === tab && focusTab) el.focus();
     });
+    document.getElementById('appointmentsContent')?.setAttribute('aria-labelledby', `tab-${tab}`);
     renderTab(tab);
 }
 
-function renderTab(tab) {
-    let filtered = [];
-    if (tab === 'upcoming') {
-        filtered = allAppointments.filter(b => ['reserved', 'pending', 'ongoing'].includes(b.status) && !isBookingPastNow(b));
-    } else if (tab === 'past') {
-        filtered = allAppointments.filter(b => b.status === 'completed' || (['reserved', 'pending', 'ongoing'].includes(b.status) && isBookingPastNow(b)));
-    } else {
-        filtered = allAppointments.filter(b => b.status === 'cancelled');
+document.querySelector('#appointmentsModal [role="tablist"]')?.addEventListener('keydown', (e) => {
+    const order = ['upcoming', 'past', 'cancelled'];
+    const i = order.indexOf(currentTab);
+    const next = { ArrowRight: order[(i + 1) % 3], ArrowLeft: order[(i + 2) % 3], Home: order[0], End: order[2] }[e.key];
+    if (!next) return;
+    e.preventDefault();
+    switchTab(next, true);
+});
+
+// Keep Tab inside the panel while it is open (Booking details, when open on
+// top, has its own trap).
+document.getElementById('appointmentsModal')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = [...document.querySelectorAll(
+        '#apPanel button:not([disabled]):not([tabindex="-1"]), #apPanel a[href]'
+    )].filter(el => el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+
+const APT_EMPTY = {
+    upcoming:  { icon: 'fa-calendar-plus', title: 'Book your next treatment',
+                 text: 'Your upcoming appointments will show here.', cta: true },
+    past:      { icon: 'fa-clock-rotate-left', title: 'No past visits yet',
+                 text: 'Appointments you\'ve had will show here, so you can rate them.' },
+    cancelled: { icon: 'fa-calendar-xmark', title: 'No cancelled appointments',
+                 text: 'Anything that gets cancelled will show here.' },
+};
+
+// "Book your next treatment": close the panel and bring the spa list into view.
+function browseSpasFromAppointments() {
+    closeAppointmentsModal();
+    document.getElementById('browseSections')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderAppointmentRow(b, i, tab, mapName = '_appointmentMap') {
+    const st        = customerStatus(b);
+    const isHome    = !!b.is_home_service;
+    const therapist = b.therapist_card ? b.therapist_card.name
+        : (b.therapist && b.therapist !== 'Not Assigned' ? b.therapist : '');
+    const verified  = !!(b.therapist_card && b.therapist_card.verified);
+    const canRate   = b.status === 'completed' && !b.has_rating;
+    const hasRating = b.has_rating === true;
+    const day       = b.date_raw ? localDateFromRaw(b.date_raw) : null;
+
+    // Upcoming groups already say the day, so the left column is the time.
+    // Past/Cancelled are grouped by month, so it shows the date too.
+    const when = tab === 'upcoming'
+        ? `<span class="apt-when-main">${formatTime(b.start_time)}</span>`
+        : `<span class="apt-when-main">${day ? day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+           <span class="apt-when-sub">${formatTime(b.start_time)}</span>`;
+
+    // The tab already implies the usual status; show a pill only when it differs.
+    const usual = { upcoming: 'confirmed', past: 'completed', cancelled: 'cancelled' }[tab];
+    const chips = [];
+    if (st.key !== usual) chips.push(customerStatusPill(b));
+    if (isHome) chips.push(`<span class="apt-chip"><i class="fa-solid fa-house" aria-hidden="true"></i>Home service</span>`);
+    if (therapist) {
+        chips.push(`<span class="apt-chip${verified ? ' apt-chip--verified' : ''}"><i class="fa-solid ${verified ? 'fa-shield-halved' : 'fa-user'}" aria-hidden="true"></i>${escapeHtml(therapist)}${verified ? '<span class="sr-only"> (identity verified)</span>' : ''}</span>`);
+    } else if (tab === 'upcoming') {
+        chips.push(`<span class="apt-chip"><i class="fa-solid fa-user" aria-hidden="true"></i>Therapist not assigned yet</span>`);
+    }
+    if (b.reschedule_status === 'pending') {
+        chips.push(`<span class="apt-chip apt-chip--warn"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Reschedule requested</span>`);
     }
 
+    const stars = n => [1, 2, 3, 4, 5]
+        .map(k => `<i class="fa-solid fa-star${k <= n ? ' is-on' : ''}" aria-hidden="true"></i>`).join('');
+
+    const actions = canRate
+        ? `<div class="apt-actions">
+               <button type="button" class="apt-rate"
+                   onclick="openRatingModal(${mapName}[${i}].id, ${mapName}[${i}].therapist, ${mapName}[${i}].spa_name, ${mapName}[${i}].branch_name, ${mapName}[${i}].branch_location)">
+                   <i class="fa-regular fa-star" aria-hidden="true"></i>Rate your visit
+               </button>
+           </div>`
+        : hasRating
+        ? `<div class="apt-actions">
+               <span class="apt-rated"><span class="sr-only">You rated this ${b.rating_value} out of 5.</span><span aria-hidden="true">You rated</span>${stars(b.rating_value)}</span>
+           </div>`
+        : '';
+
+    return `
+        <li class="apt-item">
+            <button type="button" class="apt-row" onclick="openBookingDetailsModal(${mapName}[${i}])">
+                <span class="apt-when">${when}</span>
+                <span class="apt-main">
+                    <span class="apt-title">${escapeHtml(b.treatment)}</span>
+                    <span class="apt-sub">${escapeHtml(b.spa_name)} · ${escapeHtml(b.branch_location ?? b.branch_name)}</span>
+                    ${chips.length ? `<span class="apt-chips">${chips.join('')}</span>` : ''}
+                </span>
+                <i class="apt-chev fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            ${actions}
+        </li>`;
+}
+
+function renderTab(tab) {
+    const filtered = allAppointments.filter(b => appointmentTab(b) === tab);
+
     Object.keys(_appointmentMap).forEach(k => delete _appointmentMap[k]);
-    filtered.forEach((b, i) => { _appointmentMap[i] = b; });
 
     const container = document.getElementById('appointmentsContent');
     if (!filtered.length) {
+        const e = APT_EMPTY[tab];
         container.innerHTML = `
-            <div class="py-12 text-center text-gray-400 dark:text-gray-500">
-                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
-                <p class="text-sm">No ${tab} appointments</p>
+            <div class="apt-empty">
+                <span class="apt-empty-icon"><i class="fa-solid ${e.icon}" aria-hidden="true"></i></span>
+                <p class="apt-empty-title">${e.title}</p>
+                <p class="apt-empty-text">${e.text}</p>
+                ${e.cta ? `<button type="button" class="apt-empty-cta booking-btn" onclick="browseSpasFromAppointments()">
+                    <i class="fa-solid fa-spa" aria-hidden="true"></i>Browse spas</button>` : ''}
             </div>`;
         return;
     }
 
-    container.innerHTML = filtered.map((b, i) => {
-        const canRate   = b.status === 'completed' && !b.has_rating;
-        const hasRating = b.has_rating === true;
-
+    let i = 0;
+    container.innerHTML = groupAppointments(filtered, tab).map(g => {
+        const rows = g.items.map(b => { _appointmentMap[i] = b; return renderAppointmentRow(b, i++, tab); }).join('');
+        const id   = `apt-group-${g.key}`;
         return `
-        <div class="p-4 mb-3 border border-black/5 dark:border-white/10 rounded-2xl bg-[#F6EFE6]/40 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 transition hover:shadow-md">
-            <div onclick="openBookingDetailsModal(_appointmentMap[${i}])" class="cursor-pointer">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_location ?? b.branch_name)} • ${b.service_type}</p>
-                    </div>
-                    <span class="px-2 py-1 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">
-                        ${b.status.charAt(0).toUpperCase() + b.status.slice(1)}
-                    </span>
-                </div>
-                <div class="grid grid-cols-2 gap-2 mt-3 text-xs text-gray-600 dark:text-gray-400">
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.treatment)}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-user-nurse text-[#8B7355] dark:text-[#C4A97D]"></i> ${escapeHtml(b.therapist)}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-calendar text-[#8B7355] dark:text-[#C4A97D]"></i> ${b.date}</div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i> ${formatTime(b.start_time)} – ${formatTime(b.end_time)}</div>
-                </div>
-                ${b.reschedule_status === 'pending' ? `
-                <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                    <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
-                </div>` : ''}
-            </div>
-            ${canRate ? `
-            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <button onclick="openRatingModal(_appointmentMap[${i}].id, _appointmentMap[${i}].therapist, _appointmentMap[${i}].spa_name, _appointmentMap[${i}].branch_name, _appointmentMap[${i}].branch_location)"
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition rounded-xl bg-[#8B7355] hover:bg-[#6F5430] w-full justify-center">
-                    <i class="fa-solid fa-star"></i>
-                    Rate Your Experience
-                </button>
-            </div>` : ''}
-            ${hasRating ? `
-            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-circle-check text-green-600 dark:text-green-400 text-sm"></i>
-                        <span class="text-sm font-semibold text-green-600 dark:text-green-400">Thank you for rating!</span>
-                    </div>
-                    <div class="flex items-center gap-0.5">
-                        ${renderStars(b.rating_value)}
-                    </div>
-                </div>
-            </div>` : ''}
-        </div>`;
+            <section class="apt-group" aria-labelledby="${id}">
+                <h3 id="${id}" class="apt-group-title${g.now ? ' apt-group-title--now' : ''}">${escapeHtml(g.title)}</h3>
+                <ul class="apt-list">${rows}</ul>
+            </section>`;
     }).join('');
 }
 
@@ -2151,35 +2568,47 @@ function renderStars(rating) {
     return stars;
 }
 
-function statusBadge(status) {
-    const map = {
-        reserved:  'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-        ongoing:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-        completed: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-        cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-        pending:   'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-    };
-    return map[status] ?? 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300';
-}
-
 // =====================================================
 // MY SCHEDULE MODAL
 // =====================================================
+/*
+  My schedule (UI rework Phase 4): the customer's upcoming appointments by
+  month, as a list grouped by day or as a calendar with the chosen day's
+  appointments under it. Rows are the same .apt-row buttons as My
+  appointments (renderAppointmentRow), so a booking looks the same in both.
+  The /my-schedule feed holds active bookings from today on, so months before
+  this one are always empty and Previous stops at the current month.
+*/
 let scheduleBookings  = [];
 let calendarDate      = new Date();
-let _dayBookingMap    = {};
-let _listBookingMap   = {};
-let scheduleViewMode  = 'list'; // 'list' | 'calendar'
+calendarDate.setDate(1);
+let scheduleMap       = {};
+let scheduleViewMode  = 'list';      // 'list' | 'calendar'
+let scheduleSelected  = null;        // 'YYYY-MM-DD' in calendar view
+let _scReturnFocus    = null;
+
+try {
+    const saved = localStorage.getItem('levictas.scheduleView');
+    if (saved === 'list' || saved === 'calendar') scheduleViewMode = saved;
+} catch (e) { /* storage blocked: keep the default */ }
 
 function openScheduleModal() {
+    _scReturnFocus = document.activeElement;
     document.getElementById('scheduleModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+    calendarDate = new Date();
+    calendarDate.setDate(1);
+    scheduleSelected = null;
+    applyScheduleView();
     loadSchedule();
+    requestAnimationFrame(() => document.getElementById('scTitle')?.focus());
 }
 
 function closeScheduleModal() {
     document.getElementById('scheduleModal').classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+    if (_scReturnFocus && document.contains(_scReturnFocus)) _scReturnFocus.focus();
+    _scReturnFocus = null;
 }
 
 function loadSchedule() {
@@ -2191,188 +2620,176 @@ function loadSchedule() {
         });
 }
 
+function scheduleMonthKey(date = calendarDate) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function scheduleInMonth() {
+    const key = scheduleMonthKey();
+    return scheduleBookings.filter(b => (b.date_raw || '').startsWith(key));
+}
+
 function renderSchedule() {
-    if (scheduleViewMode === 'list') {
-        renderScheduleList();
-    } else {
-        renderCalendar();
-    }
-}
-
-function toggleScheduleView() {
-    scheduleViewMode = scheduleViewMode === 'list' ? 'calendar' : 'list';
-
-    const listView  = document.getElementById('scheduleListView');
-    const calView   = document.getElementById('scheduleCalendarView');
-    const toggleBtn = document.getElementById('scheduleViewToggleBtn');
-
-    if (scheduleViewMode === 'list') {
-        listView?.classList.remove('hidden');
-        calView?.classList.add('hidden');
-        if (toggleBtn) {
-            toggleBtn.title = 'Switch to calendar view';
-            toggleBtn.innerHTML = '<i class="text-sm fa-solid fa-calendar-days"></i>';
-        }
-    } else {
-        listView?.classList.add('hidden');
-        calView?.classList.remove('hidden');
-        if (toggleBtn) {
-            toggleBtn.title = 'Switch to list view';
-            toggleBtn.innerHTML = '<i class="text-sm fa-solid fa-list"></i>';
-        }
-        document.getElementById('selectedDayBookings')?.classList.add('hidden');
-    }
-
-    renderSchedule();
-}
-
-function changeMonth(dir) {
-    calendarDate.setMonth(calendarDate.getMonth() + dir);
-    document.getElementById('selectedDayBookings')?.classList.add('hidden');
-    renderSchedule();
-}
-
-// ── LIST VIEW: every booking this month, grouped by day ────────────────────
-function renderScheduleList() {
-    const year  = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
+    const now = new Date();
     document.getElementById('calendarTitle').textContent =
         calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    // Nothing before this month can be in the feed.
+    document.getElementById('scPrevMonth').disabled =
+        calendarDate.getFullYear() === now.getFullYear() && calendarDate.getMonth() === now.getMonth();
 
-    const monthBookings = scheduleBookings
-        .filter(b => {
-            const d = new Date(b.date_raw + 'T00:00:00');
-            return d.getFullYear() === year && d.getMonth() === month;
-        })
-        .sort((a, b) => {
-            if (a.date_raw !== b.date_raw) return a.date_raw.localeCompare(b.date_raw);
-            return (a.start_time || '').localeCompare(b.start_time || '');
-        });
+    if (scheduleViewMode === 'list') renderScheduleList();
+    else renderCalendar();
+}
 
-    const container = document.getElementById('scheduleListContent');
-    if (!container) return;
+function setScheduleView(mode) {
+    scheduleViewMode = mode;
+    try { localStorage.setItem('levictas.scheduleView', mode); } catch (e) { /* ignore */ }
+    applyScheduleView();
+    renderSchedule();
+}
 
-    if (!monthBookings.length) {
-        container.innerHTML = `
-            <div class="py-12 text-center text-gray-400 dark:text-gray-500">
-                <i class="mb-3 text-3xl fa-solid fa-calendar-xmark"></i>
-                <p class="text-sm">No bookings this month</p>
-            </div>`;
-        return;
-    }
+function applyScheduleView() {
+    const list = scheduleViewMode === 'list';
+    document.getElementById('scheduleListView')?.classList.toggle('hidden', !list);
+    document.getElementById('scheduleCalendarView')?.classList.toggle('hidden', list);
+    document.getElementById('scViewList')?.setAttribute('aria-pressed', list ? 'true' : 'false');
+    document.getElementById('scViewCalendar')?.setAttribute('aria-pressed', list ? 'false' : 'true');
+}
 
-    const groups = {};
-    monthBookings.forEach(b => { (groups[b.date_raw] ??= []).push(b); });
+// Always step from the 1st, so Jan 31 + 1 month is February, not March 3.
+function changeMonth(dir) {
+    calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + dir, 1);
+    scheduleSelected = null;
+    document.getElementById('scBody').scrollTop = 0;
+    renderSchedule();
+}
 
-    Object.keys(_listBookingMap).forEach(k => delete _listBookingMap[k]);
-    let idx = 0;
+function jumpToScheduleMonth(dateRaw) {
+    const [y, m] = dateRaw.split('-').map(Number);
+    calendarDate = new Date(y, m - 1, 1);
+    scheduleSelected = scheduleViewMode === 'calendar' ? dateRaw : null;
+    renderSchedule();
+}
 
-    const today = getTodayLocal();
+// The first booking after the month on screen, for the "Go to …" button.
+function nextScheduleBookingAfterMonth() {
+    const key = scheduleMonthKey();
+    return [...scheduleBookings]
+        .filter(b => (b.date_raw || '').slice(0, 7) > key)
+        .sort((a, b) => `${a.date_raw}${a.start_time}`.localeCompare(`${b.date_raw}${b.start_time}`))[0] || null;
+}
 
-    container.innerHTML = Object.keys(groups).sort().map(dateRaw => {
-        const dayBookings = groups[dateRaw];
-        const isToday     = dateRaw === today;
-        const dateLabel   = new Date(dateRaw + 'T00:00:00').toLocaleDateString('en-US', {
-            weekday: 'long', month: 'long', day: 'numeric'
-        });
+function scheduleEmptyMonth() {
+    const month = calendarDate.toLocaleDateString('en-US', { month: 'long' });
+    const next  = nextScheduleBookingAfterMonth();
+    const nextLabel = next
+        ? localDateFromRaw(next.date_raw).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        : '';
+    return `
+        <div class="apt-empty">
+            <span class="apt-empty-icon"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i></span>
+            <p class="apt-empty-title">Nothing booked in ${escapeHtml(month)}</p>
+            ${next
+                ? `<p class="apt-empty-text">Your next appointment is on ${escapeHtml(nextLabel)}.</p>
+                   <button type="button" class="sc-next" onclick="jumpToScheduleMonth('${next.date_raw}')">
+                       Go to ${escapeHtml(nextLabel)}<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>`
+                : `<p class="apt-empty-text">When you book a treatment, it will show here.</p>
+                   <button type="button" class="apt-empty-cta booking-btn" onclick="closeScheduleModal(); document.getElementById('browseSections')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">
+                       <i class="fa-solid fa-spa" aria-hidden="true"></i>Browse spas</button>`}
+        </div>`;
+}
 
-        const items = dayBookings.map(b => {
-            _listBookingMap[idx] = b;
-            const html = `
-                <div class="p-3 border border-black/5 dark:border-white/10 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 cursor-pointer hover:shadow-md transition"
-                    onclick="openBookingDetailsModal(_listBookingMap[${idx}])">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
-                        <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
-                    </div>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i>
-                        ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${escapeHtml(b.therapist)}
-                    </p>
-                    ${b.reschedule_status === 'pending' ? `
-                    <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
-                    </div>` : ''}
-                </div>`;
-            idx++;
-            return html;
-        }).join('');
-
+// Same day groups and rows as the Upcoming tab of My appointments.
+function renderScheduleRows(list) {
+    Object.keys(scheduleMap).forEach(k => delete scheduleMap[k]);
+    let i = 0;
+    return groupAppointments(list, 'upcoming').map(g => {
+        const rows = g.items.map(b => { scheduleMap[i] = b; return renderAppointmentRow(b, i++, 'upcoming', 'scheduleMap'); }).join('');
+        const id   = `sc-group-${g.key}`;
         return `
-            <div class="mb-5">
-                <div class="flex items-center gap-2 mb-2">
-                    <h4 class="text-sm font-semibold ${isToday ? 'text-[#8B7355] dark:text-[#C4A97D]' : 'text-[#3C2F23] dark:text-white'}">${dateLabel}</h4>
-                    ${isToday ? '<span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#8B7355] text-white">Today</span>' : ''}
-                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D]">${dayBookings.length}</span>
-                </div>
-                <div class="space-y-2">${items}</div>
-            </div>`;
+            <section class="apt-group" aria-labelledby="${id}">
+                <h3 id="${id}" class="apt-group-title${g.now ? ' apt-group-title--now' : ''}">${escapeHtml(g.title)}</h3>
+                <ul class="apt-list">${rows}</ul>
+            </section>`;
     }).join('');
 }
 
-// ── CALENDAR VIEW (unchanged behavior, now optional) ────────────────────────
+// ── LIST VIEW: this month, grouped by day ───────────────────────────────────
+function renderScheduleList() {
+    const container = document.getElementById('scheduleListContent');
+    if (!container) return;
+    const monthBookings = scheduleInMonth();
+    container.innerHTML = monthBookings.length ? renderScheduleRows(monthBookings) : scheduleEmptyMonth();
+}
+
+// ── CALENDAR VIEW: month grid, then the chosen day's appointments ──────────
 function renderCalendar() {
-    const year  = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const today = getTodayLocal();
-    document.getElementById('calendarTitle').textContent =
-        calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const year        = calendarDate.getFullYear();
+    const month       = calendarDate.getMonth();
+    const today       = getTodayLocal();
     const firstDay    = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const bookedDates = new Set(scheduleBookings.map(b => b.date_raw));
-    const grid        = document.getElementById('calendarGrid');
-    grid.innerHTML    = '';
-    for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr    = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const isToday    = dateStr === today;
-        const hasBooking = bookedDates.has(dateStr);
-        const isPast     = dateStr < today;
-        grid.innerHTML  += `
-            <button onclick="selectDay('${dateStr}')"
-                class="relative flex flex-col items-center justify-center h-10 rounded-xl text-sm transition
-                ${isToday ? 'bg-[#8B7355] text-white font-bold' : ''}
-                ${hasBooking && !isToday ? 'bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D] font-semibold ring-1 ring-[#8B7355]/30 dark:ring-[#C4A97D]/30' : ''}
-                ${isPast && !isToday ? 'text-gray-300 dark:text-gray-600 cursor-default' : 'hover:bg-[#F6EFE6] dark:hover:bg-gray-700'}
-                ${!hasBooking && !isToday && !isPast ? 'text-gray-700 dark:text-gray-300' : ''}">
-                ${d}
-                ${hasBooking ? `<span class="absolute bottom-1 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-[#8B7355] dark:bg-[#C4A97D]'}"></span>` : ''}
-            </button>`;
+    const monthList   = scheduleInMonth();
+    const counts      = {};
+    monthList.forEach(b => { counts[b.date_raw] = (counts[b.date_raw] || 0) + 1; });
+
+    // Default day: today if it's in this month, else the month's first booking.
+    if (!scheduleSelected || !scheduleSelected.startsWith(scheduleMonthKey())) {
+        const firstBooked = Object.keys(counts).sort()[0] || null;
+        scheduleSelected = today.startsWith(scheduleMonthKey()) ? today : firstBooked;
     }
+
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push('<span aria-hidden="true"></span>');
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const n       = counts[dateStr] || 0;
+        const label   = localDateFromRaw(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+            + (dateStr === today ? ', today' : '')
+            + (n ? `, ${n} appointment${n > 1 ? 's' : ''}` : '');
+        const classes = ['sc-day', dateStr === today ? 'is-today' : '', n ? 'has-booking' : ''].filter(Boolean).join(' ');
+        cells.push(`<button type="button" class="${classes}" data-date="${dateStr}"
+            aria-pressed="${dateStr === scheduleSelected ? 'true' : 'false'}" aria-label="${label}"
+            ${dateStr < today ? 'disabled' : ''} onclick="selectDay('${dateStr}')">${d}</button>`);
+    }
+    document.getElementById('calendarGrid').innerHTML = cells.join('');
+    renderSelectedDay();
 }
 
 function selectDay(dateStr) {
-    const dayBookings = scheduleBookings.filter(b => b.date_raw === dateStr);
-    if (!dayBookings.length) return;
-
-    Object.keys(_dayBookingMap).forEach(k => delete _dayBookingMap[k]);
-    dayBookings.forEach((b, i) => { _dayBookingMap[i] = b; });
-
-    const title = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric'
-    });
-    document.getElementById('selectedDayTitle').textContent = title;
-    document.getElementById('selectedDayContent').innerHTML = dayBookings.map((b, i) => `
-        <div class="p-3 mb-3 border border-black/5 dark:border-white/10 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10 cursor-pointer hover:shadow-md transition"
-            onclick="openBookingDetailsModal(_dayBookingMap[${i}])">
-            <div class="flex items-center justify-between">
-                <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(b.spa_name)}</p>
-                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge(b.status)}">${b.status}</span>
-            </div>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${escapeHtml(b.branch_name)} • ${escapeHtml(b.treatment)}</p>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                <i class="fa-solid fa-clock text-[#8B7355] dark:text-[#C4A97D]"></i>
-                ${formatTime(b.start_time)} – ${formatTime(b.end_time)} • ${escapeHtml(b.therapist)}
-            </p>
-            ${b.reschedule_status === 'pending' ? `
-            <div class="mt-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <i class="fa-solid fa-clock-rotate-left"></i> Reschedule request pending
-            </div>` : ''}
-        </div>
-    `).join('');
-    document.getElementById('selectedDayBookings').classList.remove('hidden');
+    scheduleSelected = dateStr;
+    document.querySelectorAll('#calendarGrid .sc-day').forEach(el =>
+        el.setAttribute('aria-pressed', el.dataset.date === dateStr ? 'true' : 'false'));
+    renderSelectedDay();
 }
+
+function renderSelectedDay() {
+    const wrap = document.getElementById('selectedDayBookings');
+    if (!wrap) return;
+    if (!scheduleInMonth().length) { wrap.innerHTML = scheduleEmptyMonth(); return; }
+
+    const dayList = scheduleBookings.filter(b => b.date_raw === scheduleSelected);
+    if (!dayList.length) {
+        const day = scheduleSelected
+            ? localDateFromRaw(scheduleSelected).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+            : '';
+        wrap.innerHTML = `<p class="sc-empty-day">${day ? `Nothing booked on ${escapeHtml(day)}.` : ''} Days with a dot have appointments.</p>`;
+        return;
+    }
+    wrap.innerHTML = renderScheduleRows(dayList);
+}
+
+// Keep Tab inside the panel while it is open.
+document.getElementById('scheduleModal')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = [...document.querySelectorAll('#scPanel button:not([disabled])')]
+        .filter(el => el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 function formatTime(timeStr) {
     if (!timeStr) return 'N/A';
@@ -2388,108 +2805,299 @@ function formatTime(timeStr) {
 // =====================================================
 let selectedBooking = null;
 
+/*
+  Booking details (UI rework Phase 1): one panel with two views, "details" and
+  "reschedule". The reschedule form used to be a second modal stacked on top;
+  openRescheduleModal / closeRescheduleModal keep their names (onclick + window
+  exports) but now switch views inside the same panel.
+  Every class toggled here is written out in welcome.blade.php, because this
+  file is not in Tailwind's content globs.
+*/
+let _bdReturnFocus = null;       // element to refocus when the panel closes
+let _bdFormBookingId = null;     // keeps typed form values if the customer goes back and forth
+
+// Toggles 'hidden' and, for flex items, the display class with it.
+function bdShow(el, on, display = null) {
+    if (!el) return;
+    el.classList.toggle('hidden', !on);
+    if (display) el.classList.toggle(display, on);
+}
+
+// Start of the appointment in the customer's local time (null when unknown).
+function bookingStartDate(b) {
+    if (!b.date_raw || !b.start_time) return null;
+    return new Date(`${b.date_raw}T${b.start_time.slice(0, 8)}`);
+}
+
+// Mirrors Booking::canRequestReschedule() on the server, which has the final say.
+function bookingCanReschedule(b) {
+    const start = bookingStartDate(b);
+    const serverSays = b.can_reschedule ?? (b.status === 'reserved');
+    return serverSays && b.status === 'reserved' && !!start && start.getTime() > Date.now();
+}
+
 function openBookingDetailsModal(booking) {
     selectedBooking = booking;
+    _bdReturnFocus  = document.activeElement;
 
-    document.getElementById('detailSpaName').textContent =
-        `${booking.spa_name} • ${booking.branch_name}`;
     document.getElementById('detailTreatment').textContent = booking.treatment;
     document.getElementById('detailDate').textContent      = booking.date;
     document.getElementById('detailTime').textContent      =
         `${formatTime(booking.start_time)} – ${formatTime(booking.end_time)}`;
-    document.getElementById('detailTherapist').textContent = booking.therapist;
+    document.getElementById('detailSpaName').textContent   =
+        `${booking.spa_name} · ${booking.branch_name}`;
+
+    const serviceRow = document.getElementById('detailServiceRow');
+    document.getElementById('detailServiceType').textContent = booking.service_type || '';
+    bdShow(serviceRow, !!booking.is_home_service, 'flex');
 
     const statusEl = document.getElementById('detailStatus');
-    statusEl.textContent = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
-    statusEl.className   = `text-sm font-semibold ${statusColor(booking.status)}`;
+    const st = customerStatus(booking);
+    statusEl.textContent = st.label;
+    statusEl.className   = `apt-pill apt-pill--${st.key}`;
 
-    const rescheduleStatusEl   = document.getElementById('detailRescheduleStatus');
-    const rescheduleStatusText = document.getElementById('detailRescheduleStatusText');
-    const rescheduleBtn        = document.getElementById('openRescheduleBtn');
+    renderDetailTherapist(booking);
+    renderDetailReschedule(booking);
 
-    if (booking.reschedule_status === 'pending') {
-        rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-amber-50 dark:bg-amber-900/20 ring-amber-200 dark:ring-amber-800';
-        rescheduleStatusText.textContent = '⏳ Reschedule request is pending approval.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-amber-700 dark:text-amber-300';
-        rescheduleBtn.disabled           = true;
-        rescheduleBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    } else if (booking.reschedule_status === 'approved') {
-        rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-green-50 dark:bg-green-900/20 ring-green-200 dark:ring-green-800';
-        rescheduleStatusText.textContent = '✅ Your reschedule was approved.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-green-700 dark:text-green-300';
-        rescheduleBtn.disabled           = false;
-        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    } else if (booking.reschedule_status === 'rejected') {
-        rescheduleStatusEl.classList.remove('hidden');
-        rescheduleStatusEl.className     = 'p-3 rounded-xl ring-1 bg-red-50 dark:bg-red-900/20 ring-red-200 dark:ring-red-800';
-        rescheduleStatusText.textContent = '❌ Your last reschedule request was rejected.';
-        rescheduleStatusText.className   = 'text-sm font-semibold text-red-600 dark:text-red-400';
-        rescheduleBtn.disabled           = false;
-        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    } else {
-        rescheduleStatusEl.classList.add('hidden');
-        rescheduleBtn.disabled = false;
-        rescheduleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-    }
-
-    if (!['reserved', 'pending'].includes(booking.status)) {
-        rescheduleBtn.classList.add('hidden');
-    } else {
-        rescheduleBtn.classList.remove('hidden');
-    }
-
+    bdShowView('details', false);
     document.getElementById('bookingDetailsModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+    document.getElementById('bdBody').scrollTop = 0;
+
+    // Land keyboard and screen-reader users on the title, inside the dialog,
+    // without a focus ring flashing on the close button.
+    requestAnimationFrame(() => document.getElementById('bdTitle')?.focus());
+}
+
+function renderDetailReschedule(booking) {
+    const wrap  = document.getElementById('detailRescheduleStatus');
+    const icon  = document.getElementById('detailRescheduleIcon');
+    const text  = document.getElementById('detailRescheduleStatusText');
+    const btn   = document.getElementById('openRescheduleBtn');
+    const closed = document.getElementById('detailRescheduleClosed');
+
+    const notices = {
+        pending: {
+            box:  'flex items-start gap-3 p-3 rounded-2xl ring-1 bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800',
+            icon: 'mt-0.5 fa-solid fa-clock-rotate-left text-amber-700 dark:text-amber-300',
+            text: 'text-sm text-amber-800 dark:text-amber-200',
+            msg:  'Your reschedule request is waiting for the branch to review it.',
+        },
+        approved: {
+            box:  'flex items-start gap-3 p-3 rounded-2xl ring-1 bg-emerald-50 ring-emerald-200 dark:bg-emerald-900/20 dark:ring-emerald-800',
+            icon: 'mt-0.5 fa-solid fa-circle-check text-emerald-700 dark:text-emerald-300',
+            text: 'text-sm text-emerald-800 dark:text-emerald-200',
+            msg:  'Your reschedule was approved. The date and time above are the new ones.',
+        },
+        rejected: {
+            box:  'flex items-start gap-3 p-3 rounded-2xl ring-1 bg-red-50 ring-red-200 dark:bg-red-900/20 dark:ring-red-800',
+            icon: 'mt-0.5 fa-solid fa-circle-xmark text-red-700 dark:text-red-300',
+            text: 'text-sm text-red-800 dark:text-red-200',
+            msg:  'Your last reschedule request was declined. Your original schedule still stands.',
+        },
+    };
+
+    const notice = notices[booking.reschedule_status] || null;
+    if (notice) {
+        wrap.className   = notice.box;
+        icon.className   = notice.icon;
+        text.className   = notice.text;
+        text.textContent = notice.msg;
+    } else {
+        wrap.className = 'hidden';
+    }
+
+    const active      = ['reserved', 'pending', 'ongoing'].includes(booking.status);
+    const canAsk      = bookingCanReschedule(booking);
+    const waiting     = booking.reschedule_status === 'pending';
+    const showButton  = canAsk && !waiting;
+
+    bdShow(btn, showButton, 'inline-flex');
+    bdShow(document.getElementById('bdFooter'), showButton);
+
+    // Started (or past its start) but not finished: tell them how to change it.
+    bdShow(closed, active && !canAsk && !waiting);
+    document.getElementById('detailRescheduleClosedPhone').textContent =
+        booking.branch_phone ? ` at ${booking.branch_phone}` : '';
+}
+
+// Therapist card + arrival code (staff verification D6, D7).
+function renderDetailTherapist(booking) {
+    const card     = booking.therapist_card || null;
+    const nameEl   = document.getElementById('detailTherapist');
+    const photo    = document.getElementById('detailTherapistPhoto');
+    const initials = document.getElementById('detailTherapistInitials');
+    const icon     = document.getElementById('detailTherapistIcon');
+    const badge    = document.getElementById('detailTherapistVerified');
+    const note     = document.getElementById('detailTherapistNote');
+
+    const active   = ['reserved', 'pending', 'ongoing'].includes(booking.status);
+    const homeCard = !!booking.is_home_service && active;
+    const assigned = !!card || (booking.therapist_assigned ?? (booking.therapist && booking.therapist !== 'Not Assigned'));
+
+    // Everything except an active home visit: a plain therapist row.
+    document.getElementById('detailTherapistPlain').textContent =
+        card ? card.name : (booking.therapist || 'Not assigned yet');
+    bdShow(document.getElementById('detailTherapistRow'), !homeCard);
+
+    bdShow(document.getElementById('detailArrival'), homeCard);
+    if (!homeCard) return;
+
+    // Step 1: who to expect.
+    nameEl.textContent = card ? card.name : 'Not assigned yet';
+
+    const hasPhoto = !!(card && card.photo_url);
+    if (hasPhoto) {
+        photo.src = card.photo_url;
+        photo.alt = `Photo of ${card.name}`;
+    } else {
+        photo.removeAttribute('src');
+        photo.alt = '';
+    }
+    bdShow(photo, hasPhoto);
+    initials.textContent = card ? (card.initials || '') : '';
+    bdShow(initials, !!card && !hasPhoto, 'flex');
+    bdShow(icon, !card, 'flex');
+    bdShow(badge, !!(card && card.verified), 'inline-flex');
+
+    note.textContent = assigned ? '' : 'Their photo will show here once the branch assigns your therapist.';
+    bdShow(note, note.textContent !== '');
+
+    // Step 2: the code, one digit per box.
+    const code   = (booking.arrival_code || '').toString();
+    const digits = document.querySelectorAll('#detailArrivalCode [data-code-digit]');
+    digits.forEach((el, i) => { el.textContent = code[i] ?? ''; });
+    document.getElementById('detailArrivalCodeSr').textContent =
+        code ? `Arrival code: ${code.split('').join(' ')}` : '';
+    bdShow(document.getElementById('detailArrivalCodeWrap'), code !== '', 'flex');
+
+    // After the branch confirms arrival, the code is no longer sent.
+    const done = document.getElementById('detailArrivalDone');
+    document.getElementById('detailArrivalDoneText').textContent =
+        booking.arrival_confirmed_at ? `Arrival confirmed at ${booking.arrival_confirmed_at}.` : '';
+    bdShow(done, !!booking.arrival_confirmed_at, 'flex');
+    bdShow(document.getElementById('detailArrivalSafety'), !booking.arrival_confirmed_at, 'flex');
+
+    const call = document.getElementById('detailArrivalCall');
+    if (booking.branch_phone) {
+        call.href = `tel:${booking.branch_phone.replace(/[^\d+]/g, '')}`;
+        call.setAttribute('aria-label', `Call the branch at ${booking.branch_phone}`);
+    } else {
+        call.removeAttribute('href');
+    }
+    bdShow(call, !!booking.branch_phone, 'inline-flex');
+}
+
+// Switches the panel between the details view and the reschedule form.
+function bdShowView(view, moveFocus = true) {
+    const form = view === 'reschedule';
+
+    bdShow(document.getElementById('bdDetailsView'), !form);
+    bdShow(document.getElementById('bdRescheduleView'), form);
+    bdShow(document.getElementById('bdBackBtn'), form, 'flex');
+    bdShow(document.getElementById('detailStatus'), !form);
+    document.getElementById('bdTitle').textContent = form ? 'Request reschedule' : 'Booking details';
+
+    bdShow(document.getElementById('openRescheduleBtn'), !form && bookingCanReschedule(selectedBooking || {})
+        && selectedBooking?.reschedule_status !== 'pending', 'inline-flex');
+    bdShow(document.getElementById('rescheduleSubmitBtn'), form, 'inline-flex');
+    if (form) bdShow(document.getElementById('bdFooter'), true);
+    else if (selectedBooking) renderDetailReschedule(selectedBooking);
+
+    document.getElementById('bdBody').scrollTop = 0;
+    if (moveFocus) {
+        requestAnimationFrame(() => (form
+            ? document.getElementById('rescheduleDate')
+            : document.getElementById('openRescheduleBtn')?.offsetParent
+                ? document.getElementById('openRescheduleBtn')
+                : document.getElementById('bdTitle'))?.focus());
+    }
+}
+
+function bdIsFormView() {
+    return !document.getElementById('bdRescheduleView').classList.contains('hidden');
+}
+
+// Backdrop: closes the details view, but never discards a half-typed form.
+function bdBackdropClick() {
+    if (bdIsFormView()) return;
+    closeBookingDetailsModal();
+}
+
+// Escape: form → back to details; details → close.
+function bdEscape() {
+    if (bdIsFormView()) closeRescheduleModal();
+    else closeBookingDetailsModal();
 }
 
 function closeBookingDetailsModal() {
     document.getElementById('bookingDetailsModal').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+    bdShowView('details', false);
+
+    // Only unlock the page if no other overlay is still open underneath.
+    const stillOpen = ['appointmentsModal', 'scheduleModal']
+        .some(id => !document.getElementById(id)?.classList.contains('hidden'));
+    if (!stillOpen) document.body.classList.remove('overflow-hidden');
+
+    if (_bdReturnFocus && document.contains(_bdReturnFocus)) _bdReturnFocus.focus();
+    _bdReturnFocus = null;
 }
 
-function statusColor(status) {
-    const map = {
-        reserved:  'text-blue-600 dark:text-blue-400',
-        pending:   'text-amber-600 dark:text-amber-400',
-        ongoing:   'text-emerald-600 dark:text-emerald-400',
-        completed: 'text-gray-500 dark:text-gray-400',
-        cancelled: 'text-red-500 dark:text-red-400',
-    };
-    return map[status] ?? 'text-gray-600 dark:text-gray-400';
-}
+// Keep Tab inside the panel while it is open.
+document.getElementById('bookingDetailsModal')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = [...document.querySelectorAll(
+        '#bdPanel a[href], #bdPanel button:not([disabled]), #bdPanel input:not([type="hidden"]):not([disabled]), #bdPanel textarea:not([disabled])'
+    )].filter(el => el.offsetParent !== null);
+    if (!focusable.length) return;
+
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 // =====================================================
-// RESCHEDULE MODAL
+// RESCHEDULE (a view inside the booking details panel)
 // =====================================================
 function openRescheduleModal() {
-    if (!selectedBooking) return;
+    if (!selectedBooking || !bookingCanReschedule(selectedBooking)) return;
 
-    document.getElementById('rescheduleBookingId').value             = selectedBooking.id;
     document.getElementById('rescheduleCurrentSchedule').textContent =
         `${selectedBooking.date} at ${formatTime(selectedBooking.start_time)}`;
 
-    const today     = getTodayLocal();
-    const timeInput = document.getElementById('rescheduleTime');
+    // Fresh form for a different booking; keep what was typed for the same one.
+    if (_bdFormBookingId !== selectedBooking.id) {
+        _bdFormBookingId = selectedBooking.id;
+        document.getElementById('rescheduleBookingId').value = selectedBooking.id;
 
-    document.getElementById('rescheduleDate').min   = today;
-    document.getElementById('rescheduleDate').value = '';
-    timeInput.value    = '';
-    timeInput.disabled = false;
-    timeInput.removeAttribute('min');
-    timeInput.removeAttribute('max');
-    document.getElementById('rescheduleReason').value            = '';
-    document.getElementById('rescheduleReasonCount').textContent = '0 / 1000 characters';
+        const timeInput = document.getElementById('rescheduleTime');
+        document.getElementById('rescheduleDate').min   = getTodayLocal();
+        document.getElementById('rescheduleDate').value = '';
+        timeInput.value    = '';
+        timeInput.disabled = false;
+        timeInput.removeAttribute('min');
+        timeInput.removeAttribute('max');
+        document.getElementById('rescheduleReason').value = '';
+        updateRescheduleReasonCount();
 
-    document.getElementById('rescheduleError').classList.add('hidden');
-    document.getElementById('rescheduleTimeError').classList.add('hidden');
+        document.getElementById('rescheduleError').classList.add('hidden');
+        document.getElementById('rescheduleTimeError').classList.add('hidden');
+        document.getElementById('rescheduleSubmitBtn').disabled = false;
+    }
 
-    document.getElementById('rescheduleModal').classList.remove('hidden');
+    bdShowView('reschedule');
 }
 
+// "Back": returns to the details view without losing what was typed.
 function closeRescheduleModal() {
-    document.getElementById('rescheduleModal').classList.add('hidden');
+    bdShowView('details');
+}
+
+function updateRescheduleReasonCount() {
+    const len = document.getElementById('rescheduleReason').value.length;
+    document.getElementById('rescheduleReasonCount').textContent =
+        `At least 10 characters · ${len} / 1000`;
 }
 
 async function updateRescheduleAvailableTimes() {
@@ -2594,10 +3202,7 @@ function validateRescheduleTime() {
     return true;
 }
 
-document.getElementById('rescheduleReason')?.addEventListener('input', function () {
-    document.getElementById('rescheduleReasonCount').textContent =
-        `${this.value.length} / 1000 characters`;
-});
+document.getElementById('rescheduleReason')?.addEventListener('input', updateRescheduleReasonCount);
 
 document.getElementById('rescheduleDate')?.addEventListener('change', updateRescheduleAvailableTimes);
 document.getElementById('rescheduleTime')?.addEventListener('change', validateRescheduleTime);
@@ -2628,7 +3233,7 @@ async function submitRescheduleRequest() {
 
     errorEl.classList.add('hidden');
     submitBtn.disabled  = true;
-    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Sending…</span>';
 
     try {
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -2655,9 +3260,9 @@ async function submitRescheduleRequest() {
             return;
         }
 
-        closeRescheduleModal();
+        _bdFormBookingId = null;   // next time, start with an empty form
         closeBookingDetailsModal();
-        showSpaToast('Reschedule request submitted! Waiting for approval.', 'success');
+        showSpaToast('Reschedule request sent. The branch will review it.', 'success');
 
         loadAppointments();
         loadSchedule();
@@ -2667,28 +3272,68 @@ async function submitRescheduleRequest() {
         errorEl.classList.remove('hidden');
     } finally {
         submitBtn.disabled  = false;
-        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i> Submit Request';
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane" aria-hidden="true"></i> <span>Send request</span>';
     }
 }
 
 // =====================================================
 // SPAS NEAR YOU
 // =====================================================
-async function loadNearbySpas() {
+
+async function fetchNearbySpas(lat = null, lng = null, locationSource = 'saved') {
     try {
-        const res  = await fetch('/web-api/spas/nearby');
+        const params = new URLSearchParams();
+
+        if (lat !== null && lng !== null) {
+            params.set('lat', lat);
+            params.set('lng', lng);
+        }
+
+        const url = params.toString()
+            ? `/web-api/spas/nearby?${params.toString()}`
+            : '/web-api/spas/nearby';
+
+        const res = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+
         const data = await res.json();
 
-        if (!Array.isArray(data) || data.length === 0) return;
-
         const section = document.getElementById('nearbySection');
-        const grid    = document.getElementById('nearbyGrid');
+        const grid = document.getElementById('nearbyGrid');
+        const locationText = document.getElementById('nearbyLocationText');
+
         if (!section || !grid) return;
+
+        if (!Array.isArray(data) || data.length === 0) {
+            section.classList.add('hidden');
+            return;
+        }
+
+        if (locationText) {
+            const locationLabels = {
+                current: 'Based on your current location.',
+                pinned: 'Based on your pinned location.',
+                saved: 'Based on your saved location.',
+            };
+
+            locationText.textContent =
+                locationLabels[locationSource]
+                ?? 'Spas near your location.';
+        }
 
         grid.innerHTML = data.map(spa => {
             const thumb = spaCardThumb(spa);
-            const addr  = spa.address ?? '';
+            const addr = spa.address ?? '';
             const parts = addr.split(',').map(s => s.trim());
+
             const addrSummary = parts.length >= 3
                 ? parts.slice(0, parts.length - 2).slice(-3).join(', ')
                 : (addr || 'Location unavailable');
@@ -2696,36 +3341,62 @@ async function loadNearbySpas() {
             const escapedData = JSON.stringify(spa).replace(/'/g, '&#39;');
 
             return `
-                <button type="button"
+                <button
+                    type="button"
                     class="w-full overflow-hidden text-left transition bg-white dark:bg-gray-800 shadow-sm group rounded-3xl ring-1 ring-black/5 dark:ring-white/10 hover:shadow-2xl"
                     data-open-spa-modal
                     data-spa='${escapedData}'>
+
                     <div class="relative overflow-hidden">
-                        <img src="${thumb}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="${spa.name}">
+                        <img
+                            src="${thumb}"
+                            class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                            alt="${escapeHtml(spa.name)}">
+
                         <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+
                         <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5 dark:ring-white/10">
                             <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>
                             ${spa.distance_km} km away
                         </div>
                     </div>
+
                     <div class="p-5">
-                        <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">${spa.name}</h3>
+                        <h3 class="text-[15px] font-semibold text-[#3C2F23] dark:text-white leading-tight">
+                            ${escapeHtml(spa.name)}
+                        </h3>
+
                         ${spa.rating_avg ? `
-                        <div class="flex items-center gap-1 mt-1">
-                            <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
-                            <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">${spa.rating_avg}</span>
-                            <span class="text-xs text-gray-400">(${spa.rating_count})</span>
-                        </div>` : ''}
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">${addrSummary}</p>
+                            <div class="flex items-center gap-1 mt-1">
+                                <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
+
+                                <span class="text-xs font-semibold text-[#3C2F23] dark:text-white">
+                                    ${spa.rating_avg}
+                                </span>
+
+                                <span class="text-xs text-gray-400">
+                                    (${spa.rating_count})
+                                </span>
+                            </div>
+                        ` : ''}
+
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            ${escapeHtml(addrSummary)}
+                        </p>
                     </div>
-                </button>`;
+                </button>
+            `;
         }).join('');
 
         grid.querySelectorAll('[data-open-spa-modal]').forEach(btn => {
             btn.addEventListener('click', () => {
                 try {
-                    openSpaModal(JSON.parse(btn.getAttribute('data-spa')));
-                } catch (e) { console.error(e); }
+                    openSpaModal(
+                        JSON.parse(btn.getAttribute('data-spa'))
+                    );
+                } catch (e) {
+                    console.error('Invalid nearby spa data', e);
+                }
             });
         });
 
@@ -2734,6 +3405,58 @@ async function loadNearbySpas() {
     } catch (err) {
         console.warn('Nearby spas unavailable:', err);
     }
+}
+
+// =====================================================
+// SPAS NEAR YOU: which location to use (UI rework Phase 5)
+// =====================================================
+/*
+  "Find spas near" is chosen per device in the profile window: the saved home
+  location (default) or where the device is right now. The browser is never
+  asked for location on page load (Chrome flags that, and it's what used to
+  overwrite the saved home location). "Right now" only uses GPS silently if
+  this site already has permission; otherwise it falls back to home.
+*/
+const NEARBY_PREF_KEY = 'levictas.nearbyFrom';
+
+function nearbyPref() {
+    try { return localStorage.getItem(NEARBY_PREF_KEY) === 'here' ? 'here' : 'home'; }
+    catch (e) { return 'home'; }
+}
+
+function setNearbyPref(value) {
+    try { localStorage.setItem(NEARBY_PREF_KEY, value); } catch (e) { /* storage blocked */ }
+}
+
+function getDevicePosition() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) { reject({ code: 'unsupported' }); return; }
+        navigator.geolocation.getCurrentPosition(
+            p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+            reject,
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+    });
+}
+
+async function geolocationAlreadyAllowed() {
+    try {
+        const status = await navigator.permissions?.query({ name: 'geolocation' });
+        return status?.state === 'granted';
+    } catch (e) { return false; }
+}
+
+async function loadNearbySpas() {
+    if (!document.getElementById('nearbySection')) return;
+
+    if (nearbyPref() === 'here' && await geolocationAlreadyAllowed()) {
+        try {
+            const pos = await getDevicePosition();
+            fetchNearbySpas(pos.lat, pos.lng, 'current');
+            return;
+        } catch (e) { /* fall through to home */ }
+    }
+    fetchNearbySpas(null, null, 'saved');
 }
 
 document.addEventListener('DOMContentLoaded', loadNearbySpas);
@@ -2745,265 +3468,557 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // =====================================================
-// MAP (For Profile Modal) — Cavite-bounded, draggable pin, with feedback so
-// a stray/accidental tap is visible and undoable instead of silently
-// overwriting whatever address the customer had typed.
+// PROFILE WINDOW (UI rework Phase 5)
 // =====================================================
+/*
+  Opens read-only. Name, phone and home location each have their own editor
+  that replaces the main view (Back returns, nothing is kept until Save).
+  Each Save sends only that section (ProfileController::updateCustomer) and
+  updates the rows in place, without reloading. Photo upload still posts the
+  old form (the page reloads and this window reopens).
+*/
+let pfUser          = null;
+let pfView          = 'main';
+let pfReturnFocus   = null;
+let pfPreviewMap    = null;
+let pfPreviewMarker = null;
+let pfEditMap       = null;
+let pfEditMarker    = null;
+let pfDraft         = { address: '', lat: null, lng: null, addressFromPin: false };
+let pfLastGeocodeAt = 0;
 
-// Places/moves the pin + syncs the hidden lat/lng inputs. Pure mechanical
-// placement — doesn't touch the address text field and doesn't toast.
-// Returns false (leaving everything untouched) if the point falls outside
-// Cavite.
-function placeProfilePin(lat, lng) {
-    if (!window.profileMap) return false;
+const PF_VIEWS = {
+    main:     { el: 'pfMain',         title: 'Your profile',  save: null },
+    name:     { el: 'pfEditName',     title: 'Name',          save: 'Save name' },
+    phone:    { el: 'pfEditPhone',    title: 'Phone',         save: 'Save phone' },
+    location: { el: 'pfEditLocation', title: 'Home location', save: 'Save location' },
+};
 
-    const withinCavite = lat >= PROFILE_CAVITE_LAT_MIN && lat <= PROFILE_CAVITE_LAT_MAX
+function pfLoadUser() {
+    if (pfUser) return pfUser;
+    try { pfUser = JSON.parse(document.getElementById('pfData')?.textContent || 'null'); }
+    catch (e) { pfUser = null; }
+    return pfUser;
+}
+
+function pfInCavite(lat, lng) {
+    return lat >= PROFILE_CAVITE_LAT_MIN && lat <= PROFILE_CAVITE_LAT_MAX
         && lng >= PROFILE_CAVITE_LNG_MIN && lng <= PROFILE_CAVITE_LNG_MAX;
-    if (!withinCavite) return false;
+}
 
-    if (profileMapMarker) {
-        window.profileMap.removeLayer(profileMapMarker);
+function pfFormatPhone(p) {
+    return /^09\d{9}$/.test(p || '') ? `${p.slice(0, 4)} ${p.slice(4, 7)} ${p.slice(7)}` : (p || '');
+}
+
+function pfToggle(el, on, display = null) {
+    if (!el) return;
+    el.classList.toggle('hidden', !on);
+    if (display) el.classList.toggle(display, on);
+}
+
+function pfSetMuted(el, text, muted) {
+    el.textContent = text;
+    el.classList.toggle('text-gray-500', muted);
+    el.classList.toggle('dark:text-gray-400', muted);
+    el.classList.toggle('font-normal', muted);
+}
+
+// Fills the read-only rows from pfUser.
+function pfRenderMain() {
+    const u = pfLoadUser();
+    if (!u) return;
+
+    document.getElementById('pfRowName').textContent = u.name || '';
+    pfRenderNameRule();
+    const heading = document.getElementById('pfNameHeading');
+    if (heading) heading.textContent = u.name || '';
+    document.querySelectorAll('[data-account-name]').forEach(el => { el.textContent = u.name || ''; });
+
+    pfSetMuted(document.getElementById('pfRowPhone'), u.phone ? pfFormatPhone(u.phone) : 'Not added', !u.phone);
+
+    const hasPin = u.latitude !== null && u.longitude !== null;
+    pfSetMuted(document.getElementById('pfRowLocation'), u.address || (hasPin ? 'Pinned on the map' : 'Not set'), !u.address && !hasPin);
+    pfToggle(document.getElementById('pfMapPreviewWrap'), hasPin);
+    if (hasPin) requestAnimationFrame(() => pfRenderPreviewMap(u.latitude, u.longitude));
+
+    // Find spas near
+    const pref = nearbyPref();
+    document.querySelectorAll('input[name="pfNearbyFrom"]').forEach(r => { r.checked = r.value === pref; });
+    pfNearbyHint(pref);
+}
+
+// Name: once every 30 days, with 24 hours to fix a typo (User::guardNameChange).
+function pfDate(iso, withTime = false) {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return withTime ? `${date}, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : date;
+}
+
+function pfRenderNameRule() {
+    const u = pfLoadUser();
+    const locked = !!u.name_locked_until && new Date(u.name_locked_until) > new Date();
+    const fixUntil = u.name_correction_until && new Date(u.name_correction_until) > new Date() ? u.name_correction_until : null;
+    const days = u.name_change_days || 30;
+
+    pfToggle(document.getElementById('pfNameEdit'), !locked, 'inline-flex');
+    pfToggle(document.getElementById('pfNameLock'), locked, 'inline-flex');
+
+    const note = document.getElementById('pfNameNote');
+    note.textContent = locked
+        ? `You can change your name again on ${pfDate(u.name_locked_until)}.`
+        : (fixUntil ? `Made a typo? You can still fix it until ${pfDate(fixUntil, true)}.` : '');
+    pfToggle(note, note.textContent !== '');
+
+    document.getElementById('pfNameRuleText').textContent = fixUntil
+        ? `You can fix your name until ${pfDate(fixUntil, true)} without waiting. After that, you can change it once every ${days} days.`
+        : `You can change your name once every ${days} days. If you make a typo, you'll have 24 hours to fix it.`;
+}
+
+// One line under the switch that says what the current choice means.
+function pfNearbyHint(pref) {
+    const u = pfLoadUser();
+    const hasPin = u && u.latitude !== null && u.longitude !== null;
+    document.getElementById('pfNearbyHomeHint').textContent = pref === 'here'
+        ? "Showing spas near where this device is right now. Your saved home location doesn't change."
+        : (hasPin ? 'Showing spas near your saved home location.' : 'Add your home location above to see spas near you.');
+}
+
+// A small map that only shows the pin: no dragging, zooming or tapping.
+function pfRenderPreviewMap(lat, lng) {
+    const el = document.getElementById('pfMapPreview');
+    if (!el || typeof L === 'undefined') return;
+    if (!pfPreviewMap) {
+        pfPreviewMap = L.map(el, {
+            dragging: false, touchZoom: false, scrollWheelZoom: false, doubleClickZoom: false,
+            boxZoom: false, keyboard: false, zoomControl: false, attributionControl: true,
+        });
+        pfPreviewMap.attributionControl.setPrefix(false);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '&copy; OpenStreetMap',
+        }).addTo(pfPreviewMap);
     }
-    profileMapMarker = L.marker([lat, lng], { draggable: true }).addTo(window.profileMap);
-    profileMapMarker.on('dragend', () => updateProfilePin(profileMapMarker.getLatLng()));
+    pfPreviewMap.setView([lat, lng], 15);
+    if (pfPreviewMarker) pfPreviewMarker.setLatLng([lat, lng]);
+    else pfPreviewMarker = L.marker([lat, lng], { interactive: false, keyboard: false }).addTo(pfPreviewMap);
+    pfPreviewMap.invalidateSize();
+}
 
-    const latInput = document.getElementById('latitude');
-    const lngInput = document.getElementById('longitude');
-    if (latInput) latInput.value = lat;
-    if (lngInput) lngInput.value = lng;
+function openProfileModal() {
+    const modal = document.getElementById('profileModal');
+    if (!modal) return;
+    pfReturnFocus = document.activeElement;
+    pfLoadUser();
+    pfNearbyStatus('', 'ok');   // don't show a message left over from last time
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    pfShowView('main', false);
+    requestAnimationFrame(() => document.getElementById('pfNameHeading')?.focus());
+}
 
+function closeProfileModal() {
+    const modal = document.getElementById('profileModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    pfView = 'main';
+    if (pfReturnFocus && document.contains(pfReturnFocus)) pfReturnFocus.focus();
+    pfReturnFocus = null;
+}
+
+// Backdrop closes the main view; in an editor it does nothing, so a stray
+// tap can't throw away what was typed.
+function pfBackdropClick() {
+    if (pfView === 'main') closeProfileModal();
+}
+
+function pfEscape() {
+    if (pfView === 'main') closeProfileModal();
+    else pfShowView('main');
+}
+
+function pfClearErrors() {
+    document.querySelectorAll('#pfPanel [id^="pfErr-"]').forEach(el => { el.textContent = ''; el.classList.add('hidden'); });
+    document.querySelectorAll('#pfPanel [aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+}
+
+// Moves focus to the first field with an error, so keyboard and screen-reader
+// users land on what needs fixing.
+function pfFocusFirstError() {
+    const input = document.querySelector('#pfPanel [aria-invalid="true"]');
+    if (input && input.offsetParent !== null) input.focus();
+    else document.querySelector('#pfPanel [id^="pfErr-"]:not(.hidden)')?.scrollIntoView({ block: 'nearest' });
+}
+
+function pfShowError(field, message) {
+    const el = document.getElementById(`pfErr-${field}`);
+    if (!el) return false;
+    el.textContent = message;
+    el.classList.remove('hidden');
+    const input = { first_name: 'pfFirstName', middle_name: 'pfMiddleName', last_name: 'pfLastName', suffix: 'pfSuffix', phone: 'pfPhone', address: 'address' }[field];
+    document.getElementById(input)?.setAttribute('aria-invalid', 'true');
     return true;
 }
 
-// Click/drag path: place the pin, then reverse-geocode to fill the address
-// field, with a toast so the change is visible rather than silent. On an
-// out-of-bounds tap, nothing is overwritten and an existing marker snaps
-// back to its last valid position.
-function updateProfilePin(latlng) {
-    const placed = placeProfilePin(latlng.lat, latlng.lng);
+// Switches between the main view and one editor. Editors always start from
+// what's saved, so Back/Cancel is a true discard.
+function pfShowView(view, moveFocus = true) {
+    const u = pfLoadUser();
+    pfView = view;
+    Object.entries(PF_VIEWS).forEach(([key, v]) => pfToggle(document.getElementById(v.el), key === view));
+    document.getElementById('pfTitle').textContent = PF_VIEWS[view].title;
+    pfToggle(document.getElementById('pfBar'), view !== 'main', 'flex');     // the main view has the warm header instead
+    pfToggle(document.getElementById('pfBackBtn'), view !== 'main', 'flex');
+    pfToggle(document.getElementById('pfFooter'), view !== 'main');
+    document.getElementById('pfSaveLabel').textContent = PF_VIEWS[view].save || 'Save';
+    document.getElementById('pfSaveBtn').disabled = false;
+    document.getElementById('pfBody').scrollTop = 0;
+    pfClearErrors();
 
-    if (!placed) {
-        showSpaToast('That spot is outside Cavite — pin somewhere within the province.', 'error');
-        if (profileMapMarker) {
-            const latInput = document.getElementById('latitude');
-            const lngInput = document.getElementById('longitude');
-            const revertLat = latInput && latInput.value ? parseFloat(latInput.value) : null;
-            const revertLng = lngInput && lngInput.value ? parseFloat(lngInput.value) : null;
-            if (revertLat && revertLng) profileMapMarker.setLatLng([revertLat, revertLng]);
+    if (view === 'main') pfRenderMain();
+    if (view === 'name') {
+        document.getElementById('pfFirstName').value  = u.first_name || '';
+        document.getElementById('pfMiddleName').value = u.middle_name || '';
+        document.getElementById('pfLastName').value   = u.last_name || '';
+        document.getElementById('pfSuffix').value     = u.suffix || '';
+    }
+    if (view === 'phone') document.getElementById('pfPhone').value = u.phone || '';
+    if (view === 'location') pfOpenLocationEditor();
+
+    if (!moveFocus) return;
+    const first = { main: 'pfNameHeading', name: 'pfFirstName', phone: 'pfPhone', location: 'pfUseHere' }[view];
+    requestAnimationFrame(() => document.getElementById(first)?.focus());
+}
+
+// ── Saving ─────────────────────────────────────────────────────────────────
+function pfPayload() {
+    if (pfView === 'name') return {
+        section: 'name',
+        first_name:  document.getElementById('pfFirstName').value.trim(),
+        middle_name: document.getElementById('pfMiddleName').value.trim(),
+        last_name:   document.getElementById('pfLastName').value.trim(),
+        suffix:      document.getElementById('pfSuffix').value.trim(),
+    };
+    if (pfView === 'phone') return { section: 'phone', phone: document.getElementById('pfPhone').value.trim() };
+    if (pfView === 'location') return {
+        section: 'location',
+        address:   document.getElementById('address').value.trim(),
+        latitude:  pfDraft.lat,
+        longitude: pfDraft.lng,
+    };
+    return null;
+}
+
+// Checks the browser can do before sending; the server checks again.
+function pfCheck(data) {
+    const problems = [];
+    if (data.section === 'name') {
+        if (!data.first_name) problems.push(['first_name', 'Enter your first name.']);
+        if (!data.last_name)  problems.push(['last_name', 'Enter your last name.']);
+    }
+    if (data.section === 'phone' && data.phone && !/^09\d{9}$/.test(data.phone)) {
+        problems.push(['phone', 'Enter 11 digits starting with 09, like 09171234567.']);
+    }
+    if (data.section === 'location' && (data.latitude === null || data.longitude === null)) {
+        problems.push(['latitude', 'Place your pin on the map, search for your address, or use your current location.']);
+    }
+    problems.forEach(([field, message]) => pfShowError(field, message));
+    pfFocusFirstError();
+    return problems.length === 0;
+}
+
+async function pfSave() {
+    const data = pfPayload();
+    if (!data) return;
+    pfClearErrors();
+    if (!pfCheck(data)) return;
+
+    const btn   = document.getElementById('pfSaveBtn');
+    const label = document.getElementById('pfSaveLabel');
+    const idle  = label.textContent;
+    btn.disabled = true;
+    label.textContent = 'Saving…';
+
+    try {
+        const res = await fetch(pfLoadUser().save_url, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+            },
+            body: JSON.stringify(data),
+        });
+        const body = await res.json().catch(() => ({}));
+
+        if (res.status === 422) {
+            const errors = body.errors || {};
+            const shown = Object.entries(errors).map(([f, m]) => pfShowError(f, m[0])).some(Boolean);
+            if (!shown) showSpaToast(body.message || 'Please check what you entered.', 'error');
+            pfFocusFirstError();
+            return;
         }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        pfApplySaved(body.user || {}, data.section);
+        showSpaToast({ name: 'Name saved.', phone: 'Phone saved.', location: 'Home location saved.' }[data.section], 'success');
+        pfShowView('main');
+    } catch (err) {
+        console.error('Profile save failed:', err);
+        showSpaToast("Couldn't save. Check your connection and try again.", 'error');
+    } finally {
+        btn.disabled = false;
+        label.textContent = idle;
+    }
+}
+
+// Updates the page after a save: the rows, the nav name, and the booking
+// form's default phone and address (only where the customer hadn't typed
+// something else).
+function pfApplySaved(saved, section) {
+    const u = pfLoadUser();
+    const before = { ...u };
+    Object.assign(u, saved);
+
+    if (section === 'phone') {
+        const phone = document.getElementById('bookingCustomerPhone');
+        if (phone) {
+            if (!phone.value || phone.value === before.phone) phone.value = u.phone || '';
+            phone.dataset.defaultPhone = u.phone || '';
+        }
+    }
+    if (section === 'location') {
+        const addr = document.getElementById('bookingAddressInput');
+        if (addr) {
+            if (!addr.value || addr.value === before.address) addr.value = u.address || '';
+            addr.dataset.defaultAddress = u.address || '';
+        }
+        if (nearbyPref() === 'home') fetchNearbySpas(null, null, 'saved');
+    }
+}
+
+// Enter saves in the name and phone editors.
+document.getElementById('pfEditName')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pfSave(); } });
+document.getElementById('pfEditPhone')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pfSave(); } });
+document.getElementById('pfPhone')?.addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 11); });
+
+// ── Home location editor ──────────────────────────────────────────────────
+function pfOpenLocationEditor() {
+    const u = pfLoadUser();
+    pfDraft = { address: u.address || '', lat: u.latitude, lng: u.longitude, addressFromPin: false };
+    document.getElementById('address').value = pfDraft.address;
+    pfClearResults();
+    pfLocStatus('Tap the map to place your pin, then drag it to fine-tune. Cavite only.');
+
+    requestAnimationFrame(() => {
+        pfInitEditMap();
+        if (!pfEditMap) return;
+        pfEditMap.invalidateSize();
+        if (pfDraft.lat !== null && pfDraft.lng !== null) {
+            pfSetEditPin(pfDraft.lat, pfDraft.lng);
+            pfEditMap.setView([pfDraft.lat, pfDraft.lng], 16);
+        } else {
+            if (pfEditMarker) { pfEditMap.removeLayer(pfEditMarker); pfEditMarker = null; }
+            pfEditMap.setView([14.2456, 120.8786], 11);   // Cavite
+        }
+    });
+}
+
+function pfInitEditMap() {
+    if (pfEditMap || typeof L === 'undefined' || !document.getElementById('map')) return;
+    const bounds = L.latLngBounds([PROFILE_CAVITE_LAT_MIN, PROFILE_CAVITE_LNG_MIN], [PROFILE_CAVITE_LAT_MAX, PROFILE_CAVITE_LNG_MAX]);
+    pfEditMap = L.map('map', { maxBounds: bounds, maxBoundsViscosity: 1.0, scrollWheelZoom: false })
+        .setView([14.2456, 120.8786], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(pfEditMap);
+    pfEditMap.on('click', e => pfMovePin(e.latlng.lat, e.latlng.lng));
+}
+
+function pfSetEditPin(lat, lng) {
+    if (!pfEditMap) return;
+    if (pfEditMarker) { pfEditMarker.setLatLng([lat, lng]); return; }
+    pfEditMarker = L.marker([lat, lng], { draggable: true, keyboard: true, title: 'Your home location' }).addTo(pfEditMap);
+    pfEditMarker.on('dragend', () => {
+        const p = pfEditMarker.getLatLng();
+        pfMovePin(p.lat, p.lng);
+    });
+}
+
+function pfLocStatus(text, tone = 'muted') {
+    const el = document.getElementById('pfLocStatus');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'mt-2 text-xs ' + ({
+        muted: 'text-gray-600 dark:text-gray-400',
+        ok:    'text-emerald-700 dark:text-emerald-300',
+        error: 'text-red-700 dark:text-red-400',
+    }[tone]);
+}
+
+// A tap or drag inside the editor: move the pin; fill the address only if
+// the customer hasn't typed their own.
+function pfMovePin(lat, lng) {
+    if (!pfInCavite(lat, lng)) {
+        pfLocStatus("That spot is outside Cavite. Choose a place within the province.", 'error');
+        if (pfEditMarker && pfDraft.lat !== null) pfEditMarker.setLatLng([pfDraft.lat, pfDraft.lng]);
         return;
     }
+    pfDraft.lat = lat;
+    pfDraft.lng = lng;
+    pfSetEditPin(lat, lng);
+    pfClearErrors();
+    pfLocStatus('Pin placed. Save location to keep it.', 'ok');
 
-    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json&addressdetails=1`)
-        .then(res => res.json())
-        .then(data => {
-            const addressField = document.getElementById('address');
-            if (addressField && data.display_name) addressField.value = data.display_name;
-        })
-        .catch(err => console.warn('Reverse geocoding failed:', err))
-        .finally(() => {
-            showSpaToast('Pin updated — hit "Save Changes" below to keep it.', 'success');
-        });
+    const field = document.getElementById('address');
+    if (!field.value.trim() || pfDraft.addressFromPin) pfFillAddressFromPin(lat, lng);
 }
 
-// Restores the address + pin to what was on file when the modal opened —
-// a one-tap undo for a stray tap or an experiment that didn't work out.
-function resetProfileLocation() {
-    const addressField = document.getElementById('address');
-    const latInput      = document.getElementById('latitude');
-    const lngInput       = document.getElementById('longitude');
-
-    if (addressField) addressField.value = profileSavedLocation.address || '';
-    if (latInput)      latInput.value    = profileSavedLocation.lat ?? '';
-    if (lngInput)       lngInput.value    = profileSavedLocation.lng ?? '';
-
-    const suggestions = document.getElementById('addressSuggestions');
-    if (suggestions) suggestions.classList.add('hidden');
-
-    if (!window.profileMap) return;
-
-    if (profileMapMarker) {
-        window.profileMap.removeLayer(profileMapMarker);
-        profileMapMarker = null;
-    }
-
-    if (profileSavedLocation.lat && profileSavedLocation.lng) {
-        window.profileMap.setView([profileSavedLocation.lat, profileSavedLocation.lng], 15);
-        profileMapMarker = L.marker([profileSavedLocation.lat, profileSavedLocation.lng], { draggable: true }).addTo(window.profileMap);
-        profileMapMarker.on('dragend', () => updateProfilePin(profileMapMarker.getLatLng()));
-    }
-
-    showSpaToast('Location reset to your saved address.', 'success');
+// OpenStreetMap's free geocoder allows at most one request per second and no
+// search-as-you-type, so lookups only happen on a tap, a drag or Search.
+async function pfGeocode(url) {
+    const wait = 1100 - (Date.now() - pfLastGeocodeAt);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    pfLastGeocodeAt = Date.now();
+    const res = await fetch(url, { headers: { 'Accept': 'application/json', 'Accept-Language': 'en' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
 }
 
-// Wait for DOM to be fully loaded before initializing map
-document.addEventListener('DOMContentLoaded', function() {
-    const mapContainer = document.getElementById('map');
-
-    if (mapContainer) {
-        const caviteBounds = L.latLngBounds(
-            [PROFILE_CAVITE_LAT_MIN, PROFILE_CAVITE_LNG_MIN],
-            [PROFILE_CAVITE_LAT_MAX, PROFILE_CAVITE_LNG_MAX]
-        );
-
-        // Initialize map only if container exists
-        window.profileMap = L.map('map', {
-            maxBounds: caviteBounds,
-            maxBoundsViscosity: 1.0,
-        }).setView([14.2456, 120.8786], 11); // Cavite center — matches the branch-profile map default
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(window.profileMap);
-
-        window.profileMap.on('click', (e) => updateProfilePin(e.latlng));
-
-        setupProfileAddressAutocomplete();
-    } else {
-        console.log('Map container not found on this page - skipping map initialization');
+async function pfFillAddressFromPin(lat, lng) {
+    try {
+        const data = await pfGeocode(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1`);
+        if (data?.display_name && pfDraft.lat === lat && pfDraft.lng === lng) {
+            document.getElementById('address').value = data.display_name;
+            pfDraft.addressFromPin = true;
+        }
+    } catch (e) {
+        console.warn('Reverse geocoding failed:', e);
     }
+}
+
+document.getElementById('address')?.addEventListener('input', () => { pfDraft.addressFromPin = false; });
+document.getElementById('address')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); pfSearchAddress(); }
 });
 
-document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('profileLocationReset')?.addEventListener('click', function (e) {
-        e.preventDefault();
-        resetProfileLocation();
-    });
+function pfClearResults() {
+    const list = document.getElementById('pfSearchResults');
+    if (list) { list.innerHTML = ''; list.classList.add('hidden'); }
+}
+
+async function pfSearchAddress() {
+    const query = document.getElementById('address').value.trim();
+    const btn   = document.getElementById('pfSearchBtn');
+    const list  = document.getElementById('pfSearchResults');
+    pfClearErrors();
+    if (query.length < 3) { pfShowError('address', 'Type at least 3 letters of your barangay, subdivision or street.'); return; }
+
+    btn.disabled = true;
+    try {
+        const data = await pfGeocode(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Cavite, Philippines')}&format=json&limit=5&viewbox=${PROFILE_CAVITE_VIEWBOX}&bounded=1&addressdetails=1`);
+        const results = (data || []).filter(r => pfInCavite(parseFloat(r.lat), parseFloat(r.lon)));
+        list.innerHTML = results.length
+            ? results.map((r, i) => `
+                <li><button type="button" class="pf-result" data-i="${i}">
+                    <i class="fa-solid fa-location-dot" aria-hidden="true"></i><span>${escapeHtml(r.display_name)}</span>
+                </button></li>`).join('')
+            : `<li class="px-3 py-3 text-sm text-gray-600 dark:text-gray-300">No matches in Cavite. Try a nearby landmark, or tap the map.</li>`;
+        list.classList.remove('hidden');
+        list.querySelectorAll('.pf-result').forEach(b => b.addEventListener('click', () => {
+            const r = results[parseInt(b.dataset.i, 10)];
+            const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+            document.getElementById('address').value = r.display_name;
+            pfDraft.addressFromPin = false;
+            pfDraft.lat = lat; pfDraft.lng = lng;
+            pfSetEditPin(lat, lng);
+            pfEditMap?.setView([lat, lng], 17);
+            pfClearResults();
+            pfLocStatus('Check the pin and drag it onto your home if needed.', 'ok');
+        }));
+        list.querySelector('.pf-result')?.focus();
+    } catch (e) {
+        console.warn('Address search failed:', e);
+        pfShowError('address', "Search isn't available right now. Tap the map to place your pin instead.");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// "Use my current location": the browser asks only now, after the tap.
+async function pfUseCurrentLocation() {
+    const btn = document.getElementById('pfUseHere');
+    const label = btn.querySelector('span');
+    btn.disabled = true;
+    label.textContent = 'Finding you…';
+    try {
+        const pos = await getDevicePosition();
+        if (!pfInCavite(pos.lat, pos.lng)) {
+            pfLocStatus("You seem to be outside Cavite right now. Search for your address or tap the map instead.", 'error');
+            return;
+        }
+        document.getElementById('address').value = '';
+        pfDraft.addressFromPin = true;
+        pfMovePin(pos.lat, pos.lng);
+        pfEditMap?.setView([pos.lat, pos.lng], 17);
+        pfLocStatus("Pinned where you are now. Check it's your home, then save.", 'ok');
+    } catch (err) {
+        pfLocStatus(err?.code === 1
+            ? "Location access is blocked for this site. Allow it in your browser's site settings, or search instead."
+            : "Couldn't get your location. Search for your address or tap the map instead.", 'error');
+    } finally {
+        btn.disabled = false;
+        label.textContent = 'Use my current location';
+    }
+}
+
+// ── Find spas near (per device) ───────────────────────────────────────────
+function pfNearbyStatus(text, tone) {
+    const el = document.getElementById('pfNearbyStatus');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'mt-2 text-xs ' + (tone === 'error' ? 'text-red-700 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-300');
+    el.classList.toggle('hidden', !text);
+}
+
+async function pfSetNearbyFrom(value) {
+    const u = pfLoadUser();
+    if (value === 'home') {
+        setNearbyPref('home');
+        pfNearbyHint('home');
+        fetchNearbySpas(null, null, 'saved');
+        pfNearbyStatus(u.latitude !== null ? 'Spas near you now use your home location.' : 'Add your home location to see spas near you.', 'ok');
+        return;
+    }
+    pfNearbyStatus('Asking for your location…', 'ok');
+    try {
+        const pos = await getDevicePosition();
+        setNearbyPref('here');
+        pfNearbyHint('here');
+        fetchNearbySpas(pos.lat, pos.lng, 'current');
+        pfNearbyStatus('Spas near you now use where you are right now.', 'ok');
+    } catch (err) {
+        setNearbyPref('home');
+        pfNearbyHint('home');
+        document.querySelectorAll('input[name="pfNearbyFrom"]').forEach(r => { r.checked = r.value === 'home'; });
+        pfNearbyStatus(err?.code === 1
+            ? "Location access is blocked for this site, so your home location is used. Allow it in your browser's site settings to change this."
+            : "Couldn't get your location, so your home location is used.", 'error');
+    }
+}
+
+// Keep Tab inside the window while it's open.
+document.getElementById('profileModal')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = [...document.querySelectorAll(
+        '#pfPanel a[href], #pfPanel button:not([disabled]), #pfPanel input:not([type="hidden"]):not([disabled]), #pfPanel label[title]'
+    )].filter(el => el.offsetParent !== null && !el.closest('.leaflet-control-container'));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
-
-// =====================================================
-// PROFILE ADDRESS AUTOCOMPLETE — search-first path, so most customers never
-// need to touch the map directly; the map becomes a fine-tune/confirm step
-// rather than the primary way to set a location.
-// =====================================================
-let profileAddressGeocodeTimeout = null;
-let profileAddressSuggestions    = [];
-let profileActiveSuggestionIndex = -1;
-
-function fetchProfileAddressSuggestions(query) {
-    const dropdown = document.getElementById('addressSuggestions');
-    if (!dropdown) return;
-
-    if (!query || query.length < 3) {
-        dropdown.classList.add('hidden');
-        profileAddressSuggestions = [];
-        return;
-    }
-
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Cavite, Philippines')}&format=json&limit=5&viewbox=${PROFILE_CAVITE_VIEWBOX}&bounded=1&addressdetails=1`;
-
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            profileAddressSuggestions = data || [];
-            renderProfileAddressSuggestions();
-        })
-        .catch(err => {
-            console.warn('Address search failed:', err);
-            dropdown.classList.add('hidden');
-        });
-}
-
-function renderProfileAddressSuggestions() {
-    const dropdown = document.getElementById('addressSuggestions');
-    if (!dropdown) return;
-
-    profileActiveSuggestionIndex = -1;
-
-    if (profileAddressSuggestions.length === 0) {
-        dropdown.innerHTML = `<div class="px-4 py-2.5 text-sm text-gray-400">No matches in Cavite — try a broader search, or pin it on the map below.</div>`;
-        dropdown.classList.remove('hidden');
-        return;
-    }
-
-    dropdown.innerHTML = profileAddressSuggestions.map((item, index) => `
-        <button type="button"
-                data-index="${index}"
-                class="profile-address-suggestion-item flex items-start w-full gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-0">
-            <i class="fa-solid fa-location-dot text-[#8B7355] text-xs mt-1 flex-shrink-0"></i>
-            <span class="text-gray-700 dark:text-gray-200">${escapeHtml(item.display_name)}</span>
-        </button>
-    `).join('');
-
-    dropdown.classList.remove('hidden');
-
-    dropdown.querySelectorAll('.profile-address-suggestion-item').forEach(btn => {
-        btn.addEventListener('click', () => {
-            selectProfileAddressSuggestion(parseInt(btn.dataset.index, 10));
-        });
-    });
-}
-
-function selectProfileAddressSuggestion(index) {
-    const item = profileAddressSuggestions[index];
-    if (!item) return;
-
-    const lat = parseFloat(item.lat);
-    const lng = parseFloat(item.lon);
-
-    const addressField = document.getElementById('address');
-    if (addressField) addressField.value = item.display_name;
-
-    const placed = placeProfilePin(lat, lng);
-    if (placed && window.profileMap) {
-        window.profileMap.setView([lat, lng], 16);
-    } else {
-        showSpaToast('That result is outside Cavite — try a more specific search or pin it manually.', 'error');
-    }
-
-    const dropdown = document.getElementById('addressSuggestions');
-    if (dropdown) dropdown.classList.add('hidden');
-    profileAddressSuggestions = [];
-}
-
-function highlightProfileSuggestion(items) {
-    items.forEach((item, i) => {
-        item.classList.toggle('bg-gray-100', i === profileActiveSuggestionIndex);
-        item.classList.toggle('dark:bg-gray-600', i === profileActiveSuggestionIndex);
-    });
-    items[profileActiveSuggestionIndex]?.scrollIntoView({ block: 'nearest' });
-}
-
-function setupProfileAddressAutocomplete() {
-    const addressInput = document.getElementById('address');
-    const dropdown      = document.getElementById('addressSuggestions');
-    if (!addressInput || !dropdown) return;
-
-    addressInput.addEventListener('input', function () {
-        clearTimeout(profileAddressGeocodeTimeout);
-        const query = this.value.trim();
-        profileAddressGeocodeTimeout = setTimeout(() => fetchProfileAddressSuggestions(query), 500);
-    });
-
-    addressInput.addEventListener('keydown', function (e) {
-        const items = dropdown.querySelectorAll('.profile-address-suggestion-item');
-        if (items.length === 0) return;
-
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            profileActiveSuggestionIndex = Math.min(profileActiveSuggestionIndex + 1, items.length - 1);
-            highlightProfileSuggestion(items);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            profileActiveSuggestionIndex = Math.max(profileActiveSuggestionIndex - 1, 0);
-            highlightProfileSuggestion(items);
-        } else if (e.key === 'Enter') {
-            if (profileActiveSuggestionIndex >= 0) {
-                e.preventDefault();
-                selectProfileAddressSuggestion(profileActiveSuggestionIndex);
-            }
-        } else if (e.key === 'Escape') {
-            dropdown.classList.add('hidden');
-        }
-    });
-
-    document.addEventListener('click', function (e) {
-        if (!addressInput.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.classList.add('hidden');
-        }
-    });
-}
 
 // =====================================================
 // KEYBOARD: Escape closes all modals
@@ -3020,8 +4035,10 @@ const escapeCloseOrder = [
     ['businessInfoModal',   () => closeBusinessInfo()],      // z-[150]
     ['logoutModal',         () => closeLogoutModal()],       // z-[145]
     ['reviewsModal',        () => closeReviewsModal()],      // z-[145]
-    ['rescheduleModal',     () => closeRescheduleModal()],   // z-[130]
-    ['bookingDetailsModal', () => closeBookingDetailsModal()], // z-[125]
+    ['profileModal',        () => pfEscape()],               // z-[130]; an editor goes back first
+    ['bookingDetailsModal', () => bdEscape()],               // z-[125]; the form view goes back first
+    ['appointmentsModal',   () => closeAppointmentsModal()], // z-[120]
+    ['scheduleModal',       () => closeScheduleModal()],     // z-[120]
     ['termsModal',          () => closeTermsModal()],        // z-[120]
     ['applicationModal',    () => closeApplicationModal()],  // z-[115]
     ['bookingModal',        () => closeBookingModal()],      // z-[110]
@@ -3048,12 +4065,19 @@ window.closeAppointmentsModal   = closeAppointmentsModal;
 window.openScheduleModal        = openScheduleModal;
 window.closeScheduleModal       = closeScheduleModal;
 window.switchTab                = switchTab;
+window.browseSpasFromAppointments = browseSpasFromAppointments;
 window.selectDay                = selectDay;
 window.changeMonth              = changeMonth;
 window.openProfileModal         = openProfileModal;
+window.submitCustomerPhoto      = submitCustomerPhoto;
 window.closeProfileModal        = closeProfileModal;
 window.closeProfileDropdown     = closeProfileDropdown;
-window.toggleEmail              = toggleEmail;
+window.pfShowView               = pfShowView;
+window.pfSave                   = pfSave;
+window.pfBackdropClick          = pfBackdropClick;
+window.pfSearchAddress          = pfSearchAddress;
+window.pfUseCurrentLocation     = pfUseCurrentLocation;
+window.pfSetNearbyFrom          = pfSetNearbyFrom;
 window.showSpaToast             = showSpaToast;
 window.openTermsModal           = openTermsModal;
 window.closeTermsModal          = closeTermsModal;
@@ -3061,6 +4085,7 @@ window.openBookingDetailsModal  = openBookingDetailsModal;
 window.closeBookingDetailsModal = closeBookingDetailsModal;
 window.openRescheduleModal      = openRescheduleModal;
 window.closeRescheduleModal     = closeRescheduleModal;
+window.bdBackdropClick          = bdBackdropClick;
 window.submitRescheduleRequest  = submitRescheduleRequest;
 window.openRatingModal          = openRatingModal;
 window.closeRatingModal         = closeRatingModal;
@@ -3073,7 +4098,7 @@ window.setRating                = setRating;
 window.setSpaRating             = setSpaRating;
 window.openReviewPhoto          = openReviewPhoto;
 window.removeSpaRatingPhoto     = removeSpaRatingPhoto;
-window._dayBookingMap           = _dayBookingMap;
+window.scheduleMap              = scheduleMap;
 window._appointmentMap          = _appointmentMap;
 window.openApplicationModal     = openApplicationModal;
 window.closeApplicationModal    = closeApplicationModal;
@@ -3086,7 +4111,8 @@ window.handleResumeFileSelect   = handleResumeFileSelect;
 window.formatFileSize           = formatFileSize;
 window.openLogoutModal          = openLogoutModal;
 window.closeLogoutModal         = closeLogoutModal;
-window.toggleScheduleView       = toggleScheduleView;
+window.setScheduleView          = setScheduleView;
+window.jumpToScheduleMonth      = jumpToScheduleMonth;
 window.openLightbox             = openLightbox;
 window.closeLightbox            = closeLightbox;
 
@@ -3291,7 +4317,7 @@ async function submitRating() {
     const submitBtn = document.getElementById('ratingSubmitBtn');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Submitting...';
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Sending…</span>';
     }
 
     try {

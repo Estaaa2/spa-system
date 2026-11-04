@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Package;
+use App\Models\Product;
 use App\Models\Treatment;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,6 +27,18 @@ class ServiceController extends Controller
             ->with('treatments')
             ->get();
 
-        return view('services.index', compact('treatments', 'packages'));
+        $recipeProducts = Product::where('spa_id', $user->spa_id)
+            ->where('is_active', true)
+            ->whereNotNull('usage_unit')
+            ->where('usage_unit', '!=', '')
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'brand',
+                'usage_unit',
+            ]);
+
+        return view('services.index', compact('treatments', 'packages', 'recipeProducts'));
     }
 }

@@ -3,82 +3,449 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Spa;
+use App\Models\SpaVerificationDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class RegisteredSpaController extends Controller
 {
+    private const STATUSES = [
+        'pending',
+        'verified',
+        'rejected',
+        'unverified',
+    ];
+
+    private const REQUIRED_DOCUMENTS = [
+        'government_id',
+        'dti_sec',
+        'bir_certificate',
+        'business_permit',
+    ];
+
+    private const DOCUMENT_LABELS = [
+        'government_id' => 'Government ID',
+        'dti_sec' => 'DTI / SEC Certificate',
+        'bir_certificate' => 'BIR Certificate of Registration',
+        'business_permit' => 'Business Permit',
+    ];
+
     public function index(Request $request)
     {
-        $q = $request->q;
+        $q = trim((string) $request->query('q', ''));
 
-        $spas = Spa::with('owner')
-            ->when($q, function($query) use ($q) {
-                $query->where('name', 'like', "%{$q}%")
-                    ->orWhereHas('owner', function($q2) use ($q) {
-                        $q2->where('name', 'like', "%{$q}%");
+        $requestedStatus = $request->query('status');
+
+        $status = in_array(
+            $requestedStatus,
+            self::STATUSES,
+            true
+        )
+            ? $requestedStatus
+            : null;
+
+        $spas = Spa::query()
+            // Paid rows drive the plan column (trial, paid, grace, locked).
+            ->with(['owner', 'subscriptions' => fn ($rows) => $rows->where('payment_status', 'paid')])
+            ->when(
+                $status !== null,
+                fn ($query) => $query->where(
+                    'verification_status',
+                    $status
+                )
+            )
+            ->when(
+                $q !== '',
+                function ($query) use ($q) {
+                    $search = '%' . addcslashes($q, '%_') . '%';
+
+                    $query->where(function ($match) use ($search) {
+                        $match
+                            ->where('name', 'like', $search)
+                            ->orWhereHas('owner', function ($owner) use ($search) {
+                                $owner->where(function ($name) use ($search) {
+                                    $name
+                                        ->where('first_name', 'like', $search)
+                                        ->orWhere('last_name', 'like', $search)
+                                        ->orWhere('email', 'like', $search);
+                                });
+                            });
                     });
-            })
+                }
+            )
             ->latest()
-            ->paginate(10); // ← paginate instead of all()
+            ->paginate(10)
+            ->withQueryString();
 
-        $pendingSpas = Spa::with('owner')
+        $counts = Spa::query()
+            ->selectRaw('verification_status, COUNT(*) as total')
+            ->groupBy('verification_status')
+            ->pluck('total', 'verification_status');
+
+        // Additional branches waiting for review. Main branches are
+        // reviewed together with their spa, so they are not listed here.
+        $branchApplications = Branch::query()
+            ->with('spa.owner')
+            ->where('is_main', false)
             ->where('verification_status', 'pending')
-            ->latest()
-            ->take(5)
-            ->get();
+            ->whereHas('spa', fn ($query) => $query->where(
+                'verification_status',
+                'verified'
+            ))
+            ->orderBy('updated_at')
+            ->paginate(5, ['*'], 'branch_page')
+            ->withQueryString();
 
-        $verifiedCount = Spa::where('verification_status', 'verified')->count();
+        // Single documents waiting for review on spas and branches that
+        // are ALREADY verified: renewals, replacements, and required
+        // documents that were missing. Documents of a spa or branch that
+        // is still being reviewed are handled by that review instead.
+        $documentReviews = SpaVerificationDocument::query()
+            ->with('branch')
+            ->whereNull('expiry_verified_at')
+            ->whereNull('review_remarks')
+            ->whereIn(
+                'spa_id',
+                Spa::query()
+                    ->where('verification_status', 'verified')
+                    ->select('id')
+            )
+            ->where(function ($query) {
+                $query
+                    ->whereNull('branch_id')
+                    ->orWhereIn(
+                        'branch_id',
+                        Branch::query()
+                            ->where('verification_status', 'verified')
+                            ->select('id')
+                    );
+            })
+            ->orderByDesc('updated_at')
+            ->paginate(5, ['*'], 'document_page')
+            ->withQueryString();
 
-        return view('admin.registered-spas.index', compact('spas', 'q', 'pendingSpas', 'verifiedCount'));
+        $documentReviewSpas = Spa::query()
+            ->with('owner')
+            ->whereIn('id', $documentReviews->pluck('spa_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        return view('admin.registered-spas.index', [
+            'spas' => $spas,
+            'branchApplications' => $branchApplications,
+            'documentReviews' => $documentReviews,
+            'documentReviewSpas' => $documentReviewSpas,
+            'documentLabels' => self::DOCUMENT_LABELS,
+            'q' => $q,
+            'status' => $status,
+            'statuses' => self::STATUSES,
+            'counts' => $counts,
+        ]);
     }
 
     public function edit(Spa $spa)
     {
-        $spa->load('owner', 'verificationDocuments', 'verifier');
+        $spa->load([
+            'owner',
+            'verificationDocuments',
+            'verifier',
+        ]);
+
+        // Only the spa's own documents and its main branch's documents.
+        // Additional branches are reviewed separately.
+        $mainBranchId = $spa->mainBranch()?->id;
 
         return response()->json([
             'spa' => [
                 'id' => $spa->id,
                 'name' => $spa->name,
-                'business_tier' => $spa->business_tier,
+                // Read-only. The plan comes from the trial and paid periods;
+                // owners change it from Subscription & Billing.
+                'plan_summary' => $spa->billingSummary(),
                 'verification_status' => $spa->verification_status,
                 'verification_remarks' => $spa->verification_remarks,
-                'verified_at' => optional($spa->verified_at)?->format('F d, Y h:i A'),
-                'owner_name' => $spa->owner->name ?? 'N/A',
-                'owner_email' => $spa->owner->email ?? 'N/A',
-                'verified_by' => $spa->verifier->name ?? null,
-                'documents' => $spa->verificationDocuments->map(function ($document) {
-                    return [
-                        'document_type' => $document->document_type,
-                        'file_name' => $document->file_name,
-                        'file_url' => asset('storage/' . $document->file_path),
-                        'uploaded_at' => $document->created_at->format('F d, Y h:i A'),
-                    ];
-                })->values(),
-            ]
+
+                'verified_at' => $spa->verified_at
+                    ? Carbon::parse($spa->verified_at)->format('F d, Y h:i A')
+                    : null,
+
+                'owner_name' => $spa->owner?->name ?? 'N/A',
+                'owner_email' => $spa->owner?->email ?? 'N/A',
+                'verified_by' => $spa->verifier?->name,
+
+                'documents' => $spa->verificationDocuments
+                    ->filter(fn ($document) =>
+                        $document->branch_id === null ||
+                        (int) $document->branch_id === (int) $mainBranchId
+                    )
+                    ->map(function ($document) {
+                        return [
+                            'id' => $document->id,
+                            'document_type' => $document->document_type,
+                            'file_name' => $document->file_name,
+                            'file_url' => route(
+                                'verification-documents.show',
+                                $document
+                            ),
+                            'uploaded_at' => $document->created_at?->format(
+                                'M d, Y h:i A'
+                            ),
+
+                            'owner_expiry_date' => $document->owner_expiry_date?->format(
+                                'Y-m-d'
+                            ),
+                            'owner_expiry_date_display' => $document->owner_expiry_date?->format(
+                                'M d, Y'
+                            ),
+
+                            'ocr_expiry_date' => $document->ocr_expiry_date?->format(
+                                'Y-m-d'
+                            ),
+                            'ocr_expiry_date_display' => $document->ocr_expiry_date?->format(
+                                'M d, Y'
+                            ),
+
+                            'expiry_date' => $document->expiry_date?->format(
+                                'Y-m-d'
+                            ),
+                            'expiry_date_display' => $document->expiry_date?->format(
+                                'M d, Y'
+                            ),
+
+                            'expiry_date_raw' => $document->expiry_date_raw,
+                            'expiry_detection_status' => $document->expiry_detection_status,
+                            'expiry_detection_source' => $document->expiry_detection_source,
+                            'expiry_scanned_at' => $document->expiry_scanned_at?->format(
+                                'M d, Y h:i A'
+                            ),
+
+                            'expiry_verified_at' => $document->expiry_verified_at?->format(
+                                'M d, Y h:i A'
+                            ),
+                            'expiry_verified_by' => $document->expiry_verified_by,
+                        ];
+                    })
+                    ->values(),
+            ],
         ]);
     }
 
     public function update(Request $request, Spa $spa)
     {
-        $request->validate([
-            'business_tier' => ['required', 'in:basic,professional'],
-            'verification_status' => ['required', 'in:verified,rejected'],
-            'verification_remarks' => ['nullable', 'string', 'required_if:verification_status,rejected'],
+        $validated = $request->validate([
+            'verification_status' => [
+                'required',
+                'in:verified,rejected',
+            ],
+
+            'verification_remarks' => [
+                'nullable',
+                'string',
+                'max:5000',
+                'required_if:verification_status,rejected',
+            ],
+
+            'document_expiry' => [
+                'nullable',
+                'array',
+            ],
+
+            'document_expiry.*' => [
+                'nullable',
+                'date_format:Y-m-d',
+            ],
         ]);
 
-        $status = $request->verification_status;
+        $status = $validated['verification_status'];
 
-        $spa->update([
-            'business_tier' => $request->business_tier,
-            'verification_status' => $status,
-            'verification_remarks' => $status === 'rejected' ? $request->verification_remarks : null,
-            'verified_at' => $status === 'verified' ? now() : null,
-            'verified_by' => $status === 'verified' ? auth()->id() : null,
-        ]);
+        if ($status === 'rejected') {
+            $spa->update([
+                'verification_status' => 'rejected',
+                'verification_remarks' => trim(
+                    (string) $validated['verification_remarks']
+                ),
+                'verified_at' => null,
+                'verified_by' => null,
+            ]);
 
-        return redirect()->route('admin.registered-spas.index')->with('success', 'Spa updated successfully.');
+            // The main branch is reviewed together with the spa.
+            $spa->mainBranch()?->update([
+                'verification_status' => 'rejected',
+                'verification_remarks' => $spa->verification_remarks,
+                'verified_at' => null,
+                'verified_by' => null,
+            ]);
+
+            return redirect()
+                ->route('admin.registered-spas.index')
+                ->with(
+                    'success',
+                    'Spa verification rejected. The owner must correct and resubmit the documents.'
+                );
+        }
+
+        // Only the spa's own documents and its main branch's documents.
+        // Documents of additional branches are never touched here.
+        $mainBranch = $spa->mainBranch();
+
+        $documents = $spa
+            ->verificationDocuments()
+            ->where(function ($query) use ($mainBranch) {
+                $query->whereNull('branch_id');
+
+                if ($mainBranch) {
+                    $query->orWhere('branch_id', $mainBranch->id);
+                }
+            })
+            ->get();
+
+        $uploadedTypes = $documents
+            ->pluck('document_type')
+            ->unique()
+            ->values()
+            ->all();
+
+        $missingDocuments = array_diff(
+            self::REQUIRED_DOCUMENTS,
+            $uploadedTypes
+        );
+
+        if ($missingDocuments !== []) {
+            $missingLabels = collect($missingDocuments)
+                ->map(
+                    fn ($type) => self::DOCUMENT_LABELS[$type] ?? $type
+                )
+                ->implode(', ');
+
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'This spa cannot be verified because these required documents are missing: ' .
+                    $missingLabels .
+                    '.'
+                );
+        }
+
+        $submittedExpiry = $validated['document_expiry'] ?? [];
+
+        $businessPermit = $documents->firstWhere(
+            'document_type',
+            'business_permit'
+        );
+
+        $businessPermitExpiry = $businessPermit
+            ? ($submittedExpiry[$businessPermit->id] ?? null)
+            : null;
+
+        if (! filled($businessPermitExpiry)) {
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Confirm the Business Permit expiration date before approving this spa.'
+                );
+        }
+
+        foreach ($documents as $document) {
+            // BIR certificates do not require an expiry date.
+            if ($document->document_type === 'bir_certificate') {
+                continue;
+            }
+
+            $expiry = $submittedExpiry[$document->id] ?? null;
+
+            if (! filled($expiry)) {
+                continue;
+            }
+
+            $expiryDate = Carbon::createFromFormat(
+                'Y-m-d',
+                $expiry
+            )->startOfDay();
+
+            if ($expiryDate->isBefore(today())) {
+                $label = self::DOCUMENT_LABELS[
+                    $document->document_type
+                ] ?? $document->document_type;
+
+                return back()
+                    ->withInput()
+                    ->with(
+                        'error',
+                        "{$label} cannot be approved because its expiration date has already passed."
+                    );
+            }
+        }
+
+        DB::transaction(function () use (
+            $spa,
+            $mainBranch,
+            $documents,
+            $submittedExpiry
+        ) {
+            foreach ($documents as $document) {
+                if ($document->document_type === 'bir_certificate') {
+                    $document->update([
+                        'expiry_date' => null,
+                        'expiry_date_raw' => null,
+                        'expiry_detection_status' => 'not_required',
+                        'expiry_detection_source' => null,
+                        'expiry_scanned_at' => null,
+                        'expiry_verified_at' => now(),
+                        'expiry_verified_by' => auth()->id(),
+                    ]);
+
+                    continue;
+                }
+
+                $expiry = $submittedExpiry[$document->id] ?? null;
+
+                if (filled($expiry)) {
+                    $document->update([
+                        'expiry_date' => $expiry,
+                        'expiry_detection_status' => 'verified',
+                        'expiry_verified_at' => now(),
+                        'expiry_verified_by' => auth()->id(),
+                    ]);
+
+                    continue;
+                }
+
+                $document->update([
+                    'expiry_date' => null,
+                    'expiry_detection_status' => 'verified_no_expiry',
+                    'expiry_verified_at' => now(),
+                    'expiry_verified_by' => auth()->id(),
+                ]);
+            }
+
+            $spa->update([
+                'verification_status' => 'verified',
+                'verification_remarks' => null,
+                'verified_at' => now(),
+                'verified_by' => auth()->id(),
+            ]);
+
+            // The main branch is approved together with the spa.
+            $mainBranch?->update([
+                'verification_status' => 'verified',
+                'verification_remarks' => null,
+                'verified_at' => now(),
+                'verified_by' => auth()->id(),
+                'verification_due_at' => null,
+            ]);
+        });
+
+        return redirect()
+            ->route('admin.registered-spas.index')
+            ->with(
+                'success',
+                'Spa verified successfully. The owner can now continue to Subscription & Billing.'
+            );
     }
 
     public function destroy(Spa $spa)
@@ -87,6 +454,9 @@ class RegisteredSpaController extends Controller
 
         return redirect()
             ->route('admin.registered-spas.index')
-            ->with('success', 'Spa deleted successfully.');
+            ->with(
+                'success',
+                'Spa deleted successfully.'
+            );
     }
 }

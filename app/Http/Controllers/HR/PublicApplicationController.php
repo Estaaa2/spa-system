@@ -21,12 +21,19 @@ class PublicApplicationController extends Controller
                 ], 400);
             }
 
+            if (!$branch->isOperational()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This branch is not currently accepting applications.'
+                ], 400);
+            }
+
             $validated = $request->validate([
                 'full_name'                  => 'required|string|max:255',
                 'email'                      => 'required|email|max:255',
                 'phone'                      => 'required|string|max:20',
                 'gender'                     => 'nullable|in:male,female,other',
-                'date_of_birth'              => 'nullable|date',
+                'date_of_birth'              => 'nullable|date|before:today',
                 'civil_status'               => 'nullable|in:single,married,widowed,separated',
                 'address'                    => 'required|string|max:255',
                 'position_applied'           => 'required|in:therapist,receptionist,manager,hr,finance',
@@ -39,7 +46,9 @@ class PublicApplicationController extends Controller
                 'emergency_contact_phone'    => 'nullable|string|max:20',
             ]);
 
-            $resumePath = $request->file('resume')->store('resumes', 'public');
+            $resumePath = $request->file('resume')->store('resumes', 'local'); // private disk: personal data
+
+            unset($validated['resume']);
 
             Applicant::create([
                 ...$validated,
@@ -62,9 +71,11 @@ class PublicApplicationController extends Controller
                 'message' => 'Validation failed.'
             ], 422);
         } catch (\Exception $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred: ' . $e->getMessage()
+                'message' => 'Unable to submit your application. Please try again.'
             ], 500);
         }
     }

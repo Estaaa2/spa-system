@@ -17,12 +17,26 @@ class Branch extends Model
         'name',
         'location',
         'is_main',
+        'keep_active',
         'has_workforce_finance_suite',
+        'min_daily_wage',
+        'wage_order_ref',
+        'min_wage_effective_from',
+        'verification_status',
+        'verification_remarks',
+        'verified_at',
+        'verified_by',
+        'verification_due_at',
     ];
 
     protected $casts = [
         'is_main'                     => 'boolean',
+        'keep_active'                 => 'boolean',
         'has_workforce_finance_suite' => 'boolean',
+        'min_daily_wage'              => 'decimal:2',
+        'min_wage_effective_from'     => 'date',
+        'verified_at'                 => 'datetime',
+        'verification_due_at'         => 'datetime',
     ];
 
     public function spa(): BelongsTo
@@ -60,6 +74,272 @@ class Branch extends Model
     public function packages(): HasMany
     {
         return $this->hasMany(Package::class);
+    }
+
+    public function productStocks()
+    {
+        return $this->hasMany(BranchProductStock::class);
+    }
+
+    public function productBatches()
+    {
+        return $this->hasMany(ProductBatch::class);
+    }
+
+    public function purchaseRequests()
+    {
+        return $this->hasMany(PurchaseRequest::class);
+    }
+
+    public function stockMovements()
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+
+    public function outgoingStockTransfers()
+    {
+        return $this->hasMany(
+            StockTransfer::class,
+            'source_branch_id'
+        );
+    }
+
+    public function incomingStockTransfers()
+    {
+        return $this->hasMany(
+            StockTransfer::class,
+            'destination_branch_id'
+        );
+    }
+
+
+    // ── Branch verification ───────────────────────────────────────────────────
+
+    /** Documents every branch must upload for itself. */
+    public const BRANCH_DOCUMENT_TYPES = [
+        'bir_certificate',
+        'business_permit',
+    ];
+
+    /** Days a branch keeps operating after its Business Permit expires. */
+    public const DOCUMENT_GRACE_DAYS = 30;
+
+    public function verificationDocuments(): HasMany
+    {
+        return $this->hasMany(SpaVerificationDocument::class);
+    }
+
+    public function verifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    /**
+     * The document this branch relies on for a given type.
+     *
+     * BIR and Business Permit must be the branch's own. Government ID and
+     * DTI/SEC fall back to the spa-level document (branch_id is NULL) when
+     * the branch has no copy of its own, so they are reused, not duplicated.
+     */
+    public function documentFor(string $type): ?SpaVerificationDocument
+    {
+        $own = $this->verificationDocuments()
+            ->where('document_type', $type)
+            ->first();
+
+        if ($own || in_array($type, self::BRANCH_DOCUMENT_TYPES, true)) {
+            return $own;
+        }
+
+        return SpaVerificationDocument::query()
+            ->where('spa_id', $this->spa_id)
+            ->whereNull('branch_id')
+            ->where('document_type', $type)
+            ->first();
+    }
+
+    public function hasRequiredDocuments(): bool
+    {
+        foreach ([
+            'government_id',
+            'dti_sec',
+            'bir_certificate',
+            'business_permit',
+        ] as $type) {
+            if (! $this->documentFor($type)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Query filter: branches an admin has approved, plus branches that
+     * existed before this feature and are still inside their deadline
+     * (or are already waiting for the admin's review).
+     */
+    public function scopeVerificationCleared($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('verification_status', 'verified')
+                ->orWhere(function ($legacy) {
+                    $legacy->whereNotNull('verification_due_at')
+                        ->where(function ($window) {
+                            $window->where('verification_due_at', '>', now())
+                                ->orWhere('verification_status', 'pending');
+                        });
+                });
+        });
+    }
+
+    /** Same rule as scopeVerificationCleared(), for one loaded branch. */
+    public function isVerificationCleared(): bool
+    {
+        if ($this->verification_status === 'verified') {
+            return true;
+        }
+
+        if ($this->verification_due_at === null) {
+            return false;
+        }
+
+        return $this->verification_due_at->isFuture()
+            || $this->verification_status === 'pending';
+    }
+
+    public function hasExpiredDocuments(): bool
+    {
+        $permit = $this->documentFor('business_permit');
+
+        return $permit !== null
+            && $permit->isExpiredPastGrace(self::DOCUMENT_GRACE_DAYS);
+    }
+
+    /**
+     * Why this branch cannot operate, or null when it can.
+     * Values: verification, documents_expired, plan_limit.
+     */
+    public function lockReason(): ?string
+    {
+        if (! $this->isVerificationCleared()) {
+            return 'verification';
+        }
+
+        if ($this->hasExpiredDocuments()) {
+            return 'documents_expired';
+        }
+
+        if (! $this->spa?->isBranchWithinPlanLimit($this)) {
+            return 'plan_limit';
+        }
+
+        return null;
+    }
+
+    /** The single rule for "can this branch be used, listed and booked". */
+    public function isOperational(): bool
+    {
+        return $this->lockReason() === null;
+    }
+
+    // ── Booking readiness ─────────────────────────────────────────────────────
+    //
+    // Separate from isOperational() on purpose: a branch without a therapist
+    // or a service can still be opened by its staff (they need it to add
+    // them), but it must not be listed publicly or take any booking.
+
+    private ?array $bookingReadinessCache = null;
+
+    /** Someone who can be assigned treatments: a therapist, or staff marked "Performs treatments". */
+    public function hasActiveTherapist(): bool
+    {
+        return User::treatmentProviders()
+            ->whereHas('staff', fn ($query) => $query
+                ->where('spa_id', $this->spa_id)
+                ->where('branch_id', $this->id)
+                ->where('employment_status', 'active'))
+            ->exists();
+    }
+
+    /** At least one treatment or package. */
+    public function hasBookableServices(): bool
+    {
+        return Treatment::withoutGlobalScope('spa_branch')
+                ->where('spa_id', $this->spa_id)
+                ->where('branch_id', $this->id)
+                ->exists()
+            || Package::withoutGlobalScope('spa_branch')
+                ->where('spa_id', $this->spa_id)
+                ->where('branch_id', $this->id)
+                ->exists();
+    }
+
+    /**
+     * What this branch still needs before it can be listed or booked.
+     * Values: therapist, services. Empty when it is ready.
+     */
+    public function bookingReadinessIssues(): array
+    {
+        if ($this->bookingReadinessCache !== null) {
+            return $this->bookingReadinessCache;
+        }
+
+        $issues = [];
+
+        if (! $this->hasActiveTherapist()) {
+            $issues[] = 'therapist';
+        }
+
+        if (! $this->hasBookableServices()) {
+            $issues[] = 'services';
+        }
+
+        return $this->bookingReadinessCache = $issues;
+    }
+
+    public function isReadyForBookings(): bool
+    {
+        return $this->bookingReadinessIssues() === [];
+    }
+
+    /** One sentence for the owner and staff, or null when ready. */
+    public function bookingReadinessMessage(): ?string
+    {
+        $labels = [
+            'therapist' => 'at least one active therapist (or a staff member marked "Performs treatments")',
+            'services' => 'at least one treatment or package',
+        ];
+
+        $missing = array_map(
+            fn ($issue) => $labels[$issue],
+            $this->bookingReadinessIssues()
+        );
+
+        if ($missing === []) {
+            return null;
+        }
+
+        return 'Add ' . implode(' and ', $missing) .
+            ' to this branch before it can be listed publicly or take bookings.';
+    }
+
+    /** Query filter with the same rule as isReadyForBookings(). */
+    public function scopeReadyForBookings($query)
+    {
+        return $query
+            ->where(fn ($q) => $q
+                ->whereHas('treatments', fn ($t) => $t->withoutGlobalScope('spa_branch'))
+                ->orWhereHas('packages', fn ($p) => $p->withoutGlobalScope('spa_branch')))
+            ->whereIn(
+                'id',
+                Staff::query()
+                    ->where('employment_status', 'active')
+                    ->where(fn ($q) => $q
+                        ->where('performs_treatments', true)
+                        ->orWhereHas('user', fn ($u) => $u->role('therapist')))
+                    ->select('branch_id')
+            );
     }
 
     public function getUsesWorkforceFinanceSuiteAttribute(): bool

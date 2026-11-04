@@ -5,18 +5,25 @@
 @php
     $user = auth()->user();
     $spa = $user?->spa;
-    $isProfessional = $spa?->isProfessional() ?? false;
+
+    $hasManpower = $hasManpower
+        ?? ($spa?->hasFeature('manpower') ?? false);
+
+    $staffLimit = $staffLimit
+        ?? ($spa?->planLimit('staff') ?? 0);
+
     $canCreateStaff = $user?->hasBranchPermission('create staff') ?? false;
     $canEditStaff = $user?->hasBranchPermission('edit staff') ?? false;
     $canDeleteStaff = $user?->hasBranchPermission('delete staff') ?? false;
     $showActions = $canEditStaff || $canDeleteStaff;
 
-    // OUTSTANDING: hardcoded in the view. If StaffController enforces a different
-    // number the UI and the server disagree silently. Left as-is on purpose.
-    $staffLimit = 10;
-    $staffCount = $staff->count();
-    $hasUnlimitedStaff = $isProfessional;
-    $hasReachedStaffLimit = !$hasUnlimitedStaff && $staffCount >= $staffLimit;
+    $staffCount = $activeStaffCount
+    ?? $staff->where('employment_status', 'active')->count();
+
+    $pausedStaffCount = $pausedStaffCount ?? 0;
+    $isOwner = (bool) ($user?->hasRole('owner') ?? false);
+
+    $hasReachedStaffLimit = $staffLimit <= 0 || $staffCount >= $staffLimit;
     $remainingStaffSlots = max($staffLimit - $staffCount, 0);
 
     $roleCounts = [
@@ -25,6 +32,8 @@
         'receptionist' => 0,
         'hr' => 0,
         'finance' => 0,
+        'hr_head' => 0,
+        'finance_head' => 0,
     ];
 
     // One pass over the collection resolves the role for every member and keeps
@@ -37,7 +46,8 @@
             $roleCounts[$role]++;
         }
     }
-    $professionalRolesCount = $roleCounts['hr'] + $roleCounts['finance'];
+    $professionalRolesCount = $roleCounts['hr'] + $roleCounts['finance'] + $roleCounts['hr_head'] + $roleCounts['finance_head'];
+    $headRoles = \App\Services\Payroll\PayrollPermissions::HEAD_ROLES;
 
     // Role badge colours. Hoisted out of the row loop so the array is built once
     // instead of once per staff member. Families follow the canon status palette
@@ -48,6 +58,8 @@
         'receptionist' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
         'hr'           => 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
         'finance'      => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+        'hr_head'      => 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+        'finance_head' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
     ];
     $roleColorFallback = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
 
@@ -100,43 +112,90 @@
                 <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Leadership roles</span>
             </div>
         </div>
-        {{-- OUTSTANDING: this card switches its background on $hasSuite and its text
-             colours on $isProfessional. Preserved exactly as found — see notes. --}}
-        <div class="p-4 border shadow-sm sm:p-5 rounded-2xl {{ $hasSuite ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
-            <p class="text-xs font-semibold tracking-wide uppercase {{ $isProfessional ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-300' }}">
-                {{ $hasSuite ? 'Professional Roles' : 'Suite Status' }}
+        {{-- The Premium plan's manpower feature controls HR and Finance role availability. --}}
+        <div class="p-4 border shadow-sm sm:p-5 rounded-2xl
+            {{ $hasManpower
+                ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800'
+                : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
+            <p class="text-xs font-semibold tracking-wide uppercase
+                {{ $hasManpower
+                    ? 'text-indigo-700 dark:text-indigo-300'
+                    : 'text-amber-700 dark:text-amber-300' }}">
+                {{ $hasManpower ? 'Premium Roles' : 'Premium Feature' }}
             </p>
+
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
-                <h3 class="text-2xl font-semibold sm:text-3xl {{ $isProfessional ? 'text-indigo-900 dark:text-indigo-200' : 'text-amber-900 dark:text-amber-200' }}">
-                    {{ $hasSuite ? $professionalRolesCount : 'Disabled' }}
+                <h3 class="text-2xl font-semibold sm:text-3xl
+                    {{ $hasManpower
+                        ? 'text-indigo-900 dark:text-indigo-200'
+                        : 'text-amber-900 dark:text-amber-200' }}">
+                    {{ $hasManpower ? $professionalRolesCount : 'Unavailable' }}
                 </h3>
-                <span class="text-xs sm:text-sm {{ $isProfessional ? 'text-indigo-700 dark:text-indigo-300' : 'text-amber-700 dark:text-amber-300' }}">
-                    {{ $hasSuite ? 'HR & Finance roles' : 'Suite Disabled' }}
+
+                <span class="text-xs sm:text-sm
+                    {{ $hasManpower
+                        ? 'text-indigo-700 dark:text-indigo-300'
+                        : 'text-amber-700 dark:text-amber-300' }}">
+                    {{ $hasManpower ? 'HR & Finance roles' : 'Premium plan required' }}
                 </span>
             </div>
         </div>
     </div>
     {{-- Staff Plan Limit Notice --}}
-    @if(!$hasUnlimitedStaff)
+    @if($staffLimit > 0)
         <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
-                        Basic Plan Staff Limit
+                        {{ ucfirst($spa?->currentPlan() ?? 'Current') }} Plan Staff Limit
                     </h2>
+
                     <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                        This branch can only have up to <span class="font-semibold">{{ $staffLimit }}</span> staff accounts on the Basic plan.
+                        Your plan allows up to
+                        <span class="font-semibold">{{ $staffLimit }}</span>
+                        active staff members across all branches.
+
                         @if($hasReachedStaffLimit)
                             You have already reached the limit.
                         @else
-                            You still have <span class="font-semibold">{{ $remainingStaffSlots }}</span> staff slot(s) remaining.
+                            You have
+                            <span class="font-semibold">{{ $remainingStaffSlots }}</span>
+                            staff slot(s) remaining.
                         @endif
                     </p>
                 </div>
-                <a href="{{ route('owner.subscription.index') }}" class="w-full {{ $btn['upgrade'] }} sm:w-auto">
+
+                <a href="{{ route('owner.subscription.index') }}"
+                class="w-full {{ $btn['upgrade'] }} sm:w-auto">
                     <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                    Upgrade Subscription
+                    View Plans
                 </a>
+            </div>
+        </div>
+    @endif
+    {{-- Staff paused by the plan limit --}}
+    @if($pausedStaffCount > 0)
+        <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800" role="status">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
+                        {{ $pausedStaffCount }} Staff Paused
+                    </h2>
+                    <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                        Your spa has more staff than the {{ ucfirst($spa?->currentPlan() ?? 'current') }} plan allows.
+                        Paused staff cannot sign in and are not offered for bookings. Nothing was deleted.
+                        @unless($isOwner)
+                            Ask the spa owner to choose who stays active.
+                        @endunless
+                    </p>
+                </div>
+
+                @if($isOwner)
+                    <a href="{{ route('owner.subscription.limits') }}" class="w-full {{ $btn['upgrade'] }} sm:w-auto">
+                        <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+                        Choose Who Stays Active
+                    </a>
+                @endif
             </div>
         </div>
     @endif
@@ -147,15 +206,21 @@
                 <div class="p-4 sm:p-5">
                     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <h2 class="text-base font-semibold text-red-700 dark:text-red-300">Staff Limit Reached</h2>
+                            <h2 class="text-base font-semibold text-red-700 dark:text-red-300">
+                                Staff Limit Reached
+                            </h2>
+
                             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                This branch already has {{ $staffCount }} staff account(s), which is the maximum allowed for the Basic plan.
-                                Upgrade your subscription to add more staff members.
+                                Your {{ ucfirst($spa?->currentPlan() ?? 'current') }} plan allows
+                                {{ $staffLimit }} active staff members across all branches.
+                                Upgrade your plan to add more staff.
                             </p>
                         </div>
-                        <a href="{{ route('owner.subscription.index') }}" class="w-full {{ $btn['upgrade'] }} sm:w-auto">
-                            <i class="fa-solid fa-crown" aria-hidden="true"></i>
-                            Unlock Unlimited Staff
+
+                        <a href="{{ route('owner.subscription.index') }}"
+                        class="w-full {{ $btn['upgrade'] }} sm:w-auto">
+                            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                            View Plans
                         </a>
                     </div>
                 </div>
@@ -171,13 +236,13 @@
                         </p>
                     </div>
                     <div class="flex flex-col items-start gap-2 sm:items-end">
-                        @if(!$isProfessional)
+                        @if(!$hasManpower)
                             <div class="px-3 py-2 text-xs rounded-xl bg-amber-50 text-amber-700 sm:text-right dark:bg-amber-900/20 dark:text-amber-300">
                                 <i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>
-                                HR &amp; Finance roles require Professional
+                                HR &amp; Finance roles require the Premium plan.
                             </div>
                         @endif
-                        @if(!$hasUnlimitedStaff)
+                        @if($staffLimit > 0 && !$hasReachedStaffLimit)
                             <div class="px-3 py-2 text-xs text-gray-700 bg-gray-100 rounded-xl sm:text-right dark:bg-gray-700 dark:text-gray-300">
                                 {{ $remainingStaffSlots }} of {{ $staffLimit }} slot(s) remaining
                             </div>
@@ -279,25 +344,48 @@
                                     <option value="receptionist" {{ old('roles') == 'receptionist' ? 'selected' : '' }}>Receptionist</option>
                                     <option value="manager" {{ old('roles') == 'manager' ? 'selected' : '' }}>Manager</option>
                                 </optgroup>
-                                {{-- OUTSTANDING: gated on $hasSuite here, on $isProfessional in the
-                                     edit modal. Left divergent on purpose — see notes. --}}
-                                @if($hasSuite)
-                                <optgroup label="Professional Roles ✦">
-                                    <option value="hr" {{ old('roles') == 'hr' ? 'selected' : '' }}>HR</option>
-                                    <option value="finance" {{ old('roles') == 'finance' ? 'selected' : '' }}>Finance</option>
-                                </optgroup>
+                                {{-- HR and Finance roles are available only with the Premium plan. --}}
+                                @if($hasManpower)
+                                    <optgroup label="Premium Roles">
+                                        <option value="hr" {{ old('roles') === 'hr' ? 'selected' : '' }}>
+                                            HR
+                                        </option>
+                                        <option value="finance" {{ old('roles') === 'finance' ? 'selected' : '' }}>
+                                            Finance
+                                        </option>
+                                    </optgroup>
+                                    {{-- Central roles: one of each per spa, assigned by the owner only. --}}
+                                    @if($isOwner)
+                                        <optgroup label="All-Branch Roles">
+                                            <option value="hr_head" {{ old('roles') === 'hr_head' ? 'selected' : '' }}>HR Head</option>
+                                            <option value="finance_head" {{ old('roles') === 'finance_head' ? 'selected' : '' }}>Finance Head</option>
+                                        </optgroup>
+                                    @endif
                                 @endif
                             </select>
                             @error('roles')
                                 <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
-                            @if(!$hasSuite)
+                            @if(!$hasManpower)
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     <i class="fa-solid fa-lock text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                    HR &amp; Finance roles require the Workforce &amp; Finance Suite to be enabled on this branch.
+                                    HR &amp; Finance roles require the Premium plan.
                                 </p>
                             @endif
                         </div>
+                    </div>
+
+                    {{-- Q37: for small spas where e.g. the receptionist also gives treatments. --}}
+                    <div id="addPerformsWrapper" class="{{ old('roles', 'therapist') === 'therapist' ? 'hidden' : '' }}">
+                        <label class="flex items-start gap-3 p-3 border border-gray-200 cursor-pointer rounded-xl dark:border-gray-700">
+                            <input type="hidden" name="performs_treatments" value="0">
+                            <input type="checkbox" name="performs_treatments" value="1" @checked(old('performs_treatments'))
+                                   class="mt-0.5 w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
+                            <span class="text-sm">
+                                <span class="font-medium text-gray-900 dark:text-white">Also performs treatments</span>
+                                <span class="block text-xs text-gray-500 dark:text-gray-400">Turn on if this person also gives treatments. They can then be assigned appointments, appear in the therapist workload, and get My Today, My Performance and "Can't make it". Their role's permissions don't change. For online home-service bookings they also verify their identity on their profile.</span>
+                            </span>
+                        </label>
                     </div>
 
                     <div class="flex pt-1 sm:justify-end">
@@ -328,7 +416,7 @@
             {{-- .rt collapses this table into stacked cards below md. The explicit
                  role="" attributes are required because changing display away from
                  table strips the native table semantics. --}}
-            <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
                 <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                     <tr role="row">
                         <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Staff Member</th>
@@ -367,6 +455,11 @@
                                 <div>
                                     <p class="font-medium text-gray-900 dark:text-white">
                                         {{ $displayName }}
+                                        @if($member->plan_paused_at)
+                                            <span class="ml-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                                                Paused (plan limit)
+                                            </span>
+                                        @endif
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
                                         {{ $member->user?->email ?? 'No email' }}
@@ -377,8 +470,8 @@
                         <td role="cell" data-label="Role" class="px-6 py-4">
                             @if($role)
                                 <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full {{ $colorClass }}">
-                                    {{ ucfirst($role) }}
-                                    @if(in_array($role, ['hr', 'finance']))
+                                    {{ \App\Services\Payroll\PayrollPermissions::roleLabel($role) }}
+                                    @if(in_array($role, ['hr', 'finance', 'hr_head', 'finance_head']))
                                         <i class="fa-solid fa-star text-[10px]" aria-hidden="true"></i>
                                     @endif
                                 </span>
@@ -386,6 +479,26 @@
                                 <span class="px-3 py-1 text-xs font-medium rounded-full {{ $roleColorFallback }}">
                                     No role
                                 </span>
+                            @endif
+                            {{-- Treatment providers: verified status for online home service (Q36).
+                                 Only Verified / Not verified; reasons stay between the staff member and the admin. --}}
+                            @if($role === 'therapist' || $member->performs_treatments)
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    @if($role !== 'therapist')
+                                        <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">Does treatments</span>
+                                    @endif
+                                    @if($member->user?->isIdentityVerified())
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                              title="Can receive online home-service bookings">
+                                            <i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Verified
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                                              title="Won't be assigned online home-service bookings until verified">
+                                            Not verified
+                                        </span>
+                                    @endif
+                                </div>
                             @endif
                         </td>
                         <td role="cell" data-label="Assigned Branch" class="px-6 py-4">
@@ -403,17 +516,17 @@
                         @if($showActions)
                         <td role="cell" data-label="Actions" class="px-6 py-4 rt-actions">
                             <div class="flex flex-wrap gap-2">
-                                @if($canEditStaff)
+                                @if($canEditStaff && ($isOwner || ! in_array($role, $headRoles, true)))
                                 <button
                                     type="button"
-                                    onclick='editStaff({{ $member->id }}, {{ $isProfessional ? 'true' : 'false' }}, @json($role), @json($displayName))'
+                                    onclick='editStaff({{ $member->id }}, {{ $hasManpower ? 'true' : 'false' }}, @json($role), @json($displayName), {{ $member->performs_treatments ? 'true' : 'false' }})'
                                     class="{{ $btn['edit'] }}"
                                 >
                                     <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i>
                                     <span>Edit</span>
                                 </button>
                                 @endif
-                                @if($canDeleteStaff)
+                                @if($canDeleteStaff && ($isOwner || ! in_array($role, $headRoles, true)))
                                 <button
                                     type="button"
                                     onclick='openDeleteModal({{ $member->id }}, @json($shortName))'
@@ -622,19 +735,26 @@
     // EDIT
     // ════════════════════════════════════════════════════════════════
 
-    // OUTSTANDING: isPro comes from $isProfessional at the call site, while the
-    // create form gates the same optgroup on $hasSuite. Left divergent on purpose.
-    function editStaff(staffId, isPro, currentRole, staffName) {
-        isPro = isPro === true;
+    // HR and Finance options are available only when the spa has the
+    // Premium plan's manpower feature.
+    const IS_OWNER = @json($isOwner);
+
+    function editStaff(staffId, hasManpower, currentRole, staffName, performsTreatments) {
+        hasManpower = hasManpower === true;
         currentRole = currentRole || '';
 
         const sel = role => currentRole === role ? ' selected' : '';
 
-        const professionalOptions = isPro ? `
-            <optgroup label="Professional Roles ✦">
+        const businessRoleOptions = hasManpower ? `
+            <optgroup label="Premium Roles">
                 <option value="hr"${sel('hr')}>HR</option>
                 <option value="finance"${sel('finance')}>Finance</option>
             </optgroup>
+            ${IS_OWNER ? `
+            <optgroup label="All-Branch Roles">
+                <option value="hr_head"${sel('hr_head')}>HR Head</option>
+                <option value="finance_head"${sel('finance_head')}>Finance Head</option>
+            </optgroup>` : ''}
         ` : '';
 
         // If the member's current role isn't in the list this select can offer,
@@ -650,18 +770,34 @@
                         <option value="receptionist"${sel('receptionist')}>Receptionist</option>
                         <option value="manager"${sel('manager')}>Manager</option>
                     </optgroup>
-                    ${professionalOptions}
+                    ${businessRoleOptions}
                 </select>
                 ${
-                    !isPro
+                    !hasManpower
                         ? `<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                             <i class="fa-solid fa-lock text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                            HR &amp; Finance roles require the Professional plan.
+                            HR &amp; Finance roles require the Premium plan.
                            </p>`
                         : ''
                 }
             </div>
+            <div id="editPerformsWrapper" class="${currentRole === 'therapist' ? 'hidden' : ''}">
+                <label class="flex items-start gap-3 p-3 border border-gray-200 cursor-pointer rounded-xl dark:border-gray-700">
+                    <input type="hidden" name="performs_treatments" value="0">
+                    <input type="checkbox" name="performs_treatments" value="1"${performsTreatments === true ? ' checked' : ''}
+                           class="mt-0.5 w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
+                    <span class="text-sm">
+                        <span class="font-medium text-gray-900 dark:text-white">Also performs treatments</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Turn on if this person also gives treatments. They can then be assigned appointments, appear in the therapist workload, and get My Today, My Performance and "Can't make it". Their role's permissions don't change. Therapists always can.</span>
+                    </span>
+                </label>
+            </div>
         `;
+
+        // The checkbox only matters for roles other than Therapist.
+        document.getElementById('editRoleSelect').addEventListener('change', function () {
+            document.getElementById('editPerformsWrapper').classList.toggle('hidden', this.value === 'therapist');
+        });
 
         document.getElementById('editStaffName').textContent = staffName || 'this staff member';
         document.getElementById('editStaffForm').action = routeFor(ROUTE_UPDATE, staffId);
@@ -679,6 +815,12 @@
     // A slow POST plus an impatient second click would create two accounts.
     // ════════════════════════════════════════════════════════════════
     const addForm = document.getElementById('addStaffForm');
+
+    // "Also performs treatments" only matters for roles other than Therapist.
+    document.getElementById('roles')?.addEventListener('change', function () {
+        document.getElementById('addPerformsWrapper')?.classList.toggle('hidden', this.value === 'therapist');
+    });
+
     if (addForm) {
         let submitting = false;
         addForm.addEventListener('submit', function (e) {

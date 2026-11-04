@@ -27,5 +27,6 @@ Thumbs.db
 deploy.js
 deploy.cjs
 .env.deploy.example
+.env.deploy
 .last-deploy
 DEPLOY.md

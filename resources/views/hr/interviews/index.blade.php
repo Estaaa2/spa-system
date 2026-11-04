@@ -166,55 +166,75 @@
                             </td>
 
                             <td class="px-6 py-4">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $statusClasses[$interview->status] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' }}">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $statusClasses[$interview->status] ?? '' }}">
                                     {{ ucfirst($interview->status) }}
                                 </span>
+
+                                @if($interview->status === 'rejected' && filled($interview->rejection_reason))
+                                    <p class="max-w-xs mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                        {{ $interview->rejection_reason }}
+                                    </p>
+                                @endif
                             </td>
 
-                            <td class="px-6 py-4">
+                            <td class="px-6 py-4 whitespace-nowrap">
                                 @if($interview->status === 'pending')
                                     @if($canReviewInterview)
                                         <div class="flex flex-wrap gap-2">
                                             <form action="{{ route('interviews.approve', $interview) }}" method="POST">
                                                 @csrf
-                                                <button type="submit"
+
+                                                <button
+                                                    type="submit"
                                                     class="px-3 py-1.5 text-xs font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
                                                     Approve
                                                 </button>
                                             </form>
 
-                                            <form action="{{ route('interviews.reject', $interview) }}" method="POST">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="px-3 py-1.5 text-xs font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 transition">
-                                                    Reject
-                                                </button>
-                                            </form>
+                                            <button
+                                                type="button"
+                                                data-reject-url="{{ route('interviews.reject', $interview) }}"
+                                                data-applicant-name="{{ $interview->applicant?->full_name }}"
+                                                onclick="openInterviewRejectModal(this)"
+                                                class="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
+                                                Reject
+                                            </button>
                                         </div>
                                     @else
-                                        <span class="text-xs text-gray-400">Pending review</span>
+                                        <span class="text-xs text-gray-400">
+                                            Pending review
+                                        </span>
                                     @endif
 
                                 @elseif($interview->status === 'approved' && !$interview->staff_account_created)
                                     @if($canCreateStaffFromInterview)
-                                        <button type="button"
-                                            onclick="openCreateStaffModal({{ $interview->id }}, '{{ addslashes($interview->applicant->full_name ?? '') }}', '{{ addslashes($interview->applicant->email ?? '') }}', '{{ $interview->applicant->position_applied ?? $interview->applicant->role ?? '' }}')"
-                                            class="px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition">
-                                            <i class="mr-1 fa-solid fa-user-plus"></i> Create Account
+                                        <button
+                                            type="button"
+                                            onclick="openCreateStaffModal(
+                                                {{ $interview->id }},
+                                                '{{ addslashes($interview->applicant->full_name ?? '') }}',
+                                                '{{ addslashes($interview->applicant->email ?? '') }}',
+                                                '{{ $interview->applicant->position_applied ?? $interview->applicant->role ?? '' }}'
+                                            )"
+                                            class="px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition whitespace-nowrap">
+                                            <i class="mr-1 fa-solid fa-user-plus" aria-hidden="true"></i>
+                                            Create Account
                                         </button>
                                     @else
-                                        <span class="text-xs font-medium text-green-600">
-                                            <i class="mr-1 fa-solid fa-check-circle"></i> Approved
+                                        <span class="text-xs text-gray-400">
+                                            No staff access
                                         </span>
                                     @endif
 
                                 @elseif($interview->staff_account_created)
-                                    <span class="text-xs font-semibold text-green-600">
-                                        <i class="mr-1 fa-solid fa-check"></i> Account Created
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                        <i class="fa-solid fa-check" aria-hidden="true"></i>
+                                        Account Created
                                     </span>
-                                @else
-                                    <span class="text-xs text-red-400">
-                                        <i class="mr-1 fa-solid fa-times-circle"></i> Rejected
+
+                                @elseif($interview->status === 'rejected')
+                                    <span class="text-xs text-gray-400">
+                                        —
                                     </span>
                                 @endif
                             </td>
@@ -231,6 +251,99 @@
         </div>
     </div>
 </div>
+
+@if($canReviewInterview)
+<div id="rejectInterviewModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Reject Applicant
+                    </h2>
+
+                    <p id="rejectApplicantName" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="closeInterviewRejectModal()"
+                    class="inline-flex items-center justify-center text-gray-500 transition w-11 h-11 rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                    aria-label="Close reject applicant modal"
+                >
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <form
+                id="rejectInterviewForm"
+                method="POST"
+                class="p-6 space-y-4"
+            >
+                @csrf
+
+                <div class="p-4 border border-red-200 bg-red-50 rounded-xl dark:border-red-900 dark:bg-red-900/10">
+                    <div class="flex gap-3">
+                        <i class="mt-0.5 text-red-600 fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+
+                        <p class="text-sm text-red-700 dark:text-red-300">
+                            This will mark the applicant as rejected. The reason will be kept in their recruitment record.
+                        </p>
+                    </div>
+                </div>
+
+                <div>
+                    <label
+                        for="rejection_reason"
+                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
+                    >
+                        Reason for Rejection
+                        <span class="text-red-600">*</span>
+                    </label>
+
+                    <textarea
+                        id="rejection_reason"
+                        name="rejection_reason"
+                        rows="4"
+                        maxlength="2000"
+                        required
+                        placeholder="Example: Does not meet the required experience for the position."
+                        class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
+                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
+                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >{{ old('rejection_reason') }}</textarea>
+
+                    @error('rejection_reason', 'rejectInterview')
+                        <p class="mt-1 text-xs text-red-600">
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                        type="button"
+                        onclick="closeInterviewRejectModal()"
+                        class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-white bg-red-700 rounded-xl hover:bg-red-800"
+                    >
+                        <i class="mr-2 fa-solid fa-ban" aria-hidden="true"></i>
+                        Reject Applicant
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+@endif
 
 {{-- Create Staff Account Modal --}}
 @if($canCreateStaffFromInterview)
@@ -307,6 +420,52 @@ function filterStatus(status) {
         active.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
     }
 }
+
+@if($canReviewInterview)
+
+function openInterviewRejectModal(button) {
+    const modal = document.getElementById('rejectInterviewModal');
+    const form = document.getElementById('rejectInterviewForm');
+    const applicantName = document.getElementById('rejectApplicantName');
+
+    if (!modal || !form || !button) {
+        return;
+    }
+
+    const actionUrl = button.dataset.rejectUrl;
+    const name = button.dataset.applicantName;
+
+    if (!actionUrl) {
+        return;
+    }
+
+    form.action = actionUrl;
+
+    if (applicantName) {
+        applicantName.textContent = 'Applicant: ' + name;
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeInterviewRejectModal() {
+    const modal = document.getElementById('rejectInterviewModal');
+    const form = document.getElementById('rejectInterviewForm');
+
+    modal?.classList.add('hidden');
+
+    if (form) {
+        form.removeAttribute('action');
+    }
+}
+
+document.getElementById('rejectInterviewForm')?.addEventListener('submit', function (e) {
+    if (!this.getAttribute('action')) {
+        e.preventDefault();
+    }
+});
+
+@endif
 
 @if($canCreateStaffFromInterview)
 const baseInterviewUrl = @json(url('/interviews'));

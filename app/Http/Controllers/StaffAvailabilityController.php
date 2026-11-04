@@ -96,6 +96,45 @@ class StaffAvailabilityController extends Controller
         $start = $request->status === 'partial' ? $request->start_time : null;
         $end = $request->status === 'partial' ? $request->end_time : null;
 
+        // A 'partial' window only means anything if it actually falls inside
+        // the branch's operating hours for that day — otherwise it silently
+        // excludes the therapist from every real bookable slot that day
+        // (getAvailableTherapists() would find the window never covers a
+        // requested slot, since no legal booking can exist outside operating
+        // hours anyway). Reject it here instead of letting it fail silently.
+        if ($request->status === 'partial') {
+            $dayOfWeek = Carbon::parse($request->date)->format('l');
+
+            $hours = OperatingHours::where('branch_id', $branchId)
+                ->where('day_of_week', $dayOfWeek)
+                ->first();
+
+            if (!$hours || $hours->is_closed) {
+                return back()->withErrors([
+                    'start_time' => 'The branch is closed on this day — a partial availability window cannot be set.',
+                ])->withInput();
+            }
+
+            // Same boundary semantics as BookingController: start must be
+            // within [opening, closing), end must be within (opening, closing].
+            $opening = Carbon::parse($hours->opening_time);
+            $closing = Carbon::parse($hours->closing_time);
+            $windowStart = Carbon::parse($start);
+            $windowEnd   = Carbon::parse($end);
+
+            if ($windowStart->lt($opening) || $windowStart->gte($closing)) {
+                return back()->withErrors([
+                    'start_time' => "Start time must be within operating hours: {$hours->opening_time} - {$hours->closing_time}",
+                ])->withInput();
+            }
+
+            if ($windowEnd->gt($closing) || $windowEnd->lte($opening)) {
+                return back()->withErrors([
+                    'end_time' => "End time must be within operating hours: {$hours->opening_time} - {$hours->closing_time}",
+                ])->withInput();
+            }
+        }
+
         StaffAvailability::updateOrCreate(
             [
                 'user_id' => $request->user_id,

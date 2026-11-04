@@ -55,7 +55,7 @@ class LeaveRequestController extends Controller
 
         $message = 'Leave request submitted. Please wait for approval.';
 
-        if ($user->hasRole('therapist')) {
+        if ($user->isTreatmentProvider()) {
             $message .= ' Any of your appointments that fall within these dates will be automatically flagged for reassignment once this leave is approved — the front desk will handle finding a replacement.';
         }
 
@@ -91,6 +91,7 @@ class LeaveRequestController extends Controller
             ->where('spa_id', $user->spa_id)
             ->where('branch_id', $branchId)
             ->where('status', 'pending')
+            ->where('user_id', '!=', $user->id) // nobody reviews their own leave
             ->orderBy('created_at')
             ->get()
             ->map(fn ($r) => $this->formatRequest($r));
@@ -106,9 +107,18 @@ class LeaveRequestController extends Controller
         $user        = Auth::user();
         $canReassign = $user->hasBranchPermission('edit leave requests');
 
-        abort_unless($leaveRequest->user_id === $user->id || $canReassign, 403);
+        $isOwn = (int) $leaveRequest->user_id === (int) $user->id;
 
-        if (!$leaveRequest->user?->hasRole('therapist')) {
+        abort_unless($isOwn || $canReassign, 403);
+
+        // A reviewer may only read leave requests of their own spa and current branch.
+        if (! $isOwn) {
+            $this->abortUnlessInReviewerScope($leaveRequest);
+        }
+
+        // Anyone who can be assigned treatments (therapists and staff marked
+        // "Performs treatments") may hold bookings.
+        if (!$leaveRequest->user?->isTreatmentProvider()) {
             return response()->json([]);
         }
 
@@ -133,34 +143,24 @@ class LeaveRequestController extends Controller
                 return $data;
             }
 
-            $therapists = User::role('therapist')
-                ->whereHas('staff', fn ($q) => $q
-                    ->where('spa_id', $b->spa_id)
-                    ->where('branch_id', $b->branch_id)
-                    ->where('employment_status', 'active'))
-                ->where('id', '!=', $b->therapist_id)
-                ->orderBy('first_name')
-                ->get();
-
-            $busyIds = Booking::where('id', '!=', $b->id)
-                ->where('branch_id', $b->branch_id)
-                ->where('appointment_date', $b->appointment_date)
-                ->whereIn('therapist_id', $therapists->pluck('id'))
-                ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-                ->where(fn ($q) => $q->where('start_time', '<', $b->end_time)->where('end_time', '>', $b->start_time))
-                ->pluck('therapist_id');
-
-            $onLeaveIds = LeaveRequest::approvedUserIdsOnDate($b->spa_id, $b->branch_id, $b->appointment_date->format('Y-m-d'));
-
-            $available = $therapists
-                ->reject(fn ($t) => $busyIds->contains($t->id) || in_array($t->id, $onLeaveIds))
-                ->values();
+            // Shared rule: free at that time, not on leave, and identity-verified
+            // when the booking is online home service.
+            $assigner  = app(\App\Services\Bookings\TherapistAssigner::class);
+            $available = $assigner->available(
+                (int) $b->spa_id,
+                (int) $b->branch_id,
+                $b->appointment_date->format('Y-m-d'),
+                \Carbon\Carbon::parse($b->start_time)->format('H:i'),
+                \Carbon\Carbon::parse($b->end_time)->format('H:i'),
+                \App\Services\Bookings\TherapistAssigner::requiresVerified($b->booking_source, $b->service_type),
+                (int) $b->id
+            )->reject(fn ($t) => (int) $t->id === (int) $b->therapist_id)->values();
 
             $data['available_therapists'] = $available->map(fn ($t) => [
                 'id'   => $t->id,
                 'name' => trim($t->first_name . ' ' . $t->last_name),
             ]);
-            $data['recommended_id'] = $available->first()?->id;
+            $data['recommended_id'] = $assigner->leastBusy($available, (int) $b->spa_id, (int) $b->branch_id, $b->appointment_date->format('Y-m-d'), (int) $b->id)?->id;
 
             return $data;
         }));
@@ -171,6 +171,12 @@ class LeaveRequestController extends Controller
     // =====================================================
     public function approve(Request $request, LeaveRequest $leaveRequest)
     {
+        $this->abortUnlessInReviewerScope($leaveRequest);
+
+        if ($denied = $this->denyOwnReview($leaveRequest)) {
+            return $denied;
+        }
+
         if (!$leaveRequest->isPending()) {
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
         }
@@ -183,7 +189,16 @@ class LeaveRequestController extends Controller
 
         $resolvedCount = 0;
 
-        DB::transaction(function () use ($leaveRequest, $validated, &$resolvedCount) {
+        $alreadyReviewed = false;
+
+        DB::transaction(function () use ($leaveRequest, $validated, &$resolvedCount, &$alreadyReviewed) {
+            // Re-check under a row lock so two reviewers cannot both approve.
+            $locked = LeaveRequest::whereKey($leaveRequest->getKey())->lockForUpdate()->first();
+            if (!$locked || !$locked->isPending()) {
+                $alreadyReviewed = true;
+                return;
+            }
+
             $leaveRequest->update([
                 'status'      => 'approved',
                 'reviewed_by' => Auth::id(),
@@ -194,8 +209,14 @@ class LeaveRequestController extends Controller
             $this->autoFlagAffectedBookings($leaveRequest);
 
             foreach ($validated['reassignments'] ?? [] as $pick) {
+                // Only bookings of this leave's own therapist, spa and branch can be
+                // reassigned here; any other booking_id in the request is ignored.
                 $reassignment = ReassignmentRequest::where('booking_id', $pick['booking_id'])
                     ->where('status', 'pending')
+                    ->whereHas('booking', fn ($q) => $q
+                        ->where('spa_id', $leaveRequest->spa_id)
+                        ->where('branch_id', $leaveRequest->branch_id)
+                        ->where('therapist_id', $leaveRequest->user_id))
                     ->first();
 
                 if (!$reassignment) {
@@ -205,16 +226,12 @@ class LeaveRequestController extends Controller
                 $booking        = $reassignment->booking;
                 $newTherapistId = (int) $pick['new_therapist_id'];
 
-                $conflict = Booking::where('id', '!=', $booking->id)
-                    ->where('branch_id', $booking->branch_id)
-                    ->where('appointment_date', $booking->appointment_date)
-                    ->where('therapist_id', $newTherapistId)
-                    ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-                    ->where(fn ($q) => $q->where('start_time', '<', $booking->end_time)->where('end_time', '>', $booking->start_time))
-                    ->exists();
-
-                if ($conflict) {
-                    continue; // leave it pending — approver resolves manually on Appointments
+                // Shared rule: in the pool, free at that time, and identity-verified
+                // for online home service. Otherwise leave it pending — the approver
+                // resolves it manually on Appointments.
+                if ($newTherapistId === (int) $leaveRequest->user_id
+                    || app(\App\Services\Bookings\TherapistAssigner::class)->rejectionFor($newTherapistId, $booking)) {
+                    continue;
                 }
 
                 $booking->update(['therapist_id' => $newTherapistId]);
@@ -227,6 +244,10 @@ class LeaveRequestController extends Controller
                 $resolvedCount++;
             }
         });
+
+        if ($alreadyReviewed) {
+            return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
 
         $leaveUser = $leaveRequest->user;
         if ($leaveUser?->email) {
@@ -250,6 +271,12 @@ class LeaveRequestController extends Controller
     // =====================================================
     public function reject(Request $request, LeaveRequest $leaveRequest)
     {
+        $this->abortUnlessInReviewerScope($leaveRequest);
+
+        if ($denied = $this->denyOwnReview($leaveRequest)) {
+            return $denied;
+        }
+
         $validated = $request->validate([
             'rejection_reason' => ['required', 'string', 'min:5', 'max:500'],
         ]);
@@ -258,12 +285,21 @@ class LeaveRequestController extends Controller
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
         }
 
-        $leaveRequest->update([
-            'status'           => 'rejected',
-            'rejection_reason' => $validated['rejection_reason'],
-            'reviewed_by'      => Auth::id(),
-            'reviewed_at'      => now(),
-        ]);
+        // Conditional update so a request approved a moment ago is not overwritten.
+        $updated = LeaveRequest::whereKey($leaveRequest->getKey())
+            ->where('status', 'pending')
+            ->update([
+                'status'           => 'rejected',
+                'rejection_reason' => $validated['rejection_reason'],
+                'reviewed_by'      => Auth::id(),
+                'reviewed_at'      => now(),
+            ]);
+
+        if ($updated === 0) {
+            return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
+
+        $leaveRequest->refresh();
 
         $leaveUser = $leaveRequest->user;
         if ($leaveUser?->email) {
@@ -310,7 +346,7 @@ class LeaveRequestController extends Controller
     // =====================================================
     private function autoFlagAffectedBookings(LeaveRequest $leave): void
     {
-        if (!$leave->user?->hasRole('therapist')) {
+        if (!$leave->user?->isTreatmentProvider()) {
             return;
         }
 
@@ -342,8 +378,38 @@ class LeaveRequestController extends Controller
     }
 
     // =====================================================
-    // Helper
+    // Helpers
     // =====================================================
+
+    /**
+     * A reviewer acts only on leave requests of their own spa and current branch
+     * (the same scope as the pending queue in index()). Anything else is a 404, so
+     * the response never confirms that another spa's request exists.
+     */
+    private function abortUnlessInReviewerScope(LeaveRequest $leave): void
+    {
+        $user     = Auth::user();
+        $branchId = $user->currentBranchId() ?? $user->branch_id;
+
+        abort_unless(
+            (int) $leave->spa_id === (int) $user->spa_id
+            && (int) $leave->branch_id === (int) $branchId,
+            404
+        );
+    }
+
+    /** Nobody approves or rejects their own leave request. */
+    private function denyOwnReview(LeaveRequest $leave): ?\Illuminate\Http\JsonResponse
+    {
+        if ((int) $leave->user_id !== (int) Auth::id()) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => 'You cannot review your own leave request. Another approver must review it.',
+        ], 403);
+    }
+
     private function formatRequest(LeaveRequest $r): array
     {
         return [

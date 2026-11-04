@@ -15,24 +15,51 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\Bookings\TherapistAssigner;
 use Illuminate\Support\Facades\Mail;
+use App\Services\Subscription\PlanLimitEnforcer;
+use App\Services\Subscription\SubscriptionBilling;
+use App\Services\PayMongo;
 
 class PaymongoWebhookController extends Controller
 {
+    public function __construct(
+        private readonly SubscriptionBilling $billing,
+    ) {}
+
     public function handle(Request $request)
     {
         $rawPayload = $request->getContent();
         $sigHeader  = $request->header('Paymongo-Signature');
+        $payload    = json_decode($rawPayload, true);
 
-        if (! $this->verifyWebhookSignature($rawPayload, $sigHeader)) {
-            Log::warning('PayMongo webhook: invalid signature');
+        if (! is_array($payload)) {
+            Log::warning('PayMongo webhook: body is not valid JSON');
+            return response()->json(['error' => 'Invalid payload'], 400);
+        }
+
+        // PayMongo signs test events in "te" and live events in "li". Pick
+        // by the event itself, not by APP_ENV, so test keys on the live
+        // server (and live keys anywhere) both verify correctly.
+        $isLive = (bool) data_get($payload, 'data.attributes.livemode', false);
+
+        if (! $this->verifyWebhookSignature($rawPayload, $sigHeader, $isLive)) {
+            Log::warning('PayMongo webhook: invalid signature', ['livemode' => $isLive]);
             return response()->json(['error' => 'Invalid signature'], 401);
         }
 
-        $payload = json_decode($rawPayload, true);
-        $type    = data_get($payload, 'data.attributes.type');
+        $type = data_get($payload, 'data.attributes.type');
 
-        Log::info('PayMongo webhook received', ['type' => $type]);
+        Log::info('PayMongo webhook received', ['type' => $type, 'livemode' => $isLive]);
+
+        // In live mode a test payment is not real money, so it must never
+        // activate a plan or a reservation. A live payment is always
+        // honoured, even after switching back to test mode for a demo.
+        if (! $isLive && PayMongo::isLive()) {
+            Log::warning('PayMongo webhook: test-mode event ignored while in live mode', ['type' => $type]);
+
+            return response()->json(['status' => 'ignored_test_event'], 200);
+        }
 
         if ($type !== 'checkout_session.payment.paid') {
             return response()->json(['status' => 'ignored'], 200);
@@ -51,33 +78,43 @@ class PaymongoWebhookController extends Controller
         $subscription = Subscription::where('paymongo_checkout_id', $checkoutId)->first();
 
         if ($subscription) {
-            if ($subscription->payment_status !== 'paid') {
-                $subscription->update([
-                    'payment_status' => 'paid',
-                    'starts_at'      => now(),
-                    'expires_at'     => now()->addMonth(),
-                    'paymongo_payment_id'   => data_get($payload, 'data.attributes.data.attributes.payments.0.id'),
-                    'payment_method'        => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.source.type'),
+            $payment = data_get($payload, 'data.attributes.data.attributes.payments.0');
+
+            try {
+                // Idempotent: a retried event for a paid row changes nothing.
+                // Rows already marked "expired" by the cleanup command are
+                // still activated, because the owner did pay.
+                $activated = $this->billing->activate(
+                    $subscription,
+                    data_get($payment, 'id'),
+                    data_get($payment, 'attributes.source.type')
+                );
+            } catch (\Throwable $e) {
+                Log::error('Subscription webhook activation failed', [
+                    'subscription_id' => $subscription->id,
+                    'checkout_id' => $checkoutId,
+                    'message' => $e->getMessage(),
                 ]);
 
-                $spa = Spa::with(['branches.profile', 'owner'])->find($subscription->spa_id);
-
-                if ($spa) {
-                    $spa->update(['business_tier' => 'professional']);
-
-                    $ownerEmail = $spa->owner->email ?? null;
-                    if ($ownerEmail) {
-                        try {
-                            Mail::to($ownerEmail)->send(new SubscriptionPaid($spa, $subscription));
-                            Log::info("Subscription email sent to {$ownerEmail}");
-                        } catch (\Exception $e) {
-                            Log::error("Failed to send subscription email: " . $e->getMessage());
-                        }
-                    }
-
-                    Log::info("Spa {$spa->id} upgraded to professional and branches listed");
-                }
+                // 500 makes PayMongo retry the event later.
+                return response()->json(['status' => 'error'], 500);
             }
+
+            if (! $activated) {
+                return response()->json(['status' => 'subscription_already_processed'], 200);
+            }
+
+            Log::info('Spa subscription activated', [
+                'spa_id' => $subscription->spa_id,
+                'subscription_id' => $subscription->id,
+                'kind' => $subscription->kind,
+                'plan' => $subscription->business_tier,
+                'starts_at' => $subscription->starts_at?->toDateTimeString(),
+                'expires_at' => $subscription->expires_at?->toDateTimeString(),
+            ]);
+
+            $this->applyPlanLimits($subscription);
+            $this->sendPaidEmail($subscription);
 
             return response()->json(['status' => 'subscription_processed'], 200);
         }
@@ -95,7 +132,29 @@ class PaymongoWebhookController extends Controller
 
             if (!($reservation->payment_status === 'paid' && $reservation->booking_id)) {
                 try {
-                    DB::transaction(function () use ($reservation, $payload) {
+                    $createdBookingId = DB::transaction(function () use ($reservation, $payload) {
+                        // Q52: the app's payment-success page may have made the
+                        // booking since the check above. Re-read under a lock; if a
+                        // booking exists, only record PayMongo's payment details.
+                        $locked = OnlineReservationPayment::whereKey($reservation->id)->lockForUpdate()->first();
+                        if (! $locked) {
+                            return null;
+                        }
+                        if ($locked->booking_id) {
+                            $locked->update([
+                                'payment_status' => 'paid',
+                                'reservation_status' => 'reserved',
+                                'paid_at' => $locked->paid_at ?? now(),
+                                'paymongo_payload' => $payload,
+                                'paymongo_payment_intent_id' => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.payment_intent_id'),
+                                'paymongo_payment_id' => data_get($payload, 'data.attributes.data.attributes.payments.0.id'),
+                                'payment_reference' => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.reference_number'),
+                            ]);
+
+                            return null;
+                        }
+                        $reservation = $locked;
+
                         $treatmentCode = $reservation->bookable_type . '_' . $reservation->bookable_id;
 
                         $durationMinutes = 60;
@@ -112,45 +171,30 @@ class PaymongoWebhookController extends Controller
                             ->addMinutes($durationMinutes)
                             ->format('H:i:s');
 
-                        $therapists = User::role('therapist')
-                        ->whereHas('staff', function ($q) use ($reservation) {
-                            $q->where('spa_id', $reservation->spa_id)
-                                ->where('branch_id', $reservation->branch_id)
-                                ->where('employment_status', 'active');
-                        })
-                        ->orderBy('first_name')  // ← use your actual column name
-                        ->get();
-
-                        $busyIds = Booking::query()
-                            ->where('spa_id', $reservation->spa_id)
-                            ->where('branch_id', $reservation->branch_id)
-                            ->where('appointment_date', $reservation->appointment_date)
-                            ->whereIn('therapist_id', $therapists->pluck('id'))
-                            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-                            ->where(function ($q) use ($reservation, $endTime) {
-                                $q->where('start_time', '<', $endTime)
-                                ->where('end_time', '>', $reservation->start_time);
-                            })
-                            ->pluck('therapist_id')
-                            ->unique();
-
-                        // ON-LEAVE: exclude therapists with approved leave covering
-                        // the reservation's date — a slot held for 15 minutes could
-                        // otherwise still confirm into a therapist who went on leave
-                        // in the meantime.
-                        $onLeaveIds = LeaveRequest::approvedUserIdsOnDate(
+                        // Shared rule (TherapistAssigner): least busy free therapist;
+                        // verified only for home service (D2). If nobody can take it,
+                        // the paid booking is still created, without a therapist, and
+                        // the branch assigns one from Appointments (decision Q17).
+                        // Throwing here used to lose the booking after payment.
+                        $recommendedTherapist = app(TherapistAssigner::class)->pick(
                             (int) $reservation->spa_id,
                             (int) $reservation->branch_id,
-                            (string) $reservation->appointment_date
+                            Carbon::parse($reservation->appointment_date)->toDateString(),
+                            Carbon::parse($reservation->start_time)->format('H:i'),
+                            Carbon::parse($endTime)->format('H:i'),
+                            TherapistAssigner::requiresVerified('online', $reservation->service_type)
                         );
 
-                        $recommendedTherapist = $therapists
-                            ->reject(fn ($therapist) => $busyIds->contains($therapist->id) || in_array($therapist->id, $onLeaveIds))
-                            ->first();
-
                         if (! $recommendedTherapist) {
-                            throw new \RuntimeException('No therapist available for paid reservation.');
+                            Log::warning('Paid reservation booked without a therapist; the branch must assign one.', [
+                                'reservation_id' => $reservation->id,
+                                'service_type'   => $reservation->service_type,
+                            ]);
                         }
+
+                        $totalAmount = (float) $reservation->full_amount;
+                        $amountPaid  = (float) ($reservation->amount_charged ?? $reservation->downpayment_amount);
+                        $balance     = max(round($totalAmount - $amountPaid, 2), 0);
 
                         $booking = Booking::create([
                             'spa_id' => $reservation->spa_id,
@@ -159,10 +203,10 @@ class PaymongoWebhookController extends Controller
                             'created_by_user_id' => null,
                             'booking_source' => 'online',
                             'status' => 'reserved',
-                            'payment_status' => 'partially_paid',
-                            'amount_paid' => $reservation->downpayment_amount,
-                            'total_amount' => $reservation->full_amount,
-                            'balance_amount' => $reservation->full_amount - $reservation->downpayment_amount,
+                            'payment_status' => $balance <= 0 ? 'paid' : 'partially_paid',
+                            'amount_paid' => $amountPaid,
+                            'total_amount' => $totalAmount,
+                            'balance_amount' => $balance,
                             'service_type' => $reservation->service_type,
                             'treatment' => $treatmentCode,
                             'customer_name' => $reservation->customer_name,
@@ -172,7 +216,7 @@ class PaymongoWebhookController extends Controller
                             'appointment_date' => $reservation->appointment_date,
                             'start_time' => $reservation->start_time,
                             'end_time' => $endTime,
-                            'therapist_id' => $recommendedTherapist->id,
+                            'therapist_id' => $recommendedTherapist?->id,
                         ]);
 
                         $reservation->update([
@@ -185,6 +229,8 @@ class PaymongoWebhookController extends Controller
                             'paymongo_payment_id' => data_get($payload, 'data.attributes.data.attributes.payments.0.id'),
                             'payment_reference' => data_get($payload, 'data.attributes.data.attributes.payments.0.attributes.reference_number'),
                         ]);
+
+                        return $booking->id;
                     });
                 } catch (\Throwable $e) {
                     Log::error('Reservation webhook transaction failed', [
@@ -195,6 +241,13 @@ class PaymongoWebhookController extends Controller
                     ]);
 
                     return response()->json(['status' => 'error'], 500);
+                }
+
+                // Confirmation with the therapist card and, for home service, the
+                // arrival code (staff verification D6/D7). Never fails the webhook.
+                // Only when this webhook made the booking (the app's fallback sends its own).
+                if ($createdBookingId) {
+                    app(\App\Services\Bookings\BookingNotifier::class)->confirmed(Booking::find($createdBookingId));
                 }
             }
 
@@ -208,21 +261,87 @@ class PaymongoWebhookController extends Controller
         return response()->json(['status' => 'not_found'], 200);
     }
 
-    private function verifyWebhookSignature(string $payload, ?string $sigHeader): bool
+    /**
+     * Pauses or restores staff for the spa's plan right away (an upgrade
+     * brings paused staff back). Failure must not fail the webhook; the
+     * hourly subscriptions:enforce-limits run catches up.
+     */
+    private function applyPlanLimits(Subscription $subscription): void
     {
-        if (! $sigHeader) return false;
+        try {
+            $spa = Spa::find($subscription->spa_id);
 
-        $secret = env('PAYMONGO_WEBHOOK_SECRET');
+            if ($spa) {
+                app(PlanLimitEnforcer::class)->sync($spa);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Plan limit sync after payment failed', [
+                'subscription_id' => $subscription->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
 
-        preg_match('/t=(\d+)/', $sigHeader, $tMatch);
-        preg_match('/te=([a-f0-9]+)/', $sigHeader, $teMatch);
+    /**
+     * Sends the confirmation email. A mail failure must not fail the
+     * webhook, or PayMongo would retry an already-activated payment.
+     */
+    private function sendPaidEmail(Subscription $subscription): void
+    {
+        $spa = Spa::withTrashed()->with('owner')->find($subscription->spa_id);
+        $email = $spa?->owner?->email;
 
-        if (empty($tMatch[1]) || empty($teMatch[1]) || ! $secret) {
+        if (! $email) {
+            return;
+        }
+
+        try {
+            Mail::to($email)->send(new SubscriptionPaid($spa, $subscription));
+        } catch (\Throwable $e) {
+            Log::error('Subscription paid email failed', [
+                'subscription_id' => $subscription->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function verifyWebhookSignature(
+        string $payload,
+        ?string $sigHeader,
+        bool $isLive
+    ): bool {
+        if (! filled($sigHeader)) {
             return false;
         }
 
-        $computed = hash_hmac('sha256', $tMatch[1] . '.' . $payload, $secret);
+        // Test and live webhooks are registered separately and each has
+        // its own signing secret.
+        $secret = PayMongo::webhookSecret($isLive);
 
-        return hash_equals($computed, $teMatch[1]);
+        if (! filled($secret)) {
+            Log::error('PayMongo webhook secret is not configured.', ['livemode' => $isLive]);
+
+            return false;
+        }
+
+        preg_match('/(?:^|,)t=([^,]+)/', $sigHeader, $timestampMatch);
+        preg_match('/(?:^|,)te=([^,]*)/', $sigHeader, $testSignatureMatch);
+        preg_match('/(?:^|,)li=([^,]*)/', $sigHeader, $liveSignatureMatch);
+
+        $timestamp = $timestampMatch[1] ?? null;
+
+        $signature = $isLive
+            ? ($liveSignatureMatch[1] ?? null)
+            : ($testSignatureMatch[1] ?? null);
+
+        if (! filled($timestamp) || ! filled($signature)) {
+            Log::warning('PayMongo webhook signature is incomplete.', ['livemode' => $isLive]);
+
+            return false;
+        }
+
+        $computed = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
+
+        return hash_equals(strtolower($computed), strtolower($signature));
     }
 }

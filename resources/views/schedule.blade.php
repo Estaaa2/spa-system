@@ -13,6 +13,7 @@
             'ongoing'   => ['label' => 'Ongoing',   'accent' => '#059669', 'badge' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'],
             'completed' => ['label' => 'Completed', 'accent' => '#64748b', 'badge' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
             'cancelled' => ['label' => 'Cancelled', 'accent' => '#dc2626', 'badge' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'],
+            'no_show'   => ['label' => 'No-show',   'accent' => '#ea580c', 'badge' => 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'],
         ];
         $statusFallback = ['label' => 'Unknown', 'accent' => '#8B7355', 'badge' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'];
 
@@ -83,11 +84,57 @@
         }
     </style>
 
-    <div class="sched-page flex flex-col gap-4 p-4 mx-auto sm:p-6 max-w-7xl">
+    <div class="flex flex-col gap-4 p-4 mx-auto sched-page sm:p-6 max-w-7xl">
 
         <div class="shrink-0">
             <x-page-header title="Schedule" subtitle="View and manage all appointments in a weekly calendar view." />
         </div>
+
+
+        {{-- ── Reschedule requests (sidebar & RBAC rework Phase 4.1) ───────────
+             Every pending request for this branch, whichever week it falls in, so
+             the Schedule badge always points at something visible. Each row opens
+             the same review modal as the calendar card. Styled like Appointments'
+             "No Therapist Assigned" panel. --}}
+        @if ($canEdit && $pendingReschedules->isNotEmpty())
+            <section aria-labelledby="reschedListTitle"
+                class="overflow-hidden bg-white border shadow-sm shrink-0 border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
+                <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b sm:px-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                    <div>
+                        <h2 id="reschedListTitle" class="text-base font-semibold text-amber-900 dark:text-amber-200">Reschedule Requests</h2>
+                        <p class="text-sm text-amber-700 dark:text-amber-300">Customers asked to move these appointments. Open one to approve or reject it.</p>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        {{ $pendingReschedules->count() }} waiting
+                    </span>
+                </div>
+
+                {{-- Capped height so the calendar keeps its space; the list scrolls past a few rows. --}}
+                <ul class="overflow-y-auto divide-y divide-gray-200 max-h-32 sm:max-h-44 overscroll-contain dark:divide-gray-700">
+                    @foreach ($pendingReschedules as $b)
+                        @php $rr = $b->latestRescheduleRequest; @endphp
+                        <li>
+                            <button type="button" onclick="openAppointmentModal(this)" aria-haspopup="dialog"
+                                @include('schedule.partials.booking-modal-data', ['b' => $b])
+                                class="flex items-center justify-between w-full min-h-[44px] gap-3 px-4 py-3 text-left transition-colors sm:px-6 hover:bg-gray-50 dark:hover:bg-gray-700/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-medium text-gray-900 truncate dark:text-white">
+                                        {{ $b->customer_name ?? 'Walk-in' }}
+                                        <span class="font-normal text-gray-500 dark:text-gray-400">· {{ $b->resolved_treatment ?? $b->treatment_label }}</span>
+                                    </span>
+                                    <span class="block text-xs text-gray-500 dark:text-gray-400">
+                                        {{ \Carbon\Carbon::parse($b->appointment_date)->format('M j') }}, {{ \Carbon\Carbon::parse($b->start_time)->format('g:i A') }}
+                                        <i class="mx-1 fa-solid fa-arrow-right" aria-hidden="true"></i><span class="sr-only">requested</span>
+                                        <span class="font-medium text-gray-700 dark:text-gray-200">{{ $rr->requested_date?->format('M j') }}, {{ \Carbon\Carbon::parse($rr->requested_time)->format('g:i A') }}</span>
+                                    </span>
+                                </span>
+                                <span class="text-sm font-medium shrink-0 text-[#8B7355] dark:text-[#C4A97D]">Review</span>
+                            </button>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
 
         <div x-data="scheduleView({{ $selectedDay }})" class="flex flex-col flex-1 min-h-0 gap-4">
 
@@ -225,7 +272,7 @@
                             }
                         @endphp
 
-                        <div class="sched-col flex-1 min-w-0 border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+                        <div class="flex-1 min-w-0 border-r border-gray-200 sched-col dark:border-gray-700 last:border-r-0"
                              data-col="{{ $i }}">
 
                             {{-- Day header --}}
@@ -323,31 +370,34 @@
 
                                             $meta = $statusMeta[$b->status] ?? $statusFallback;
 
-                                            $customerName = $b->customer_name ?? 'Walk-in';
-                                            // Resolved once for the whole week in ScheduleController.
-                                            // Falls back to the accessor if the controller is older.
+                                            $customerName   = $b->customer_name ?? 'Walk-in';
                                             $treatmentLabel = $b->resolved_treatment ?? $b->treatment_label;
-                                            $serviceLabel   = $b->service_type_label;
 
-                                            $startAt   = \Carbon\Carbon::parse($b->start_time);
-                                            $endAt     = \Carbon\Carbon::parse($b->end_time);
-                                            $statusTxt = ucfirst($b->status);
+                                            $startAt = \Carbon\Carbon::parse($b->start_time);
+                                            $endAt   = \Carbon\Carbon::parse($b->end_time);
 
-                                            // Human duration for the modal, e.g. "1 hr 30 min"
-                                            $durationMins = max($startAt->diffInMinutes($endAt), 0);
-                                            $durHours     = intdiv($durationMins, 60);
-                                            $durRemainder = $durationMins % 60;
-                                            $durationTxt  = trim(
-                                                ($durHours ? $durHours . ' hr ' : '')
-                                                . ($durRemainder ? $durRemainder . ' min' : '')
-                                            ) ?: '0 min';
+                                            $startMinutes = ((int) $startAt->format('H') * 60) + (int) $startAt->format('i');
+                                            $endMinutes   = ((int) $endAt->format('H') * 60) + (int) $endAt->format('i');
+
+                                            $durationMinutes = max($endMinutes - $startMinutes, 1);
+
+                                            $cardTopPx = max(
+                                                ($startMinutes - $rangeStartMinutes) * $pxPerMinute,
+                                                0
+                                            );
+
+                                            $cardHeightPx = max(
+                                                $durationMinutes * $pxPerMinute,
+                                                18
+                                            );
+
+                                            $statusTxt = \App\Models\Booking::statusLabel($b->status);
 
                                             $reschedule        = $b->latestRescheduleRequest;
                                             $hasPendingResched = $reschedule?->isPending();
 
-                                            // Progressive detail based on card height
-                                            $showTreatment = $b->sched_height_px >= 40;
-                                            $showTimeRange = $b->sched_height_px >= 60;
+                                            $showTreatment = $cardHeightPx >= 40;
+                                            $showTimeRange = $cardHeightPx >= 60;
 
                                             $showStatusChip = (int) $b->overlap_total === 1;
 
@@ -362,33 +412,19 @@
                                                      hover:ring-2 hover:ring-[#8B7355]/50
                                                      focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]"
                                              style="
-                                                 top: {{ $b->sched_top_px + 1 }}px;
-                                                 height: {{ $b->sched_height_px - 2 }}px;
-                                                 left: calc({{ $leftPct }}% + 1px);
-                                                 width: calc({{ $widthPct }}% - 4px);
-                                                 border-left: 3px solid {{ $meta['accent'] }};
-                                             "
+                                                top: {{ $cardTopPx + 1 }}px;
+                                                height: {{ max($cardHeightPx - 2, 16) }}px;
+                                                left: calc({{ $leftPct }}% + 1px);
+                                                width: calc({{ $widthPct }}% - 4px);
+                                                border-left: 3px solid {{ $meta['accent'] }};
+                                            "
                                              role="button"
                                              tabindex="0"
                                              aria-haspopup="dialog"
                                              aria-label="{{ $cardLabel }}"
                                              onclick="openAppointmentModal(this)"
                                              onkeydown="handleCardKeydown(event, this)"
-                                             data-booking-id="{{ $b->id }}"
-                                             data-customer="{{ $customerName }}"
-                                             data-service="{{ $serviceLabel }}"
-                                             data-treatment="{{ $treatmentLabel }}"
-                                             data-appointment-date="{{ \Carbon\Carbon::parse($b->appointment_date)->format('F d, Y') }}"
-                                             data-start-time="{{ $startAt->format('g:i A') }}"
-                                             data-end-time="{{ $endAt->format('g:i A') }}"
-                                             data-duration="{{ $durationTxt }}"
-                                             data-status="{{ $statusTxt }}"
-                                             data-reschedule-id="{{ $reschedule?->id }}"
-                                             data-reschedule-status="{{ $reschedule?->status }}"
-                                             data-reschedule-date="{{ $reschedule?->requested_date?->format('F j, Y') }}"
-                                             data-reschedule-time="{{ $reschedule ? \Carbon\Carbon::parse($reschedule->requested_time)->format('g:i A') : '' }}"
-                                             data-reschedule-reason="{{ $reschedule?->reason }}"
-                                             data-reschedule-rejection="{{ $reschedule?->rejection_reason }}">
+                                             @include('schedule.partials.booking-modal-data', ['b' => $b])>
 
                                             {{-- Pending reschedule pulse dot --}}
                                             @if ($hasPendingResched)
@@ -398,7 +434,7 @@
                                                 </span>
                                             @endif
 
-                                            <div class="px-1.5 py-1 h-full flex flex-col overflow-hidden" aria-hidden="true">
+                                            <div class="flex flex-col h-full px-2 py-1 overflow-hidden" aria-hidden="true">
                                                 <div class="flex items-start justify-between gap-0.5">
                                                     <p class="text-[10px] font-semibold leading-tight text-gray-800 dark:text-white truncate flex-1">
                                                         {{ $customerName }}
@@ -549,7 +585,7 @@
                                         <label for="rejectReasonInput" class="sr-only">Reason for rejection</label>
                                         <textarea id="rejectReasonInput" rows="3"
                                             placeholder="Reason for rejection (required, min 5 characters)..."
-                                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-red-400/40"></textarea>
+                                            class="w-full px-3 py-2 text-sm border border-gray-200 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-red-400/40"></textarea>
                                         <div class="flex gap-2">
                                             <button type="button" onclick="rejectReschedule()" id="confirmRejectBtn"
                                                 class="flex-1 min-h-[44px] px-4 text-sm font-semibold text-white transition bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50">
@@ -727,7 +763,8 @@
 
             const statusEl = document.getElementById('modalStatus');
             statusEl.innerText = el.dataset.status || '';
-            const s = (el.dataset.status || '').toLowerCase();
+            // The key, not the label: "No-show" lowercased isn't "no_show".
+            const s = el.dataset.statusKey || (el.dataset.status || '').toLowerCase();
             statusEl.className = 'inline-block mt-1.5 px-2.5 py-0.5 text-xs font-medium rounded-full '
                 + (STATUS_CHIP_CLASSES[s] || STATUS_CHIP_FALLBACK);
 

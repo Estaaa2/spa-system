@@ -8,6 +8,7 @@ use App\Models\Package;
 use App\Models\ReassignmentRequest;
 use App\Models\Treatment;
 use Carbon\Carbon;
+use App\Services\Bookings\TherapistAssigner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -138,24 +139,15 @@ class ReassignmentRequestController extends Controller
 
         $newTherapistId = (int) $validated['new_therapist_id'];
 
-        // Re-check availability at approval time, not just at request time —
-        // the slot may have filled in the gap between submission and review.
-        $conflict = Booking::query()
-            ->where('id', '!=', $booking->id)
-            ->where('branch_id', $booking->branch_id)
-            ->where('appointment_date', $booking->appointment_date)
-            ->where('therapist_id', $newTherapistId)
-            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-            ->where(function ($q) use ($booking) {
-                $q->where('start_time', '<', $booking->end_time)
-                  ->where('end_time', '>', $booking->start_time);
-            })
-            ->exists();
+        if ($newTherapistId === (int) $reassignmentRequest->old_therapist_id) {
+            return response()->json(['message' => 'Choose a different therapist, or reject the request to keep this one.'], 422);
+        }
 
-        if ($conflict) {
-            return response()->json([
-                'message' => 'Selected therapist is no longer available for this time slot.',
-            ], 422);
+        // Re-check at approval time with the shared rule: in the pool, free at
+        // that time, and identity-verified for online home service (D2). The
+        // slot may have filled in the gap between submission and review.
+        if ($problem = app(TherapistAssigner::class)->rejectionFor($newTherapistId, $booking)) {
+            return response()->json(['message' => $problem], 422);
         }
 
         $booking->update(['therapist_id' => $newTherapistId]);
@@ -227,6 +219,9 @@ class ReassignmentRequestController extends Controller
             'submitted_at'          => $r->created_at->format('F j, Y g:i A'),
             'leave_request_id'      => $r->leave_request_id,
             'leave_is_approved'     => $r->leaveRequest?->isApproved() ?? false,
+            'source'                => $r->source,
+            // Online home service: the replacement must be identity-verified.
+            'requires_verified'     => TherapistAssigner::requiresVerified($booking->booking_source, $booking->service_type),
         ];
     }
 }
