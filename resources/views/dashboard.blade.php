@@ -40,6 +40,7 @@
     $canAlerts          = $user->hasBranchPermission('view dashboard alerts');
     $canBookingBtn      = $user->hasBranchPermission('view dashboard booking button');
     $canMyToday         = $user->seesMyTodayWidget();
+    $showClockCard      = $user->hasAttendanceSelfService();
 
     // Quick Actions permission flags — also branch-aware.
     $canBookAppointments  = $user->hasBranchPermission('book appointments');
@@ -369,12 +370,10 @@
     }());
 </script>
 
-    {{-- ════════════════════════════════════════════════════════════════════
-         THERAPIST PERSONAL VIEW  (view dashboard my today)
-    ═══════════════════════════════════════════════════════════════════════ --}}
-    @if($canMyToday)
-
-        {{-- Attendance Status --}}
+    {{-- Clock-in card: every active staff member (Phase 6.3 — employee
+         self-service). The nightly attendance:finalize-day job marks anyone
+         without a record absent, so everyone who can be marked gets the nudge. --}}
+    @if($showClockCard)
         <div class="p-4 border sm:p-5 rounded-2xl {{ $myAttendanceToday && $myAttendanceToday->time_in && !$myAttendanceToday->time_out ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' }}">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -404,6 +403,13 @@
                 @endif
             </div>
         </div>
+
+    @endif
+
+    {{-- ════════════════════════════════════════════════════════════════════
+         THERAPIST PERSONAL VIEW  (view dashboard my today)
+    ═══════════════════════════════════════════════════════════════════════ --}}
+    @if($canMyToday)
 
         {{-- Personal stat cards --}}
         <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

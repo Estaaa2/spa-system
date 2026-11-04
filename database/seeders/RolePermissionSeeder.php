@@ -76,6 +76,8 @@ class RolePermissionSeeder extends Seeder
         'view reports',
         'view decision support',
 
+        // Every employee files their own leave (Phase 6.3). Clocking in needs no permission.
+        'create leave requests',
     ];
 
     public function run(): void
@@ -582,6 +584,8 @@ class RolePermissionSeeder extends Seeder
             'view reports',
             'view decision support',
 
+            // Every employee files their own leave (Phase 6.3). Clocking in needs no permission.
+            'create leave requests',
         ]);
 
         // ── HR Head (central) ─────────────────────────────────────────────────

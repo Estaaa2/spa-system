@@ -35,6 +35,9 @@ use Tests\TestCase;
  * default permissions, then with customized ones (every preset; owner trimmed to
  * the protected minimum; a front-desk role with nothing ticked).
  *
+ * Phase 6.3 adds: every active staff member has Attendance & Leave and, on the
+ * dashboard, the clock-in card (employee self-service).
+ *
  * Pass criteria (plan, Phase 6): no empty group, no single-link group, no link to a
  * page that refuses the user (403/404/5xx), a branch switcher only where switching
  * is possible, a landing page that opens, and badges that sit on a visible link and
@@ -269,6 +272,21 @@ class NavRbacPhase6MatrixTest extends TestCase
             $fail('links redirect instead of opening: '.implode(', ', $redirects));
         }
 
+        // 3b. Phase 6.3: every active staff member can clock in, whatever their permissions —
+        // the nightly attendance:finalize-day job marks them absent otherwise.
+        $locked = $spa->hasAccess() && $branch->lockReason() !== null;
+        if ($user->hasAttendanceSelfService() && ! $locked) {
+            if (! isset($links['/attendance'])) {
+                $fail('active staff member has no Attendance & Leave link');
+            } elseif ($this->pageStatus('/attendance', $session) !== 200) {
+                $fail('Attendance & Leave does not open for an active staff member');
+            }
+            if ($landingPath === '/dashboard' && ! str_contains($html, route('attendance.clock-in'))
+                && ! str_contains($html, route('attendance.clock-out')) && ! str_contains($html, "Today's attendance is complete")) {
+                $fail('dashboard has no clock-in card for an active staff member');
+            }
+        }
+
         // 4. Switcher only when the user can switch and there are 2+ branches.
         $shouldSwitch = $user->canSwitchBranches() && $spa->branches()->count() >= 2;
         $hasSwitcher = str_contains($html, 'branchesDropdown = !branchesDropdown');   // the switcher's button
@@ -277,7 +295,6 @@ class NavRbacPhase6MatrixTest extends TestCase
         }
 
         // 5. Badges sit on a visible link, show the same count, and match the refresh endpoint.
-        $locked = $spa->hasAccess() && $branch->lockReason() !== null;
         $badges = $locked ? [] : NavBadges::forUser($user, $branchId);
         foreach ($badges as $key => $badge) {
             $node = $xp->query(sprintf('//*[@data-nav-badge="%s"]', $key))->item(0);

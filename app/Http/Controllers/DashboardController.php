@@ -213,18 +213,15 @@ class DashboardController extends Controller
         $myNextAppointment   = null;
         $myAttendanceToday   = null;
 
-        if ($user->seesMyTodayWidget()) {
-            $myStaffRecordForNudge = \App\Models\Staff::where('user_id', $user->id)
-                ->where('spa_id', $spaId)
-                ->where('employment_status', 'active')
+        // Clock-in card: every active staff member (Phase 6.3 — employee
+        // self-service), not only the therapist "My Today" view.
+        if ($myStaffRecordForNudge = $user->activeStaffRecord()) {
+            $myAttendanceToday = \App\Models\StaffAttendance::where('staff_id', $myStaffRecordForNudge->id)
+                ->whereDate('date', $today)
                 ->first();
+        }
 
-            $myAttendanceToday = $myStaffRecordForNudge
-                ? \App\Models\StaffAttendance::where('staff_id', $myStaffRecordForNudge->id)
-                    ->whereDate('date', $today)
-                    ->first()
-                : null;
-
+        if ($user->seesMyTodayWidget()) {
             $myBase = fn() => Booking::query()
                 ->where('spa_id', $spaId)
                 ->where('therapist_id', $user->id);

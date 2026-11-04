@@ -44,6 +44,9 @@ final class Sidebar
         'finance_head' => ['pay-runs', 'revenue', 'billing'],
     ];
 
+    /** Any of these opens Attendance & Leave for someone without a staff record (route gate open-attendance-page). */
+    public const ATTENDANCE_PERMISSIONS = ['view attendance', 'view leave requests', 'create leave requests', 'edit leave requests'];
+
     /** @var array<string, bool> */
     private array $features = [];
 
@@ -262,7 +265,8 @@ final class Sidebar
             ]],
             'people' => ['branch', 'People', 'fa-users', [
                 $can('view staff') ? $this->link('staff', 'Staff', 'staff.index', ['staff.*'], 'fa-users') : null,
-                ($can('view attendance') || $can('view leave requests') || $can('create leave requests') || $can('edit leave requests'))
+                // Same rule as the route gate open-attendance-page (Phase 6.3: every active staff member).
+                \Illuminate\Support\Facades\Gate::forUser($this->user)->allows('open-attendance-page')
                     ? $this->link('attendance', 'Attendance & Leave', 'attendance.index', ['attendance.*'], 'fa-user-clock') : null,
                 ($this->feature('manpower') && $can('view deployments'))
                     ? $this->link('deployment', 'Staff Deployment', 'deployment.index', ['deployment.*'], 'fa-people-arrows') : null,

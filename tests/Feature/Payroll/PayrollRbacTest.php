@@ -440,7 +440,8 @@ class PayrollRbacTest extends TestCase
         // roles find it in the "Whole spa" zone; branch HR in its branch zone.
         $page($this->finHead)->assertSee('Whole spa')
             ->assertSee(route('payroll.staff.index'), false)
-            ->assertDontSee(route('attendance.index'), false);
+            // Phase 6.3: every active staff member has Attendance & Leave (own clock-in).
+            ->assertSee(route('attendance.index'), false);
         $page($this->hrA)->assertDontSee('Whole spa')
             ->assertSee(route('attendance.index'), false)
             ->assertSee(route('payroll.setup.index'), false);

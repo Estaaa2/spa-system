@@ -295,6 +295,32 @@ class User extends Authenticatable implements MustVerifyEmail
             || (bool) $this->staff?->performs_treatments;
     }
 
+    /**
+     * Employee self-service (sidebar & RBAC rework Phase 6.3): the active staff
+     * record that clocks in, sees its own attendance and files its own leave.
+     * Same rule as AttendanceController::myStaffRecord() and the nightly
+     * attendance:finalize-day job (which marks every active staff member
+     * without a record absent), so whoever the job can mark absent can also
+     * clock in. Not a role permission: an owner can't switch it off.
+     */
+    public function activeStaffRecord(): ?Staff
+    {
+        if (! $this->spa_id) {
+            return null;
+        }
+
+        return $this->staff
+            && (int) $this->staff->spa_id === (int) $this->spa_id
+            && $this->staff->employment_status === 'active'
+                ? $this->staff
+                : null;
+    }
+
+    public function hasAttendanceSelfService(): bool
+    {
+        return $this->activeStaffRecord() !== null;
+    }
+
     /** Query form of isTreatmentProvider(). */
     public function scopeTreatmentProviders(Builder $query): Builder
     {

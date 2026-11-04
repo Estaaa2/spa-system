@@ -908,8 +908,10 @@ Route::middleware([
         )->name('branch-deployments.cancel');
     });
 
-    // Attendance & Leave
-    Route::middleware('branch.permission:view attendance,view leave requests,create leave requests,edit leave requests')->group(function () {
+    // Attendance & Leave: every active staff member (own clock-in, history and
+    // leave — employee self-service), plus anyone holding an attendance or
+    // leave permission (roster, approvals). Phase 6.3, gate in AppServiceProvider.
+    Route::middleware('can:open-attendance-page')->group(function () {
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     });
 

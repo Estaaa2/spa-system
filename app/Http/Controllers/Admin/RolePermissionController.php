@@ -174,7 +174,7 @@ class RolePermissionController extends Controller
             ],
             'attendance_leave' => [
                 'title'       => 'Attendance & Leave',
-                'description' => 'Attendance, leave requests, availability, and workforce presence.',
+                'description' => 'Attendance, leave requests, availability, and workforce presence. Clocking in and seeing your own attendance need no permission (every active staff member).',
                 'icon'        => 'fa-solid fa-user-clock',
             ],
             'hiring' => [

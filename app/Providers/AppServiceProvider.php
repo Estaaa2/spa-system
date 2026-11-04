@@ -70,5 +70,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('act-as-treatment-provider', fn (\App\Models\User $user) => $user->isTreatmentProvider());
         // "Can't make it" on an appointment: permission or "Performs treatments" (answer P16).
         Gate::define('request-appointment-reassignment', fn (\App\Models\User $user) => $user->canRequestReassignment());
+        // Attendance & Leave page (Phase 6.3): self-service for every active staff
+        // member, or one of the attendance / leave permissions (same list as before).
+        Gate::define('open-attendance-page', fn (\App\Models\User $user) => $user->hasAttendanceSelfService()
+            || collect(\App\Services\Navigation\Sidebar::ATTENDANCE_PERMISSIONS)->contains(fn ($p) => $user->hasBranchPermission($p)));
     }
 }

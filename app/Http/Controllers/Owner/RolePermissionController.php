@@ -380,7 +380,7 @@ class RolePermissionController extends Controller
             ],
             'attendance_leave' => [
                 'title'       => 'Attendance & Leave',
-                'description' => 'Manage attendance, leave requests, availability, and workforce presence.',
+                'description' => 'Manage attendance, leave requests, availability, and workforce presence. Every active staff member can always clock in, see their own attendance and check their own leave; these permissions add filing leave, the branch roster and approvals.',
                 'icon'        => 'fa-solid fa-user-clock',
                 // Attendance and leave are on every plan, so never locked here.
                 'suite'       => null,
