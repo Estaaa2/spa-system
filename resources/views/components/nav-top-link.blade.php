@@ -20,18 +20,11 @@
         <i class="fa-solid {{ $link['icon'] }} w-4 shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
         <span class="min-w-0">{{ $link['label'] }}</span>
 
-        @if (!empty($link['chip']) || $badgeCount > 0)
-            <span class="flex items-center gap-1.5 ml-auto pl-2 shrink-0">
-                @if (!empty($link['chip']))
-                    <span class="px-1.5 py-0.5 text-[11px] font-medium leading-none rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ $link['chip'] }}</span>
-                @endif
-                @if ($badgeCount > 0)
-                    <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold leading-none rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                        <span aria-hidden="true">{{ $badgeCount > 99 ? '99+' : $badgeCount }}</span>
-                        <span class="sr-only">{{ $link['badgeLabel'] ?? ($badgeCount . ' need action') }}</span>
-                    </span>
-                @endif
-            </span>
-        @endif
+        <span class="flex items-center gap-1.5 ml-auto pl-2 shrink-0">
+            @if (!empty($link['chip']))
+                <span class="px-1.5 py-0.5 text-[11px] font-medium leading-none rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ $link['chip'] }}</span>
+            @endif
+            <x-nav-badge :key="$link['key']" :count="$badgeCount" :label="$link['badgeLabel'] ?? null" :urgent="$link['badgeUrgent'] ?? false" />
+        </span>
     </a>
 </div>

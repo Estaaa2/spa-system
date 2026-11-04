@@ -603,7 +603,7 @@ class RolePermissionSeeder extends Seeder
      * Fills a role only when it is new or has no permissions yet (answer P17).
      * Re-running this seeder no longer resets roles an admin edited on the Admin
      * Roles & Permissions page. Changes to existing roles' defaults ship as data
-     * migrations instead (e.g. 2026_11_04_000001_nav_rbac_phase1_permission_cleanup).
+     * migrations instead (e.g. the *_nav_rbac_phase1_permission_cleanup migration).
      *
      * @param  list<string>  $permissions
      */

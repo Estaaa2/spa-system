@@ -71,7 +71,10 @@ class NavRbacPhase1Test extends TestCase
 
     private function runCleanupMigration(): void
     {
-        $migration = require database_path('migrations/2026_11_04_000001_nav_rbac_phase1_permission_cleanup.php');
+        // Found by name suffix, so renaming the timestamp (as on the pushed branch) can't break it.
+        $files = glob(database_path('migrations/*_nav_rbac_phase1_permission_cleanup.php'));
+        $this->assertCount(1, $files, 'exactly one cleanup migration expected');
+        $migration = require $files[0];
         $migration->up();
     }
 

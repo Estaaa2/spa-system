@@ -1253,6 +1253,19 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
 
 /*
 |--------------------------------------------------------------------------
+| Sidebar badges refresh (sidebar & RBAC rework Phase 4)
+|--------------------------------------------------------------------------
+| Every staff and admin page polls this once a minute while visible. Counts
+| are gated and scoped inside NavBadges, so no permission middleware here.
+*/
+Route::get('/nav/badges', \App\Http\Controllers\Navigation\NavBadgesController::class)
+    // No `verified`: platform admins sign in without email verification (admin
+    // routes use auth + role:admin only), and the counts are permission-gated anyway.
+    ->middleware(['auth', 'throttle:20,1'])
+    ->name('nav.badges');
+
+/*
+|--------------------------------------------------------------------------
 | Owner/Manager: Reschedule Approvals
 |--------------------------------------------------------------------------
 */

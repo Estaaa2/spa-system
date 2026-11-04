@@ -4,6 +4,8 @@
     'chip' => null,         // short scope note, e.g. "All branches" on a spa-wide page
     'badge' => null,        // Phase 4: count of items needing action (null or 0 = none)
     'badgeLabel' => null,   // Phase 4: full sentence for screen readers, e.g. "3 need action"
+    'badgeUrgent' => false, // Phase 4: red "!" variant
+    'badgeKey' => null,     // Phase 4: link key; renders the (possibly hidden) badge slot the refresh updates
 ])
 
 @php
@@ -36,17 +38,13 @@
 
     </span>
 
-    @if ($chip || $badgeCount > 0)
+    @if ($chip || $badgeKey)
         <span class="flex items-center gap-1.5 ml-auto pl-2 shrink-0">
             @if ($chip)
                 <span class="px-1.5 py-0.5 text-[11px] font-medium leading-none rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ $chip }}</span>
             @endif
-            @if ($badgeCount > 0)
-                {{-- Same amber pill as the admin sidebar's pending counts. --}}
-                <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold leading-none rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                    <span aria-hidden="true">{{ $badgeCount > 99 ? '99+' : $badgeCount }}</span>
-                    <span class="sr-only">{{ $badgeLabel ?? ($badgeCount . ' need action') }}</span>
-                </span>
+            @if ($badgeKey)
+                <x-nav-badge :key="$badgeKey" :count="$badgeCount" :label="$badgeLabel" :urgent="$badgeUrgent" />
             @endif
         </span>
     @endif

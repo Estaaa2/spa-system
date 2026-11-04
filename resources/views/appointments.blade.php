@@ -214,7 +214,7 @@
                     </p>
                 </div>
                 <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                    {{ $unassignedBookings->count() }} to assign
+                    {{ $unassignedTotal ?? $unassignedBookings->count() }} to assign
                 </span>
             </div>
             <ul class="divide-y divide-gray-200 dark:divide-gray-700">

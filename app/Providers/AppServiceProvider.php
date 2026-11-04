@@ -32,6 +32,29 @@ class AppServiceProvider extends ServiceProvider
             $model::deleted($flushPermissionCache);
         }
 
+        // Sidebar badges (Phase 4): a change to any source record bumps that spa's
+        // badge version, so the 60-second cache never shows a count the user just
+        // acted on. Booking-child records reach their spa through the booking.
+        $bumpBadges = function ($model) {
+            $spaId = $model->spa_id ?? $model->booking?->spa_id ?? null;
+            if ($spaId) {
+                \App\Services\Navigation\NavBadges::bump((int) $spaId);
+            }
+        };
+        foreach ([
+            \App\Models\Booking::class, \App\Models\ReassignmentRequest::class, \App\Models\RescheduleRequest::class,
+            \App\Models\LeaveRequest::class, \App\Models\Applicant::class, \App\Models\Interview::class,
+            \App\Models\PayrollRun::class, \App\Models\PurchaseRequest::class,
+        ] as $model) {
+            $model::saved($bumpBadges);
+            $model::deleted($bumpBadges);
+        }
+        // Admin badges (version 0): spa verification and staff identity reviews.
+        foreach ([\App\Models\Spa::class, \App\Models\IdentityVerification::class] as $model) {
+            $model::saved(fn () => \App\Services\Navigation\NavBadges::bump(0));
+            $model::deleted(fn () => \App\Services\Navigation\NavBadges::bump(0));
+        }
+
         Password::defaults(function () {
             return Password::min(8)
                 ->mixedCase()

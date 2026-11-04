@@ -353,14 +353,21 @@ class BookingController extends Controller
         // Paid online bookings that nobody could be assigned to (decision Q17).
         // The receptionist/manager picks a therapist from the Edit button.
         $unassignedBookings = collect();
+        $unassignedTotal = 0;
 
         if ($user->hasBranchPermission('edit appointments')) {
-            $unassignedBookings = Booking::query()
+            $unassignedQuery = Booking::query()
                 ->where('spa_id', $user->spa_id)
                 ->when($currentBranchId, fn ($q) => $q->where('branch_id', $currentBranchId))
                 ->whereNull('therapist_id')
                 ->whereIn('status', ['reserved', 'pending'])
-                ->whereDate('appointment_date', '>=', $today)
+                ->whereDate('appointment_date', '>=', $today);
+
+            // The list stays capped at 20, but the count is the true total, so it
+            // matches the sidebar badge (sidebar & RBAC rework Phase 4, answer P13).
+            $unassignedTotal = (clone $unassignedQuery)->count();
+
+            $unassignedBookings = $unassignedQuery
                 ->orderBy('appointment_date')
                 ->orderBy('start_time')
                 ->limit(20)
@@ -375,7 +382,8 @@ class BookingController extends Controller
             'historyAppointments',
             'summary',
             'therapists',
-            'unassignedBookings'
+            'unassignedBookings',
+            'unassignedTotal'
         ));
     }
 

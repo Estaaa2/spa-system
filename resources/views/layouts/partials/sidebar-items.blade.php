@@ -44,12 +44,12 @@
                             <span class="min-w-0">{{ $item['label'] }}</span>
                         </span>
                         <span class="flex items-center gap-2 shrink-0">
-                            @if (($item['badgeTotal'] ?? 0) > 0)
-                                {{-- Needs action inside this collapsed group (D5): amber, like the count pill. --}}
-                                <span x-show="!isOpen(@js($item['key']))" x-cloak
-                                    class="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400"><span class="sr-only">, has items needing action</span></span>
-                            @endif
-                            @if ($item['active'])
+                            {{-- Needs action inside this collapsed group (D5): amber, like the count pill.
+                 Always rendered; the badge refresh toggles `hidden`. --}}
+            <span data-nav-group-dot="{{ $item['key'] }}" x-show="!isOpen(@js($item['key']))" x-cloak
+                @if (($item['badgeTotal'] ?? 0) <= 0) hidden @endif
+                class="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400"><span class="sr-only">, has items needing action</span></span>
+            @if ($item['active'])
                                 {{-- "You are here": the current page is inside this collapsed group. Brand colour. --}}
                                 <span x-show="!isOpen(@js($item['key']))" x-cloak aria-hidden="true"
                                     class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
@@ -62,7 +62,8 @@
                     <div x-show="isOpen(@js($item['key']))" x-collapse id="{{ $sectionId }}" class="ml-4 space-y-1">
                         @foreach ($item['links'] as $link)
                             <x-nav-link :href="$link['url']" :active="$link['active']"
-                                :chip="$link['chip']" :badge="$link['badge']" :badge-label="$link['badgeLabel']">
+                                :chip="$link['chip']" :badge="$link['badge']" :badge-label="$link['badgeLabel']"
+                                :badge-urgent="$link['badgeUrgent'] ?? false" :badge-key="$link['key']">
                                 {{ $link['label'] }}
                             </x-nav-link>
                         @endforeach

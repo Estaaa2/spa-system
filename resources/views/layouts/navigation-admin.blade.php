@@ -145,9 +145,9 @@
                         </span>
                     </a>
                     <button @click="showLogoutModal = true"
-                            class="flex items-center justify-center w-8 h-8 text-gray-600 transition-colors rounded-lg hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                            title="Logout">
-                        <i class="fa-solid fa-right-from-bracket"></i>
+                            class="flex items-center justify-center w-11 h-11 shrink-0 text-gray-600 transition-colors rounded-lg hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                            title="Log out" aria-label="Log out">
+                        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -234,6 +234,7 @@ document.addEventListener('alpine:init', () => {
         ...window.levictasSidebar({
             storageKey: 'levictas_admin_sidebar_open_section_{{ auth()->id() ?? "guest" }}',
             routeSection: @json($adminNav['activeGroup']),
+            badgesUrl: @json(route('nav.badges')),
         }),
     }));
 });

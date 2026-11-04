@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Navigation;
 
-use App\Models\IdentityVerification;
-use App\Models\Spa;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -29,9 +27,8 @@ final class AdminSidebar
         $request ??= request();
         $link = fn (...$args) => Sidebar::makeLink($request, ...$args);
 
-        // Same conditions the target pages use for their pending lists (unchanged from before Phase 3).
-        $pendingSpas = $user->can('view registered spas') ? Spa::where('verification_status', 'pending')->count() : 0;
-        $pendingIds  = $user->can('verify staff identity') ? IdentityVerification::pending()->count() : 0;
+        // Pending counts, cached 60 s like the business badges (Phase 4, Q2 → A).
+        $badges = NavBadges::forAdmin($user);
 
         $top = $user->can('view admin dashboard')
             ? [$link('dashboard', 'Dashboard', 'admin.dashboard', ['admin.dashboard'], 'fa-gauge-high')]
@@ -40,12 +37,10 @@ final class AdminSidebar
         $groups = [
             'review' => ['label' => 'Review', 'icon' => 'fa-clipboard-check', 'links' => array_filter([
                 $user->can('view registered spas')
-                    ? $link('registered-spas', 'Registered Spas', 'admin.registered-spas.index', ['admin.registered-spas.*'], 'fa-spa', null, [],
-                        $pendingSpas, $pendingSpas.' '.($pendingSpas === 1 ? 'spa' : 'spas').' pending verification')
+                    ? $link('registered-spas', 'Registered Spas', 'admin.registered-spas.index', ['admin.registered-spas.*'], 'fa-spa')
                     : null,
                 $user->can('verify staff identity')
-                    ? $link('id-reviews', 'ID Reviews', 'admin.identity-verifications.index', ['admin.identity-verifications.*'], 'fa-id-card', null, [],
-                        $pendingIds, $pendingIds.' waiting for review')
+                    ? $link('id-reviews', 'ID Reviews', 'admin.identity-verifications.index', ['admin.identity-verifications.*'], 'fa-id-card')
                     : null,
                 $user->can('view registered spas')
                     ? $link('subscriptions', 'Subscriptions', 'admin.subscriptions.index', ['admin.subscriptions.*'], 'fa-receipt')
@@ -60,6 +55,10 @@ final class AdminSidebar
                     : null,
             ])],
         ];
+
+        foreach ($groups as $g => $group) {
+            $groups[$g]['links'] = array_map(fn ($l) => Sidebar::withBadge($l, $badges), $group['links']);
+        }
 
         $items = Sidebar::items($groups);
         $zones = $items === [] ? [] : [['key' => 'admin', 'label' => 'Administration', 'items' => $items]];

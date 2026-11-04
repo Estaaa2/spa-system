@@ -95,6 +95,15 @@ final class Sidebar
             }
         }
 
+        // Badges (Phase 4): counts for the links that have items needing action.
+        // None for a locked branch — its pages are closed anyway.
+        $badges = $this->branchLocked ? [] : NavBadges::forUser($this->user, $this->branch?->id);
+        foreach ($groups as $gKey => $group) {
+            foreach ($group['links'] as $lKey => $link) {
+                $groups[$gKey]['links'][$lKey] = self::withBadge($link, $badges);
+            }
+        }
+
         // Pinned: take branch-zone links out of their groups, in the role's order.
         $pinned = [];
         if (! $this->branchLocked) {
@@ -190,6 +199,18 @@ final class Sidebar
         return null;
     }
 
+    /** Puts a NavBadges entry (if any) on a link. */
+    public static function withBadge(array $link, array $badges): array
+    {
+        $b = $badges[$link['key']] ?? null;
+
+        return array_merge($link, [
+            'badge'       => $b['count'] ?? null,
+            'badgeLabel'  => $b['label'] ?? null,
+            'badgeUrgent' => (bool) ($b['urgent'] ?? false),
+        ]);
+    }
+
     /** One link entry (shared with AdminSidebar). */
     public static function makeLink(Request $request, string $key, string $label, string $route, array $activePatterns, string $icon, ?string $chip = null, array $params = [], ?int $badge = null, ?string $badgeLabel = null): array
     {
@@ -200,8 +221,9 @@ final class Sidebar
             'active'     => $request->routeIs(...$activePatterns),
             'icon'       => $icon,
             'chip'       => $chip,
-            'badge'      => $badge,
-            'badgeLabel' => $badgeLabel,
+            'badge'       => $badge,
+            'badgeLabel'  => $badgeLabel,
+            'badgeUrgent' => false,
         ];
     }
 

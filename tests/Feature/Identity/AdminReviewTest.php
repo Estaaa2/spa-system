@@ -93,8 +93,9 @@ class AdminReviewTest extends TestCase
             ->assertSee('ID Reviews')
             // Sidebar & RBAC rework Phase 3: the count is now the shared nav badge
             // (visible number hidden from screen readers, full sentence in sr-only).
-            ->assertSee('<span aria-hidden="true">2</span>', false)
-            ->assertSee('<span class="sr-only">2 waiting for review</span>', false);
+            // Phase 4: shared badge component (cached count, refreshed every minute).
+            ->assertSee('<span aria-hidden="true" data-nav-badge-count>2</span>', false)
+            ->assertSee(', 2 waiting for review', false);
     }
 
     // ── Review page ──────────────────────────────────────────────────────────
