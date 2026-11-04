@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\BranchRolePermission;
+use App\Services\Permissions\PermissionRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -57,6 +58,11 @@ class RolePermissionController extends Controller
         ];
 
         if (in_array($name, $exactHidden, true)) {
+            return true;
+        }
+
+        // Retired: gate nothing (PermissionRules, sidebar & RBAC rework Phase 1).
+        if (PermissionRules::isRetired($name)) {
             return true;
         }
 
@@ -412,11 +418,21 @@ class RolePermissionController extends Controller
             ->pluck('name')
             ->reject(fn($n) => $allowedPermissionNames->contains($n));
 
+        // Same rules as the owner's Roles & Permissions save: bases needed by a
+        // ticked permission are added (D8.1), and the owner default keeps its
+        // protected minimum (answer P9).
+        $selected = PermissionRules::withDependencies($validated['permissions'] ?? []);
+
+        if (Str::lower($role->name) === 'owner') {
+            $selected = [...$selected, ...PermissionRules::OWNER_PROTECTED];
+        }
+
         $role->syncPermissions(
-            collect($validated['permissions'] ?? [])->merge($preserved)->unique()->values()->all()
+            collect($selected)->merge($preserved)->unique()->values()->all()
         );
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(\App\Services\Permissions\BranchPermissionCache::class)->flush();
 
         return redirect()
             ->route('admin.roles-permissions.edit', $role)

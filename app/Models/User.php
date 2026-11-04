@@ -273,6 +273,28 @@ class User extends Authenticatable implements MustVerifyEmail
             || (bool) $this->staff?->performs_treatments;
     }
 
+    /**
+     * "Can't make it" on an appointment (answer P16): the role permission, or
+     * "Performs treatments" on the staff record — the flag already decides who
+     * can be assigned, so the same people must be able to hand a booking back.
+     * The controller still checks that the booking is assigned to this user.
+     */
+    public function canRequestReassignment(): bool
+    {
+        return $this->hasBranchPermission('request appointment reassignment')
+            || (bool) $this->staff?->performs_treatments;
+    }
+
+    /**
+     * Dashboard "My Today" widget (answer P16): the role permission, or
+     * "Performs treatments" on the staff record.
+     */
+    public function seesMyTodayWidget(): bool
+    {
+        return $this->hasBranchPermission('view dashboard my today')
+            || (bool) $this->staff?->performs_treatments;
+    }
+
     /** Query form of isTreatmentProvider(). */
     public function scopeTreatmentProviders(Builder $query): Builder
     {
@@ -389,10 +411,13 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function currentBranchId(): ?int
     {
+        // Lookups are memoized per request (BranchPermissionCache, Phase 2 F3).
+        $cache = app(\App\Services\Permissions\BranchPermissionCache::class);
+
         if ($this->isHead()) {
             $sessionBranchId = session('current_branch_id');
 
-            if ($sessionBranchId && Branch::where('id', $sessionBranchId)->where('spa_id', $this->spa_id)->exists()) {
+            if ($sessionBranchId && $this->spa_id && $cache->branchBelongsToSpa((int) $sessionBranchId, (int) $this->spa_id)) {
                 return (int) $sessionBranchId;
             }
 
@@ -407,26 +432,19 @@ class User extends Authenticatable implements MustVerifyEmail
         if ($this->hasRole('owner')) {
             $sessionBranchId = session('current_branch_id');
 
-            if ($sessionBranchId) {
+            if ($sessionBranchId && $this->spa_id) {
                 // Validate the session branch actually belongs to this spa
-                $valid = Branch::where('id', $sessionBranchId)
-                    ->where('spa_id', $this->spa_id)
-                    ->exists();
-
-                if ($valid) {
-                    return $sessionBranchId;
+                if ($cache->branchBelongsToSpa((int) $sessionBranchId, (int) $this->spa_id)) {
+                    return (int) $sessionBranchId;
                 }
             }
 
-            // Fallback: auto-select main branch (same logic as getCurrentBranch())
-            $branch = Branch::where('spa_id', $this->spa_id)
-                ->where('is_main', true)
-                ->first()
-                ?? Branch::where('spa_id', $this->spa_id)->first();
+            // Fallback: auto-select the main branch (or the first one).
+            $branchId = $this->spa_id ? $cache->mainBranchId((int) $this->spa_id) : null;
 
-            if ($branch) {
-                session(['current_branch_id' => $branch->id]);
-                return $branch->id;
+            if ($branchId) {
+                session(['current_branch_id' => $branchId]);
+                return $branchId;
             }
 
             return null;
@@ -444,13 +462,12 @@ class User extends Authenticatable implements MustVerifyEmail
             return $this->hasPermissionTo($permission); // fallback to global
         }
 
-        $override = \App\Models\BranchRolePermission::where('branch_id', $branchId)
-            ->where('role_name', $this->getRoleNames()->first())
-            ->where('permission_name', $permission)
-            ->first();
+        // One query per (branch, role) per request instead of one per check (Phase 2 F3).
+        $overrides = app(\App\Services\Permissions\BranchPermissionCache::class)
+            ->overrides((int) $branchId, $this->getRoleNames()->first());
 
-        if ($override) {
-            return $override->granted; // branch override takes precedence
+        if (array_key_exists($permission, $overrides)) {
+            return $overrides[$permission]; // branch override takes precedence
         }
 
         return $this->hasPermissionTo($permission); // fall back to global
@@ -471,10 +488,10 @@ class User extends Authenticatable implements MustVerifyEmail
             || ($this->hasRole('owner') && \App\Services\Payroll\PayrollPermissions::isPayrollPermission($permission));
 
         if ($spaWideHere && $this->spa_id) {
-            $main = Branch::where('spa_id', $this->spa_id)->orderByDesc('is_main')->orderBy('id')->value('id');
+            $main = app(\App\Services\Permissions\BranchPermissionCache::class)->mainBranchId((int) $this->spa_id);
 
             if ($main) {
-                return (int) $main;
+                return $main;
             }
         }
 

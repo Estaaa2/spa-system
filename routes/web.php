@@ -311,7 +311,9 @@ Route::middleware([
         Route::delete('/appointments/{id}', [BookingController::class, 'destroy'])->name('appointments.destroy');
     });
 
-    Route::middleware('branch.permission:request appointment reassignment')->group(function () {
+    // "Can't make it": the permission, or "Performs treatments" on the staff
+    // record (answer P16) — App\Models\User::canRequestReassignment().
+    Route::middleware('can:request-appointment-reassignment')->group(function () {
         Route::post('/appointments/{booking}/reassignment-requests', [ReassignmentRequestController::class, 'store'])
             ->name('reassignment.store');
     });
@@ -331,10 +333,16 @@ Route::middleware([
     | Branch Routes
     |--------------------------------------------------------------------------
     */
-    Route::middleware('branch.permission:view branches')->group(function () {
-        Route::post('/branch/switch', [BranchController::class, 'switch'])
-            ->name('branch.switch');
+    // Branch switching is decided by the role (owner, HR Head, Finance Head):
+    // BranchController::switch() checks canSwitchBranches(). It no longer needs
+    // `view branches`, so unticking that on Roles & Permissions can't break the
+    // switcher (sidebar & RBAC rework Phase 1, answer Q3 A).
+    Route::post('/branch/switch', [BranchController::class, 'switch'])
+        ->name('branch.switch');
 
+    // `view branches` now means only the branch details (no view calls
+    // branch.current; it returns the whole branch record, so it stays gated).
+    Route::middleware('branch.permission:view branches')->group(function () {
         Route::get('/branch/current', [BranchController::class, 'getCurrentBranch'])
             ->name('branch.current');
 

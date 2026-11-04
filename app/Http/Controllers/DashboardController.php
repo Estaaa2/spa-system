@@ -123,7 +123,7 @@ class DashboardController extends Controller
             // keep their own count in the KPI cards and the status split.
             $noShows = $todayBase()->where('status', Booking::NO_SHOW)->count();
 
-            $therapistIds = User::role('therapist')
+            $therapistIds = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
                     ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
@@ -179,7 +179,7 @@ class DashboardController extends Controller
         $therapists = collect();
 
         if ($user->hasBranchPermission('view dashboard therapist status')) {
-            $therapists = User::role('therapist')
+            $therapists = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
                     ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
@@ -213,7 +213,7 @@ class DashboardController extends Controller
         $myNextAppointment   = null;
         $myAttendanceToday   = null;
 
-        if ($user->hasBranchPermission('view dashboard my today')) {
+        if ($user->seesMyTodayWidget()) {
             $myStaffRecordForNudge = \App\Models\Staff::where('user_id', $user->id)
                 ->where('spa_id', $spaId)
                 ->where('employment_status', 'active')
@@ -352,7 +352,7 @@ class DashboardController extends Controller
 
         // ── Alerts ────────────────────────────────────────────────────────
         if ($user->hasBranchPermission('view dashboard alerts')) {
-            $therapistIds = User::role('therapist')
+            $therapistIds = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
                     ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
@@ -406,7 +406,7 @@ class DashboardController extends Controller
 
         // ── Therapist status panel ────────────────────────────────────────
         if ($user->hasBranchPermission('view dashboard therapist status')) {
-            $therapists = User::role('therapist')
+            $therapists = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
                     ->where('spa_id', $spaId)
                     ->where('branch_id', $currentBranchId)
@@ -443,7 +443,7 @@ class DashboardController extends Controller
         }
 
         // ── My Today (therapist personal view) ────────────────────────────
-        if ($user->hasBranchPermission('view dashboard my today')) {
+        if ($user->seesMyTodayWidget()) {
             $myStaffRecordForNudge = \App\Models\Staff::where('user_id', $user->id)
                 ->where('spa_id', $spaId)
                 ->where('employment_status', 'active')

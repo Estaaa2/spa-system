@@ -1,16 +1,11 @@
 @php
-    $adminUser = Auth::user();
-
-    // Pending-verification count for the Registered Spas badge. Same condition
-    // RegisteredSpaController::index() uses for its "Pending Verification" list.
-    $pendingSpaCount = $adminUser?->can('view registered spas')
-        ? \App\Models\Spa::where('verification_status', 'pending')->count()
-        : 0;
-
-    // Staff identity verifications waiting for review.
-    $pendingIdentityCount = $adminUser?->can('verify staff identity')
-        ? \App\Models\IdentityVerification::pending()->count()
-        : 0;
+    // Sidebar & RBAC rework Phase 3: the admin sidebar is built as data by
+    // App\Services\Navigation\AdminSidebar (Dashboard; Review; Platform) and
+    // rendered through the same partial as the business sidebar. The pending
+    // counts that used to be computed here are the Review links' badges now.
+    $adminNav = Auth::check()
+        ? \App\Services\Navigation\AdminSidebar::build(Auth::user())
+        : ['top' => [], 'zones' => [], 'activeGroup' => null];
 @endphp
 
 <style>
@@ -74,25 +69,31 @@
     <!-- MOBILE TOPBAR -->
     <div
         class="fixed top-0 z-40 flex items-center justify-between w-full px-2 bg-white border-b h-14 md:hidden dark:bg-gray-800 dark:border-gray-700">
-        <button type="button" @click="open = !open"
+        <button type="button" @click="open = !open" x-ref="drawerToggle"
             aria-label="Toggle navigation" aria-controls="app-sidebar"
             :aria-expanded="open ? 'true' : 'false'"
             class="inline-flex items-center justify-center flex-shrink-0 text-gray-700 rounded-lg w-11 h-11 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-            <i class="text-xl fa-solid fa-bars"></i>
+            <i class="text-xl fa-solid fa-bars" aria-hidden="true"></i>
         </button>
 
         <!-- Mobile Title -->
         <div class="flex items-center min-w-0 gap-2 pr-3">
-            <i class="text-sm fa-solid fa-shield-halved text-[#8B7355] dark:text-[#C4A97D]"></i>
+            <i class="text-sm fa-solid fa-shield-halved text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
             <span class="text-sm font-medium text-gray-700 truncate dark:text-gray-200">Admin Panel</span>
         </div>
     </div>
 
     <!-- SIDEBAR -->
     {{-- z-50 so the mobile overlay (z-40) can sit above the topbar without covering the drawer. --}}
+    {{-- Drawer accessibility, same as the business sidebar (layouts/partials/sidebar-script). --}}
     <aside id="app-sidebar"
-        class="fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-200 bg-white border-r dark:bg-gray-800 dark:border-gray-700"
-        :class="open ? 'is-open' : ''">
+        class="fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-200 bg-white border-r motion-reduce:transition-none dark:bg-gray-800 dark:border-gray-700"
+        :class="open ? 'is-open' : ''"
+        x-effect="$el.inert = isMobile && !open"
+        @keydown.tab="trapFocus($event)"
+        :role="isMobile ? 'dialog' : null"
+        :aria-modal="isMobile && open ? 'true' : null"
+        aria-label="Main navigation">
         <div class="flex flex-col h-full">
 
             <!-- Brand -->
@@ -110,6 +111,11 @@
                             </p>
                         </div>
                     </a>
+
+                    <button type="button" @click="open = false" aria-label="Close navigation"
+                        class="inline-flex items-center justify-center shrink-0 -mt-1 text-gray-700 rounded-lg w-11 h-11 md:hidden hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <i class="text-lg fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
                 </div>
             </div>
 
@@ -120,72 +126,7 @@
                     Administration
                 </p>
 
-                <div class="space-y-1">
-                    <!-- Admin Dashboard -->
-                    @can('view admin dashboard')
-                        <div class="mb-1">
-                            <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                                <i class="fa-solid fa-gauge-high w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Dashboard
-                            </x-nav-link>
-                        </div>
-                    @endcan
-
-                    @can('view registered spas')
-                        <div class="mb-1">
-                            <x-nav-link :href="route('admin.registered-spas.index')" :active="request()->routeIs('admin.registered-spas.*')">
-                                <i class="fa-solid fa-spa w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Registered Spas
-                                @if ($pendingSpaCount > 0)
-                                    <span
-                                        class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                                        {{ $pendingSpaCount }}<span class="sr-only"> pending verification</span>
-                                    </span>
-                                @endif
-                            </x-nav-link>
-                        </div>
-                    @endcan
-
-                    @can('verify staff identity')
-                        <div class="mb-1">
-                            <x-nav-link :href="route('admin.identity-verifications.index')" :active="request()->routeIs('admin.identity-verifications.*')">
-                                <i class="fa-solid fa-id-card w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                ID Reviews
-                                @if ($pendingIdentityCount > 0)
-                                    {{-- inline-flex keeps the badge in one piece next to the longer label --}}
-                                    <span class="inline-flex items-center ml-2 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{{ $pendingIdentityCount }}<span class="sr-only"> waiting for review</span></span>
-                                @endif
-                            </x-nav-link>
-                        </div>
-                    @endcan
-
-                    @can('view registered spas')
-                        <div class="mb-1">
-                            <x-nav-link :href="route('admin.subscriptions.index')" :active="request()->routeIs('admin.subscriptions.*')">
-                                <i class="fa-solid fa-receipt w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Subscriptions
-                            </x-nav-link>
-                        </div>
-                    @endcan
-
-                    @can('view registered users')
-                        <div class="mb-1">
-                            <x-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
-                                <i class="fa-solid fa-users w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Registered Users
-                            </x-nav-link>
-                        </div>
-                    @endcan
-
-                    @can('view system roles')
-                        <div class="mb-1">
-                            <x-nav-link :href="route('admin.roles-permissions.index')" :active="request()->routeIs('admin.roles-permissions.*')">
-                                <i class="fa-solid fa-key w-4 mr-2 text-[#8B7355] dark:text-[#C4A97D]"></i>
-                                Roles &amp; Permissions
-                            </x-nav-link>
-                        </div>
-                    @endcan
-                </div>
+                @include('layouts.partials.sidebar-items', ['nav' => $adminNav, 'labelledZone' => 'admin'])
 
             </nav>
 
@@ -263,7 +204,8 @@
                     class="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
                     Cancel
                 </button>
-                <form method="POST" action="{{ route('logout') }}" id="logoutForm" class="flex-1">
+                <form method="POST" action="{{ route('logout') }}" id="logoutForm"
+                      x-on:submit="clearSidebarState()" class="flex-1">
                     @csrf
                     <button type="submit"
                         class="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:ring-red-300 dark:focus:ring-red-900 transition">
@@ -283,11 +225,16 @@
 
 </div>
 
+@include('layouts.partials.sidebar-script')
+
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.data('sidebar', () => ({
-        open: false,
-        showLogoutModal: false,
+        // Groups + drawer: layouts/partials/sidebar-script (shared with the business sidebar).
+        ...window.levictasSidebar({
+            storageKey: 'levictas_admin_sidebar_open_section_{{ auth()->id() ?? "guest" }}',
+            routeSection: @json($adminNav['activeGroup']),
+        }),
     }));
 });
 </script>

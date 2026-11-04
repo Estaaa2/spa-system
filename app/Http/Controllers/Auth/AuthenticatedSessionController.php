@@ -92,22 +92,19 @@ class AuthenticatedSessionController extends Controller
             return redirect()->to($this->ownerRedirectRoute($user));
         }
 
-        $redirectMap = [
-            'customer' => route('landing.page'),
-            'manager' => route('dashboard'),
-            'receptionist' => route('dashboard'),
-            'therapist' => route('dashboard'),
-            'hr' => route('hiring.index'),
-            'finance' => route('reports.index'),
-            // Central roles start on the dashboard of the branch they report to.
-            'hr_head' => route('dashboard'),
-            'finance_head' => route('dashboard'),
-        ];
+        if ($user->hasRole('customer')) {
+            return redirect(route('landing.page'));
+        }
 
-        foreach ($redirectMap as $role => $route) {
-            if ($user->hasRole($role)) {
-                return redirect($route);
-            }
+        /*
+         * Staff land on their Dashboard (sidebar & RBAC rework, answer P4).
+         * When the Dashboard isn't available to them (permission removed, or the
+         * branch is locked), they land on their first pinned link, then the first
+         * link in their sidebar — never on a page that would answer 403.
+         * App\Services\Navigation\Sidebar is the single source for both.
+         */
+        if ($user->hasAnyRole(['manager', 'receptionist', 'therapist', 'hr', 'finance', 'hr_head', 'finance_head'])) {
+            return redirect(\App\Services\Navigation\Sidebar::landingUrl($user));
         }
 
         return redirect('/');

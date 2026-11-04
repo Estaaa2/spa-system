@@ -106,159 +106,11 @@
         }
     }
 
-    $suiteEnabled = $spa?->hasFeature('manpower') ?? false;
     $canAllBranches = $spa?->hasFeature('all_branches') ?? false;
 
-    // Same check the role('owner') directive performs, in a form the section wrappers can reuse.
+    // Same check the role('owner') directive performs, in a form the markup can reuse.
     $isOwner = (bool) ($user?->hasRole('owner') ?? false);
 
-    // Dashboard
-    $canDashboard = $user?->can('view business dashboard');
-
-    // My Payslips (self-service).
-    $myStaffIds = $user?->spa_id
-        ? \App\Models\Staff::withTrashed()->where('user_id', $user->id)->where('spa_id', $user->spa_id)->pluck('id')
-        : collect();
-    $canMyPayslips =
-    $myStaffIds->isNotEmpty()
-    && (
-        \App\Models\Staff::whereIn('id', $myStaffIds)
-            ->where('employment_status', 'active')
-            ->whereHas('branch', fn ($q) => $q->where('spa_id', $user->spa_id))
-            ->exists()
-        || \App\Models\Payslip::whereIn('staff_id', $myStaffIds)
-            ->whereHas('payrollRun', fn ($q) => $q
-                ->where('spa_id', $user->spa_id)
-                ->where('status', \App\Models\PayrollRun::STATUS_RELEASED)
-            )
-            ->exists()
-    );
-
-    // Operations
-    $canBooking = $can('book appointments');
-    $canAppointments = $can('view appointments');
-    $canSchedule = $can('view schedule');
-
-    $canAttendanceLeave =
-        $can('view attendance') ||
-        $can('edit attendance') ||
-        $can('view leave requests') ||
-        $can('create leave requests') ||
-        $can('edit leave requests');
-
-    $showOperations = $canBooking || $canAppointments || $canSchedule || (!$suiteEnabled && $canAttendanceLeave);
-    // Therapists, and staff marked "Performs treatments" (decision Q44).
-    $canViewPerformance = $user?->isTreatmentProvider() ?? false;
-
-    // People
-    $canStaffAccounts = $can('view staff') || $can('create staff') || $can('edit staff') || $can('delete staff');
-
-    $canHiring = $can('view hiring') || $can('create hiring') || $can('edit hiring') || $can('delete hiring');
-
-    $canApplicants = $can('view applications') || $can('edit applications') || $can('delete applications');
-
-    $canInterviews =
-        $can('view interviews') || $can('create interviews') || $can('edit interviews') || $can('delete interviews');
-
-    $showPeople =
-        $suiteEnabled && ($canStaffAccounts || $canHiring || $canApplicants || $canInterviews);
-
-    // "Time & Pay" section — attendance + payroll (Premium suite). Without the suite, Attendance & Leave stays
-    // in Operations. Every payroll page needs `view payroll`; the pages show only
-    // the actions the user's payroll permissions allow.
-    $canPayroll = $canPayrollPlan && $can('view payroll');
-    $showAttendancePayroll = $suiteEnabled && ($canAttendanceLeave || $canPayroll);
-
-    // Services (was "Management")
-    $canServices =
-        $can('view services') ||
-        $can('create treatments') ||
-        $can('edit treatments') ||
-        $can('delete treatments') ||
-        $can('create packages') ||
-        $can('edit packages') ||
-        $can('delete packages');
-
-    $canBranches = $can('view branches') || $can('create branches')
-        || $can('edit branch general') || $can('edit branch hours') || $can('edit branch profile')
-        || $can('delete branches');
-
-    $canManagementStaff = !$suiteEnabled && $canStaffAccounts;
-
-    $showServices = $canServices || $canManagementStaff;
-
-    // ── Scope split ──────────────────────────────────────────────────────────
-    // "This Branch" = branch-scoped settings; content follows the branch switcher.
-    // "Business"    = spa-wide; the switcher does not affect it.
-    //
-    // branches.index is reachable from exactly one of the two, never both:
-    // owners reach it as "All Branches" under Business, everyone else as
-    // "Branch Details" under This Branch. BranchController::index() already
-    // filters non-owners down to their own branch, so the label matches reality.
-    $canEditBranchSettings = $can('edit branch general') || $can('edit branch hours') || $can('edit branch profile');
-
-    $showThisBranch = $isOwner || $canBranches || $canEditBranchSettings;
-    $showBusiness   = $isOwner;
-
-    // Finance
-    $canRevenue = $can('view revenue');
-    $canBilling =
-    $canBillingPlan &&
-    (
-        $can('view billing') ||
-        $can('create billing') ||
-        $can('edit billing') ||
-        $can('delete billing')
-    );
-
-    // Vendor bills. IMPORTANT: these permission names must match your seeder and routes.
-    $canVendorBills = $can('view vendor bills') || $can('create vendor bills') || $can('edit vendor bills');
-
-    $showFinance = $canFinancePlan && (
-        $canRevenue ||
-        $canBilling ||
-        $canVendorBills
-    );
-
-    // Procurement
-    $canSuppliers = $can('view suppliers');
-    $canPurchaseRequests = $can('view purchase requests');
-    $canPurchaseOrders = $can('view purchase orders');
-
-    $showProcurement = $canProcurementPlan && (
-        $canSuppliers ||
-        $canPurchaseRequests ||
-        $canPurchaseOrders
-    );
-
-    // Insights
-    $canDecisionSupport = $can('view decision support');
-    $canReports = $can('view reports');
-    $showInsights = $canInsights && (
-        $canDecisionSupport ||
-        $canReports
-    );
-
-    // Inventory
-    $canProductInventory =
-        $can('view product inventory') ||
-        $can('create product inventory') ||
-        $can('edit product inventory') ||
-        $can('delete product inventory');
-
-    $canProductLogs = $can('view product logs');
-    $canStockTransfers = $canProductInventory;
-    $canViewReplenishment = $can('view replenishment');
-    $canViewGoodsReceipts = $can('view goods receipts');
-
-    $showInventory = $canInventoryBasic && (
-        $canProductInventory ||
-        $canProductLogs ||
-        $canViewReplenishment ||
-        ($canInventoryFull && ($canStockTransfers || $canViewGoodsReceipts))
-    );
-
-    
     // ── Branch lock ──────────────────────────────────────────────────────────
     // A locked branch shows no branch-scoped links. The same rule is enforced
     // on the server by EnsureBranchOperational, so typing a URL does not work.
@@ -275,68 +127,23 @@
         default => null,
     };
 
-    if ($branchLocked) {
-        $canDashboard = false;
-        // Payroll is spa-wide and payslips are the employee's own records, so both
-        // stay reachable (EnsureBranchOperational::ALWAYS_ALLOWED); attendance does not.
-        $canAttendanceLeave = false;
-        $showAttendancePayroll = $suiteEnabled && $canPayroll;
-        $showOperations = false;
-        $showPeople = false;
-        $showServices = false;
-        $showFinance = false;
-        $showInsights = false;
-        $showProcurement = false;
-        $showInventory = false;
-        $showThisBranch = false;
-    }
+    // ── Sidebar structure (sidebar & RBAC rework Phase 2) ───────────────────
+    // Built once in App\Services\Navigation\Sidebar: zones, groups, pinned links,
+    // one-link groups flattened, empty groups dropped. This file only renders it.
+    $nav = $user
+        ? \App\Services\Navigation\Sidebar::build($user, $currentBranch, $branchLocked)
+        : ['top' => [], 'zones' => [], 'activeGroup' => null, 'landingUrl' => null];
 
-    // Single source for "which collapsible section owns the current route".
-    // Consumed twice: by the collapsed-section dot below, and by the sidebar
-    // Alpine component via @json. Never hand-duplicate these route matches.
-    $sectionRoutes = [
-        'operations' => request()->routeIs('booking')
-            || request()->routeIs('appointments.*')
-            || request()->routeIs('schedule.*')
-            || request()->routeIs('therapist.performance')
-            || (!$suiteEnabled && request()->routeIs('attendance.*')),
+    // Which group owns the current page. Consumed by the collapsed-group dot and,
+    // via @json, by the sidebar Alpine component. Never re-derive it in JS.
+    $activeSection = $nav['activeGroup'];
 
-        'people' => $suiteEnabled && (
-            request()->routeIs('hiring.*')
-            || request()->routeIs('applications.*')
-            || request()->routeIs('interviews.*')
-            || request()->routeIs('staff.*')
-            || request()->routeIs('deployment.*')
-        ),
+    // Branch switcher (decision D6): only for roles that can switch AND a spa with
+    // two or more branches. Otherwise the branch name is shown as plain text.
+    $showSwitcher = $canSwitchBranches && $branches->count() >= 2;
 
-        'attendancePayroll' => $suiteEnabled && (
-            request()->routeIs('attendance.*')
-            || request()->routeIs('payroll.*')
-        ),
-
-        'services' => request()->routeIs('services.*')
-            || (!$suiteEnabled && request()->routeIs('staff.*')),
-
-        'procurement' => request()->routeIs('procurement.*'),
-
-        'finance' => request()->routeIs('revenue.*')
-            || request()->routeIs('billing.*')
-            || request()->routeIs('vendor-bills.*'),
-
-        'insights' => request()->routeIs('decision-support.*')
-            || request()->routeIs('reports.*'),
-
-        'inventory' => request()->routeIs('inventory.*'),
-
-        'thisBranch' => request()->routeIs('owner.roles-permissions.*')
-            || (!$isOwner && request()->routeIs('branches.*')),
-
-        'business' => request()->routeIs('owner.spa-profile.*')
-            || request()->routeIs('owner.subscription.*')
-            || ($isOwner && request()->routeIs('branches.*')),
-    ];
-
-    $activeSection = collect($sectionRoutes)->filter()->keys()->first();
+    // "Manage branches" shortcut inside the switcher: the owner's All Branches page.
+    $canManageBranches = $isOwner && $canAllBranches && ($user?->hasBranchPermission('view branches') ?? false);
 
     $brandHref = route('dashboard');
 
@@ -414,15 +221,15 @@
     <!-- MOBILE TOPBAR -->
     <div
         class="fixed top-0 z-40 flex items-center justify-between w-full px-2 bg-white border-b h-14 md:hidden dark:bg-gray-800 dark:border-gray-700">
-        <button type="button" @click="open = !open"
+        <button type="button" @click="open = !open" x-ref="drawerToggle"
             aria-label="Toggle navigation" aria-controls="app-sidebar"
             :aria-expanded="open ? 'true' : 'false'"
             class="inline-flex items-center justify-center flex-shrink-0 text-gray-700 rounded-lg w-11 h-11 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
             <i class="text-xl fa-solid fa-bars"></i>
         </button>
 
-        <!-- Mobile Branch Switcher -->
-        @if ($canSwitchBranches)
+        <!-- Mobile Branch Switcher (D6: only when there is more than one branch to switch to) -->
+        @if ($showSwitcher)
             <div class="relative pr-2">
                 <button @click="mobileBranchesOpen = !mobileBranchesOpen"
                     class="flex items-center px-2 space-x-2 text-gray-700 rounded-lg h-11 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -472,7 +279,7 @@
                             </button>
                         @endforeach
 
-                        @if ($canAllBranches && $canBranches)
+                        @if ($canManageBranches)
                             <div class="px-4 py-2 text-xs text-gray-500 border-t dark:text-gray-400 dark:border-gray-700">
                                 <a href="{{ route('branches.index') }}"
                                     class="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400">
@@ -495,9 +302,17 @@
 
     <!-- SIDEBAR -->
     {{-- z-50 so the mobile overlay (z-40) can sit above the topbar without covering the drawer. --}}
+    {{-- Drawer accessibility (Phase 2, D10): on phones a closed drawer is inert (its links
+         can't be tabbed into off-screen); an open one traps Tab, locks the page scroll,
+         closes on Escape and gives focus back to the menu button. --}}
     <aside id="app-sidebar"
-        class="fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-200 bg-white border-r dark:bg-gray-800 dark:border-gray-700"
-        :class="open ? 'is-open' : ''">
+        class="fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-200 bg-white border-r motion-reduce:transition-none dark:bg-gray-800 dark:border-gray-700"
+        :class="open ? 'is-open' : ''"
+        x-effect="$el.inert = isMobile && !open"
+        @keydown.tab="trapFocus($event)"
+        :role="isMobile ? 'dialog' : null"
+        :aria-modal="isMobile && open ? 'true' : null"
+        aria-label="Main navigation">
         <div class="flex flex-col h-full">
 
             <!-- Brand with Branch Switcher -->
@@ -521,8 +336,8 @@
                     </button>
                 </div>
 
-                <!-- BRANCH SWITCHER -->
-                @if ($branches->isNotEmpty())
+                <!-- BRANCH SWITCHER (D6: can switch AND 2+ branches; otherwise plain text below) -->
+                @if ($showSwitcher)
                     <div class="px-6 pb-4">
                         <div class="relative">
                             <button @click="branchesDropdown = !branchesDropdown"
@@ -620,7 +435,7 @@
                                         @endforeach
                                     </div>
 
-                                    @if ($canAllBranches && $canBranches)
+                                    @if ($canManageBranches)
                                         <div class="pt-1 mt-1 border-t dark:border-gray-700">
                                             <a href="{{ route('branches.index') }}"
                                                 class="flex items-center justify-center px-4 py-2 text-sm text-center text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700">
@@ -629,6 +444,21 @@
                                             </a>
                                         </div>
                                     @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @elseif ($branches->isNotEmpty())
+                    {{-- One branch, or a role pinned to its branch: the same box, but not a control. --}}
+                    <div class="px-6 pb-4">
+                        <div class="flex items-center w-full px-4 py-3 text-sm rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:text-gray-200">
+                            <i class="mr-3 text-gray-500 shrink-0 fa-solid fa-location-dot dark:text-gray-400" aria-hidden="true"></i>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium truncate" title="{{ $currentBranch?->name }}">{{ $currentBranch?->name }}</p>
+                                <div class="flex items-center min-w-0 gap-2 mt-0.5">
+                                    <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full shrink-0 {{ $planBadgeClasses }}">
+                                        {{ $currentPlanName }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -673,15 +503,18 @@
                     </div>
                 @endif
 
-                {{-- Everything under this label follows the branch switcher above. --}}
-                <p class="px-4 pb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                    Branch Overview
+                {{-- Zones (answer P1 = A2). The branch zone is labelled with the branch it shows and
+                     follows the switcher; the Whole spa zone does not react to it. --}}
+                @php $branchZone = collect($nav['zones'])->firstWhere('key', 'branch'); @endphp
+                <p class="px-4 pb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase truncate dark:text-gray-400"
+                    title="{{ $branchZone['label'] ?? $mobileContextLabel }}">
+                    {{ $branchZone['label'] ?? $mobileContextLabel }}
                 </p>
-                
+
                 @if ($branchLocked)
                     <div class="px-4 py-3 mt-1 mb-1 text-sm rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
                         <p class="text-yellow-800 dark:text-yellow-200">
-                            <i class="mr-2 fa-solid fa-lock"></i>
+                            <i class="mr-2 fa-solid fa-lock" aria-hidden="true"></i>
                             {{ $branchLockMessage }}
                         </p>
 
@@ -694,512 +527,8 @@
                     </div>
                 @endif
 
-                <div class="space-y-1">
-                    {{-- Top-level links use the section-header box (not x-nav-link, which is styled for
-                         nested sub-links) so their icons and labels line up with the headers below. --}}
-                    @php
-                        $topLinkBase = 'flex items-center w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left transition-colors rounded-lg';
-                        $topLinkIdle = 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700';
-                        $topLinkActive = 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white';
-                    @endphp
-
-                    <!-- Dashboard -->
-                    @if ($canDashboard)
-                        @php $isActive = request()->routeIs('dashboard'); @endphp
-                        <div class="mb-1">
-                            <a href="{{ route('dashboard') }}" @if ($isActive) aria-current="page" @endif
-                                class="{{ $topLinkBase }} {{ $isActive ? $topLinkActive : $topLinkIdle }}">
-                                <i class="fa-solid fa-gauge-high w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Dashboard</span>
-                            </a>
-                        </div>
-                    @endif
-
-                    <!-- My Payslips (self-service) -->
-                    @if ($canMyPayslips)
-                        @php $isActive = request()->routeIs('my-payslips.*'); @endphp
-                        <div class="mb-1">
-                            <a href="{{ route('my-payslips.index') }}" @if ($isActive) aria-current="page" @endif
-                                class="{{ $topLinkBase }} {{ $isActive ? $topLinkActive : $topLinkIdle }}">
-                                <i class="fa-solid fa-file-invoice-dollar w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">My Payslips</span>
-                            </a>
-                        </div>
-                    @endif
-
-                @if ($showOperations)
-                    <div class="mb-1">
-                        <button @click="toggleSection('operations')" type="button"
-                            aria-controls="nav-section-operations"
-                            :aria-expanded="isOpen('operations') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-calendar-check w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Operations</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'operations')
-                                    {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
-                                    <span x-show="!isOpen('operations')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('operations') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('operations')" x-collapse id="nav-section-operations" class="ml-4 space-y-1">
-                            @if ($canBooking)
-                                <x-nav-link :href="route('booking')" :active="request()->routeIs('booking')">
-                                    Book an Appointment
-                                </x-nav-link>
-                            @endif
-                            @if ($canAppointments)
-                                <x-nav-link :href="route('appointments.index')" :active="request()->routeIs('appointments.*')">
-                                    Appointments
-                                </x-nav-link>
-                            @endif
-                            @if ($canSchedule)
-                                <x-nav-link :href="route('schedule.index')" :active="request()->routeIs('schedule.*')">
-                                    Schedule
-                                </x-nav-link>
-                            @endif
-                            @if ($canViewPerformance)
-                                <x-nav-link :href="route('therapist.performance')" :active="request()->routeIs('therapist.performance')">
-                                    My Performance
-                                </x-nav-link>
-                            @endif
-                            @if (!$suiteEnabled && $canAttendanceLeave)
-                                <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.*')">
-                                    Attendance &amp; Leave
-                                </x-nav-link>
-                            @endif
-
-                        </div>
-                    </div>
-                @endif
-
-                @if ($showPeople)
-                    <div class="mb-1">
-                        <button @click="toggleSection('people')" type="button"
-                            aria-controls="nav-section-people"
-                            :aria-expanded="isOpen('people') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-users w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Manpower</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'people')
-                                    {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
-                                    <span x-show="!isOpen('people')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('people') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('people')" x-collapse id="nav-section-people" class="ml-4 space-y-1">
-                            @if ($canHiring)
-                                <x-nav-link :href="route('hiring.index')" :active="request()->routeIs('hiring.*')">
-                                    Application Form
-                                </x-nav-link>
-                            @endif
-                            @if ($canApplicants)
-                                <x-nav-link :href="route('applications.index')" :active="request()->routeIs('applications.*')">
-                                    Applicants
-                                </x-nav-link>
-                            @endif
-                            @if ($canInterviews)
-                                <x-nav-link :href="route('interviews.index')" :active="request()->routeIs('interviews.*')">
-                                    Interviews
-                                </x-nav-link>
-                            @endif
-                            @if ($canStaffAccounts)
-                                <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
-                                    Staff
-                                </x-nav-link>
-                            @endif
-                            @if ($canHiring)
-                                <x-nav-link :href="route('deployment.index')" :active="request()->routeIs('deployment.*')">
-                                    Staff Deployment
-                                </x-nav-link>
-                            @endif
-                        </div>
-                    </div>
-                @endif
-
-                @if ($showAttendancePayroll)
-                    <div class="mb-1">
-                        <button @click="toggleSection('attendancePayroll')" type="button"
-                            aria-controls="nav-section-attendance-payroll"
-                            :aria-expanded="isOpen('attendancePayroll') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-money-check-dollar w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Time &amp; Pay</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'attendancePayroll')
-                                    <span x-show="!isOpen('attendancePayroll')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('attendancePayroll') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('attendancePayroll')" x-collapse id="nav-section-attendance-payroll" class="ml-4 space-y-1">
-                            @if ($canAttendanceLeave)
-                                <x-nav-link :href="route('attendance.index')" :active="request()->routeIs('attendance.*')">
-                                    Attendance &amp; Leave
-                                </x-nav-link>
-                            @endif
-                            @if ($canPayroll)
-                                {{-- Each payroll.* route highlights exactly one of these three links. --}}
-                                <x-nav-link :href="route('payroll.index')" :active="request()->routeIs('payroll.index', 'payroll.runs.*', 'payroll.payslips.*', 'payroll.lines.*')">
-                                    Payroll
-                                </x-nav-link>
-                                <x-nav-link :href="route('payroll.staff.index')" :active="request()->routeIs('payroll.staff.*')">
-                                    Staff Pay
-                                </x-nav-link>
-                                <x-nav-link :href="route('payroll.setup.index')" :active="request()->routeIs('payroll.setup.*')">
-                                    Payroll Setup
-                                </x-nav-link>
-                            @endif
-                        </div>
-                    </div>
-                @endif
-
-                @if ($showServices)
-                    <div class="mb-1">
-                        <button @click="toggleSection('services')" type="button"
-                            aria-controls="nav-section-services"
-                            :aria-expanded="isOpen('services') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-spa w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Services</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'services')
-                                    {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
-                                    <span x-show="!isOpen('services')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('services') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('services')" x-collapse id="nav-section-services" class="ml-4 space-y-1">
-                            @if ($canServices)
-                                <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')">
-                                    Services
-                                </x-nav-link>
-                            @endif
-                            @if ($canManagementStaff)
-                                <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">
-                                    Staff
-                                </x-nav-link>
-                            @endif
-
-                        </div>
-                    </div>
-                @endif
-
-                @if ($showFinance)
-                    <div class="mb-1">
-                        <button @click="toggleSection('finance')" type="button"
-                            aria-controls="nav-section-finance"
-                            :aria-expanded="isOpen('finance') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-wallet w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Finance</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'finance')
-                                    {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
-                                    <span x-show="!isOpen('finance')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('finance') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('finance')" x-collapse id="nav-section-finance" class="ml-4 space-y-1">
-                            @if ($canRevenue)
-                                <x-nav-link :href="route('revenue.index')" :active="request()->routeIs('revenue.*')">
-                                    Revenue
-                                </x-nav-link>
-                            @endif
-                            @if ($canBilling)
-                                <x-nav-link :href="route('billing.index')" :active="request()->routeIs('billing.*')">
-                                    Billing &amp; Expenses
-                                </x-nav-link>
-                            @endif
-                            @if ($canVendorBills)
-                                <x-nav-link
-                                    :href="route('vendor-bills.index')"
-                                    :active="request()->routeIs('vendor-bills.*')"
-                                >
-                                    Vendor Bills
-                                </x-nav-link>
-                            @endif
-                        </div>
-                    </div>
-                @endif
-
-                @if ($showInsights)
-                    <div class="mb-1">
-                        <button @click="toggleSection('insights')" type="button"
-                            aria-controls="nav-section-insights"
-                            :aria-expanded="isOpen('insights') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-chart-line w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Insights</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'insights')
-                                    {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
-                                    <span x-show="!isOpen('insights')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('insights') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('insights')" x-collapse id="nav-section-insights" class="ml-4 space-y-1">
-                            @if ($canDecisionSupport)
-                                <x-nav-link :href="route('decision-support.index')" :active="request()->routeIs('decision-support.*')">
-                                    Decision Support
-                                </x-nav-link>
-                            @endif
-                            @if ($canReports)
-                                <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
-                                    Reports
-                                </x-nav-link>
-                            @endif
-
-                        </div>
-                    </div>
-                @endif
-
-                @if ($showProcurement)
-                    <div class="mb-1">
-                        <button @click="toggleSection('procurement')" type="button"
-                            aria-controls="nav-section-procurement"
-                            :aria-expanded="isOpen('procurement') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-cart-flatbed w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Procurement</span>
-                            </span>
-
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'procurement')
-                                    <span x-show="!isOpen('procurement')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('procurement') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('procurement')" x-collapse id="nav-section-procurement"
-                            class="ml-4 space-y-1">
-
-                            @if ($canSuppliers)
-                                <x-nav-link
-                                    :href="route('procurement.suppliers.index')"
-                                    :active="request()->routeIs('procurement.suppliers.*')"
-                                >
-                                    Suppliers
-                                </x-nav-link>
-                            @endif
-
-                            @if ($canPurchaseRequests)
-                                <x-nav-link
-                                    :href="route('procurement.purchase-requests.index')"
-                                    :active="request()->routeIs('procurement.purchase-requests.*')"
-                                >
-                                    Purchase Requests
-                                </x-nav-link>
-                            @endif
-
-                            @if ($canPurchaseOrders)
-                                <x-nav-link
-                                    :href="route('procurement.purchase-orders.index')"
-                                    :active="request()->routeIs('procurement.purchase-orders.*')"
-                                >
-                                    Purchase Orders
-                                </x-nav-link>
-                            @endif
-
-                        </div>
-                    </div>
-                @endif
-
-                @if ($showInventory)
-                    <div class="mb-1">
-                        <button @click="toggleSection('inventory')" type="button"
-                            aria-controls="nav-section-inventory"
-                            :aria-expanded="isOpen('inventory') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-boxes-stacked w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Inventory</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'inventory')
-                                    {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
-                                    <span x-show="!isOpen('inventory')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('inventory') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('inventory')" x-collapse id="nav-section-inventory" class="ml-4 space-y-1">
-                            @if ($canProductInventory)
-                                <x-nav-link :href="route('inventory.products')" :active="request()->routeIs('inventory.products')">
-                                    Product Inventory
-                                </x-nav-link>
-                                <x-nav-link :href="route('inventory.batches')" :active="request()->routeIs('inventory.batches')">
-                                    Product Batches
-                                </x-nav-link>
-                            @endif
-                            @if ($canProductLogs)
-                                <x-nav-link :href="route('inventory.logs')" :active="request()->routeIs('inventory.logs')">
-                                    Product Logs
-                                </x-nav-link>
-                            @endif
-                            @if ($canInventoryFull && $canViewGoodsReceipts)
-                                <x-nav-link
-                                    :href="route('inventory.goods-receipts.index')"
-                                    :active="request()->routeIs('inventory.goods-receipts.*')"
-                                >
-                                    Goods Receipts
-                                </x-nav-link>
-                            @endif
-                            @if ($canInventoryFull && $canViewReplenishment)
-                                <x-nav-link
-                                    :href="route('inventory.replenishment.index')"
-                                    :active="request()->routeIs('inventory.replenishment.*')"
-                                >
-                                    Replenishment
-                                </x-nav-link>
-                            @endif
-                            @if ($canInventoryFull && $canStockTransfers)
-                                <x-nav-link :href="route('inventory.transfers')" :active="request()->routeIs('inventory.transfers*')">
-                                    Stock Transfers
-                                </x-nav-link>
-                            @endif
-                        </div>
-                    </div>
-                @endif
-
-                @if ($showThisBranch)
-                    <div class="mb-1">
-                        <button @click="toggleSection('thisBranch')" type="button"
-                            aria-controls="nav-section-thisBranch"
-                            :aria-expanded="isOpen('thisBranch') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-store w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">This Branch</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'thisBranch')
-                                    {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
-                                    <span x-show="!isOpen('thisBranch')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('thisBranch') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('thisBranch')" x-collapse id="nav-section-thisBranch" class="ml-4 space-y-1">
-                            @if ($canEditBranchSettings && $currentBranch)
-                                <x-nav-link :href="route('branches.edit', $currentBranch)" :active="request()->routeIs('branches.edit')">
-                                    Branch Settings
-                                </x-nav-link>
-                            @endif
-
-                            @role('owner')
-                                <x-nav-link :href="route('owner.roles-permissions.index')" :active="request()->routeIs('owner.roles-permissions.*')">
-                                    Roles &amp; Permissions
-                                </x-nav-link>
-                            @endrole
-
-                        </div>
-                    </div>
-                @endif
-                </div>
-
-                @if ($showBusiness)
-                    {{-- Hard break: nothing below here reacts to the branch switcher. --}}
-                    <hr class="my-4 border-gray-200 dark:border-gray-700">
-
-                    <p class="px-4 pb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                        Business Overview
-                    </p>
-
-                    <div class="space-y-1">
-                    <div class="mb-1">
-                        <button @click="toggleSection('business')" type="button"
-                            aria-controls="nav-section-business"
-                            :aria-expanded="isOpen('business') ? 'true' : 'false'"
-                            class="flex items-center justify-between w-full min-h-[44px] gap-2 px-4 py-3 font-medium text-left text-gray-700 transition-colors rounded-lg hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
-                            <span class="flex items-center min-w-0 gap-2">
-                                <i class="fa-solid fa-building w-4 flex-shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
-                                <span class="min-w-0">Business</span>
-                            </span>
-                            <span class="flex items-center flex-shrink-0 gap-2">
-                                @if ($activeSection === 'business')
-                                    {{-- Collapsed sections would otherwise hide the fact that the current page lives inside. --}}
-                                    <span x-show="!isOpen('business')" x-cloak aria-hidden="true"
-                                        class="w-1.5 h-1.5 rounded-full bg-[#8B7355] dark:bg-[#C4A97D]"></span>
-                                @endif
-                                <i class="text-xs transition-transform duration-200 fa-solid fa-chevron-down"
-                                    :class="isOpen('business') ? 'transform rotate-180' : ''"></i>
-                            </span>
-                        </button>
-
-                        <div x-show="isOpen('business')" x-collapse id="nav-section-business" class="ml-4 space-y-1">
-                            @if ($canAllBranches && $canBranches)
-                                <x-nav-link
-                                    :href="route('branches.index')"
-                                    :active="request()->routeIs('branches.index')"
-                                >
-                                    All Branches
-                                </x-nav-link>
-                            @endif
-
-                            @role('owner')
-                                <x-nav-link :href="route('owner.spa-profile.edit')" :active="request()->routeIs('owner.spa-profile.*')">
-                                    Spa Profile
-                                </x-nav-link>
-                            @endrole
-
-                            @role('owner')
-                                <x-nav-link :href="route('owner.subscription.index')" :active="request()->routeIs('owner.subscription.*')">
-                                    Subscription &amp; Billing
-                                </x-nav-link>
-                            @endrole
-
-                        </div>
-                    </div>
-                    </div>
-                @endif
+                {{-- Dashboard, My Payslips, pinned links, then the zones. Shared with the admin sidebar. --}}
+                @include('layouts.partials.sidebar-items', ['nav' => $nav, 'labelledZone' => 'branch'])
 
             </nav>
 
@@ -1309,101 +638,65 @@
 
 </div>
 
+@include('layouts.partials.sidebar-script')
+
 <script>
 document.addEventListener('alpine:init', () => {
-    Alpine.data('sidebar', () => {
-        const STORAGE_KEY = 'levictas_sidebar_open_section_{{ auth()->id() ?? "guest" }}';
+    Alpine.data('sidebar', () => ({
+        // Groups + drawer: layouts/partials/sidebar-script (shared with the admin sidebar).
+        // routeSection comes from App\Services\Navigation\Sidebar — never re-derive it here.
+        ...window.levictasSidebar({
+            storageKey: 'levictas_sidebar_open_section_{{ auth()->id() ?? "guest" }}',
+            routeSection: @json($activeSection),
+        }),
 
-        // Emitted from $sectionRoutes in the PHP block at the top of this file —
-        // the one place these route matches are written. Do not re-derive them here.
-        const routeSection = @json($activeSection);
+        mobileBranchesOpen: false,
+        branchesDropdown: false,
+        showSelfRequestModal: false,
 
-        let saved = null;
-        try { saved = localStorage.getItem(STORAGE_KEY) || null; } catch (e) { saved = null; }
+        selectedBranch: {{ Js::from($currentBranch?->name ?? 'Select Branch') }},
+        selectedBranchId: {{ $currentBranch?->id ?? 'null' }},
+        isOnBranchEditPage: {{ Js::from(request()->routeIs('branches.edit')) }},
+        branchEditUrlTemplate: {{ Js::from(route('branches.edit', ['branch' => '__BRANCH_ID__'])) }},
 
-        return {
-            open: false,
-            mobileBranchesOpen: false,
-            branchesDropdown: false,
-            showLogoutModal: false,
-            showSelfRequestModal: false,
+        switchBranch(branchId) {
+            fetch('/branch/switch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+                    'Accept': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ branch_id: branchId }),
+            })
 
-            selectedBranch: {{ Js::from($currentBranch?->name ?? 'Select Branch') }},
-            selectedBranchId: {{ $currentBranch?->id ?? 'null' }},
-            isOnBranchEditPage: {{ Js::from(request()->routeIs('branches.edit')) }},
-            branchEditUrlTemplate: {{ Js::from(route('branches.edit', ['branch' => '__BRANCH_ID__'])) }},
-
-            openSection: routeSection || saved,
-
-            init() {
-                if (routeSection) {
-                    this.openSection = routeSection;
-                    this.persist();
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showSpaToast('Branch switched successfully', 'success');
+                    setTimeout(() => {
+                    if (this.isOnBranchEditPage) {
+                        const url = new URL(this.branchEditUrlTemplate.replace('__BRANCH_ID__', branchId), window.location.origin);
+                        // preserve ?tab=... if present
+                        url.search = window.location.search;
+                        window.location.href = url.toString();
+                    } else {
+                        window.location.reload();
+                    }
+                }, 1000);
+                } else {
+                    showSpaToast(data.message || 'Failed to switch branch', 'error');
                 }
-            },
-
-            isOpen(name) {
-                return this.openSection === name;
-            },
-
-            toggleSection(name) {
-                this.openSection = (this.openSection === name) ? null : name;
-                this.persist();
-            },
-
-            persist() {
-                try {
-                    if (this.openSection) {
-                        localStorage.setItem(STORAGE_KEY, this.openSection);
-                    } else {
-                        localStorage.removeItem(STORAGE_KEY);
-                    }
-                } catch (e) {}
-            },
-
-            clearSidebarState() {
-                try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-            },
-
-            switchBranch(branchId) {
-                fetch('/branch/switch', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
-                        'Accept': 'application/json',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ branch_id: branchId }),
-                })
-
-                .then(response => {
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        showSpaToast('Branch switched successfully', 'success');
-                        setTimeout(() => {
-                        if (this.isOnBranchEditPage) {
-                            const url = new URL(this.branchEditUrlTemplate.replace('__BRANCH_ID__', branchId), window.location.origin);
-                            // preserve ?tab=... if present
-                            url.search = window.location.search;
-                            window.location.href = url.toString();
-                        } else {
-                            window.location.reload();
-                        }
-                    }, 1000);
-                    } else {
-                        showSpaToast(data.message || 'Failed to switch branch', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showSpaToast('An error occurred. Please try again.', 'error');
-                });
-            }
-        };
-    });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showSpaToast('An error occurred. Please try again.', 'error');
+            });
+        }
+    }));
 });
 </script>

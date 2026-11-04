@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\BranchRolePermission;
 use App\Models\User;
 use App\Services\Payroll\PayrollPermissions;
+use App\Services\Permissions\PermissionRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -65,6 +66,16 @@ class RolePermissionController extends Controller
         return $spa !== null
             && $spa->hasAccess()
             && $spa->hasFeature('finance');
+    }
+
+    /** Inventory and Procurement pages are Premium-only (config/plans.php). */
+    private function planFeatureEnabled(string $feature): bool
+    {
+        $spa = auth()->user()?->spa;
+
+        return $spa !== null
+            && $spa->hasAccess()
+            && $spa->hasFeature($feature);
     }
 
     private function payrollEnabled(): bool
@@ -206,6 +217,11 @@ class RolePermissionController extends Controller
             return true;
         }
 
+        // Retired: gate nothing (PermissionRules, sidebar & RBAC rework Phase 1).
+        if (PermissionRules::isRetired($name)) {
+            return true;
+        }
+
         if (Str::contains($name, [
             'admin ',
             ' platform',
@@ -238,6 +254,16 @@ class RolePermissionController extends Controller
         }
 
         if (($meta['suite'] ?? null) === 'payroll' && !$this->payrollEnabled()) {
+            return false;
+        }
+
+        // Inventory and Procurement pages are plan-gated, so on Basic their
+        // permissions have no reachable page (decision D8.2): hide them.
+        if (($meta['suite'] ?? null) === 'inventory' && !$this->planFeatureEnabled('inventory_basic')) {
+            return false;
+        }
+
+        if (($meta['suite'] ?? null) === 'procurement' && !$this->planFeatureEnabled('procurement')) {
             return false;
         }
 
@@ -390,13 +416,13 @@ class RolePermissionController extends Controller
                 'title'       => 'Inventory',
                 'description' => 'Products, stocks, logs, and inventory records.',
                 'icon'        => 'fa-solid fa-boxes-stacked',
-                'suite'       => null,
+                'suite'       => 'inventory',
             ],
             'procurement' => [
                 'title'       => 'Procurement',
                 'description' => 'Suppliers, purchase requests, purchase orders, and goods receiving.',
                 'icon'        => 'fa-solid fa-truck-ramp-box',
-                'suite'       => null,
+                'suite'       => 'procurement',
             ],
             'payroll' => [
                 'title'       => 'Payroll',
@@ -641,6 +667,14 @@ class RolePermissionController extends Controller
                 'title'   => 'Finance',
                 'message' => 'Payroll, billing, revenue, and finance permissions are available on the Premium plan.',
             ] : null,
+            !$this->planFeatureEnabled('inventory_basic') ? [
+                'title'   => 'Inventory',
+                'message' => 'Inventory permissions are available on the Premium plan.',
+            ] : null,
+            !$this->planFeatureEnabled('procurement') ? [
+                'title'   => 'Procurement',
+                'message' => 'Supplier, purchase request, purchase order, and goods receiving permissions are available on the Premium plan.',
+            ] : null,
         ])->filter()->values();
 
         return view('owner.roles-permissions.edit', [
@@ -672,7 +706,24 @@ class RolePermissionController extends Controller
             'permissions.*' => ['string', Rule::in($allowedPermissionNames->all())],
         ]);
 
-        $selectedPermissions = collect($validated['permissions'] ?? [])->values();
+        $submitted = collect($validated['permissions'] ?? [])->values();
+
+        // Server-side rules (sidebar & RBAC rework Phase 1): a permission always
+        // comes with the base its page needs (D8.1), and the owner role keeps its
+        // protected minimum (answer P9). Only editable permissions are added.
+        $selected = PermissionRules::withDependencies($submitted->all());
+
+        if (Str::lower($role->name) === 'owner') {
+            $selected = [...$selected, ...PermissionRules::OWNER_PROTECTED];
+        }
+
+        $selectedPermissions = collect($selected)
+            ->unique()
+            ->filter(fn ($n) => $allowedPermissionNames->contains($n))
+            ->values();
+
+        $autoAdded = $selectedPermissions->diff($submitted)->values();
+
         $globalPermissions   = $role->permissions->pluck('name')->values();
 
         // Wipe existing overrides for this role, then re-record only deltas. Each
@@ -704,11 +755,19 @@ class RolePermissionController extends Controller
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(\App\Services\Permissions\BranchPermissionCache::class)->flush();
+
+        $message = in_array($role->name, PayrollPermissions::HEAD_ROLES, true)
+            ? $this->roleMeta($role->name)['title'] . ' permissions were updated for every branch.'
+            : $this->roleMeta($role->name)['title'] . " permissions were updated for branch: {$branch->name}.";
+
+        if ($autoAdded->isNotEmpty()) {
+            $message .= ' Also turned on, because they are needed: '
+                . $autoAdded->map(fn ($n) => $this->permissionLabel($n))->implode(', ') . '.';
+        }
 
         return redirect()
             ->route('owner.roles-permissions.edit', $role)
-            ->with('success', in_array($role->name, PayrollPermissions::HEAD_ROLES, true)
-                ? $this->roleMeta($role->name)['title'] . ' permissions were updated for every branch.'
-                : $this->roleMeta($role->name)['title'] . " permissions were updated for branch: {$branch->name}");
+            ->with('success', $message);
     }
 }

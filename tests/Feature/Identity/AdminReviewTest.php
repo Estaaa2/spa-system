@@ -91,7 +91,10 @@ class AdminReviewTest extends TestCase
     {
         $this->actingAs($this->admin)->get(route('admin.identity-verifications.index'))
             ->assertSee('ID Reviews')
-            ->assertSee('2<span class="sr-only"> waiting for review</span>', false);
+            // Sidebar & RBAC rework Phase 3: the count is now the shared nav badge
+            // (visible number hidden from screen readers, full sentence in sr-only).
+            ->assertSee('<span aria-hidden="true">2</span>', false)
+            ->assertSee('<span class="sr-only">2 waiting for review</span>', false);
     }
 
     // ── Review page ──────────────────────────────────────────────────────────

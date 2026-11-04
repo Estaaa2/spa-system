@@ -39,7 +39,7 @@
     $canTherapistStatus = $user->hasBranchPermission('view dashboard therapist status');
     $canAlerts          = $user->hasBranchPermission('view dashboard alerts');
     $canBookingBtn      = $user->hasBranchPermission('view dashboard booking button');
-    $canMyToday         = $user->hasBranchPermission('view dashboard my today');
+    $canMyToday         = $user->seesMyTodayWidget();
 
     // Quick Actions permission flags — also branch-aware.
     $canBookAppointments  = $user->hasBranchPermission('book appointments');

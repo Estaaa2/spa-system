@@ -8,7 +8,9 @@
 
     $canEdit    = $user?->hasBranchPermission('edit appointments') ?? false;
     $canDelete  = $user?->hasBranchPermission('delete appointments') ?? false;
-    $canRequestReassignment = $user?->hasBranchPermission('request appointment reassignment') ?? false;
+    // Permission or "Performs treatments" (answer P16). The button only shows on
+    // the user's own bookings: a flagged receptionist sees the whole branch.
+    $canRequestReassignment = $user?->canRequestReassignment() ?? false;
     $showActions = $canEdit || $canDelete;
     $showUpcomingActions = $showActions || $canRequestReassignment;
 
@@ -487,7 +489,7 @@
                                                 <i class="fa-solid fa-trash" aria-hidden="true"></i>{{ $btnLabel['remove'] }}
                                             </button>
                                         @endif
-                                        @if($canRequestReassignment && in_array($booking->status, ['reserved', 'pending']))
+                                        @if($canRequestReassignment && (int) $booking->therapist_id === (int) $user->id && in_array($booking->status, ['reserved', 'pending']))
                                             @if($booking->has_pending_reassignment)
                                                 <span class="{{ $reassignPendingBadge }}">
                                                     <i class="fa-solid fa-clock" aria-hidden="true"></i> Pending
@@ -854,6 +856,7 @@
     const CAN_EDIT   = {{ $canEdit   ? 'true' : 'false' }};
     const CAN_DELETE = {{ $canDelete ? 'true' : 'false' }};
     const CAN_REQUEST_REASSIGNMENT = {{ $canRequestReassignment ? 'true' : 'false' }};
+    const CURRENT_USER_ID = {{ (int) $user?->id }};
     const SHOW_ACTIONS = CAN_EDIT || CAN_DELETE;
     const SHOW_UPCOMING_ACTIONS = SHOW_ACTIONS || CAN_REQUEST_REASSIGNMENT;
     const TODAY_COLS  = SHOW_ACTIONS ? 7 : 6;
@@ -1416,6 +1419,7 @@
 
     function reassignBtn(b) {
         if (!CAN_REQUEST_REASSIGNMENT) return '';
+        if (Number(b.therapist_id) !== CURRENT_USER_ID) return '';
         if (!['reserved', 'pending'].includes(b.status)) return '';
         if (b.has_pending_reassignment) {
             return `<span class="${REASSIGN_BADGE}">

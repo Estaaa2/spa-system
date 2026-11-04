@@ -57,7 +57,7 @@ class PayrollTestAccountsRemoveSeeder extends Seeder
     }
 
     /** @return array{users: int, staff: int, runs: int} */
-    private function removeSpa(int $spaId): array
+    public function removeSpa(int $spaId): array
     {
         $userIds  = DB::table('users')->where('spa_id', $spaId)
             ->orWhereIn('id', DB::table('spas')->where('id', $spaId)->select('owner_id'))
