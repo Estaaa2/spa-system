@@ -122,11 +122,32 @@ class ScheduleController extends Controller
             ->orderBy('start_time')
             ->get();
 
+        // ── Pending reschedule requests, any week (sidebar & RBAC rework 4.1) ─
+        // Listed above the calendar so every request the Schedule badge counts
+        // is visible here. Same filter as RescheduleRequestController::index and
+        // NavBadges; only for people who can approve or reject them.
+        $pendingReschedules = collect();
+        $user = auth()->user();
+
+        if ($user->hasBranchPermission('edit appointments')) {
+            $pendingReschedules = Booking::query()
+                ->with('latestRescheduleRequest')
+                ->where('spa_id', $user->spa_id)
+                ->where('branch_id', $currentBranchId)
+                ->whereHas('rescheduleRequests', fn ($q) => $q->pending())
+                ->orderBy('appointment_date')
+                ->orderBy('start_time')
+                ->get()
+                // The modal shows the latest request; keep the row only while that one is pending.
+                ->filter(fn ($b) => $b->latestRescheduleRequest?->isPending())
+                ->values();
+        }
+
         // ── Resolve treatment/package names ─────────────────────────────────
         $treatmentIds = [];
         $packageIds   = [];
 
-        foreach ($bookings as $b) {
+        foreach ($bookings->concat($pendingReschedules) as $b) {
             $code = (string) $b->treatment;
 
             if (str_starts_with($code, 'treatment_')) {
@@ -150,7 +171,7 @@ class ScheduleController extends Controller
                 ->pluck('name', 'id')
             : collect();
 
-        foreach ($bookings as $b) {
+        foreach ($bookings->concat($pendingReschedules) as $b) {
             $code = (string) $b->treatment;
 
             if (str_starts_with($code, 'treatment_')) {
@@ -228,6 +249,7 @@ class ScheduleController extends Controller
             'totalHeight',
             'timeLabels',
             'bookingsByDate',
+            'pendingReschedules',
         ));
     }
 

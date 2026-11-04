@@ -179,6 +179,28 @@ class NavRbacPhase4BadgesTest extends TestCase
         $this->actingAs($reception)->get(route('appointments.index'))->assertOk()->assertSee('22 to assign');
     }
 
+    public function test_schedule_lists_every_pending_reschedule_and_matches_its_badge(): void
+    {
+        // Phase 4.1: a request for a booking three weeks out is listed even though
+        // the calendar shows this week.
+        $later = $this->booking(['therapist_id' => $this->account('therapist.a1@levictas.test')->id, 'appointment_date' => '2026-11-25']);
+        $this->make(RescheduleRequest::class, [
+            'booking_id' => $later->id, 'requested_by' => $this->account('owner@levictas.test')->id,
+            'requested_date' => '2026-11-27', 'requested_time' => '11:00:00', 'reason' => 'Later request', 'status' => 'pending',
+        ]);
+        $reception = $this->account('reception.a@levictas.test');
+
+        $this->assertSame(2, NavBadges::forUser($reception, $reception->currentBranchId())['schedule']['count']);
+        $html = $this->actingAs($reception)->get(route('schedule.index'))->assertOk()
+            ->assertSee('Reschedule Requests')->assertSee('2 waiting')->getContent();
+        $this->assertSame(2, substr_count($html, 'onclick="openAppointmentModal(this)" aria-haspopup="dialog"'));
+        $this->assertStringContainsString('data-reschedule-reason="Later request"', $html);
+
+        // Therapists can't approve or reject, so they get neither the list nor the badge.
+        $this->actingAs($this->account('therapist.a1@levictas.test'))->get(route('schedule.index'))
+            ->assertOk()->assertDontSee('Reschedule Requests');
+    }
+
     // ── Cache ───────────────────────────────────────────────────────────────
 
     public function test_acting_on_an_item_updates_the_cached_badge_at_once(): void

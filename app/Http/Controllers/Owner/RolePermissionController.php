@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\BranchRolePermission;
 use App\Models\User;
 use App\Services\Payroll\PayrollPermissions;
+use App\Services\Permissions\PermissionPresets;
 use App\Services\Permissions\PermissionRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -629,6 +630,13 @@ class RolePermissionController extends Controller
                 $role->override_count             = $branchOverrides
                     ->filter(fn($v, $k) => $allowedNames->contains($k))
                     ->count();
+                // RP3 / Q1: read-only count; the switch lives on the Staff page.
+                $role->treatment_staff_count = $role->name === 'therapist' ? 0 : \App\Models\Staff::query()
+                    ->where('spa_id', $user->spa_id)
+                    ->where('branch_id', $branch->id)
+                    ->where('performs_treatments', true)
+                    ->whereHas('user', fn ($q) => $q->role($role->name))
+                    ->count();
                 $role->ui_title       = $meta['title'];
                 $role->ui_description = $meta['description'];
                 $role->ui_icon        = $meta['icon'];
@@ -677,7 +685,38 @@ class RolePermissionController extends Controller
             ] : null,
         ])->filter()->values();
 
+        // ── Phase 5: rules, presets and scope for the page script (@json) ──
+        $editableNames = $built['allowed_names']->all();
+        $isHead        = in_array($role->name, PayrollPermissions::HEAD_ROLES, true);
+        $branchCount   = Branch::query()->where('spa_id', $user->spa_id)->count();
+
+        $pageRules = [
+            'role'           => $role->name,
+            'dependencies'   => PermissionRules::DEPENDENCIES,
+            'conflictPairs'  => PermissionRules::CONFLICT_PAIRS,
+            'roleLimits'     => PermissionRules::ROLE_LIMITS,
+            'protected'      => Str::lower($role->name) === 'owner' ? array_values(array_intersect(PermissionRules::OWNER_PROTECTED, $editableNames)) : [],
+            'labels'         => collect($editableNames)->mapWithKeys(fn ($n) => [$n => $this->permissionLabel($n)])->all(),
+            'before'         => $built['effective_names']->values()->all(),
+            'branchCount'    => $branchCount,
+            'canApplyAll'    => ! $isHead && $branchCount > 1,
+        ];
+
+        $presets = PermissionPresets::forRole($role->name, $role->permissions->pluck('name')->all(), $editableNames);
+
+        // RP3 / Q1: staff of this role at this branch who also do treatments (read-only note).
+        $treatmentStaffCount = $role->name === 'therapist' ? 0 : \App\Models\Staff::query()
+            ->where('spa_id', $user->spa_id)
+            ->where('branch_id', $branch->id)
+            ->where('performs_treatments', true)
+            ->whereHas('user', fn ($q) => $q->role($role->name))
+            ->count();
+
         return view('owner.roles-permissions.edit', [
+            'pageRules'            => $pageRules,
+            'presets'              => $presets,
+            'treatmentStaffCount'  => $treatmentStaffCount,
+            'pendingConflicts'     => session('pendingConflicts', []),
             'role'                 => $role,
             'branch'               => $branch,
             'sections'             => $built['sections'],
@@ -702,8 +741,10 @@ class RolePermissionController extends Controller
         $allowedPermissionNames = $this->editablePermissions()->pluck('name')->values();
 
         $validated = $request->validate([
-            'permissions'   => ['nullable', 'array'],
-            'permissions.*' => ['string', Rule::in($allowedPermissionNames->all())],
+            'permissions'        => ['nullable', 'array'],
+            'permissions.*'      => ['string', Rule::in($allowedPermissionNames->all())],
+            'confirm_conflicts'  => ['nullable', 'boolean'],
+            'apply_all_branches' => ['nullable', 'boolean'],
         ]);
 
         $submitted = collect($validated['permissions'] ?? [])->values();
@@ -724,42 +765,79 @@ class RolePermissionController extends Controller
 
         $autoAdded = $selectedPermissions->diff($submitted)->values();
 
+        // ── Conflict check (D8.3, answers P10/P11) ──────────────────────────
+        // Only conflicts this save would ADD need confirming. The page asks first;
+        // this server check makes sure a request without that confirmation can't
+        // slip through.
+        $before = $this->buildEffectivePermissionNames($role, $allowedPermissionNames, $this->overridesFor($role, $branch, $user->spa_id));
+        $newConflicts = PermissionRules::newConflicts($role->name, $before->all(), $selectedPermissions->all());
+
+        if ($newConflicts !== [] && ! $request->boolean('confirm_conflicts')) {
+            return redirect()
+                ->route('owner.roles-permissions.edit', $role)
+                ->withInput()
+                ->with('pendingConflicts', array_map(fn ($c) => [
+                    'reason' => $c['reason'],
+                    'labels' => array_map(fn ($n) => $this->permissionLabel($n), $c['permissions']),
+                ], $newConflicts))
+                ->with('error', 'Nothing was saved yet. Please review the warning first.');
+        }
+
+        // ── Branch scope (D9, Q2) ───────────────────────────────────────────
+        // Head roles are always spa-wide. Other roles: this branch, or every
+        // branch when "Also apply to all branches" is ticked.
+        $isHead  = in_array($role->name, PayrollPermissions::HEAD_ROLES, true);
+        $targets = (! $isHead && $request->boolean('apply_all_branches'))
+            ? Branch::query()->where('spa_id', $user->spa_id)->get()
+            : collect([$branch]);
+
         $globalPermissions   = $role->permissions->pluck('name')->values();
 
         // Wipe existing overrides for this role, then re-record only deltas. Each
         // permission is stored on the branch that decides it (overrideBranch): the
         // main branch for HR Head / Finance Head and for the owner's payroll
         // permissions, otherwise the branch being edited.
-        foreach ($allowedPermissionNames as $permissionName) {
-            $target = $this->overrideBranch($role->name, $permissionName, $branch);
+        $written = [];
+        foreach ($targets as $editBranch) {
+            foreach ($allowedPermissionNames as $permissionName) {
+                $target = $this->overrideBranch($role->name, $permissionName, $editBranch);
 
-            BranchRolePermission::query()
-                ->where('branch_id', $target->id)
-                ->where('spa_id', $user->spa_id)
-                ->where('role_name', $role->name)
-                ->where('permission_name', $permissionName)
-                ->delete();
+                // Spa-wide permissions (owner payroll) all land on the main branch: write once.
+                if (isset($written[$target->id.'|'.$permissionName])) {
+                    continue;
+                }
+                $written[$target->id.'|'.$permissionName] = true;
 
-            $globalHas   = $globalPermissions->contains($permissionName);
-            $branchWants = $selectedPermissions->contains($permissionName);
+                BranchRolePermission::query()
+                    ->where('branch_id', $target->id)
+                    ->where('spa_id', $user->spa_id)
+                    ->where('role_name', $role->name)
+                    ->where('permission_name', $permissionName)
+                    ->delete();
 
-            if ($globalHas !== $branchWants) {
-                BranchRolePermission::create([
-                    'branch_id'       => $target->id,
-                    'spa_id'          => $user->spa_id,
-                    'role_name'       => $role->name,
-                    'permission_name' => $permissionName,
-                    'granted'         => $branchWants,
-                ]);
+                $globalHas   = $globalPermissions->contains($permissionName);
+                $branchWants = $selectedPermissions->contains($permissionName);
+
+                if ($globalHas !== $branchWants) {
+                    BranchRolePermission::create([
+                        'branch_id'       => $target->id,
+                        'spa_id'          => $user->spa_id,
+                        'role_name'       => $role->name,
+                        'permission_name' => $permissionName,
+                        'granted'         => $branchWants,
+                    ]);
+                }
             }
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         app(\App\Services\Permissions\BranchPermissionCache::class)->flush();
 
-        $message = in_array($role->name, PayrollPermissions::HEAD_ROLES, true)
-            ? $this->roleMeta($role->name)['title'] . ' permissions were updated for every branch.'
-            : $this->roleMeta($role->name)['title'] . " permissions were updated for branch: {$branch->name}.";
+        $message = match (true) {
+            $isHead              => $this->roleMeta($role->name)['title'] . ' permissions were updated for every branch.',
+            $targets->count() > 1 => $this->roleMeta($role->name)['title'] . " permissions were updated for all {$targets->count()} branches.",
+            default              => $this->roleMeta($role->name)['title'] . " permissions were updated for branch: {$branch->name}.",
+        };
 
         if ($autoAdded->isNotEmpty()) {
             $message .= ' Also turned on, because they are needed: '

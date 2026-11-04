@@ -90,6 +90,52 @@
             <x-page-header title="Schedule" subtitle="View and manage all appointments in a weekly calendar view." />
         </div>
 
+
+        {{-- ── Reschedule requests (sidebar & RBAC rework Phase 4.1) ───────────
+             Every pending request for this branch, whichever week it falls in, so
+             the Schedule badge always points at something visible. Each row opens
+             the same review modal as the calendar card. Styled like Appointments'
+             "No Therapist Assigned" panel. --}}
+        @if ($canEdit && $pendingReschedules->isNotEmpty())
+            <section aria-labelledby="reschedListTitle"
+                class="overflow-hidden bg-white border shadow-sm shrink-0 border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
+                <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b sm:px-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                    <div>
+                        <h2 id="reschedListTitle" class="text-base font-semibold text-amber-900 dark:text-amber-200">Reschedule Requests</h2>
+                        <p class="text-sm text-amber-700 dark:text-amber-300">Customers asked to move these appointments. Open one to approve or reject it.</p>
+                    </div>
+                    <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        {{ $pendingReschedules->count() }} waiting
+                    </span>
+                </div>
+
+                {{-- Capped height so the calendar keeps its space; the list scrolls past a few rows. --}}
+                <ul class="overflow-y-auto divide-y divide-gray-200 max-h-32 sm:max-h-44 overscroll-contain dark:divide-gray-700">
+                    @foreach ($pendingReschedules as $b)
+                        @php $rr = $b->latestRescheduleRequest; @endphp
+                        <li>
+                            <button type="button" onclick="openAppointmentModal(this)" aria-haspopup="dialog"
+                                @include('schedule.partials.booking-modal-data', ['b' => $b])
+                                class="flex items-center justify-between w-full min-h-[44px] gap-3 px-4 py-3 text-left transition-colors sm:px-6 hover:bg-gray-50 dark:hover:bg-gray-700/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-medium text-gray-900 truncate dark:text-white">
+                                        {{ $b->customer_name ?? 'Walk-in' }}
+                                        <span class="font-normal text-gray-500 dark:text-gray-400">· {{ $b->resolved_treatment ?? $b->treatment_label }}</span>
+                                    </span>
+                                    <span class="block text-xs text-gray-500 dark:text-gray-400">
+                                        {{ \Carbon\Carbon::parse($b->appointment_date)->format('M j') }}, {{ \Carbon\Carbon::parse($b->start_time)->format('g:i A') }}
+                                        <i class="mx-1 fa-solid fa-arrow-right" aria-hidden="true"></i><span class="sr-only">requested</span>
+                                        <span class="font-medium text-gray-700 dark:text-gray-200">{{ $rr->requested_date?->format('M j') }}, {{ \Carbon\Carbon::parse($rr->requested_time)->format('g:i A') }}</span>
+                                    </span>
+                                </span>
+                                <span class="text-sm font-medium shrink-0 text-[#8B7355] dark:text-[#C4A97D]">Review</span>
+                            </button>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
         <div x-data="scheduleView({{ $selectedDay }})" class="flex flex-col flex-1 min-h-0 gap-4">
 
             {{-- ── Week Navigation ─────────────────────────────────────────── --}}
@@ -326,7 +372,6 @@
 
                                             $customerName   = $b->customer_name ?? 'Walk-in';
                                             $treatmentLabel = $b->resolved_treatment ?? $b->treatment_label;
-                                            $serviceLabel   = $b->service_type_label;
 
                                             $startAt = \Carbon\Carbon::parse($b->start_time);
                                             $endAt   = \Carbon\Carbon::parse($b->end_time);
@@ -347,14 +392,6 @@
                                             );
 
                                             $statusTxt = \App\Models\Booking::statusLabel($b->status);
-
-                                            $durHours     = intdiv($durationMinutes, 60);
-                                            $durRemainder = $durationMinutes % 60;
-
-                                            $durationTxt = trim(
-                                                ($durHours ? $durHours . ' hr ' : '')
-                                                . ($durRemainder ? $durRemainder . ' min' : '')
-                                            ) ?: '0 min';
 
                                             $reschedule        = $b->latestRescheduleRequest;
                                             $hasPendingResched = $reschedule?->isPending();
@@ -387,22 +424,7 @@
                                              aria-label="{{ $cardLabel }}"
                                              onclick="openAppointmentModal(this)"
                                              onkeydown="handleCardKeydown(event, this)"
-                                             data-booking-id="{{ $b->id }}"
-                                             data-customer="{{ $customerName }}"
-                                             data-service="{{ $serviceLabel }}"
-                                             data-treatment="{{ $treatmentLabel }}"
-                                             data-appointment-date="{{ \Carbon\Carbon::parse($b->appointment_date)->format('F d, Y') }}"
-                                             data-start-time="{{ $startAt->format('g:i A') }}"
-                                             data-end-time="{{ $endAt->format('g:i A') }}"
-                                             data-duration="{{ $durationTxt }}"
-                                             data-status="{{ $statusTxt }}"
-                                             data-status-key="{{ $b->status }}"
-                                             data-reschedule-id="{{ $reschedule?->id }}"
-                                             data-reschedule-status="{{ $reschedule?->status }}"
-                                             data-reschedule-date="{{ $reschedule?->requested_date?->format('F j, Y') }}"
-                                             data-reschedule-time="{{ $reschedule ? \Carbon\Carbon::parse($reschedule->requested_time)->format('g:i A') : '' }}"
-                                             data-reschedule-reason="{{ $reschedule?->reason }}"
-                                             data-reschedule-rejection="{{ $reschedule?->rejection_reason }}">
+                                             @include('schedule.partials.booking-modal-data', ['b' => $b])>
 
                                             {{-- Pending reschedule pulse dot --}}
                                             @if ($hasPendingResched)

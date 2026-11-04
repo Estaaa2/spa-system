@@ -341,7 +341,8 @@ class BookingEnforcementTest extends TestCase
     {
         $owner = $this->user('owner@levictas.test');
         $this->actingAs($owner)->get(route('staff.index'))->assertOk()
-            ->assertSee('Performs treatments')->assertSee('Not verified')->assertSee('Verified')
+            ->assertSee('Does treatments')   // tag renamed in the RBAC rework (decision D7)
+            ->assertSee('Not verified')->assertSee('Verified')
             ->assertDontSee('blurry');   // rejection reasons stay private
 
         $reception = Staff::whereHas('user', fn ($q) => $q->where('email', 'reception.a@levictas.test'))->firstOrFail();

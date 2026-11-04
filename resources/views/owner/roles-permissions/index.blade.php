@@ -96,6 +96,16 @@
                         </div>
                     </div>
 
+                    @if (($role->treatment_staff_count ?? 0) > 0)
+                        {{-- RP3 / Q1: read-only; "does treatments" is set per person on the Staff page. --}}
+                        <p class="mt-3 text-xs text-gray-600 dark:text-gray-300">
+                            <i class="mr-1 fa-solid fa-spa text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                            {{ $role->treatment_staff_count }} {{ $role->treatment_staff_count === 1 ? \Illuminate\Support\Str::lower($role->ui_title) : \Illuminate\Support\Str::plural(\Illuminate\Support\Str::lower($role->ui_title)) }}
+                            at this branch also {{ $role->treatment_staff_count === 1 ? 'does' : 'do' }} treatments —
+                            <a href="{{ route('staff.index') }}" class="font-medium text-[#8B7355] hover:underline dark:text-[#C4A97D]">manage on the Staff page</a>
+                        </p>
+                    @endif
+
                     <div class="flex items-center justify-between mt-4 text-xs text-gray-500 dark:text-gray-400">
                         <span>{{ $role->override_count }} branch override{{ $role->override_count === 1 ? '' : 's' }}</span>
                         <a href="{{ route('owner.roles-permissions.edit', $role) }}"

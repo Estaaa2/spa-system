@@ -10,7 +10,6 @@ use App\Models\LeaveRequest;
 use App\Models\PayrollRun;
 use App\Models\PurchaseRequest;
 use App\Models\ReassignmentRequest;
-use App\Models\RescheduleRequest;
 use App\Models\Spa;
 use App\Models\User;
 use App\Services\Payroll\PayrollPermissions as P;
@@ -118,11 +117,13 @@ final class NavBadges
             // "!" only for an unassigned booking that starts today (answer P14).
             self::put($out, 'appointments', $total, implode(', ', $parts), $startingToday > 0);
 
-            // Schedule page: reschedule requests are reviewed there (schedule.blade.php
-            // opens them per booking), same filter as RescheduleRequestController::index.
-            $reschedules = RescheduleRequest::query()
-                ->whereHas('booking', fn ($q) => $q->where('spa_id', $spaId)->where('branch_id', $branchId))
-                ->pending()
+            // Schedule page: reschedule requests are reviewed there.
+            // Counted per booking, like the "Reschedule Requests" list above the calendar
+            // (ScheduleController, Phase 4.1). A booking has at most one pending request.
+            $reschedules = Booking::query()
+                ->where('spa_id', $spaId)
+                ->where('branch_id', $branchId)
+                ->whereHas('rescheduleRequests', fn ($q) => $q->pending())
                 ->count();
             self::put($out, 'schedule', $reschedules, $reschedules.' reschedule '.($reschedules === 1 ? 'request' : 'requests').' waiting');
         }

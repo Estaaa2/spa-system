@@ -383,7 +383,7 @@
                                    class="mt-0.5 w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
                             <span class="text-sm">
                                 <span class="font-medium text-gray-900 dark:text-white">Also performs treatments</span>
-                                <span class="block text-xs text-gray-500 dark:text-gray-400">Can be assigned appointments like a therapist. To receive online home-service bookings, they verify their identity on their profile.</span>
+                                <span class="block text-xs text-gray-500 dark:text-gray-400">Turn on if this person also gives treatments. They can then be assigned appointments, appear in the therapist workload, and get My Today, My Performance and "Can't make it". Their role's permissions don't change. For online home-service bookings they also verify their identity on their profile.</span>
                             </span>
                         </label>
                     </div>
@@ -485,7 +485,7 @@
                             @if($role === 'therapist' || $member->performs_treatments)
                                 <div class="flex flex-wrap gap-1 mt-1">
                                     @if($role !== 'therapist')
-                                        <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">Performs treatments</span>
+                                        <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">Does treatments</span>
                                     @endif
                                     @if($member->user?->isIdentityVerified())
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
@@ -788,7 +788,7 @@
                            class="mt-0.5 w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
                     <span class="text-sm">
                         <span class="font-medium text-gray-900 dark:text-white">Also performs treatments</span>
-                        <span class="block text-xs text-gray-500 dark:text-gray-400">Can be assigned appointments like a therapist. Therapists always can.</span>
+                        <span class="block text-xs text-gray-500 dark:text-gray-400">Turn on if this person also gives treatments. They can then be assigned appointments, appear in the therapist workload, and get My Today, My Performance and "Can't make it". Their role's permissions don't change. Therapists always can.</span>
                     </span>
                 </label>
             </div>
