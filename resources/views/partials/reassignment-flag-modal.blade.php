@@ -26,6 +26,8 @@
                 <p class="mt-1 text-xs text-gray-400">Minimum 10 characters. This is shown to whoever approves the reassignment.</p>
             </div>
 
+            {{-- Only for staff who may file leave (same rule as the leave route; Phase 6.1). --}}
+            @if (auth()->user()?->hasBranchPermission('create leave requests'))
             <div class="p-3 border border-gray-300 border-dashed rounded-xl dark:border-gray-600">
                 <label class="flex items-start gap-2 cursor-pointer">
                     <input type="checkbox" id="reassign_also_leave" onchange="toggleReassignLeaveType()"
@@ -44,6 +46,7 @@
                     </select>
                 </div>
             </div>
+            @endif
 
             <div id="reassignFlagError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200 dark:bg-red-900/20 dark:ring-red-800">
                 <span id="reassignFlagErrorText"></span>
@@ -75,8 +78,11 @@
         document.getElementById('reassign_flag_treatment').textContent = d.treatment || '';
         document.getElementById('reassign_flag_datetime').textContent  = `${d.date || ''} at ${d.time || ''}`;
         document.getElementById('reassign_flag_reason').value = '';
-        document.getElementById('reassign_also_leave').checked = false;
-        document.getElementById('reassign_leave_type_wrapper').classList.add('hidden');
+        const alsoLeaveBox = document.getElementById('reassign_also_leave');
+        if (alsoLeaveBox) {
+            alsoLeaveBox.checked = false;
+            document.getElementById('reassign_leave_type_wrapper').classList.add('hidden');
+        }
         document.getElementById('reassignFlagError').classList.add('hidden');
 
         document.getElementById('reassignFlagModal').classList.remove('hidden');
@@ -102,8 +108,8 @@
         const errorBox  = document.getElementById('reassignFlagError');
         const errorText = document.getElementById('reassignFlagErrorText');
         const submitBtn = document.getElementById('reassignFlagSubmitBtn');
-        const alsoLeave = document.getElementById('reassign_also_leave').checked;
-        const leaveType = document.getElementById('reassign_leave_type').value;
+        const alsoLeave = document.getElementById('reassign_also_leave')?.checked ?? false;
+        const leaveType = document.getElementById('reassign_leave_type')?.value ?? null;
 
         if (reason.length < 10) {
             errorText.textContent = 'Please provide at least 10 characters explaining why.';

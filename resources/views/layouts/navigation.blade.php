@@ -323,9 +323,10 @@
                     <a href="{{ $brandHref }}" class="flex items-center flex-1 min-w-0 space-x-3">
                         <img src="{{ asset('images/1.png') }}" class="flex-shrink-0 object-cover w-10 h-10 rounded-md" alt="Levictas">
                         <div class="min-w-0">
-                            {{-- Spa names are user-entered and can be long: cap at two lines instead of pushing the layout. --}}
+                            {{-- Spa names are user-entered and can be long: cap at two lines instead of pushing the layout.
+                                 No `block` here: it comes later in the built CSS and would cancel line-clamp's display. --}}
                             <span title="{{ $spa?->name ?? 'Spa Management' }}"
-                                class="block text-xl font-semibold leading-tight break-words line-clamp-2 text-[#8B7355] dark:text-white font-['Playfair_Display']">
+                                class="text-xl font-semibold leading-tight break-words line-clamp-2 text-[#8B7355] dark:text-white font-['Playfair_Display']">
                                 {{ $spa?->name ?? 'Spa Management' }}
                             </span>
                             <p class="text-xs tracking-widest text-gray-500 dark:text-gray-400">SPA | WELLNESS</p>

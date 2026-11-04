@@ -35,6 +35,14 @@ class ReassignmentRequestController extends Controller
         // someone else's appointment.
         abort_unless($booking->therapist_id === Auth::id(), 403);
 
+        // "Also request leave" files a leave request, so it needs the same
+        // permission as the leave route (Phase 6.1; web and mobile alike).
+        if (! empty($validated['request_leave_too']) && ! Auth::user()->hasBranchPermission('create leave requests')) {
+            return response()->json([
+                'message' => "Your role can't file leave requests. Send the reassignment without leave, or ask your manager.",
+            ], 403);
+        }
+
         if (!in_array($booking->status, ['reserved', 'pending'])) {
             return response()->json([
                 'message' => 'This appointment can no longer be reassigned.',

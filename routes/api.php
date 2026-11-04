@@ -100,11 +100,16 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
     Route::post('/therapist/attendance/clock-in',  [AttendanceController::class, 'clockIn']);
     Route::post('/therapist/attendance/clock-out', [AttendanceController::class, 'clockOut']);
 
-    // Leave requests and "can't make it" through the web's own controllers.
-    Route::post('/leave-requests',     [\App\Http\Controllers\LeaveRequestController::class, 'store']);
+    // Leave requests and "can't make it" through the web's own controllers,
+    // behind the same route checks as the web (Phase 6.1): filing leave needs
+    // `create leave requests` (customers never have it), and "can't make it"
+    // needs the reassignment permission or "Does treatments".
+    Route::post('/leave-requests',     [\App\Http\Controllers\LeaveRequestController::class, 'store'])
+        ->middleware('branch.permission:create leave requests');
     Route::get('/leave-requests/mine', [\App\Http\Controllers\LeaveRequestController::class, 'mine']);
     Route::get('/leave-requests/{leaveRequest}/affected-bookings', [\App\Http\Controllers\LeaveRequestController::class, 'affectedBookings']);
-    Route::post('/appointments/{booking}/reassignment-requests', [\App\Http\Controllers\ReassignmentRequestController::class, 'store']);
+    Route::post('/appointments/{booking}/reassignment-requests', [\App\Http\Controllers\ReassignmentRequestController::class, 'store'])
+        ->middleware('can:request-appointment-reassignment');
             // My Payslips: the web's HR\MyPayslipController logic, as JSON.
     Route::get('/my-payslips', [\App\Http\Controllers\Api\MyPayslipController::class, 'index']);
     Route::get('/my-payslips/{payslip}', [\App\Http\Controllers\Api\MyPayslipController::class, 'show'])
