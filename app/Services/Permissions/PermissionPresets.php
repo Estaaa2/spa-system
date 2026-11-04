@@ -89,6 +89,7 @@ final class PermissionPresets
      */
     public static function forRole(string $role, array $roleDefault, array $editable): array
     {
+        $editable = PermissionRules::withoutUnavailable($role, $editable);   // Phase 5.1: never tick a locked box
         $default = array_values(array_intersect($roleDefault, $editable));
 
         $presets = [[

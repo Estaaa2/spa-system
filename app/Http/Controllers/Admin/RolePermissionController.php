@@ -48,6 +48,8 @@ class RolePermissionController extends Controller
             'edit admin profile',
             'manage system settings',
             'change spa subscriptions',
+            // Platform admin only: the admin ID-review pages check it (admin routes). Phase 5.1.
+            'verify staff identity',
 
             // Removed / legacy — superseded by view business dashboard
             'view business dashboard',
@@ -426,6 +428,9 @@ class RolePermissionController extends Controller
         if (Str::lower($role->name) === 'owner') {
             $selected = [...$selected, ...PermissionRules::OWNER_PROTECTED];
         }
+
+        // Phase 5.1: never make a default out of a permission the role can't use.
+        $selected = PermissionRules::withoutUnavailable($role->name, $selected);
 
         $role->syncPermissions(
             collect($selected)->merge($preserved)->unique()->values()->all()

@@ -175,6 +175,45 @@ final class PermissionRules
             'allowed_roles' => ['owner', 'hr', 'hr_head'],
             'reason'        => 'Lets a role outside HR remove staff accounts.',
         ],
+        // ── Added in Phase 5.1 (answer 2 → A) ──
+        [
+            'permissions'   => ['edit branch general'],
+            'denied_roles'  => ['receptionist', 'therapist'],
+            'reason'        => 'Lets front-desk or treatment staff rename the branch and change its general details.',
+        ],
+        [
+            'permissions'   => ['delete treatments', 'delete packages'],
+            'denied_roles'  => ['receptionist', 'therapist'],
+            'reason'        => 'Lets front-desk or treatment staff permanently remove services from the menu.',
+        ],
+        [
+            'permissions'   => ['edit attendance'],
+            'denied_roles'  => ['therapist'],
+            'reason'        => 'Lets a therapist mark other staff present, late or absent.',
+        ],
+        [
+            'permissions'   => ['view hiring', 'create hiring', 'edit hiring', 'delete hiring',
+                'view applications', 'edit applications', 'view interviews', 'create interviews', 'edit interviews'],
+            'denied_roles'  => ['receptionist', 'therapist'],
+            'reason'        => 'Gives front-desk or treatment staff access to hiring and applicant records.',
+        ],
+    ];
+
+    /**
+     * Permissions that cannot work for some roles, because the app itself refuses
+     * them there (Phase 5.1, answer 1 → A). They are locked on the Roles pages and
+     * dropped on save. Each `reason` names where the app enforces it.
+     *
+     * permission => ['roles' => roles it CAN work for, 'reason' => shown on the locked box]
+     */
+    public const UNAVAILABLE = [
+        // BranchController::store / destroy refuse anyone but the owner.
+        'create branches' => ['roles' => ['owner'], 'reason' => 'Owner only'],
+        'delete branches' => ['roles' => ['owner'], 'reason' => 'Owner only'],
+        // AuthorizesPayroll::canSpaWide: approving and finalizing/releasing cover every
+        // branch, so they need a role that works across branches.
+        P::APPROVE => ['roles' => P::SPA_WIDE_ROLES, 'reason' => 'Needs a role that covers every branch'],
+        P::RELEASE => ['roles' => P::SPA_WIDE_ROLES, 'reason' => 'Needs a role that covers every branch'],
     ];
 
     /** Always granted to the owner role (answer P9). Roles & Permissions, Spa Profile and Subscription are owner-role routes and need nothing here. */
@@ -188,6 +227,32 @@ final class PermissionRules
         'edit staff',
         'view dashboard kpis',
     ];
+
+    /** Why a permission can't work for this role, or null when it can. */
+    public static function unavailableReason(string $role, string $permission): ?string
+    {
+        $rule = self::UNAVAILABLE[$permission] ?? null;
+
+        return ($rule && ! in_array($role, $rule['roles'], true)) ? $rule['reason'] : null;
+    }
+
+    /**
+     * The set without permissions that can't work for the role.
+     *
+     * @param  iterable<string>  $permissions
+     * @return list<string>
+     */
+    public static function withoutUnavailable(string $role, iterable $permissions): array
+    {
+        $out = [];
+        foreach ($permissions as $permission) {
+            if (self::unavailableReason($role, $permission) === null) {
+                $out[] = $permission;
+            }
+        }
+
+        return $out;
+    }
 
     /** @return list<string> */
     public static function retired(): array
@@ -311,6 +376,7 @@ final class PermissionRules
             'conflictPairs'  => self::CONFLICT_PAIRS,
             'roleLimits'     => self::ROLE_LIMITS,
             'ownerProtected' => self::OWNER_PROTECTED,
+            'unavailable'    => self::UNAVAILABLE,
         ];
     }
 }

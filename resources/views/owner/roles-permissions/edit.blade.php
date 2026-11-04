@@ -111,6 +111,7 @@
         $restoring    = session()->hasOldInput();
         $oldPerms     = (array) old('permissions', []);
         $protected    = $pageRules['protected'] ?? [];
+        $unavailable  = $pageRules['unavailable'] ?? [];   // Phase 5.1: permission => reason
         $roleTitle    = $roleMeta['title'];
         $rolePlural   = \Illuminate\Support\Str::plural(\Illuminate\Support\Str::lower($roleTitle));
     @endphp
@@ -237,21 +238,24 @@
                         <div class="grid gap-3 lg:grid-cols-2">
                             @foreach($section['permissions'] as $permission)
                                 @php
-                                    $isProtected = in_array($permission['name'], $protected, true);
-                                    $isChecked   = $isProtected || ($restoring ? in_array($permission['name'], $oldPerms, true) : $permission['checked']);
+                                    $isProtected   = in_array($permission['name'], $protected, true);
+                                    $lockedReason  = $unavailable[$permission['name']] ?? null;   // can't work for this role
+                                    $isLocked      = $isProtected || $lockedReason !== null;
+                                    $isChecked     = $isProtected || ($lockedReason === null && ($restoring ? in_array($permission['name'], $oldPerms, true) : $permission['checked']));
+                                    $lockedNoteId  = 'locked-' . \Illuminate\Support\Str::slug($permission['name']);
                                 @endphp
-                                <label class="flex items-start gap-3 p-4 transition border rounded-xl dark:border-gray-700 {{ $isProtected ? 'bg-gray-50 dark:bg-gray-900/30' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/20' }}">
+                                <label class="flex items-start gap-3 p-4 transition border rounded-xl dark:border-gray-700 {{ $isLocked ? 'bg-gray-50 dark:bg-gray-900/30' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/20' }}">
                                     @if ($isProtected)
                                         {{-- Always on for the owner (answer P9). Disabled boxes aren't submitted,
                                              so a hidden input carries the value; the server adds it anyway. --}}
                                         <input type="hidden" name="permissions[]" value="{{ $permission['name'] }}">
                                     @endif
                                     <input type="checkbox"
-                                           @unless ($isProtected) name="permissions[]" @endunless
+                                           @unless ($isLocked) name="permissions[]" @endunless
                                            value="{{ $permission['name'] }}"
                                            data-permission-checkbox
                                            data-section="{{ $section['key'] }}"
-                                           @if ($isProtected) disabled aria-describedby="protected-{{ \Illuminate\Support\Str::slug($permission['name']) }}" @endif
+                                           @if ($isLocked) disabled aria-describedby="{{ $lockedNoteId }}" @endif
                                            {{ $isChecked ? 'checked' : '' }}
                                            class="mt-1 w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 disabled:opacity-60">
 
@@ -273,8 +277,14 @@
                                                 {{ $permission['source'] }}
                                             </span>
 
-                                            @if ($isProtected)
-                                                <span id="protected-{{ \Illuminate\Support\Str::slug($permission['name']) }}"
+                                            @if ($lockedReason)
+                                                {{-- Phase 5.1: the app refuses this for the role, so it can't be granted. --}}
+                                                <span id="{{ $lockedNoteId }}"
+                                                      class="px-2 py-1 text-[11px] font-medium rounded-full text-gray-700 bg-gray-200 dark:bg-gray-700 dark:text-gray-200">
+                                                    <i class="mr-0.5 fa-solid fa-lock" aria-hidden="true"></i> {{ $lockedReason }}<span class="sr-only">, not available for {{ $roleTitle }}</span>
+                                                </span>
+                                            @elseif ($isProtected)
+                                                <span id="{{ $lockedNoteId }}"
                                                       class="px-2 py-1 text-[11px] font-medium rounded-full text-gray-700 bg-gray-200 dark:bg-gray-700 dark:text-gray-200">
                                                     <i class="mr-0.5 fa-solid fa-lock" aria-hidden="true"></i> Always on for the owner
                                                 </span>

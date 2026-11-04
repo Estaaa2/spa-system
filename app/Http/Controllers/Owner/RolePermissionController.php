@@ -185,6 +185,8 @@ class RolePermissionController extends Controller
             'edit admin profile',
             'manage system settings',
             'change spa subscriptions',
+            // Platform admin only: the admin ID-review pages check it (admin routes). Phase 5.1.
+            'verify staff identity',
 
             // Removed / legacy — superseded by view business dashboard
             'view business dashboard',
@@ -696,6 +698,10 @@ class RolePermissionController extends Controller
             'conflictPairs'  => PermissionRules::CONFLICT_PAIRS,
             'roleLimits'     => PermissionRules::ROLE_LIMITS,
             'protected'      => Str::lower($role->name) === 'owner' ? array_values(array_intersect(PermissionRules::OWNER_PROTECTED, $editableNames)) : [],
+            // Phase 5.1: locked for this role, with the reason shown on the box.
+            'unavailable'    => collect($editableNames)
+                ->mapWithKeys(fn ($n) => [$n => PermissionRules::unavailableReason($role->name, $n)])
+                ->filter()->all(),
             'labels'         => collect($editableNames)->mapWithKeys(fn ($n) => [$n => $this->permissionLabel($n)])->all(),
             'before'         => $built['effective_names']->values()->all(),
             'branchCount'    => $branchCount,
@@ -757,6 +763,13 @@ class RolePermissionController extends Controller
         if (Str::lower($role->name) === 'owner') {
             $selected = [...$selected, ...PermissionRules::OWNER_PROTECTED];
         }
+
+        // Phase 5.1: permissions the app refuses for this role (e.g. creating
+        // branches for a manager) are dropped — the page shows them locked.
+        $droppedUnavailable = collect($selected)
+            ->filter(fn ($n) => PermissionRules::unavailableReason($role->name, $n) !== null)
+            ->unique()->values();
+        $selected = PermissionRules::withoutUnavailable($role->name, $selected);
 
         $selectedPermissions = collect($selected)
             ->unique()
@@ -842,6 +855,11 @@ class RolePermissionController extends Controller
         if ($autoAdded->isNotEmpty()) {
             $message .= ' Also turned on, because they are needed: '
                 . $autoAdded->map(fn ($n) => $this->permissionLabel($n))->implode(', ') . '.';
+        }
+
+        if ($droppedUnavailable->isNotEmpty()) {
+            $message .= ' Not saved, because they can\'t work for this role: '
+                . $droppedUnavailable->map(fn ($n) => $this->permissionLabel($n))->implode(', ') . '.';
         }
 
         return redirect()
