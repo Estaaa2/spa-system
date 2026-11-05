@@ -36,6 +36,7 @@
         'rejected' => ['Rejected', 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'],
         'withdrawn' => ['Withdrawn by staff', 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
         'superseded' => ['Replaced', 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
+        'expired' => ['Expired without review', 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
     ][$verification->status] ?? [ucfirst($verification->status), 'bg-slate-100 text-slate-700'];
 
     $panels = [
@@ -240,7 +241,11 @@
                             <div>
                                 <dt class="text-gray-500 dark:text-gray-400">Replaced because</dt>
                                 <dd class="mt-1 font-medium text-gray-900 dark:text-white">
-                                    {{ $verification->superseded_reason === 'name_changed' ? 'The staff member\'s name changed.' : 'The staff member changed their profile photo.' }}
+                                    {{ match ($verification->superseded_reason) {
+                                        'name_changed'    => 'The staff member\'s name changed.',
+                                        'account_deleted' => 'The staff member\'s account was deleted.',
+                                        default           => 'The staff member changed their profile photo.',
+                                    } }}
                                 </dd>
                             </div>
                         @endif

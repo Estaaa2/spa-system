@@ -40,13 +40,14 @@
         'rejected' => ['Rejected', 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'],
         'withdrawn' => ['Withdrawn', 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
         'superseded' => ['Replaced', 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
+        'expired' => ['Expired', 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
     ];
 
     $emptyText = [
         'pending' => 'No requests are waiting for review.',
         'approved' => 'No approved requests yet.',
         'rejected' => 'No rejected requests.',
-        'closed' => 'No withdrawn or replaced requests.',
+        'closed' => 'No withdrawn, replaced or expired requests.',
     ];
 
     $isPendingTab = $tab === 'pending';

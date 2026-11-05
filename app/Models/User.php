@@ -185,6 +185,18 @@ class User extends Authenticatable implements MustVerifyEmail
 
             app(IdentityVerificationService::class)->supersedeAfterNameChange($user, $lost);
         });
+
+        // Account deleted (soft delete): close a pending request and delete its
+        // ID and selfie now instead of waiting for an admin (Phase 3, G2). On a
+        // force delete the rows are already gone (cascade); identity:purge
+        // removes the leftover files.
+        static::deleted(function (User $user) {
+            if (method_exists($user, 'isForceDeleting') && $user->isForceDeleting()) {
+                return;
+            }
+
+            app(IdentityVerificationService::class)->closeForDeletedAccount($user);
+        });
     }
 
     /**

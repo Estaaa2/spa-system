@@ -22,6 +22,8 @@ class IdentityVerification extends Model
     public const STATUS_REJECTED   = 'rejected';
     public const STATUS_WITHDRAWN  = 'withdrawn';
     public const STATUS_SUPERSEDED = 'superseded';
+    /** Not reviewed within config('identity.pending_max_days'); closed by identity:purge. */
+    public const STATUS_EXPIRED    = 'expired';
 
     public const STATUSES = [
         self::STATUS_PENDING,
@@ -29,10 +31,12 @@ class IdentityVerification extends Model
         self::STATUS_REJECTED,
         self::STATUS_WITHDRAWN,
         self::STATUS_SUPERSEDED,
+        self::STATUS_EXPIRED,
     ];
 
     public const SUPERSEDED_PHOTO_CHANGED = 'photo_changed';
     public const SUPERSEDED_NAME_CHANGED  = 'name_changed';
+    public const SUPERSEDED_ACCOUNT_DELETED = 'account_deleted';
 
     public const FILE_ID     = 'id';
     public const FILE_SELFIE = 'selfie';
@@ -88,6 +92,11 @@ class IdentityVerification extends Model
     public function isApproved(): bool
     {
         return $this->status === self::STATUS_APPROVED;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === self::STATUS_EXPIRED;
     }
 
     /** True while the ID or selfie file is still stored. */

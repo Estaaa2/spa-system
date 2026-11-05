@@ -3,7 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $approved ? 'Your identity is verified' : 'Your identity verification was not approved' }}</title>
+    @php
+        $expired = $expired ?? false;
+        $heading = $approved
+            ? 'Your identity is verified'
+            : ($expired ? 'Your verification request was closed' : 'Your identity verification was not approved');
+    @endphp
+    <title>{{ $heading }}</title>
 </head>
 <body style="font-family: Arial, sans-serif; background-color: #f4f4f5; padding: 24px; margin: 0;">
 
@@ -17,7 +23,7 @@
 
         <div style="padding: 24px;">
             <h2 style="font-size: 18px; color: #1f2937; margin-top: 0;">
-                {{ $approved ? 'Your identity is verified' : 'Your identity verification was not approved' }}
+                {{ $heading }}
             </h2>
 
             <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
@@ -29,6 +35,11 @@
                     A Levictas admin checked your profile photo, ID and selfie, and approved them.
                     You can now be assigned online home-service bookings. Customers who book home service with you
                     will see your profile photo, your name and a verified badge, so they can recognise you when you arrive.
+                </p>
+            @elseif ($expired)
+                <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
+                    Your request wasn't reviewed within {{ $maxDays }} days, so we closed it instead of keeping your ID longer than needed.
+                    Nothing is wrong with your request. You can submit again from your profile page.
                 </p>
             @else
                 <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">

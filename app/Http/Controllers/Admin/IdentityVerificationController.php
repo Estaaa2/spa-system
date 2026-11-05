@@ -34,7 +34,7 @@ class IdentityVerificationController extends Controller
         'pending'  => [IdentityVerification::STATUS_PENDING],
         'approved' => [IdentityVerification::STATUS_APPROVED],
         'rejected' => [IdentityVerification::STATUS_REJECTED],
-        'closed'   => [IdentityVerification::STATUS_WITHDRAWN, IdentityVerification::STATUS_SUPERSEDED],
+        'closed'   => [IdentityVerification::STATUS_WITHDRAWN, IdentityVerification::STATUS_SUPERSEDED, IdentityVerification::STATUS_EXPIRED],
     ];
 
     /** Common reasons the reviewer can insert with one tap, then edit. */

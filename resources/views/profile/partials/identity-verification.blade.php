@@ -108,6 +108,12 @@
                     <i class="mt-0.5 fa-solid fa-id-card text-gray-500 dark:text-gray-400" aria-hidden="true"></i>
                     <div>
                         <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Not verified yet</p>
+                        @if ($latest?->isExpired())
+                            <p class="mt-0.5 text-sm text-gray-600 dark:text-gray-400">
+                                Your request from {{ $date($latest->submitted_at) }} wasn't reviewed within {{ (int) config('identity.pending_max_days', 30) }} days,
+                                so it was closed and your ID and selfie were deleted. You can submit again below.
+                            </p>
+                        @endif
                         <p class="mt-0.5 text-sm text-gray-600 dark:text-gray-400">
                             You can still work in-branch and take walk-in and staff-made bookings. Online home-service bookings are only given to verified staff,
                             so customers can check who arrives at their door.

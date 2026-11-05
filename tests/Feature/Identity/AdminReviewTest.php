@@ -212,10 +212,20 @@ class AdminReviewTest extends TestCase
         $this->assertFalse($pia->fresh()->isIdentityVerified());
     }
 
-    public function test_deleted_account_can_be_rejected_but_not_approved(): void
+    /**
+     * Changed in OCR & verification Phase 3 (G2, answer Q17 A): deleting the
+     * account now closes the pending request and deletes its files right away,
+     * instead of leaving them until an admin rejects it.
+     */
+    public function test_deleted_account_request_is_closed_and_cannot_be_decided(): void
     {
         $row = $this->pendingOf('idv.pia@levictas.test');
         $row->user->delete();   // soft delete, as Registered Users does
+
+        $row->refresh();
+        $this->assertSame(IdentityVerification::STATUS_SUPERSEDED, $row->status);
+        $this->assertSame(IdentityVerification::SUPERSEDED_ACCOUNT_DELETED, $row->superseded_reason);
+        $this->assertFalse($row->hasFiles());
 
         $this->actingAs($this->admin)->get(route('admin.identity-verifications.show', $row))
             ->assertOk()->assertSee('This account was deleted');
@@ -223,12 +233,12 @@ class AdminReviewTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.identity-verifications.approve', $row), ['checks' => self::ALL_CHECKS])
             ->assertSessionHas('error');
-        $this->assertTrue($row->fresh()->isPending());
 
         $this->actingAs($this->admin)
             ->post(route('admin.identity-verifications.reject', $row), ['rejection_reason' => 'Account was deleted.'])
-            ->assertRedirect(route('admin.identity-verifications.index'));
-        $this->assertFalse($row->fresh()->hasFiles());
+            ->assertSessionHas('error');
+
+        $this->assertSame(IdentityVerification::STATUS_SUPERSEDED, $row->fresh()->status);
         Mail::assertNothingSent();
     }
 

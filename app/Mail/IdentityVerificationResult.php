@@ -24,9 +24,11 @@ class IdentityVerificationResult extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: $this->verification->isApproved()
-                ? 'Levictas: Your identity is verified'
-                : 'Levictas: Your identity verification was not approved',
+            subject: match (true) {
+                $this->verification->isApproved() => 'Levictas: Your identity is verified',
+                $this->verification->isExpired()  => 'Levictas: Your identity verification request was closed',
+                default                           => 'Levictas: Your identity verification was not approved',
+            },
         );
     }
 
@@ -39,6 +41,8 @@ class IdentityVerificationResult extends Mailable
             with: [
                 'firstName' => $this->verification->user?->first_name ?: 'there',
                 'approved'  => $approved,
+                'expired'   => $this->verification->isExpired(),
+                'maxDays'   => (int) config('identity.pending_max_days', 30),
                 'reason'    => $approved ? null : $this->verification->rejection_reason,
                 'url'       => route('profile.edit').'#identity',
             ],

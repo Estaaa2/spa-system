@@ -31,7 +31,7 @@ return [
      * whenever the notice text changes, so each submission records which
      * notice was shown.
      */
-    'consent_version' => '2026-10-28',
+    'consent_version' => '2026-11-06',
 
     /*
      * Where staff send questions or requests about their verification data
@@ -78,5 +78,13 @@ return [
      * data) are deleted by identity:purge once they are at least this old.
      */
     'orphan_grace_minutes' => 60,
+
+    /*
+     * A request nobody has reviewed within this many days is closed by the
+     * nightly identity:purge ("expired"), its ID and selfie are deleted and
+     * the staff member is emailed to submit again (RA 10173 Sec. 11(e):
+     * keep personal data only as long as necessary).
+     */
+    'pending_max_days' => (int) env('IDENTITY_PENDING_MAX_DAYS', 30),
 
 ];

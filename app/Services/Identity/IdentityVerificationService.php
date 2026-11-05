@@ -64,6 +64,9 @@ class IdentityVerificationService
             IdentityVerification::STATUS_REJECTED => self::STATE_REJECTED,
             IdentityVerification::STATUS_WITHDRAWN => self::STATE_WITHDRAWN,
             IdentityVerification::STATUS_SUPERSEDED => self::STATE_NEEDS_REVERIFICATION,
+            // Never reviewed and closed: start over. Kept as "not_started" so the
+            // mobile app's list of states does not change; `latest.status` says why.
+            IdentityVerification::STATUS_EXPIRED => self::STATE_NOT_STARTED,
             // Approved row but the user flag is off: treat as needing a new review.
             default => self::STATE_NEEDS_REVERIFICATION,
         };
@@ -358,6 +361,70 @@ class IdentityVerificationService
             $user->refresh();
 
             return $row;
+        });
+    }
+
+    // ── Retention (RA 10173 Sec. 11(e)) ─────────────────────────────────────
+
+    /**
+     * Pending requests older than config('identity.pending_max_days').
+     *
+     * @return \Illuminate\Support\Collection<int, IdentityVerification>
+     */
+    public function stalePending()
+    {
+        return IdentityVerification::query()
+            ->pending()
+            ->where('submitted_at', '<', now()->subDays(max(1, (int) config('identity.pending_max_days', 30))))
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Closes one unreviewed request as "expired" and deletes its files.
+     * Returns false when it was decided in the meantime.
+     */
+    public function expire(IdentityVerification $verification): bool
+    {
+        return DB::transaction(function () use ($verification) {
+            $row = IdentityVerification::whereKey($verification->id)->lockForUpdate()->first();
+
+            if (! $row || ! $row->isPending()) {
+                return false;
+            }
+
+            $row->forceFill(['status' => IdentityVerification::STATUS_EXPIRED])->save();
+            $this->purgeFiles($row);
+
+            Log::info('Identity verification expired without review.', [
+                'verification_id' => $row->id,
+                'user_id'         => $row->user_id,
+            ]);
+
+            $verification->setRawAttributes($row->getAttributes(), true);
+
+            return true;
+        });
+    }
+
+    /**
+     * Called when an account is deleted: a pending request (and any approval)
+     * is closed and its ID and selfie deleted right away. Returns the number
+     * of rows closed.
+     */
+    public function closeForDeletedAccount(User $user): int
+    {
+        return DB::transaction(function () use ($user) {
+            $open = IdentityVerification::query()
+                ->where('user_id', $user->id)
+                ->whereIn('status', [IdentityVerification::STATUS_PENDING, IdentityVerification::STATUS_APPROVED])
+                ->count();
+
+            if ($open > 0) {
+                $this->supersedeOpenRows($user, IdentityVerification::SUPERSEDED_ACCOUNT_DELETED);
+            }
+
+            return $open;
         });
     }
 
