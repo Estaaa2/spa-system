@@ -297,6 +297,8 @@ Route::middleware([
         Route::put('/appointments/{booking}/status', [BookingController::class, 'updateStatus'])->name('appointments.updateStatus');
         // Staff checkout: the only way a booking completes (booking lifecycle fix, D1).
         Route::put('/appointments/{booking}/checkout', [BookingController::class, 'checkout'])->name('appointments.checkout');
+        // Who did an overdue session that had no therapist (booking lifecycle fix, Phase 2, Q5-A).
+        Route::put('/appointments/{booking}/therapist', [BookingController::class, 'assignTherapist'])->name('appointments.assignTherapist');
         Route::put('/appointments/{booking}', [BookingController::class, 'update'])->name('appointments.update');
     });
 

@@ -34,7 +34,9 @@ class BookingNotifier
             || $booking->booking_source !== 'online'
             || blank($booking->customer_email)
             || ! in_array($booking->status, Booking::ACTIVE_STATUSES, true)
-            || $booking->appointment_date?->isBefore(today())) {
+            || $booking->appointment_date?->isBefore(today())
+            // An ended booking (assigning who did an overdue session) emails nobody.
+            || ($booking->endsAt()?->isPast() ?? false)) {
             return;
         }
 

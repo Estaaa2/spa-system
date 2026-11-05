@@ -14,7 +14,9 @@ use Illuminate\Validation\ValidationException;
  *
  * The customer sees a 4-digit code. On arrival, the therapist asks for it and
  * enters it. A correct code records the arrival time; it does NOT change the
- * booking status (that stays clock-driven, Q6). Five wrong codes lock it; then
+ * booking status (staff Start / checkout do that). Branch staff can also
+ * confirm by hand after the day (overdue bookings, booking lifecycle fix D4);
+ * the time stored is when it was confirmed, shown as "Confirmed late" (Q6-B). Five wrong codes lock it; then
  * someone at the branch with "edit appointments" (not the therapist) confirms
  * by hand with a reason (Q42a). Every outcome is logged, never the code itself.
  *
@@ -84,6 +86,7 @@ class ArrivalService
         return [
             'required'       => true,
             'confirmed_at'   => $booking->arrival_confirmed_at?->toIso8601String(),
+            'confirmed_late' => $booking->arrivalConfirmedLate(),   // added in booking lifecycle Phase 2
             'method'         => $booking->arrival_method,
             'can_enter_code' => ! $booking->isArrivalConfirmed()
                 && ! $locked
@@ -162,7 +165,10 @@ class ArrivalService
         return DB::transaction(function () use ($booking, $staff, $reason) {
             $row = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
 
-            $this->assertCanConfirm($row);
+            // Branch staff may confirm after the day too, so an overdue home visit
+            // can still be checked out (booking lifecycle fix D4). The therapist's
+            // code stays same-day only.
+            $this->assertCanConfirm($row, manual: true);
 
             if ((int) $row->therapist_id === (int) $staff->id) {
                 throw ValidationException::withMessages(['arrival_reason' => 'Someone else at the branch must confirm your own arrival.']);
@@ -181,13 +187,19 @@ class ArrivalService
         });
     }
 
-    private function assertCanConfirm(Booking $row): void
+    private function assertCanConfirm(Booking $row, bool $manual = false): void
     {
+        $dateOk = $manual
+            ? $row->appointment_date !== null && ! $row->appointment_date->isFuture()
+            : (bool) $row->appointment_date?->isToday();
+
         $problem = match (true) {
             ! $row->requiresArrivalCode()                                       => 'Only online home-service bookings use an arrival code.',
             $row->isArrivalConfirmed()                                          => 'Arrival was already confirmed.',
             ! in_array($row->status, Booking::ACTIVE_STATUSES, true)            => 'This booking is '.$row->status.'.',
-            ! $row->appointment_date?->isToday()                                => 'Arrival can only be confirmed on the day of the appointment.',
+            ! $dateOk                                                           => $manual
+                ? 'Arrival can only be confirmed on or after the day of the appointment.'
+                : 'Arrival can only be confirmed on the day of the appointment.',
             $row->therapist_id === null                                         => 'Assign a therapist first.',
             default                                                             => null,
         };

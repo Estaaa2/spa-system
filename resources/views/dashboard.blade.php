@@ -924,6 +924,7 @@
         $overloaded      = $overbookedTherapists  ?? 0;
         $pendingLeave    = $pendingLeaveRequests  ?? 0;
         $pendingReassign = $pendingReassignments  ?? 0;
+        $toCheckout      = $needsCheckout         ?? 0;
 
         $alertCardBase     = 'flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:opacity-80 transition-opacity';
         $alertIconWrapBase = 'flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0';
@@ -957,6 +958,10 @@
              'href'=>route('appointments.index'),'count'=>$late,
              'singular'=>'Late Check-in','plural'=>'Late Check-ins',
              'activeSub'=>'Pending past their start time','idleSub'=>'All on time'],
+            ['key'=>'needs-checkout','field'=>'needs_checkout','tone'=>'amber','icon'=>'fa-cash-register',
+             'href'=>route('appointments.index').'#needs-checkout','count'=>$toCheckout,
+             'singular'=>'Needs Checkout','plural'=>'Need Checkout',
+             'activeSub'=>'Ended but never closed','idleSub'=>'All appointments closed'],
             ['key'=>'noshow','field'=>'no_shows','tone'=>'red','icon'=>'fa-user-xmark',
              'href'=>route('appointments.index'),'count'=>$cancelled,
              'singular'=>'No-show Today','plural'=>'No-shows Today',

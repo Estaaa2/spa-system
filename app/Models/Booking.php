@@ -156,6 +156,86 @@ class Booking extends Model
         return $this->arrival_confirmed_at !== null;
     }
 
+    /** When the appointment ends, in app time. Null when the date or time is missing. */
+    public function endsAt(): ?Carbon
+    {
+        if (! $this->appointment_date || blank($this->end_time)) {
+            return null;
+        }
+
+        return Carbon::parse($this->appointment_date->toDateString().' '.$this->end_time);
+    }
+
+    /**
+     * Still open after its end time: nobody checked it out, marked a no-show or
+     * cancelled it (booking lifecycle fix D3). Derived, not a stored status.
+     */
+    public function isOverdue(): bool
+    {
+        $end = $this->endsAt();
+
+        return in_array($this->status, self::ACTIVE_STATUSES, true)
+            && $end !== null && now()->gte($end);
+    }
+
+    /** Same rule as isOverdue(), as a query (portable between MySQL and SQLite). */
+    public function scopeOverdue($query)
+    {
+        $now = now();
+
+        return $query
+            ->whereIn('status', self::ACTIVE_STATUSES)
+            ->whereNotNull('end_time')
+            ->where(function ($q) use ($now) {
+                $q->whereDate('appointment_date', '<', $now->toDateString())
+                    ->orWhere(function ($q2) use ($now) {
+                        $q2->whereDate('appointment_date', $now->toDateString())
+                            ->where('end_time', '<=', $now->format('H:i:s'));
+                    });
+            });
+    }
+
+    /** Not past its end time yet (the opposite time test of scopeOverdue). */
+    public function scopeNotEnded($query)
+    {
+        $now = now();
+
+        return $query->where(function ($q) use ($now) {
+            $q->whereDate('appointment_date', '>', $now->toDateString())
+                ->orWhere(function ($q2) use ($now) {
+                    $q2->whereDate('appointment_date', $now->toDateString())
+                        ->where('end_time', '>', $now->format('H:i:s'));
+                });
+        });
+    }
+
+    /**
+     * Why staff can't check this booking out yet, or null when they can.
+     * Q5-A: a therapist must be credited. D4: an online home visit needs its
+     * arrival confirmed (by code, or by hand with a reason) first.
+     */
+    public function checkoutBlocker(): ?string
+    {
+        if ($this->therapist_id === null) {
+            return 'Assign a therapist first.';
+        }
+
+        if ($this->requiresArrivalCode() && ! $this->isArrivalConfirmed()) {
+            return "Confirm the therapist's arrival first.";
+        }
+
+        return null;
+    }
+
+    /** Arrival recorded after the appointment ended (Q6-B: shown as "Confirmed late"). */
+    public function arrivalConfirmedLate(): bool
+    {
+        $end = $this->endsAt();
+
+        return $this->arrival_confirmed_at !== null && $end !== null
+            && $this->arrival_confirmed_at->gt($end);
+    }
+
     /** When the appointment starts, in app time. Null when the date or time is missing. */
     public function startsAt(): ?Carbon
     {

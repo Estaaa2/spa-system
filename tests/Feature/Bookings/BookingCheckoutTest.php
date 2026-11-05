@@ -28,7 +28,7 @@ use Tests\TestCase;
  * shortfalls never block checkout (D7, Q6-A/Q7-A).
  *
  * Booking A from HomeVisitTestSeeder: today 2026-10-30 at 10:00, online,
- * home service, 20% deposit paid (seeded at 09:20).
+ * home service, 20% deposit paid (seeded at 09:20), arrival confirmed in setUp.
  */
 class BookingCheckoutTest extends TestCase
 {
@@ -53,6 +53,15 @@ class BookingCheckoutTest extends TestCase
         $customer = User::where('email', HomeVisitTestSeeder::CUSTOMER_EMAIL)->firstOrFail();
         $this->booking = Booking::where('customer_user_id', $customer->id)
             ->orderBy('appointment_date')->orderBy('start_time')->firstOrFail();
+
+        // Booking A is an online home visit: since Phase 2 its arrival must be
+        // confirmed before checkout (D4). These Phase 1 tests start from "arrived";
+        // NeedsCheckoutTest covers the unconfirmed case.
+        $this->booking->forceFill([
+            'arrival_confirmed_at' => '2026-10-30 10:05:00',
+            'arrival_confirmed_by' => $this->booking->therapist_id,
+            'arrival_method'       => 'code',
+        ])->saveQuietly();
     }
 
     protected function tearDown(): void

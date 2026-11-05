@@ -112,6 +112,7 @@ class DashboardController extends Controller
 
         // ── Alert metrics ─────────────────────────────────────────────────
         $lateAppointments = $noShows = $overbookedTherapists = $pendingLeaveRequests = $pendingReassignments = null;
+        $needsCheckout = null;
 
         if ($user->hasBranchPermission('view dashboard alerts')) {
             $lateAppointments = $todayBase()
@@ -122,6 +123,9 @@ class DashboardController extends Controller
             // Real no-shows only (UI rework Phase 3, decision 3A). Cancellations
             // keep their own count in the KPI cards and the status split.
             $noShows = $todayBase()->where('status', Booking::NO_SHOW)->count();
+
+            // Ended but never closed, any date (booking lifecycle fix, Phase 2, Q4-A).
+            $needsCheckout = $base()->overdue()->count();
 
             $therapistIds = User::treatmentProviders()
                 ->whereHas('staff', fn($q) => $q
@@ -257,6 +261,7 @@ class DashboardController extends Controller
         }
 
         return view('dashboard', compact(
+            'needsCheckout',
             'todayCount', 'ongoingToday', 'pendingToday', 'reservedToday',
             'completedToday', 'cancelledToday', 'noShowToday', 'upcomingWeek',
             'collectedToday', 'onlineToday', 'walkInToday', 'topServiceLabel',
@@ -359,6 +364,7 @@ class DashboardController extends Controller
             $payload['alerts'] = [
                 'late_appointments'    => $todayBase()->where('status', 'pending')->whereTime('start_time', '<', now()->format('H:i:s'))->count(),
                 'no_shows'             => $todayBase()->where('status', Booking::NO_SHOW)->count(),
+                'needs_checkout'       => $base()->overdue()->count(),
                 'overbooked_therapists'=> (int) $todayBase()
                     ->whereIn('therapist_id', $therapistIds)
                     ->whereNotIn('status', ['cancelled', Booking::NO_SHOW])

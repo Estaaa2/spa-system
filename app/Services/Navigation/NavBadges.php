@@ -99,7 +99,8 @@ final class NavBadges
                 ->where('branch_id', $branchId)
                 ->whereNull('therapist_id')
                 ->whereIn('status', ['reserved', 'pending'])
-                ->whereDate('appointment_date', '>=', today());
+                ->whereDate('appointment_date', '>=', today())
+                ->notEnded();   // an ended one is counted under "to check out" instead
 
             $unassignedCount = (clone $unassigned)->count();
             $startingToday   = (clone $unassigned)->whereDate('appointment_date', today())->count();
@@ -109,13 +110,25 @@ final class NavBadges
                 ->pending()
                 ->count();
 
-            $total = $unassignedCount + $reassignments;
+            // Needs Checkout list: still open after the end time (booking lifecycle
+            // fix, Phase 2, D3). Same query as BookingController::adminIndex.
+            $overdue = Booking::query()
+                ->where('spa_id', $spaId)
+                ->where('branch_id', $branchId)
+                ->overdue();
+
+            $overdueCount   = (clone $overdue)->count();
+            $overdueEarlier = (clone $overdue)->whereDate('appointment_date', '<', today())->count();
+
+            $total = $unassignedCount + $reassignments + $overdueCount;
             $parts = array_filter([
+                $overdueCount ? "$overdueCount to check out".($overdueEarlier ? " ($overdueEarlier from earlier days)" : '') : null,
                 $unassignedCount ? "$unassignedCount unassigned".($startingToday ? " ($startingToday starting today)" : '') : null,
                 $reassignments ? "$reassignments reassignment ".($reassignments === 1 ? 'request' : 'requests') : null,
             ]);
-            // "!" only for an unassigned booking that starts today (answer P14).
-            self::put($out, 'appointments', $total, implode(', ', $parts), $startingToday > 0);
+            // "!" for an unassigned booking that starts today (answer P14), or a booking
+            // nobody closed from an earlier day (lifecycle Phase 2, Q3-A).
+            self::put($out, 'appointments', $total, implode(', ', $parts), $startingToday > 0 || $overdueEarlier > 0);
 
             // Schedule page: reschedule requests are reviewed there.
             // Counted per booking, like the "Reschedule Requests" list above the calendar

@@ -317,11 +317,10 @@ class BookingController extends Controller
             return $booking;
         });
 
+        // Finished bookings only. A past booking nobody closed is still open and
+        // is listed under "Needs checkout" instead (booking lifecycle fix, Phase 2).
         $historyAppointments = (clone $baseQuery)
-            ->where(function ($query) use ($today) {
-                $query->whereIn('status', Booking::FINISHED_STATUSES)
-                    ->orWhereDate('appointment_date', '<', $today);
-            })
+            ->whereIn('status', Booking::FINISHED_STATUSES)
             ->orderBy('appointment_date', 'desc')
             ->orderBy('start_time', 'desc')
             ->paginate(5, ['*'], 'history_page');
@@ -361,7 +360,8 @@ class BookingController extends Controller
                 ->when($currentBranchId, fn ($q) => $q->where('branch_id', $currentBranchId))
                 ->whereNull('therapist_id')
                 ->whereIn('status', ['reserved', 'pending'])
-                ->whereDate('appointment_date', '>=', $today);
+                ->whereDate('appointment_date', '>=', $today)
+                ->notEnded();   // ended ones are under Needs checkout (Phase 2)
 
             // The list stays capped at 20, but the count is the true total, so it
             // matches the sidebar badge (sidebar & RBAC rework Phase 4, answer P13).
@@ -375,7 +375,31 @@ class BookingController extends Controller
                 ->map(fn ($booking) => $this->decorateBooking($booking));
         }
 
+        // Needs checkout (booking lifecycle fix, Phase 2, D3/Q1-A): every booking
+        // still open after its end time, any date, oldest first. Staff only.
+        $needsCheckout = collect();
+        $assignableTherapists = collect();
+
+        if ($user->hasBranchPermission('edit appointments') && $currentBranchId) {
+            $needsCheckout = Booking::query()
+                ->where('spa_id', $user->spa_id)
+                ->where('branch_id', $currentBranchId)
+                ->overdue()
+                ->with('therapist', 'arrivalConfirmedBy')
+                ->orderBy('appointment_date')
+                ->orderBy('start_time')
+                ->limit(50)
+                ->get()
+                ->map(fn ($booking) => $this->decorateBooking($booking));
+
+            if ($needsCheckout->contains(fn ($b) => $b->therapist_id === null)) {
+                $assignableTherapists = $this->getBranchTherapists((int) $user->spa_id, (int) $currentBranchId);
+            }
+        }
+
         return view('appointments', compact(
+            'needsCheckout',
+            'assignableTherapists',
             'todayAppointments',
             'todayPending',
             'upcomingAppointments',
@@ -655,6 +679,12 @@ class BookingController extends Controller
             return back()->with('error', 'An appointment can only be checked out once it has started.');
         }
 
+        // Q5-A / D4: a therapist must be credited, and an online home visit
+        // needs its arrival confirmed first. The Needs checkout list shows the step.
+        if ($blocker = $booking->checkoutBlocker()) {
+            return back()->with('error', $blocker);
+        }
+
         $payment = $this->paymentAfter($booking, (float) ($validated['amount_paid'] ?? 0));
 
         if ($payment['error']) {
@@ -692,6 +722,41 @@ class BookingController extends Controller
         }
 
         return back()->with('success', 'Checked out. The appointment is completed.');
+    }
+
+    /**
+     * Record who did an overdue session that had no therapist, so checkout can
+     * credit them (booking lifecycle fix, Phase 2, Q5-A). The Edit modal can't
+     * do this: it only accepts today or later. No availability check — the
+     * session already happened — and no customer email (BookingNotifier skips
+     * ended bookings).
+     */
+    public function assignTherapist(Request $request, Booking $booking)
+    {
+        $this->ensureCurrentBranchBooking($booking);
+
+        $validated = $request->validate([
+            'therapist_id' => ['required', 'integer'],
+        ]);
+
+        if (! $booking->isOverdue()) {
+            return back()->with('error', 'Use Edit to assign a therapist to an appointment that has not ended yet.');
+        }
+
+        if ($booking->therapist_id !== null) {
+            return back()->with('error', 'This appointment already has a therapist.');
+        }
+
+        $eligible = $this->getBranchTherapists((int) $booking->spa_id, (int) $booking->branch_id)
+            ->pluck('id')->map(fn ($id) => (int) $id);
+
+        if (! $eligible->contains((int) $validated['therapist_id'])) {
+            return back()->withErrors(['therapist_id' => 'Pick a therapist who works at this branch.']);
+        }
+
+        $booking->update(['therapist_id' => (int) $validated['therapist_id']]);
+
+        return back()->with('success', 'Therapist recorded. You can check this appointment out now.');
     }
 
     /**
@@ -848,6 +913,9 @@ class BookingController extends Controller
         $booking->resolved_amount_paid = $resolvedPaid;
         $booking->resolved_balance_amount = max($resolvedTotal - $resolvedPaid, 0);
 
+        // Why Check out isn't offered yet (Phase 2: therapist / arrival), or null.
+        $booking->checkout_block = $booking->checkoutBlocker();
+
         return $booking;
     }
 
@@ -987,6 +1055,7 @@ class BookingController extends Controller
             'resolved_total_amount'   => $b->resolved_total_amount   ?? 0,
             'resolved_amount_paid'    => $b->resolved_amount_paid    ?? 0,
             'resolved_balance_amount' => $b->resolved_balance_amount ?? 0,
+            'checkout_block'          => $b->checkout_block,
             'has_pending_reassignment' => $b->has_pending_reassignment ?? false,
         ];
     }

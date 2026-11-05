@@ -24,7 +24,13 @@
                 ? 'confirmed by ' . ($b->arrivalConfirmedBy?->first_name ?? 'the branch')
                 : 'code entered';
 
-            return ['Arrived ' . $b->arrival_confirmed_at->format('g:i A') . ' (' . $how . ')', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'];
+            // Q6-B: a hand confirmation after the appointment ended is labelled late,
+            // because the time stored is when it was confirmed, not the arrival.
+            $when = $b->arrivalConfirmedLate()
+                ? 'Arrival confirmed late, ' . $b->arrival_confirmed_at->format('M d, g:i A')
+                : 'Arrived ' . $b->arrival_confirmed_at->format('g:i A');
+
+            return [$when . ' (' . $how . ')', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'];
         }
 
         if ($b->arrival_locked_at) {
@@ -38,6 +44,11 @@
         return ['Not arrived yet', 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'];
     };
 @endphp
+
+{{-- The arrival modals below also serve the "Needs Checkout" list on Appointments
+     (booking lifecycle fix, Phase 2, D4), so they render for staff who can edit
+     appointments even on a day with no visits. --}}
+@php $renderArrivalModals = $myVisits->isNotEmpty() || $branchVisits->isNotEmpty() || ($visitUser?->hasBranchPermission('edit appointments') ?? false); @endphp
 
 @if ($myVisits->isNotEmpty() || $branchVisits->isNotEmpty())
 <div id="home-visits" class="overflow-hidden bg-white border border-gray-200 shadow-sm scroll-mt-6 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
@@ -153,6 +164,9 @@
     @endif
 </div>
 
+@endif
+
+@if ($renderArrivalModals)
 {{-- ═══ Enter arrival code ═══ --}}
 <div id="arrivalCodeModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/50">
     <div class="flex items-start justify-center min-h-full p-4 sm:items-center">

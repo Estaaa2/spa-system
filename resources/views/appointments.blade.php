@@ -188,6 +188,7 @@
                                             data-paid="{{ $booking->resolved_amount_paid }}"
                                             data-due="{{ $booking->resolved_balance_amount }}"
                                             data-status="{{ $booking->status }}"
+                                            data-checkout-block="{{ $booking->checkout_block }}"
                                             class="{{ $btn['process'] }}">
                                         <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
                                     </button>
@@ -201,6 +202,117 @@
             </div>
         </div>
     </div>
+
+    {{-- ── Needs checkout (booking lifecycle fix, Phase 2, D3/Q1-A) ──
+         Open bookings past their end time, any date, oldest first. Nothing
+         completes by itself: staff check out, mark a no-show, or cancel. A
+         missing therapist (Q5-A) or unconfirmed home-visit arrival (D4) is shown
+         as the step to do first. Same card pattern as "No Therapist Assigned". --}}
+    @if($canEdit && ($needsCheckout ?? collect())->isNotEmpty())
+        @php $arrivalErrorBag = $errors->arrival; @endphp
+        <div id="needs-checkout" class="overflow-hidden bg-white border shadow-sm scroll-mt-6 border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
+            <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-4 border-b sm:px-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                <div>
+                    <h2 class="text-base font-semibold text-amber-900 dark:text-amber-200">Needs Checkout</h2>
+                    <p class="text-sm text-amber-700 dark:text-amber-300">
+                        These appointments have ended but were never closed. Check each one out to record the payment and deduct its products, or mark it as a no-show or cancelled.
+                    </p>
+                </div>
+                <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    {{ $needsCheckout->count() }} to close
+                </span>
+            </div>
+
+            @if ($arrivalErrorBag && $arrivalErrorBag->any())
+                <div class="px-4 pt-4 sm:px-6">
+                    <p class="p-3 text-sm text-red-700 border border-red-200 bg-red-50 rounded-xl dark:bg-red-900/10 dark:border-red-800 dark:text-red-300" role="alert">
+                        {{ $arrivalErrorBag->first() }}
+                    </p>
+                </div>
+            @endif
+
+            <ul role="list" class="divide-y divide-gray-200 dark:divide-gray-700">
+                @foreach($needsCheckout as $booking)
+                    @php
+                        $needsTherapist = $booking->therapist_id === null;
+                        $needsArrival   = ! $needsTherapist && $booking->requiresArrivalCode() && ! $booking->isArrivalConfirmed();
+                        $endedAt        = $booking->endsAt();
+                        $fromEarlierDay = $booking->appointment_date?->lt(today());
+                    @endphp
+                    <li class="flex flex-col gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="text-sm">
+                            <p class="font-medium text-gray-900 dark:text-white">{{ $booking->customer_name ?? 'Walk-in Customer' }} · {{ $booking->treatment_label }}</p>
+                            <p class="text-gray-500 dark:text-gray-400">
+                                {{ $booking->appointment_date?->format('M d, Y') }},
+                                {{ \Carbon\Carbon::parse($booking->start_time)->format('h:i A') }} – {{ \Carbon\Carbon::parse($booking->end_time)->format('h:i A') }}
+                                · {{ $booking->service_type_label }}
+                                · {{ $booking->therapist ? trim($booking->therapist->first_name . ' ' . $booking->therapist->last_name) : 'No therapist' }}
+                            </p>
+                            <p class="text-gray-500 dark:text-gray-400">
+                                Paid ₱{{ number_format($booking->resolved_amount_paid, 2) }}
+                                · <span class="text-amber-700 dark:text-amber-300">Remaining ₱{{ number_format($booking->resolved_balance_amount, 2) }}</span>
+                            </p>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full {{ $statusClasses[$booking->status] ?? $statusFallback }}">
+                                    {{ \App\Models\Booking::statusLabel($booking->status) }}
+                                </span>
+                                <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full {{ $fromEarlierDay ? 'text-red-700 bg-red-100 dark:bg-red-900/40 dark:text-red-300' : 'text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300' }}">
+                                    Ended {{ $endedAt?->diffForHumans() }}
+                                </span>
+                                @if($needsTherapist)
+                                    <span class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full dark:bg-red-900/40 dark:text-red-300">No therapist recorded</span>
+                                @elseif($needsArrival)
+                                    <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300">Arrival not confirmed</span>
+                                @elseif($booking->arrivalConfirmedLate())
+                                    <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full text-emerald-800 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                          title="{{ $booking->arrival_manual_reason }}">
+                                        Arrival confirmed late · {{ $booking->arrival_confirmed_at->format('M d, g:i A') }}
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 shrink-0">
+                            @if($needsTherapist && ($assignableTherapists ?? collect())->isEmpty())
+                                <span class="inline-flex items-center px-3 py-2 text-xs font-medium text-red-700 bg-red-100 rounded-xl dark:bg-red-900/40 dark:text-red-300">
+                                    No active therapist at this branch to assign
+                                </span>
+                            @elseif($needsTherapist)
+                                <button type="button"
+                                        onclick="openAssignTherapistModal(this)"
+                                        data-id="{{ $booking->id }}"
+                                        data-customer="{{ $booking->customer_name }}"
+                                        class="{{ $btn['reassign'] }}">
+                                    <i class="fa-solid fa-user-plus" aria-hidden="true"></i>Assign therapist
+                                </button>
+                            @elseif($needsArrival)
+                                <button type="button"
+                                        data-arrival-open="manual"
+                                        data-action="{{ route('appointments.arrival.manual', $booking) }}"
+                                        data-customer="{{ $booking->customer_name }}"
+                                        class="{{ $btn['reassign'] }}">
+                                    <i class="fa-solid fa-user-check" aria-hidden="true"></i>Confirm arrival
+                                </button>
+                            @endif
+                            <button type="button"
+                                    onclick="openProcessModal(this)"
+                                    data-id="{{ $booking->id }}"
+                                    data-customer="{{ $booking->customer_name }}"
+                                    data-treatment="{{ $booking->treatment_label }}"
+                                    data-source="{{ $booking->booking_source }}"
+                                    data-total="{{ $booking->resolved_total_amount }}"
+                                    data-paid="{{ $booking->resolved_amount_paid }}"
+                                    data-due="{{ $booking->resolved_balance_amount }}"
+                                    data-status="{{ $booking->status }}"
+                                    data-checkout-block="{{ $booking->checkout_block }}"
+                                    class="{{ $btn['process'] }}">
+                                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
+                            </button>
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     {{-- ── Paid online bookings with no therapist yet (staff verification, decision Q17) ── --}}
     @if($canEdit && ($unassignedBookings ?? collect())->isNotEmpty())
@@ -243,6 +355,7 @@
                                 data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
                                 data-start-time="{{ $booking->start_time }}"
                                 data-status="{{ $booking->status }}"
+                                            data-checkout-block="{{ $booking->checkout_block }}"
                                 class="{{ $btn['process'] }}">
                             <i class="fa-solid fa-user-plus" aria-hidden="true"></i>Assign therapist
                         </button>
@@ -290,6 +403,7 @@
                         <tr role="row"
                             data-booking-id="{{ $booking->id }}"
                             data-status="{{ $booking->status }}"
+                                            data-checkout-block="{{ $booking->checkout_block }}"
                             class="hover:bg-gray-50 dark:hover:bg-gray-900/40
                                    {{ $booking->status === 'pending' ? 'bg-amber-50/50 dark:bg-amber-900/10' : '' }}">
                             <td role="cell" data-label="Customer" class="px-6 py-4">
@@ -345,6 +459,7 @@
                                                         data-paid="{{ $booking->resolved_amount_paid }}"
                                                         data-due="{{ $booking->resolved_balance_amount }}"
                                                         data-status="{{ $booking->status }}"
+                                            data-checkout-block="{{ $booking->checkout_block }}"
                                                         class="{{ $btn['process'] }}">
                                                     <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
                                                 </button>
@@ -360,6 +475,7 @@
                                                         data-paid="{{ $booking->resolved_amount_paid }}"
                                                         data-due="{{ $booking->resolved_balance_amount }}"
                                                         data-status="{{ $booking->status }}"
+                                            data-checkout-block="{{ $booking->checkout_block }}"
                                                         class="{{ $btn['process'] }}">
                                                     <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
                                                 </button>
@@ -379,6 +495,7 @@
                                                     data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
                                                     data-start-time="{{ $booking->start_time }}"
                                                     data-status="{{ $booking->status }}"
+                                            data-checkout-block="{{ $booking->checkout_block }}"
                                                     class="{{ $btn['edit'] }}">
                                                 <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ $btnLabel['edit'] }}
                                             </button>
@@ -437,6 +554,7 @@
                         <tr role="row"
                             data-booking-id="{{ $booking->id }}"
                             data-status="{{ $booking->status }}"
+                                            data-checkout-block="{{ $booking->checkout_block }}"
                             class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
                             <td role="cell" data-label="Customer" class="px-6 py-4 text-sm text-gray-900 dark:text-white">
                                 {{ $booking->customer_name ?? 'Walk-in Customer' }}
@@ -479,6 +597,7 @@
                                                     data-appointment-date="{{ $booking->appointment_date?->format('Y-m-d') }}"
                                                     data-start-time="{{ $booking->start_time }}"
                                                     data-status="{{ $booking->status }}"
+                                            data-checkout-block="{{ $booking->checkout_block }}"
                                                     class="{{ $btn['edit'] }}">
                                                 <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ $btnLabel['edit'] }}
                                             </button>
@@ -535,7 +654,7 @@
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
         <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">History</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Completed, cancelled, and past records. Past appointments nobody checked out can still be processed.</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Completed, cancelled, and no-show records. Ended appointments nobody closed are under Needs Checkout.</p>
         </div>
         <div class="md:overflow-x-auto">
             <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -575,25 +694,6 @@
                                              {{ $statusClasses[$booking->status] ?? $statusFallback }}">
                                     {{ \App\Models\Booking::statusLabel($booking->status) }}
                                 </span>
-                                {{-- A past booking nobody checked out stays open (booking lifecycle fix, D1),
-                                     so it can still be processed from here until Phase 2's "Needs checkout" list. --}}
-                                @if($canEdit && in_array($booking->status, ['pending', 'ongoing'], true))
-                                    <div class="mt-2">
-                                        <button type="button"
-                                                onclick="openProcessModal(this)"
-                                                data-id="{{ $booking->id }}"
-                                                data-customer="{{ $booking->customer_name }}"
-                                                data-treatment="{{ $booking->treatment_label }}"
-                                                data-source="{{ $booking->booking_source }}"
-                                                data-total="{{ $booking->resolved_total_amount }}"
-                                                data-paid="{{ $booking->resolved_amount_paid }}"
-                                                data-due="{{ $booking->resolved_balance_amount }}"
-                                                data-status="{{ $booking->status }}"
-                                                class="{{ $btn['process'] }}">
-                                            <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
-                                        </button>
-                                    </div>
-                                @endif
                             </td>
                         </tr>
                     @empty
@@ -665,6 +765,11 @@
                     <select id="process_status" name="status"
                             class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></select>
                 </div>
+                {{-- Why Check out isn't offered yet (booking lifecycle fix, Phase 2). --}}
+                <p id="process_block_note" role="status" class="hidden p-3 text-sm rounded-xl text-amber-800 bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:ring-amber-800">
+                    <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                    <span id="process_block_text"></span> Check out appears here once that's done.
+                </p>
                 <p id="process_end_note" class="hidden p-3 text-sm text-gray-700 rounded-xl bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-700/40 dark:text-gray-200 dark:ring-gray-700">
                     <i class="mr-1 fa-solid fa-circle-info text-gray-500 dark:text-gray-400" aria-hidden="true"></i>
                     No payment is collected. Anything already paid stays recorded as it is.
@@ -683,6 +788,54 @@
                     <button type="submit"
                             class="min-h-[44px] rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348]">
                         Save Action
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- ═══════════════════════════════════════════════════
+     ASSIGN THERAPIST MODAL (Needs Checkout, Phase 2, Q5-A)
+     Records who did an overdue session that had no therapist.
+     ═══════════════════════════════════════════════════ --}}
+@if($canEdit && ($assignableTherapists ?? collect())->isNotEmpty())
+<div id="assignTherapistModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="assignTherapistModalTitle"
+             class="w-full max-w-md bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                <div>
+                    <h2 id="assignTherapistModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Who did this session?</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">For <span id="assign_customer"></span>. The therapist you pick is credited for it.</p>
+                </div>
+                <button type="button" onclick="closeAssignTherapistModal()" aria-label="Close dialog"
+                        class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form id="assignTherapistForm" method="POST" class="px-4 py-6 space-y-4 sm:px-6">
+                @csrf
+                @method('PUT')
+                <div>
+                    <label for="assign_therapist_id" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Therapist</label>
+                    <select id="assign_therapist_id" name="therapist_id" required
+                            class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <option value="">Choose a therapist</option>
+                        @foreach($assignableTherapists as $therapist)
+                            <option value="{{ $therapist->id }}">{{ trim($therapist->first_name . ' ' . $therapist->last_name) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                    <button type="button" onclick="closeAssignTherapistModal()"
+                            class="min-h-[44px] px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                        Close
+                    </button>
+                    <button type="submit"
+                            class="min-h-[44px] rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348]">
+                        Save Therapist
                     </button>
                 </div>
             </form>
@@ -896,6 +1049,7 @@
     const ROUTE_UPDATE = @json(route('appointments.update', '__ID__'));
     const ROUTE_STATUS = @json(route('appointments.updateStatus', '__ID__'));
     const ROUTE_CHECKOUT = @json(route('appointments.checkout', '__ID__'));
+    const ROUTE_ASSIGN = @json(route('appointments.assignTherapist', '__ID__'));
     const ROUTE_DELETE = @json(route('appointments.destroy', '__ID__'));
 
     function routeFor(template, id) { return template.replace('__ID__', encodeURIComponent(id)); }
@@ -919,7 +1073,7 @@
     // ════════════════════════════════════════════════════════════════
     // SHARED MODAL BEHAVIOUR (open/close, Escape, focus, backdrop)
     // ════════════════════════════════════════════════════════════════
-    const MODAL_IDS = ['processModal', 'editModal', 'deleteModal'];
+    const MODAL_IDS = ['processModal', 'assignTherapistModal', 'editModal', 'deleteModal'];
     const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
     let isModalOpen  = false;   // pause table rebuilds while a modal is open
@@ -1071,6 +1225,12 @@
             console.warn(`openProcessModal: unexpected status "${currentStatus}", falling back to the pending options.`);
             opts = PROCESS_OPTIONS.pending;
         }
+        // Therapist or arrival still missing: leave Check out out and say why.
+        const block = d.checkoutBlock || '';
+        if (block) opts = opts.filter(o => o.value !== 'checkout');
+        document.getElementById('process_block_text').textContent = block;
+        document.getElementById('process_block_note').classList.toggle('hidden', !block);
+
         statusSelect.innerHTML = '';
         opts.forEach(o => {
             const opt = document.createElement('option');
@@ -1084,6 +1244,18 @@
     }
 
     function closeProcessModal() { closeModal('processModal'); }
+
+    // Needs Checkout: record who did an overdue session with no therapist (Q5-A).
+    function openAssignTherapistModal(btn) {
+        const form = document.getElementById('assignTherapistForm');
+        if (!form) return;
+        document.getElementById('assign_customer').textContent = btn.dataset.customer || 'this customer';
+        document.getElementById('assign_therapist_id').value = '';
+        form.action = routeFor(ROUTE_ASSIGN, btn.dataset.id);
+        openModal('assignTherapistModal', '#assign_therapist_id');
+    }
+
+    function closeAssignTherapistModal() { closeModal('assignTherapistModal'); }
 
     function clearEditErrors() {
         document.querySelectorAll('.edit-field-error').forEach(e => e.remove());
@@ -1260,6 +1432,8 @@
 
     window.openProcessModal  = openProcessModal;
     window.closeProcessModal = closeProcessModal;
+    window.openAssignTherapistModal  = openAssignTherapistModal;
+    window.closeAssignTherapistModal = closeAssignTherapistModal;
     window.openEditModal     = openEditModal;
     window.closeEditModal    = closeEditModal;
     window.togglePhoneEdit   = togglePhoneEdit;
@@ -1414,6 +1588,7 @@
                 data-treatment="${esc(b.treatment_label)}" data-source="${esc(b.booking_source)}"
                 data-total="${b.resolved_total_amount}" data-paid="${b.resolved_amount_paid}"
                 data-due="${b.resolved_balance_amount}" data-status="${b.status}"
+                data-checkout-block="${esc(b.checkout_block || '')}"
                 class="${BTN.process}">
                 <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>${BTN_LABEL.process}
             </button>`;
@@ -1424,6 +1599,7 @@
                 data-treatment="${esc(b.treatment_label)}" data-source="${esc(b.booking_source)}"
                 data-total="${b.resolved_total_amount}" data-paid="${b.resolved_amount_paid}"
                 data-due="${b.resolved_balance_amount}" data-status="${b.status}"
+                data-checkout-block="${esc(b.checkout_block || '')}"
                 class="${BTN.process}">
                 <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>${BTN_LABEL.process}
             </button>`;

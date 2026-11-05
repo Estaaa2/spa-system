@@ -58,13 +58,18 @@ class ArrivalController extends Controller
             404
         );
 
+        // An overdue booking is confirmed from the Needs Checkout list (Phase 2, D4).
+        $anchor = $booking->isOverdue() ? '#needs-checkout' : '#home-visits';
+
         try {
             $this->arrivals->confirmManually($booking, $user, $validated['arrival_reason']);
         } catch (ValidationException $e) {
-            throw $e->errorBag('arrival')->redirectTo(url()->previous().'#home-visits');
+            throw $e->errorBag('arrival')->redirectTo(url()->previous().$anchor);
         }
 
-        return redirect()->to(url()->previous().'#home-visits')
-            ->with('success', 'Arrival confirmed by hand. The reason was recorded.');
+        return redirect()->to(url()->previous().$anchor)
+            ->with('success', $booking->isOverdue()
+                ? 'Arrival confirmed late. The reason was recorded; you can check this appointment out now.'
+                : 'Arrival confirmed by hand. The reason was recorded.');
     }
 }
