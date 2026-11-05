@@ -108,12 +108,12 @@
         </div>
 
         <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Collected Today</p>
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Paid Toward Today</p>
             <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
                 <h3 id="stat-collected" class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">
                     ₱{{ number_format($summary['collected_today'], 2) }}
                 </h3>
-                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Recorded payments</span>
+                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">Any status, incl. deposits</span>
             </div>
         </div>
     </div>

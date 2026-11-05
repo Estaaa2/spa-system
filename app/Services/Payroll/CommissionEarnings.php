@@ -20,9 +20,10 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * COMMISSION lines (locked computation rule):
- *  - bookings.status = 'completed' AND payment_status = 'paid' — 'completed' alone
- *    is set by BookingController::syncAutomaticStatuses() from the end time and does
- *    not prove the service happened;
+ *  - bookings.status = 'completed' AND payment_status = 'paid'. Since the booking
+ *    lifecycle fix (Phase 1), only staff checkout sets 'completed' and it always
+ *    collects the full balance, so the 'paid' check is now a safeguard for older
+ *    rows rather than the main filter;
  *  - appointment_date <= period_end (no lower bound: late-settled bookings are picked
  *    up by the next run);
  *  - no COMMISSION payslip line for the booking in any OTHER run (lines in the run

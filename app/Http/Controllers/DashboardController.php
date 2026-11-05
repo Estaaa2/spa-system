@@ -91,9 +91,11 @@ class DashboardController extends Controller
         $collectedToday = $onlineToday = $walkInToday = $topServiceLabel = null;
 
         if ($user->hasBranchPermission('view dashboard revenue')) {
-            $collectedToday = $todayBase()
-                ->whereIn('status', ['ongoing', 'completed'])
-                ->sum('amount_paid');
+            // Everything paid toward today's appointments, any status (lifecycle
+            // Phase 4, Q5-A). Before, deposits on Pending bookings dropped out until
+            // staff pressed Start. There's no payment ledger, so this is per
+            // appointment date, not "money received today".
+            $collectedToday = $todayBase()->sum('amount_paid');
 
             $onlineToday = $todayBase()->where('booking_source', 'online')->count();
             $walkInToday = $todayBase()
@@ -345,7 +347,7 @@ class DashboardController extends Controller
                 ->first();
 
             $payload['revenue'] = [
-                'collected_today'   => (float) $todayBase()->whereIn('status', ['ongoing', 'completed'])->sum('amount_paid'),
+                'collected_today'   => (float) $todayBase()->sum('amount_paid'),
                 'online_today'      => $todayBase()->where('booking_source', 'online')->count(),
                 'walk_in_today'     => $todayBase()->where(fn($q) => $q->where('booking_source', '!=', 'online')->orWhereNull('booking_source'))->count(),
                 'top_service_label' => $topRaw ? $this->resolveTreatmentLabel($topRaw->treatment) : null,

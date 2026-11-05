@@ -31,16 +31,16 @@ class DecisionSupportController extends Controller
             ->where('spa_id', $spaId)
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId));
 
-        // Revenue uses booking.total_amount — the actual charged amount per booking.
+        // Revenue uses booking.amount_paid on checked-out bookings (lifecycle Phase 4).
         // NOT Treatment::price, which would ignore custom pricing/discounts.
         $currentBookings = $base()
             ->whereBetween('appointment_date', [$from, $to])
             ->get(['id', 'treatment', 'start_time', 'appointment_date',
-                   'status', 'total_amount', 'therapist_id']);
+                   'status', 'total_amount', 'amount_paid', 'therapist_id']);
 
         $prevBookings = $base()
             ->whereBetween('appointment_date', [$prevFrom, $prevTo])
-            ->get(['id', 'treatment', 'status', 'total_amount', 'therapist_id']);
+            ->get(['id', 'treatment', 'status', 'total_amount', 'amount_paid', 'therapist_id']);
 
         // ── KPIs ──────────────────────────────────────────────────────────
         $totalCurrent  = $currentBookings->count();
@@ -53,8 +53,10 @@ class DecisionSupportController extends Controller
         // Completed bookings only, the same rule as the Revenue and Reports pages
         // (UI rework Phase 5). Cancelled, no-show and still-upcoming bookings
         // were counted before, so this card disagreed with those pages.
-        $revenueCurrent = $currentBookings->where('status', 'completed')->sum('total_amount');
-        $revenuePrev    = $prevBookings->where('status', 'completed')->sum('total_amount');
+        // Booking lifecycle fix, Phase 4 (D9/Q1-A): money collected on checked-out
+        // bookings — the same rule as BookingRevenue::serviceRevenue().
+        $revenueCurrent = $currentBookings->where('status', 'completed')->sum('amount_paid');
+        $revenuePrev    = $prevBookings->where('status', 'completed')->sum('amount_paid');
         $revenueGrowth  = $revenuePrev > 0
             ? round((($revenueCurrent - $revenuePrev) / $revenuePrev) * 100, 1)
             : null;

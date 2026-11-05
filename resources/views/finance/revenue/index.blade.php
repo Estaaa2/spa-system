@@ -71,7 +71,7 @@
     <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Gross Revenue</p>
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Service Revenue</p>
             <p class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">₱{{ number_format($totalRevenue, 2) }}</p>
             @if($revenueGrowth !== null)
                 <p class="mt-1 text-xs {{ $revenueGrowth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500' }}">
@@ -82,19 +82,30 @@
             @endif
         </div>
 
+        {{-- Booking lifecycle fix, Phase 4 (Q2-A, Q3-A): kept on no-show / cancelled
+             bookings, shown on its own and never added to service revenue. --}}
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Collected</p>
-            <p class="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-400">₱{{ number_format($totalCollected, 2) }}</p>
-            @php $collectedPct = $totalRevenue > 0 ? round(($totalCollected / $totalRevenue) * 100) : 0; @endphp
-            <p class="mt-1 text-xs text-gray-400">{{ $collectedPct }}% of gross</p>
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Kept Deposits</p>
+            <p class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">₱{{ number_format($keptDeposits['amount'], 2) }}</p>
+            <p class="mt-1 text-xs text-gray-400"
+               title="Money already paid on bookings that ended as no-show or cancelled. Refunds made outside the system aren't tracked.">
+                {{ $keptDeposits['count'] }} no-show / cancelled · as recorded
+            </p>
         </div>
 
+        {{-- Q4-A: balance still owed on ended bookings nobody closed (any date). --}}
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Outstanding</p>
-            <p class="mt-2 text-2xl font-bold {{ $totalOutstanding > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-white' }}">
-                ₱{{ number_format($totalOutstanding, 2) }}
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Owed on Open Appointments</p>
+            <p class="mt-2 text-2xl font-bold {{ $owedOnOpen['amount'] > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-white' }}">
+                ₱{{ number_format($owedOnOpen['amount'], 2) }}
             </p>
-            <p class="mt-1 text-xs text-gray-400">Unpaid balance</p>
+            @if($owedOnOpen['count'] > 0 && auth()->user()?->hasBranchPermission('view appointments'))
+                <a href="{{ route('appointments.index') }}#needs-checkout" class="mt-1 inline-block text-xs font-medium text-amber-700 hover:underline dark:text-amber-300">
+                    {{ $owedOnOpen['count'] }} waiting for checkout →
+                </a>
+            @else
+                <p class="mt-1 text-xs text-gray-400">{{ $owedOnOpen['count'] }} waiting for checkout</p>
+            @endif
         </div>
 
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
@@ -155,7 +166,7 @@
         {{-- Daily revenue chart --}}
         <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700 lg:col-span-2">
             <h2 class="mb-1 text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">Daily Revenue</h2>
-            <p class="mb-4 text-xs text-gray-500 dark:text-gray-400">Gross revenue per day</p>
+            <p class="mb-4 text-xs text-gray-500 dark:text-gray-400">Service revenue per day (amount collected on checked-out bookings)</p>
             <canvas id="revenueChart" height="110"></canvas>
         </div>
 
@@ -253,10 +264,10 @@
                             Totals
                         </td>
                         <td class="px-6 py-3 text-sm font-bold text-right text-gray-900 dark:text-white">
-                            ₱{{ number_format($totalRevenue, 2) }}
+                            ₱{{ number_format($totalCharged, 2) }}
                         </td>
                         <td class="px-6 py-3 text-sm font-bold text-right text-emerald-700 dark:text-emerald-400">
-                            ₱{{ number_format($totalCollected, 2) }}
+                            ₱{{ number_format($totalRevenue, 2) }}
                         </td>
                         <td class="px-6 py-3 text-sm font-bold text-right text-amber-600 dark:text-amber-400">
                             ₱{{ number_format($totalOutstanding, 2) }}

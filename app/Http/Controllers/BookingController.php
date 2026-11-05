@@ -333,7 +333,9 @@ class BookingController extends Controller
             'today_total' => (clone $todayBase)->count(),
             'pending_today' => (clone $todayBase)->where('status', 'pending')->count(),
             'upcoming_total' => (clone $upcomingBase)->count(),
-            'collected_today' => (clone $todayBase)->sum('amount_paid'),
+            // Paid toward today's appointments, any status: a checkout no longer makes
+            // the money vanish from this card (lifecycle Phase 4, Q5-A).
+            'collected_today' => (clone $baseQuery)->whereDate('appointment_date', $today)->sum('amount_paid'),
         ];
 
         // Edit modal: everyone who can be assigned (therapists and staff marked
@@ -988,7 +990,9 @@ class BookingController extends Controller
                 'today_total'     => (clone $todayBase)->count(),
                 'pending_today'   => (clone $todayBase)->where('status', 'pending')->count(),
                 'upcoming_total'  => (clone $upcomingBase)->count(),
-                'collected_today' => (clone $todayBase)->sum('amount_paid'),
+                // Paid toward today's appointments, any status: a checkout no longer makes
+                // the money vanish from this card (lifecycle Phase 4, Q5-A).
+                'collected_today' => (clone $baseQuery)->whereDate('appointment_date', $today)->sum('amount_paid'),
             ],
             'pending_appointments'  => $pendingAppointments,
             'today_appointments'    => $todayAppointments,

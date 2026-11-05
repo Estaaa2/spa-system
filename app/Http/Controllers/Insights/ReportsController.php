@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Insights;
 
+use App\Services\Finance\BookingRevenue;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Treatment;
@@ -40,21 +41,17 @@ class ReportsController extends Controller
 
         // ── 2. Revenue ─────────────────────────────────────────────────────
         // Sums, completed-only — changed from all-statuses to match Finance\RevenueController's revenue figures, which are explicitly ->where('status', 'completed').
-        $revenueData = $revenueBase()
-            ->selectRaw('
-                SUM(total_amount) as gross,
-                SUM(amount_paid)  as collected,
-                SUM(balance_amount) as outstanding
-            ')
-            ->first();
-
-        $grossRevenue   = (float) ($revenueData->gross ?? 0);
-        $collected      = (float) ($revenueData->collected ?? 0);
-        $outstanding    = (float) ($revenueData->outstanding ?? 0);
+        // Booking lifecycle fix, Phase 4 (shared rules in BookingRevenue):
+        //   service revenue = money collected on checked-out bookings (D9/Q1-A)
+        //   kept deposits   = paid on no-show / cancelled, shown apart (Q2-A/Q3-A)
+        //   owed on open    = balance on ended bookings nobody closed (Q4-A)
+        $grossRevenue = (float) $revenueBase()->sum('amount_paid');
+        $keptDeposits = BookingRevenue::keptDeposits((int) $spaId, $branchId ? (int) $branchId : null, $from, $to);
+        $owedOnOpen   = BookingRevenue::owedOnOpen((int) $spaId, $branchId ? (int) $branchId : null);
 
         $allBookings = $base()->get(['treatment', 'total_amount']);
 
-        $revenueBookings = $revenueBase()->get(['treatment', 'total_amount']);
+        $revenueBookings = $revenueBase()->get(['treatment', 'amount_paid']);
         [$treatRevenue, $pkgRevenue] = $this->splitRevenue($revenueBookings);
 
         // ── 3. Service Breakdown ─────────────────────────────────────────────
@@ -99,7 +96,7 @@ class ReportsController extends Controller
         // Counts and revenue, completed-only — changed from all-statuses to match Finance\RevenueController's revenue figures, 
         // which are explicitly ->where('status', 'completed').
         $therapistStats = $revenueBase()
-            ->selectRaw('therapist_id, COUNT(*) as bookings, SUM(total_amount) as revenue')
+            ->selectRaw('therapist_id, COUNT(*) as bookings, SUM(amount_paid) as revenue')
             ->whereNotNull('therapist_id')
             ->groupBy('therapist_id')
             ->get();
@@ -146,8 +143,8 @@ class ReportsController extends Controller
 
             // Revenue
             'grossRevenue'   => $grossRevenue,
-            'collected'      => $collected,
-            'outstanding'    => $outstanding,
+            'keptDeposits'   => $keptDeposits,
+            'owedOnOpen'     => $owedOnOpen,
             'treatRevenue'   => $treatRevenue,
             'pkgRevenue'     => $pkgRevenue,
 
@@ -192,9 +189,9 @@ class ReportsController extends Controller
         foreach ($bookings as $b) {
             if (!$b->treatment) continue;
             if (str_starts_with($b->treatment, 'treatment_')) {
-                $treatRev += (float) $b->total_amount;
+                $treatRev += (float) $b->amount_paid;
             } elseif (str_starts_with($b->treatment, 'package_')) {
-                $pkgRev += (float) $b->total_amount;
+                $pkgRev += (float) $b->amount_paid;
             }
         }
         return [$treatRev, $pkgRev];

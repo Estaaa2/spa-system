@@ -628,13 +628,13 @@
             @if($canRevenue)
             <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
                 <div class="flex items-center justify-between gap-2">
-                    <p class="min-w-0 text-xs font-semibold tracking-wide text-gray-500 uppercase truncate dark:text-gray-400">Collected</p>
+                    <p class="min-w-0 text-xs font-semibold tracking-wide text-gray-500 uppercase truncate dark:text-gray-400">Paid</p>
                     <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-[#8B7355]/10 dark:bg-[#C4A97D]/10">
                         <i class="fa-solid fa-peso-sign text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
                     </div>
                 </div>
                 <p id="kpi-collected" class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">₱{{ number_format($collectedToday ?? 0, 0) }}</p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Revenue today</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" title="Deposits and payments on today's appointments, any status. Service revenue is on the Revenue page.">Toward today's appointments</p>
             </div>
             @else
             <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">

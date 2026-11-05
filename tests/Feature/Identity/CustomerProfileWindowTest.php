@@ -118,7 +118,10 @@ class CustomerProfileWindowTest extends TestCase
         foreach ([['completed', 1000], ['cancelled', 5000]] as [$status, $amount]) {
             $copy = $base->replicate();
             $copy->forceFill([
-                'status' => $status, 'total_amount' => $amount, 'appointment_date' => '2026-10-20',
+                // Fully paid, like every checkout since the booking lifecycle fix:
+                // DSS revenue counts the money collected (Phase 4, D9/Q1-A).
+                'status' => $status, 'total_amount' => $amount, 'amount_paid' => $amount, 'balance_amount' => 0,
+                'appointment_date' => '2026-10-20',
                 'start_time' => '10:00:00', 'end_time' => '11:00:00', 'arrival_code' => null,
             ])->saveQuietly();
         }

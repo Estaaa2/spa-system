@@ -134,22 +134,26 @@
         <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 class="text-sm font-semibold tracking-wide text-gray-700 uppercase dark:text-gray-300">Revenue Summary</h2>
-                <p class="text-xs text-gray-500 dark:text-gray-400">Based on actual booking amounts</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Money collected on checked-out appointments</p>
             </div>
             <div class="p-6 space-y-4">
                 <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Gross Revenue (Total Billed)</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Service Revenue</p>
                     <p class="text-3xl font-bold text-gray-900 dark:text-white">₱{{ number_format($grossRevenue, 2) }}</p>
                 </div>
 
+                {{-- Booking lifecycle fix, Phase 4: shown next to revenue, never added into it. --}}
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/15">
-                        <p class="text-xs text-emerald-700 dark:text-emerald-400">Collected</p>
-                        <p class="mt-0.5 text-lg font-semibold text-emerald-800 dark:text-emerald-300">₱{{ number_format($collected, 2) }}</p>
+                    <div class="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40"
+                         title="Money already paid on bookings that ended as no-show or cancelled. Refunds made outside the system aren't tracked.">
+                        <p class="text-xs text-gray-600 dark:text-gray-400">Kept Deposits</p>
+                        <p class="mt-0.5 text-lg font-semibold text-gray-800 dark:text-gray-200">₱{{ number_format($keptDeposits['amount'], 2) }}</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ $keptDeposits['count'] }} no-show / cancelled · as recorded</p>
                     </div>
                     <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/15">
-                        <p class="text-xs text-amber-700 dark:text-amber-400">Outstanding</p>
-                        <p class="mt-0.5 text-lg font-semibold text-amber-800 dark:text-amber-300">₱{{ number_format($outstanding, 2) }}</p>
+                        <p class="text-xs text-amber-700 dark:text-amber-400">Owed on Open Appointments</p>
+                        <p class="mt-0.5 text-lg font-semibold text-amber-800 dark:text-amber-300">₱{{ number_format($owedOnOpen['amount'], 2) }}</p>
+                        <p class="text-[11px] text-amber-700 dark:text-amber-400">{{ $owedOnOpen['count'] }} waiting for checkout</p>
                     </div>
                 </div>
 
