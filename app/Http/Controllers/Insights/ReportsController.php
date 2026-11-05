@@ -16,7 +16,11 @@ class ReportsController extends Controller
     {
         $user     = $request->user();
         $spaId    = $user->spa_id;
-        $branchId = session('current_branch_id');
+        // Same scope as Revenue, Billing and Vendor Bills: the selected branch,
+        // checked against the user's spa, else the main/home branch. The raw
+        // session value only matched because branch.permission middleware fills
+        // it first (booking lifecycle follow-up, Q1-A).
+        $branchId = $user->currentBranchId();
 
         $from = $request->input('from', now()->startOfMonth()->format('Y-m-d'));
         $to   = $request->input('to',   now()->format('Y-m-d'));
