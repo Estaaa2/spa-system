@@ -90,6 +90,25 @@ class Booking extends Model
             && $start !== null && now()->gte($start);
     }
 
+    /**
+     * Staff checkout is the only way a booking becomes completed (booking
+     * lifecycle fix D1). Allowed once the session was started (ongoing), or
+     * once the start time has passed for a booking nobody started yet (Q3-A:
+     * checkout from pending records start and finish in one step). Stays
+     * allowed after the end time — the clock never closes a booking.
+     */
+    public function canBeCheckedOut(): bool
+    {
+        if ($this->status === 'ongoing') {
+            return true;
+        }
+
+        $start = $this->startsAt();
+
+        return in_array($this->status, ['reserved', 'pending'], true)
+            && $start !== null && now()->gte($start);
+    }
+
     protected static function booted(): void
     {
         // Every online home-service booking gets a 4-digit arrival code (Q41).
@@ -149,8 +168,8 @@ class Booking extends Model
 
     /**
      * A customer can ask to reschedule only before the appointment starts.
-     * 'pending' and 'ongoing' are clock-driven (start time reached), so only
-     * 'reserved' qualifies, and the start time is checked too in case the
+     * 'pending' (start time reached, set by the clock) and 'ongoing' (started
+     * by staff) both mean it has begun, so only 'reserved' qualifies, and the start time is checked too in case the
      * status sync hasn't run yet. Web, the app API and the details screen all
      * read this one rule.
      */

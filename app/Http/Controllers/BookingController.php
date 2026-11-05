@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
-use App\Services\BookingConsumptionService;
 use App\Services\BookingCompletionService;
 use App\Models\LeaveRequest;
 use App\Models\Package;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Services\Bookings\BookingStatusSync;
 use App\Services\Bookings\ServicePriceResolver;
 use App\Services\Bookings\TherapistAssigner;
 use Carbon\Carbon;
@@ -389,6 +389,8 @@ class BookingController extends Controller
 
     public function edit(Booking $booking)
     {
+        $this->ensureCurrentBranchBooking($booking);
+
         $user = Auth::user();
 
         $this->syncAutomaticStatuses($user->spa_id, $booking->branch_id);
@@ -420,6 +422,8 @@ class BookingController extends Controller
 
     public function update(Request $request, Booking $booking)
     {
+        $this->ensureCurrentBranchBooking($booking);
+
         $user = Auth::user();
         $spaId = $user->spa_id;
         $branchId = $booking->branch_id;
@@ -537,6 +541,7 @@ class BookingController extends Controller
     public function destroy($id)
     {
         $booking = Booking::findOrFail($id);
+        $this->ensureCurrentBranchBooking($booking);
 
         if (in_array($booking->status, Booking::FINISHED_STATUSES, true)) {
             return redirect()->back()->with('error', 'This appointment is already ' . strtolower(Booking::statusLabel($booking->status)) . '.');
@@ -549,7 +554,10 @@ class BookingController extends Controller
 
     public function history()
     {
-        $this->syncAutomaticStatuses();
+        // Only this user's own bookings (F3: this used to sync every spa).
+        app(BookingStatusSync::class)->sync(
+            fn ($q) => $q->where('customer_user_id', Auth::id())
+        );
 
         $bookings = Booking::where('customer_user_id', Auth::id())
             ->orderBy('created_at', 'desc')
@@ -558,12 +566,25 @@ class BookingController extends Controller
         return response()->json($bookings);
     }
 
+    /**
+     * Start, cancel, or record a no-show. Completing is a separate action
+     * (checkout below), because only checkout collects the full balance and
+     * deducts stock (booking lifecycle fix, Phase 1, D1).
+     */
     public function updateStatus(Request $request, Booking $booking)
     {
+        $this->ensureCurrentBranchBooking($booking);
+
         $validated = $request->validate([
             'status' => ['required', Rule::in(['ongoing', 'cancelled', Booking::NO_SHOW])],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        if (in_array($booking->status, Booking::FINISHED_STATUSES, true)) {
+            return back()->withErrors([
+                'status' => 'This appointment is already ' . strtolower(Booking::statusLabel($booking->status)) . '.',
+            ]);
+        }
 
         // A no-show only after the start time, on a booking that's still open
         // (UI rework Phase 3, decision 1A).
@@ -573,71 +594,168 @@ class BookingController extends Controller
             ])->withInput();
         }
 
+        if ($validated['status'] === 'ongoing') {
+            if ($booking->status === 'ongoing') {
+                return back()->with('error', 'This appointment has already started.');
+            }
+
+            $appointmentDate = Carbon::parse($booking->appointment_date)->startOfDay();
+
+            if ($appointmentDate->gt(now()->startOfDay())) {
+                return back()->withErrors([
+                    'status' => 'Cannot start an appointment that is scheduled for a future date.'
+                ])->withInput();
+            }
+        }
+
         // Cancelled and no-show end the booking without the service: payments
         // stay exactly as they are (decision 2A — same handling as a cancellation).
-        $endsWithoutService = in_array($validated['status'], ['cancelled', Booking::NO_SHOW], true);
+        if (in_array($validated['status'], ['cancelled', Booking::NO_SHOW], true)) {
+            $booking->update(['status' => $validated['status']]);
 
-        // Server-side validation for future appointments
-        $today = now()->startOfDay();
-        $appointmentDate = Carbon::parse($booking->appointment_date)->startOfDay();
+            return back()->with('success', $validated['status'] === Booking::NO_SHOW
+                ? 'Marked as a no-show.'
+                : 'Appointment cancelled.');
+        }
 
-        if ($validated['status'] === 'ongoing' && $appointmentDate->gt($today)) {
+        // Start: collecting money now is optional (Q4-A); checkout collects the rest.
+        $payment = $this->paymentAfter($booking, (float) ($validated['amount_paid'] ?? 0));
+
+        if ($payment['error']) {
+            return back()->withErrors(['amount_paid' => $payment['error']])->withInput();
+        }
+
+        $booking->update(['status' => 'ongoing'] + $payment['fields']);
+
+        return back()->with('success', 'Appointment started.');
+    }
+
+    /**
+     * Staff checkout: collect the full remaining balance, deduct recipe stock,
+     * and complete the booking (booking lifecycle fix, Phase 1).
+     *
+     *   D1    the only way a booking becomes completed
+     *   Q2-A  the balance must be fully paid
+     *   Q3-A  allowed straight from pending (start + finish in one step)
+     *   D7    never blocked by stock; shortfalls are recorded and reported
+     */
+    public function checkout(Request $request, Booking $booking)
+    {
+        $this->ensureCurrentBranchBooking($booking);
+
+        $validated = $request->validate([
+            'amount_paid' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        if (in_array($booking->status, Booking::FINISHED_STATUSES, true)) {
+            return back()->with('error', 'This appointment is already ' . strtolower(Booking::statusLabel($booking->status)) . '.');
+        }
+
+        if (! $booking->canBeCheckedOut()) {
+            return back()->with('error', 'An appointment can only be checked out once it has started.');
+        }
+
+        $payment = $this->paymentAfter($booking, (float) ($validated['amount_paid'] ?? 0));
+
+        if ($payment['error']) {
+            return back()->withErrors(['amount_paid' => $payment['error']])->withInput();
+        }
+
+        if ($payment['fields']['balance_amount'] > 0) {
             return back()->withErrors([
-                'status' => 'Cannot start an appointment that is scheduled for a future date.'
+                'amount_paid' => 'Collect the full remaining balance of ₱'
+                    . number_format($payment['remaining'], 2) . ' to check out.',
             ])->withInput();
         }
 
+        $completed = DB::transaction(function () use ($booking, $payment) {
+            // Nothing is owed after checkout, so a free (₱0) service is "paid" too.
+            $booking->update(['payment_status' => 'paid'] + $payment['fields']);
+
+            return app(BookingCompletionService::class)->complete($booking, Auth::user());
+        });
+
+        $consumption = $completed->consumption()->with('shortItems')->first();
+
+        if ($consumption?->has_shortfall) {
+            $missing = $consumption->shortItems
+                ->map(fn ($item) => $item->product_name . ' (' . rtrim(rtrim(number_format((float) $item->short_quantity, 3, '.', ''), '0'), '.') . ' ' . $item->unit . ')')
+                ->all();
+
+            $detail = $missing
+                ? 'Stock was short for: ' . implode(', ', $missing) . '.'
+                : 'Some of its stock could not be deducted.';
+
+            // Checkout succeeded, so it's a success toast; the shortage stays
+            // listed on Inventory → Products for whoever restocks (Q8-A).
+            return back()->with('success', 'Checked out. ' . $detail . ' It is listed on the Inventory Products page.');
+        }
+
+        return back()->with('success', 'Checked out. The appointment is completed.');
+    }
+
+    /**
+     * New payment fields after collecting $additional now. Shared by Start and
+     * Checkout so the arithmetic lives in one place.
+     *
+     * @return array{error: ?string, remaining: float, fields: array}
+     */
+    private function paymentAfter(Booking $booking, float $additional): array
+    {
         $serviceTotal = (float) ($booking->total_amount > 0
             ? $booking->total_amount
             : $this->resolveServicePrice($booking->treatment));
 
         $currentPaid = (float) ($booking->amount_paid ?? 0);
-        $remaining = max($serviceTotal - $currentPaid, 0);
-        $additionalPayment = (float) ($validated['amount_paid'] ?? 0);
+        $remaining = round(max($serviceTotal - $currentPaid, 0), 2);
 
-        if (! $endsWithoutService) {
-            if ($additionalPayment > $remaining) {
-                return back()->withErrors([
-                    'amount_paid' => 'Entered amount is greater than the remaining balance.',
-                ]);
-            }
-
-            if ($remaining > 0 && $additionalPayment <= 0) {
-                return back()->withErrors([
-                    'amount_paid' => 'Please enter the amount collected for this appointment.',
-                ]);
-            }
+        if (round($additional, 2) > $remaining) {
+            return [
+                'error' => 'Entered amount is greater than the remaining balance.',
+                'remaining' => $remaining,
+                'fields' => [],
+            ];
         }
 
-        $newPaid = $endsWithoutService
-            ? $currentPaid
-            : $currentPaid + $additionalPayment;
+        $newPaid = $currentPaid + $additional;
+        $newBalance = round(max($serviceTotal - $newPaid, 0), 2);
 
-        $newBalance = max($serviceTotal - $newPaid, 0);
-
-        $newPaymentStatus = $booking->payment_status;
-
-        if (! $endsWithoutService) {
-            if ($serviceTotal > 0 && $newPaid >= $serviceTotal) {
-                $newPaymentStatus = 'paid';
-            } elseif ($newPaid > 0) {
-                $newPaymentStatus = 'partially_paid';
-            } else {
-                $newPaymentStatus = 'unpaid';
-            }
+        if ($serviceTotal > 0 && $newBalance <= 0) {
+            $paymentStatus = 'paid';
+        } elseif ($newPaid > 0) {
+            $paymentStatus = 'partially_paid';
+        } else {
+            $paymentStatus = 'unpaid';
         }
 
-        $booking->update([
-            'status' => $validated['status'],
-            'total_amount' => $serviceTotal,
-            'amount_paid' => $newPaid,
-            'balance_amount' => $newBalance,
-            'payment_status' => $newPaymentStatus,
-        ]);
+        return [
+            'error' => null,
+            'remaining' => $remaining,
+            'fields' => [
+                'total_amount' => $serviceTotal,
+                'amount_paid' => $newPaid,
+                'balance_amount' => $newBalance,
+                'payment_status' => $paymentStatus,
+            ],
+        ];
+    }
 
-        return back()->with('success', $validated['status'] === Booking::NO_SHOW
-            ? 'Marked as a no-show.'
-            : 'Appointment status updated successfully.');
+    /**
+     * Staff may act only on bookings of the branch they're working in. The
+     * permission middleware checks the permission, not the booking, and
+     * Booking has no spa scope, so without this any spa's booking id could be
+     * processed (found during the booking lifecycle fix, Phase 1).
+     */
+    private function ensureCurrentBranchBooking(Booking $booking): void
+    {
+        $user = Auth::user();
+
+        abort_unless(
+            $user
+            && (int) $booking->spa_id === (int) $user->spa_id
+            && (int) $booking->branch_id === (int) $user->currentBranchId(),
+            404
+        );
     }
 
     /**
@@ -708,89 +826,14 @@ class BookingController extends Controller
         return $this->assigner->available($spaId, $branchId, $appointmentDate, $startTime, $endTime, false, $excludeBookingId);
     }
 
-    private function syncAutomaticStatuses(?int $spaId = null,?int $branchId = null): void
+    /**
+     * Moves this spa/branch's open bookings along the clock before a page reads
+     * them. Never completes a booking and never sets `ongoing` (booking
+     * lifecycle fix, Phase 1, D1/D2/Q1-B); see BookingStatusSync.
+     */
+    private function syncAutomaticStatuses(?int $spaId, ?int $branchId = null): void
     {
-        $now = Carbon::now();
-
-        $query = Booking::query()
-            ->whereNotIn('status', Booking::FINISHED_STATUSES);
-
-        if ($spaId) {
-            $query->where('spa_id', $spaId);
-        }
-
-        if ($branchId) {
-            $query->where('branch_id', $branchId);
-        }
-
-        $bookings = $query->get();
-
-        foreach ($bookings as $booking) {
-            if (!$booking->appointment_date || !$booking->start_time || !$booking->end_time) {
-                continue;
-            }
-
-            $date = Carbon::parse($booking->appointment_date)->toDateString();
-
-            $start = Carbon::parse($date . ' ' . $booking->start_time);
-            $pendingUntil = (clone $start)->addMinutes(15);
-            $end = Carbon::parse($date . ' ' . $booking->end_time);
-
-            $newStatus = $booking->status;
-
-            if (in_array($booking->status, ['reserved', 'pending', 'ongoing'])) {
-                if ($now->lt($start)) {
-                    $newStatus = 'reserved';
-                } elseif ($now->gte($end)) {
-                    $newStatus = 'completed';
-                } else {
-                    if ($booking->status === 'ongoing') {
-                        $newStatus = 'ongoing';
-                    } elseif ($now->lt($pendingUntil)) {
-                        $newStatus = 'pending';
-                    } else {
-                        $newStatus = 'ongoing';
-                    }
-                }
-            }
-
-            if ($booking->status === $newStatus) {
-                continue;
-            }
-
-            if ($newStatus !== 'completed') {
-                $booking->update([
-                    'status' => $newStatus,
-                ]);
-
-                continue;
-            }
-
-            try {
-                app(BookingCompletionService::class)
-                    ->complete($booking);
-            } catch (ValidationException $e) {
-                \Illuminate\Support\Facades\Log::warning(
-                    'Booking completion inventory consumption failed.',
-                    [
-                        'booking_id' => $booking->id,
-                        'spa_id' => $booking->spa_id,
-                        'branch_id' => $booking->branch_id,
-                        'errors' => $e->errors(),
-                    ]
-                );
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error(
-                    'Booking completion failed.',
-                    [
-                        'booking_id' => $booking->id,
-                        'spa_id' => $booking->spa_id,
-                        'branch_id' => $booking->branch_id,
-                        'message' => $e->getMessage(),
-                    ]
-                );
-            }
-        }
+        app(BookingStatusSync::class)->syncFor($spaId, $branchId);
     }
 
     private function decorateBooking(Booking $booking): Booking

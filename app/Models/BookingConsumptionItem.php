@@ -18,11 +18,13 @@ class BookingConsumptionItem extends Model
         'treatment_name',
         'batch_number',
         'quantity',
+        'short_quantity',
         'unit',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:3',
+        'short_quantity' => 'decimal:3',
     ];
 
     public function consumption()

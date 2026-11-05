@@ -72,7 +72,19 @@ class InventoryController extends Controller
             return $product;
         });
 
-        return view('inventory.products', compact('products'));
+        // Checkouts that couldn't deduct all their stock in the last 30 days
+        // (booking lifecycle fix, Phase 1, D7/Q8-A). Read-only list.
+        $stockShortfalls = \App\Models\BookingConsumption::query()
+            ->where('spa_id', $spaId)
+            ->where('branch_id', $branchId)
+            ->where('has_shortfall', true)
+            ->where('consumed_at', '>=', now()->subDays(30))
+            ->with(['shortItems', 'booking:id,customer_name,appointment_date'])
+            ->latest('consumed_at')
+            ->limit(10)
+            ->get();
+
+        return view('inventory.products', compact('products', 'stockShortfalls'));
     }
 
     public function store(Request $request)

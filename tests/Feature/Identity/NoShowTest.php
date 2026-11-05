@@ -90,7 +90,7 @@ class NoShowTest extends TestCase
 
         // Loading Appointments runs the automatic status sync: it must not turn it into "completed".
         $this->actingAs($this->manager)->get(route('appointments.index'))->assertOk();
-        $this->artisan('bookings:mark-completed')->assertSuccessful();
+        $this->artisan('bookings:sync-statuses')->assertSuccessful();
         $this->assertSame(Booking::NO_SHOW, $this->booking->fresh()->status);
 
         $owner = User::where('email', 'owner@levictas.test')->firstOrFail();   // has "delete appointments"

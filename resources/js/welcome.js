@@ -2252,10 +2252,11 @@ function isBookingHappeningNow(b) {
 }
 
 /*
-  What the customer sees for a status. 'pending' and 'ongoing' are set by the
-  clock once the start time passes, so both read "In progress". An active
-  booking whose end time has passed is waiting for the status job to run, so
-  it reads "Ended" rather than claiming to be confirmed.
+  What the customer sees for a status. 'pending' (start time passed, set by
+  the clock) and 'ongoing' (started by staff) both read "In progress". An
+  active booking whose end time has passed is waiting for the spa to check it
+  out (staff checkout is the only thing that completes a booking), so it
+  reads "Ended" rather than claiming to be confirmed or completed.
 */
 function customerStatus(b) {
     const s = b.status;

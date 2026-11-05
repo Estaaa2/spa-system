@@ -102,6 +102,51 @@
         subtitle="Manage branch inventory, product information, stock levels, and inventory records."
     />
 
+    {{-- Stock shortfalls from checkouts (booking lifecycle fix, Phase 1, D7/Q8-A).
+         Checkout never waits for stock; what it couldn't deduct is listed here.
+         Same amber alert card as "Needs Attention" on Appointments. --}}
+    @if(($stockShortfalls ?? collect())->isNotEmpty())
+        <div class="overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800">
+            <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-4 border-b sm:px-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                <div>
+                    <h2 class="text-base font-semibold text-amber-900 dark:text-amber-200">Stock Shortfalls from Checkouts</h2>
+                    <p class="text-sm text-amber-700 dark:text-amber-300">
+                        These appointments were checked out without enough stock to deduct their products (last 30 days). Restock or adjust the products below.
+                    </p>
+                </div>
+                <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    {{ $stockShortfalls->count() }} {{ \Illuminate\Support\Str::plural('Checkout', $stockShortfalls->count()) }}
+                </span>
+            </div>
+
+            <ul role="list" class="divide-y divide-gray-200 dark:divide-gray-700">
+                @foreach($stockShortfalls as $shortfall)
+                    <li class="flex flex-col gap-2 px-4 py-4 sm:px-6 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $shortfall->service_name }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ $shortfall->booking?->customer_name ?? 'Walk-in Customer' }}
+                                · Checked out {{ $shortfall->consumed_at?->format('M d, Y h:i A') }}
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 sm:justify-end">
+                            @foreach($shortfall->shortItems as $item)
+                                <span class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full dark:bg-red-900/40 dark:text-red-300">
+                                    {{ $item->product_name }}: {{ rtrim(rtrim(number_format((float) $item->short_quantity, 3, '.', ''), '0'), '.') }} {{ $item->unit }} short
+                                </span>
+                            @endforeach
+                            @foreach($shortfall->shortfallNoteLines() as $note)
+                                <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300">
+                                    {{ $note }}
+                                </span>
+                            @endforeach
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
         <div class="flex flex-col gap-4 px-4 py-4 border-b border-gray-200 sm:px-6 lg:flex-row lg:items-center lg:justify-between dark:border-gray-700">

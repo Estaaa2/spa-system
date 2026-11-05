@@ -128,7 +128,7 @@
             <div>
                 <h2 class="text-base font-semibold text-amber-900 dark:text-amber-200">Needs Attention Right Now</h2>
                 <p class="text-sm text-amber-700 dark:text-amber-300">
-                    Pending appointments should be processed first — mark them as ongoing or cancelled and record payment received.
+                    These appointments have started but nobody has processed them yet — start the session, check out, or mark them as a no-show.
                 </p>
             </div>
             <span id="pendingBadge"
@@ -360,8 +360,8 @@
                                                         data-paid="{{ $booking->resolved_amount_paid }}"
                                                         data-due="{{ $booking->resolved_balance_amount }}"
                                                         data-status="{{ $booking->status }}"
-                                                        class="{{ $btn['cancel'] }}">
-                                                    <i class="fa-solid fa-ban" aria-hidden="true"></i>{{ $btnLabel['cancel'] }}
+                                                        class="{{ $btn['process'] }}">
+                                                    <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
                                                 </button>
                                             @endif
                                             <button type="button"
@@ -535,7 +535,7 @@
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
         <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">History</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Completed, cancelled, and past records for reference.</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Completed, cancelled, and past records. Past appointments nobody checked out can still be processed.</p>
         </div>
         <div class="md:overflow-x-auto">
             <table role="table" class="rt min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -575,6 +575,25 @@
                                              {{ $statusClasses[$booking->status] ?? $statusFallback }}">
                                     {{ \App\Models\Booking::statusLabel($booking->status) }}
                                 </span>
+                                {{-- A past booking nobody checked out stays open (booking lifecycle fix, D1),
+                                     so it can still be processed from here until Phase 2's "Needs checkout" list. --}}
+                                @if($canEdit && in_array($booking->status, ['pending', 'ongoing'], true))
+                                    <div class="mt-2">
+                                        <button type="button"
+                                                onclick="openProcessModal(this)"
+                                                data-id="{{ $booking->id }}"
+                                                data-customer="{{ $booking->customer_name }}"
+                                                data-treatment="{{ $booking->treatment_label }}"
+                                                data-source="{{ $booking->booking_source }}"
+                                                data-total="{{ $booking->resolved_total_amount }}"
+                                                data-paid="{{ $booking->resolved_amount_paid }}"
+                                                data-due="{{ $booking->resolved_balance_amount }}"
+                                                data-status="{{ $booking->status }}"
+                                                class="{{ $btn['process'] }}">
+                                            <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
+                                        </button>
+                                    </div>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -612,7 +631,7 @@
             <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <div>
                     <h2 id="processModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Process Appointment</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Record customer payment and continue the appointment flow.</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Start the session, check out, or close the appointment.</p>
                 </div>
                 <button type="button" onclick="closeProcessModal()" aria-label="Close dialog"
                         class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
@@ -641,7 +660,7 @@
                     </div>
                 </div>
                 <div>
-                    <label for="process_status" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Next Status</label>
+                    <label for="process_status" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Action</label>
                     {{-- Options are populated by openProcessModal(); see notes on finding 21. --}}
                     <select id="process_status" name="status"
                             class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></select>
@@ -876,6 +895,7 @@
     // whether the segment is {booking} or {id}.
     const ROUTE_UPDATE = @json(route('appointments.update', '__ID__'));
     const ROUTE_STATUS = @json(route('appointments.updateStatus', '__ID__'));
+    const ROUTE_CHECKOUT = @json(route('appointments.checkout', '__ID__'));
     const ROUTE_DELETE = @json(route('appointments.destroy', '__ID__'));
 
     function routeFor(template, id) { return template.replace('__ID__', encodeURIComponent(id)); }
@@ -979,43 +999,72 @@
 @if($canEdit)
     // Only these two statuses can reach the Process button, but the fallback
     // guarantees the select is never empty (which would submit status=).
-    // Both appear only after the start time (the clock sets them), which is
-    // when a no-show can be recorded (UI rework Phase 3, decision 1A).
+    // 'pending' means the start time passed and nobody has started it yet; the
+    // clock never moves it on (booking lifecycle fix, Q1-B). 'checkout' is not a
+    // status: it posts to the checkout route, which completes the booking (D1).
     const PROCESS_OPTIONS = {
         pending: [
-            { value: 'ongoing',   label: 'Mark as Ongoing (customer has arrived)' },
+            { value: 'ongoing',   label: 'Start session (customer has arrived)' },
+            { value: 'checkout',  label: 'Check out (service done, collect the balance)' },
             { value: 'no_show',   label: 'Mark as No-show (customer didn\'t come)' },
             { value: 'cancelled', label: 'Cancel (customer called to cancel)' },
         ],
         ongoing: [
+            { value: 'checkout',  label: 'Check out (service done, collect the balance)' },
             { value: 'no_show',   label: 'Mark as No-show (customer didn\'t come)' },
             { value: 'cancelled', label: 'Cancel (customer didn\'t proceed)' },
         ],
     };
 
-    // Cancel and no-show collect nothing; payments already received stay as they are.
+    // Which route, payment rule and hint go with the chosen action.
     function togglePaymentField() {
+        const form          = document.getElementById('processForm');
         const statusSelect  = document.getElementById('process_status');
         const amountWrapper = document.getElementById('process_amount_wrapper');
-        const endsBooking   = ['cancelled', 'no_show'].includes(statusSelect.value);
+        const amountInput   = document.getElementById('process_amount_paid');
+        const hint          = document.getElementById('process_hint');
+        const action        = statusSelect.value;
+        const endsBooking   = ['cancelled', 'no_show'].includes(action);
+        const isCheckout    = action === 'checkout';
+        const due           = Number(form.dataset.due || 0);
+
         amountWrapper.classList.toggle('hidden', endsBooking);
         document.getElementById('process_end_note')?.classList.toggle('hidden', !endsBooking);
+
+        form.action = routeFor(isCheckout ? ROUTE_CHECKOUT : ROUTE_STATUS, form.dataset.id);
+
+        if (isCheckout) {
+            // The full remaining balance must be collected (Q2-A), so it isn't editable.
+            amountInput.value    = due > 0 ? due.toFixed(2) : '0.00';
+            amountInput.readOnly = true;
+            hint.textContent = due > 0
+                ? 'Collect the full remaining balance to check out. This completes the appointment and deducts its products from inventory.'
+                : 'Nothing is left to pay. Checking out completes the appointment and deducts its products from inventory.';
+        } else {
+            // Starting the session: collecting money now is optional (Q4-A).
+            amountInput.readOnly = false;
+            amountInput.value    = '';
+            hint.textContent = (form.dataset.source || '') === 'online'
+                ? 'Optional. This online booking already paid a deposit; anything left is collected at checkout.'
+                : 'Optional. Record money collected now; anything left is collected at checkout.';
+        }
     }
 
     function openProcessModal(btn) {
         const d = btn.dataset;
+        const form = document.getElementById('processForm');
         document.getElementById('process_customer').textContent  = d.customer  || 'Customer';
         document.getElementById('process_treatment').textContent = d.treatment || '';
         document.getElementById('process_total').textContent     = '₱' + Number(d.total || 0).toFixed(2);
         document.getElementById('process_paid').textContent      = '₱' + Number(d.paid  || 0).toFixed(2);
         document.getElementById('process_due').textContent       = '₱' + Number(d.due   || 0).toFixed(2);
 
-        const amountInput   = document.getElementById('process_amount_paid');
-        const hint          = document.getElementById('process_hint');
+        form.dataset.id     = d.id;
+        form.dataset.due    = d.due || 0;
+        form.dataset.source = d.source || '';
+
         const statusSelect  = document.getElementById('process_status');
         const currentStatus = d.status || 'pending';
-
-        amountInput.value = Number(d.due || 0) > 0 ? Number(d.due || 0).toFixed(2) : '';
 
         let opts = PROCESS_OPTIONS[currentStatus];
         if (!opts) {
@@ -1030,13 +1079,7 @@
             statusSelect.appendChild(opt);
         });
 
-        hint.textContent = (d.source || '') === 'online'
-            ? 'This online booking already paid a deposit. Record only the remaining balance collected at the branch.'
-            : 'Record the amount collected directly by the receptionist for this appointment.';
-
         togglePaymentField();
-
-        document.getElementById('processForm').action = routeFor(ROUTE_STATUS, d.id);
         openModal('processModal', '#process_status');
     }
 
@@ -1381,8 +1424,8 @@
                 data-treatment="${esc(b.treatment_label)}" data-source="${esc(b.booking_source)}"
                 data-total="${b.resolved_total_amount}" data-paid="${b.resolved_amount_paid}"
                 data-due="${b.resolved_balance_amount}" data-status="${b.status}"
-                class="${BTN.cancel}">
-                <i class="fa-solid fa-ban" aria-hidden="true"></i>${BTN_LABEL.cancel}
+                class="${BTN.process}">
+                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>${BTN_LABEL.process}
             </button>`;
         }
         return '';

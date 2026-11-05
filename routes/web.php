@@ -295,6 +295,8 @@ Route::middleware([
 
     Route::middleware('branch.permission:edit appointments')->group(function () {
         Route::put('/appointments/{booking}/status', [BookingController::class, 'updateStatus'])->name('appointments.updateStatus');
+        // Staff checkout: the only way a booking completes (booking lifecycle fix, D1).
+        Route::put('/appointments/{booking}/checkout', [BookingController::class, 'checkout'])->name('appointments.checkout');
         Route::put('/appointments/{booking}', [BookingController::class, 'update'])->name('appointments.update');
     });
 

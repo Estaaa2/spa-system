@@ -12,11 +12,29 @@ use App\Models\StockMovement;
 use App\Models\Treatment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
+/**
+ * Deducts a booking's recipe stock when staff check it out.
+ *
+ * Booking lifecycle fix, Phase 1 (D7, Q6-A, Q7-A): this never blocks a
+ * checkout. It consumes whatever usable (non-expired) stock exists, oldest
+ * expiry first, and records the rest as a shortfall:
+ *
+ *   - not enough usable stock        → consume what's there, a "short" item for the rest
+ *   - no stock record for the branch → a "short" item for the full amount
+ *   - product inactive               → a "short" item for the full amount
+ *   - deleted service, empty package, product from another spa
+ *                                    → a line in shortfall_notes (no product row to point at)
+ *
+ * Stock never goes below zero (InventoryStockService and its reconciliation
+ * rule stay intact). Runs once per booking: a second call returns the first
+ * consumption unchanged.
+ */
 class BookingConsumptionService
 {
-    public function consume(Booking $booking,?User $user = null): ?BookingConsumption
+    private const TOLERANCE = 0.0005;
+
+    public function consume(Booking $booking, ?User $user = null): ?BookingConsumption
     {
         if (
             !str_starts_with((string) $booking->treatment, 'treatment_')
@@ -39,21 +57,17 @@ class BookingConsumptionService
                 return $existing;
             }
 
-            if (str_starts_with((string) $lockedBooking->treatment, 'treatment_')) {
-                return $this->consumeTreatment($lockedBooking, $user);
-            }
+            $consumption = str_starts_with((string) $lockedBooking->treatment, 'treatment_')
+                ? $this->consumeTreatment($lockedBooking, $user)
+                : $this->consumePackage($lockedBooking, $user);
 
-            return $this->consumePackage($lockedBooking, $user);
+            return $consumption->load('items');
         });
     }
 
-    private function consumeTreatment(Booking $booking,?User $user): BookingConsumption
+    private function consumeTreatment(Booking $booking, ?User $user): BookingConsumption
     {
-        $treatmentId = (int) str_replace(
-            'treatment_',
-            '',
-            $booking->treatment
-        );
+        $treatmentId = (int) str_replace('treatment_', '', $booking->treatment);
 
         $treatment = Treatment::withoutGlobalScopes()
             ->whereKey($treatmentId)
@@ -63,19 +77,18 @@ class BookingConsumptionService
                 'recipeItems' => fn ($query) => $query->orderBy('product_id'),
                 'recipeItems.product',
             ])
-            ->firstOrFail();
+            ->first();
 
-        $consumption = BookingConsumption::create([
-            'booking_id' => $booking->id,
-            'spa_id' => $booking->spa_id,
-            'branch_id' => $booking->branch_id,
-            'treatment_id' => $treatment->id,
-            'package_id' => null,
-            'processed_by' => $user?->id,
-            'service_reference' => $booking->treatment,
-            'service_name' => $treatment->name,
-            'consumed_at' => now(),
+        $consumption = $this->startConsumption($booking, $user, [
+            'treatment_id' => $treatment?->id,
+            'service_name' => $treatment?->name ?? "Unknown treatment (#{$treatmentId})",
         ]);
+
+        if (!$treatment) {
+            $this->addNote($consumption, "The treatment for this booking no longer exists in this branch, so no stock was deducted.");
+
+            return $consumption;
+        }
 
         foreach ($treatment->recipeItems as $recipeItem) {
             $this->consumeRecipeItem(
@@ -88,16 +101,12 @@ class BookingConsumptionService
             );
         }
 
-        return $consumption->load('items');
+        return $consumption;
     }
 
-    private function consumePackage(Booking $booking,?User $user): BookingConsumption
+    private function consumePackage(Booking $booking, ?User $user): BookingConsumption
     {
-        $packageId = (int) str_replace(
-            'package_',
-            '',
-            $booking->treatment
-        );
+        $packageId = (int) str_replace('package_', '', $booking->treatment);
 
         $package = Package::withoutGlobalScopes()
             ->whereKey($packageId)
@@ -108,53 +117,66 @@ class BookingConsumptionService
                 'treatments.recipeItems' => fn ($query) => $query->orderBy('product_id'),
                 'treatments.recipeItems.product',
             ])
-            ->firstOrFail();
+            ->first();
 
-        if ($package->treatments->isEmpty()) {
-            throw ValidationException::withMessages([
-                'inventory' => "{$package->name} does not contain any treatments.",
-            ]);
+        $consumption = $this->startConsumption($booking, $user, [
+            'package_id' => $package?->id,
+            'service_name' => $package?->name ?? "Unknown package (#{$packageId})",
+        ]);
+
+        if (!$package) {
+            $this->addNote($consumption, "The package for this booking no longer exists in this branch, so no stock was deducted.");
+
+            return $consumption;
         }
 
-        $consumption = BookingConsumption::create([
-            'booking_id' => $booking->id,
-            'spa_id' => $booking->spa_id,
-            'branch_id' => $booking->branch_id,
-            'treatment_id' => null,
-            'package_id' => $package->id,
-            'processed_by' => $user?->id,
-            'service_reference' => $booking->treatment,
-            'service_name' => $package->name,
-            'consumed_at' => now(),
-        ]);
+        if ($package->treatments->isEmpty()) {
+            $this->addNote($consumption, "{$package->name} does not contain any treatments, so no stock was deducted.");
+
+            return $consumption;
+        }
 
         foreach ($package->treatments as $treatment) {
             if (
                 (int) $treatment->spa_id !== (int) $booking->spa_id
                 || (int) $treatment->branch_id !== (int) $booking->branch_id
             ) {
-                throw ValidationException::withMessages([
-                    'inventory' => "A treatment inside {$package->name} belongs to another spa or branch.",
-                ]);
+                $this->addNote($consumption, "{$treatment->name} inside {$package->name} belongs to another spa or branch and was skipped.");
+
+                continue;
             }
 
             $packageQuantity = max((int) $treatment->pivot->quantity, 1);
 
             foreach ($treatment->recipeItems as $recipeItem) {
-                $requiredQuantity = (float) $recipeItem->quantity * $packageQuantity;
-
                 $this->consumeRecipeItem(
                     $booking,
                     $consumption,
                     $treatment,
                     $recipeItem->product,
-                    $requiredQuantity,
+                    (float) $recipeItem->quantity * $packageQuantity,
                     $user
                 );
             }
         }
 
-        return $consumption->load('items');
+        return $consumption;
+    }
+
+    private function startConsumption(Booking $booking, ?User $user, array $attributes): BookingConsumption
+    {
+        return BookingConsumption::create([
+            'booking_id' => $booking->id,
+            'spa_id' => $booking->spa_id,
+            'branch_id' => $booking->branch_id,
+            'treatment_id' => null,
+            'package_id' => null,
+            'processed_by' => $user?->id,
+            'service_reference' => $booking->treatment,
+            'consumed_at' => now(),
+            'has_shortfall' => false,
+            ...$attributes,
+        ]);
     }
 
     private function consumeRecipeItem(
@@ -165,16 +187,26 @@ class BookingConsumptionService
         float $requiredQuantity,
         ?User $user
     ): void {
-        if (!$product || !$product->is_active) {
-            throw ValidationException::withMessages([
-                'inventory' => "A recipe product for {$treatment->name} is unavailable.",
-            ]);
+        if ($requiredQuantity <= self::TOLERANCE) {
+            return;
+        }
+
+        if (!$product) {
+            $this->addNote($consumption, "A recipe product for {$treatment->name} no longer exists.");
+
+            return;
         }
 
         if ((int) $product->spa_id !== (int) $booking->spa_id) {
-            throw ValidationException::withMessages([
-                'inventory' => "A recipe product for {$treatment->name} belongs to another spa.",
-            ]);
+            $this->addNote($consumption, "A recipe product for {$treatment->name} belongs to another spa and was skipped.");
+
+            return;
+        }
+
+        if (!$product->is_active) {
+            $this->recordShort($consumption, $treatment, $product, $requiredQuantity);
+
+            return;
         }
 
         $stock = BranchProductStock::query()
@@ -185,21 +217,12 @@ class BookingConsumptionService
             ->first();
 
         if (!$stock) {
-            throw ValidationException::withMessages([
-                'inventory' => "{$product->name} has no inventory record for this branch.",
-            ]);
+            $this->recordShort($consumption, $treatment, $product, $requiredQuantity);
+
+            return;
         }
 
-        if ((float) $stock->on_hand_quantity < $requiredQuantity) {
-            throw ValidationException::withMessages([
-                'inventory' => "Insufficient {$product->name} stock. Required: "
-                    . $this->formatQuantity($requiredQuantity)
-                    . " {$product->usage_unit}. Available: "
-                    . $this->formatQuantity((float) $stock->on_hand_quantity)
-                    . " {$product->usage_unit}.",
-            ]);
-        }
-
+        // Usable = not expired, oldest expiry first (FEFO), no-expiry last.
         $batches = ProductBatch::query()
             ->where('spa_id', $booking->spa_id)
             ->where('branch_id', $booking->branch_id)
@@ -217,33 +240,27 @@ class BookingConsumptionService
             ->lockForUpdate()
             ->get();
 
-        $usableBatchQuantity = (float) $batches->sum('remaining_quantity');
-
-        if ($usableBatchQuantity < $requiredQuantity) {
-            throw ValidationException::withMessages([
-                'inventory' => "Not enough usable batch stock for {$product->name}. Required: "
-                    . $this->formatQuantity($requiredQuantity)
-                    . " {$product->usage_unit}. Usable batch stock: "
-                    . $this->formatQuantity($usableBatchQuantity)
-                    . " {$product->usage_unit}.",
-            ]);
-        }
-
+        $unit = $product->usage_unit ?: $product->unit ?: 'pcs';
         $remainingToConsume = $requiredQuantity;
 
         foreach ($batches as $batch) {
-            if ($remainingToConsume <= 0) {
+            if ($remainingToConsume <= self::TOLERANCE) {
                 break;
             }
 
-            $batchAvailable = (float) $batch->remaining_quantity;
-            $deductQuantity = min($batchAvailable, $remainingToConsume);
-
             $before = (float) $stock->on_hand_quantity;
+
+            // Never below zero, even if branch stock and batches have drifted apart.
+            $deductQuantity = min((float) $batch->remaining_quantity, $remainingToConsume, max($before, 0));
+
+            if ($deductQuantity <= self::TOLERANCE) {
+                break;
+            }
+
             $after = $before - $deductQuantity;
 
             $batch->update([
-                'remaining_quantity' => $batchAvailable - $deductQuantity,
+                'remaining_quantity' => (float) $batch->remaining_quantity - $deductQuantity,
             ]);
 
             $stock->update([
@@ -260,7 +277,7 @@ class BookingConsumptionService
                 'movement_type' => 'service_consumption',
                 'direction' => 'out',
                 'quantity' => $deductQuantity,
-                'unit' => $product->usage_unit ?: $product->unit ?: 'pcs',
+                'unit' => $unit,
                 'balance_before' => $before,
                 'balance_after' => $after,
                 'reference_type' => 'booking_consumption',
@@ -278,19 +295,45 @@ class BookingConsumptionService
                 'product_name' => $product->name,
                 'batch_number' => $batch->batch_number,
                 'quantity' => $deductQuantity,
-                'unit' => $product->usage_unit ?: $product->unit ?: 'pcs',
+                'short_quantity' => 0,
+                'unit' => $unit,
             ]);
 
             $remainingToConsume -= $deductQuantity;
             $stock->refresh();
         }
+
+        if ($remainingToConsume > self::TOLERANCE) {
+            $this->recordShort($consumption, $treatment, $product, $remainingToConsume);
+        }
     }
 
-    private function formatQuantity(float $quantity): string
+    /** A product row that couldn't be (fully) consumed: quantity 0, no batch. */
+    private function recordShort(BookingConsumption $consumption, Treatment $treatment, $product, float $shortQuantity): void
     {
-        return rtrim(
-            rtrim(number_format($quantity, 3, '.', ''), '0'),
-            '.'
-        );
+        BookingConsumptionItem::create([
+            'booking_consumption_id' => $consumption->id,
+            'product_id' => $product->id,
+            'product_batch_id' => null,
+            'treatment_id' => $treatment->id,
+            'treatment_name' => $treatment->name,
+            'product_name' => $product->name,
+            'batch_number' => null,
+            'quantity' => 0,
+            'short_quantity' => round($shortQuantity, 3),
+            'unit' => $product->usage_unit ?: $product->unit ?: 'pcs',
+        ]);
+
+        if (!$consumption->has_shortfall) {
+            $consumption->update(['has_shortfall' => true]);
+        }
+    }
+
+    private function addNote(BookingConsumption $consumption, string $note): void
+    {
+        $consumption->update([
+            'has_shortfall' => true,
+            'shortfall_notes' => trim(((string) $consumption->shortfall_notes) . "\n" . $note),
+        ]);
     }
 }
