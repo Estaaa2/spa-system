@@ -7,8 +7,8 @@ use App\Mail\VerificationReviewResult;
 use App\Models\Branch;
 use App\Models\Spa;
 use App\Models\SpaVerificationDocument;
+use App\Support\Verification\DocumentExpiryRules;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -90,6 +90,7 @@ class DocumentReviewController extends Controller
 
                     'owner_expiry_date' => $document->owner_expiry_date?->format('Y-m-d'),
                     'owner_expiry_date_display' => $document->owner_expiry_date?->format('M d, Y'),
+                    'owner_no_expiry' => (bool) $document->owner_no_expiry,
 
                     'ocr_expiry_date' => $document->ocr_expiry_date?->format('Y-m-d'),
                     'ocr_expiry_date_display' => $document->ocr_expiry_date?->format('M d, Y'),
@@ -127,15 +128,7 @@ class DocumentReviewController extends Controller
                 'required_if:verification_status,rejected',
             ],
 
-            'document_expiry' => [
-                'nullable',
-                'array',
-            ],
-
-            'document_expiry.*' => [
-                'nullable',
-                'date_format:Y-m-d',
-            ],
+            ...DocumentExpiryRules::requestRules(),
         ]);
 
         if (
@@ -197,57 +190,23 @@ class DocumentReviewController extends Controller
                 );
         }
 
-        if ($document->document_type === 'bir_certificate') {
-            $document->forceFill([
-                'expiry_date' => null,
-                'expiry_date_raw' => null,
-                'expiry_detection_status' => 'not_required',
-                'expiry_detection_source' => null,
-                'expiry_scanned_at' => null,
-                'expiry_verified_at' => now(),
-                'expiry_verified_by' => auth()->id(),
-                'review_remarks' => null,
-            ])->save();
-        } else {
-            $expiry = ($validated['document_expiry'] ?? [])[$document->id]
-                ?? null;
+        // Same rule as the spa approval (DocumentExpiryRules).
+        $result = DocumentExpiryRules::confirm(
+            $document->document_type,
+            $label,
+            ($validated['document_expiry'] ?? [])[$document->id] ?? null,
+            (bool) (($validated['document_no_expiry'] ?? [])[$document->id] ?? false),
+            auth()->id()
+        );
 
-            if (
-                ! filled($expiry) &&
-                in_array(
-                    $document->document_type,
-                    ['government_id', 'business_permit'],
-                    true
-                )
-            ) {
-                return back()->with(
-                    'error',
-                    'Confirm the ' . $label . ' expiration date before approving it.'
-                );
-            }
-
-            if (
-                filled($expiry) &&
-                Carbon::createFromFormat('Y-m-d', $expiry)
-                    ->startOfDay()
-                    ->isBefore(today())
-            ) {
-                return back()->with(
-                    'error',
-                    "{$label} cannot be approved because its expiration date has already passed."
-                );
-            }
-
-            $document->forceFill([
-                'expiry_date' => filled($expiry) ? $expiry : null,
-                'expiry_detection_status' => filled($expiry)
-                    ? 'verified'
-                    : 'verified_no_expiry',
-                'expiry_verified_at' => now(),
-                'expiry_verified_by' => auth()->id(),
-                'review_remarks' => null,
-            ])->save();
+        if ($result['error']) {
+            return back()->with('error', $result['error']);
         }
+
+        $document->forceFill([
+            ...$result['attributes'],
+            'review_remarks' => null,
+        ])->save();
 
         $document->refresh();
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SpaVerificationDocument;
 use App\Models\SpaVerificationDocumentHistory;
 use App\Services\VerificationDocumentScanner;
+use App\Support\Verification\DocumentExpiryRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -185,6 +186,13 @@ class SpaProfileController extends Controller
             []
         );
 
+        // "This document has no expiration date" ticks (Government ID,
+        // DTI / SEC). The administrator still confirms it.
+        $noExpiryInput = (array) $request->input(
+            'owner_no_expiry',
+            []
+        );
+
         $submittedTypes = collect($documents)
             ->filter()
             ->keys()
@@ -244,6 +252,17 @@ class SpaProfileController extends Controller
             $ownerExpiry =
                 $validatedExpiry[$type] ?? null;
 
+            $ownerNoExpiry =
+                DocumentExpiryRules::allowsNoExpiry($type) &&
+                filter_var(
+                    $noExpiryInput[$type] ?? false,
+                    FILTER_VALIDATE_BOOLEAN
+                );
+
+            if ($ownerNoExpiry) {
+                $ownerExpiry = null;
+            }
+
             $rules = [
                 'document' => [
                     'required',
@@ -261,11 +280,12 @@ class SpaProfileController extends Controller
 
             /*
              * A verified owner must type the new expiration date of
-             * a Government ID or Business Permit. The administrator
-             * still confirms it.
+             * a Government ID or Business Permit, unless the ID has
+             * no expiration date. The administrator still confirms it.
              */
             if (
                 $wasVerified &&
+                !$ownerNoExpiry &&
                 in_array(
                     $type,
                     ['government_id', 'business_permit'],
@@ -305,7 +325,11 @@ class SpaProfileController extends Controller
                     'owner_expiry.required' =>
                         'Enter the expiration date shown on the ' .
                         self::DOCUMENT_LABELS[$type] .
-                        '.',
+                        (
+                            DocumentExpiryRules::allowsNoExpiry($type)
+                                ? ', or tick "This document has no expiration date".'
+                                : '.'
+                        ),
 
                     'owner_expiry.after_or_equal' =>
                         'The expiration date for ' .
@@ -353,45 +377,11 @@ class SpaProfileController extends Controller
                 }
 
                 /*
-                 * During initial setup, Government ID and
-                 * Business Permit must have a readable expiry
-                 * date detected by OCR.
-                 */
-                if (
-                    !$wasVerified &&
-                    in_array(
-                        $type,
-                        [
-                            'government_id',
-                            'business_permit',
-                        ],
-                        true
-                    ) &&
-                    (
-                        ($scanResult[
-                            'expiry_detection_status'
-                        ] ?? null) !== 'detected' ||
-                        empty($scanResult['expiry_date'])
-                    )
-                ) {
-                    Storage::disk('local')
-                        ->delete($newPath);
-
-                    $processingErrors[
-                        "documents.$type"
-                    ][] =
-                        self::DOCUMENT_LABELS[$type] .
-                        ' is unreadable or its expiration date could not be detected. ' .
-                        'Please upload a clearer copy showing the complete document and expiration date.';
-
-                    continue;
-                }
-
-                $storedOwnerExpiry = $wasVerified
-                    ? $ownerExpiry
-                    : $scanResult['expiry_date'];
-
-                /*
+                 * The scan never blocks an upload. Whatever it read is
+                 * stored as ocr_expiry_date to pre-fill the admin's
+                 * confirm field; the owner's own date (if any) is kept
+                 * separately so the admin can compare the two.
+                 *
                  * For a verified spa the last confirmed expiration
                  * date stays in effect until the administrator
                  * confirms the new document.
@@ -402,9 +392,10 @@ class SpaProfileController extends Controller
                     $type,
                     $file,
                     $newPath,
-                    $storedOwnerExpiry,
+                    $ownerExpiry,
                     $scanResult,
-                    $wasVerified
+                    $wasVerified,
+                    $ownerNoExpiry
                 );
 
                 $uploadedCount++;
@@ -684,34 +675,15 @@ class SpaProfileController extends Controller
                         $file->getMimeType()
                     );
 
-                // Same rule as the first submission: the permit's
-                // expiry date must be readable. On a renewal the owner
-                // types the date and the administrator confirms it.
-                if (
-                    !$isRenewal &&
-                    $type === 'business_permit' &&
-                    (
-                        ($scanResult['expiry_detection_status'] ?? null) !== 'detected' ||
-                        empty($scanResult['expiry_date'])
-                    )
-                ) {
-                    Storage::disk('local')->delete($newPath);
-
-                    $errors[$errorKey][] =
-                        $label .
-                        ' is unreadable or its expiration date could not be detected. ' .
-                        'Please upload a clearer copy showing the complete document and expiration date.';
-
-                    continue;
-                }
-
+                // The scan never blocks an upload; the administrator
+                // confirms the expiration date during review.
                 $this->replaceDocument(
                     $spa,
                     (int) $branch->id,
                     $type,
                     $file,
                     $newPath,
-                    $ownerExpiry ?: $scanResult['expiry_date'],
+                    $ownerExpiry ?: null,
                     $scanResult,
                     $isRenewal
                 );
@@ -908,7 +880,8 @@ class SpaProfileController extends Controller
         string $newPath,
         ?string $ownerExpiry,
         array $scanResult,
-        bool $keepConfirmedExpiry = false
+        bool $keepConfirmedExpiry = false,
+        bool $ownerNoExpiry = false
     ): void {
         DB::transaction(function () use (
             $spa,
@@ -918,7 +891,8 @@ class SpaProfileController extends Controller
             $newPath,
             $ownerExpiry,
             $scanResult,
-            $keepConfirmedExpiry
+            $keepConfirmedExpiry,
+            $ownerNoExpiry
         ) {
             $existing = $this->documentQuery($spa, $type, $branchId)
                 ->lockForUpdate()
@@ -935,6 +909,7 @@ class SpaProfileController extends Controller
                         'mime_type',
                         'file_size',
                         'owner_expiry_date',
+                        'owner_no_expiry',
                         'ocr_expiry_date',
                         'expiry_date',
                         'expiry_date_raw',
@@ -960,6 +935,7 @@ class SpaProfileController extends Controller
                     'mime_type' => $file->getMimeType(),
                     'file_size' => $file->getSize(),
                     'owner_expiry_date' => $ownerExpiry,
+                    'owner_no_expiry' => $ownerNoExpiry,
                     'ocr_expiry_date' => $scanResult['expiry_date'],
                     // The admin sets the confirmed expiry date on approval.
                     'expiry_date' => $keepConfirmedExpiry

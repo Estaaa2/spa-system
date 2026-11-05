@@ -7,8 +7,8 @@ use App\Mail\VerificationReviewResult;
 use App\Models\Branch;
 use App\Models\Spa;
 use App\Models\SpaVerificationDocument;
+use App\Support\Verification\DocumentExpiryRules;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -126,15 +126,7 @@ class BranchVerificationController extends Controller
                 'required_if:verification_status,rejected',
             ],
 
-            'document_expiry' => [
-                'nullable',
-                'array',
-            ],
-
-            'document_expiry.*' => [
-                'nullable',
-                'date_format:Y-m-d',
-            ],
+            ...DocumentExpiryRules::requestRules(),
         ]);
 
         if ($branch->verification_status !== 'pending') {
@@ -226,75 +218,38 @@ class BranchVerificationController extends Controller
         }
 
         $submittedExpiry = $validated['document_expiry'] ?? [];
+        $submittedNoExpiry = $validated['document_no_expiry'] ?? [];
 
-        $businessPermit = $documents->firstWhere(
-            'document_type',
-            'business_permit'
-        );
-
-        if (! filled($submittedExpiry[$businessPermit->id] ?? null)) {
-            return back()->with(
-                'error',
-                'Confirm the Business Permit expiration date before approving this branch.'
-            );
-        }
+        // Same rule as the spa approval (DocumentExpiryRules): a date or
+        // an explicit "No expiration date" for every own document.
+        $confirmations = [];
 
         foreach ($documents as $document) {
-            if ($document->document_type === 'bir_certificate') {
-                continue;
+            $result = DocumentExpiryRules::confirm(
+                $document->document_type,
+                self::DOCUMENT_LABELS[$document->document_type]
+                    ?? $document->document_type,
+                $submittedExpiry[$document->id] ?? null,
+                (bool) ($submittedNoExpiry[$document->id] ?? false),
+                auth()->id()
+            );
+
+            if ($result['error']) {
+                return back()->with('error', $result['error']);
             }
 
-            $expiry = $submittedExpiry[$document->id] ?? null;
-
-            if (! filled($expiry)) {
-                continue;
-            }
-
-            if (
-                Carbon::createFromFormat('Y-m-d', $expiry)
-                    ->startOfDay()
-                    ->isBefore(today())
-            ) {
-                $label = self::DOCUMENT_LABELS[$document->document_type]
-                    ?? $document->document_type;
-
-                return back()->with(
-                    'error',
-                    "{$label} cannot be approved because its expiration date has already passed."
-                );
-            }
+            $confirmations[$document->id] = $result['attributes'];
         }
 
         DB::transaction(function () use (
             $branch,
             $documents,
-            $submittedExpiry
+            $confirmations
         ) {
             foreach ($documents as $document) {
-                if ($document->document_type === 'bir_certificate') {
-                    $document->update([
-                        'expiry_date' => null,
-                        'expiry_date_raw' => null,
-                        'expiry_detection_status' => 'not_required',
-                        'expiry_detection_source' => null,
-                        'expiry_scanned_at' => null,
-                        'expiry_verified_at' => now(),
-                        'expiry_verified_by' => auth()->id(),
-                    ]);
-
-                    continue;
-                }
-
-                $expiry = $submittedExpiry[$document->id] ?? null;
-
-                $document->update([
-                    'expiry_date' => filled($expiry) ? $expiry : null,
-                    'expiry_detection_status' => filled($expiry)
-                        ? 'verified'
-                        : 'verified_no_expiry',
-                    'expiry_verified_at' => now(),
-                    'expiry_verified_by' => auth()->id(),
-                ]);
+                $document->update(
+                    $confirmations[$document->id]
+                );
             }
 
             $branch->update([
@@ -336,6 +291,7 @@ class BranchVerificationController extends Controller
 
             'owner_expiry_date' => $document->owner_expiry_date?->format('Y-m-d'),
             'owner_expiry_date_display' => $document->owner_expiry_date?->format('M d, Y'),
+            'owner_no_expiry' => (bool) $document->owner_no_expiry,
 
             'ocr_expiry_date' => $document->ocr_expiry_date?->format('Y-m-d'),
             'ocr_expiry_date_display' => $document->ocr_expiry_date?->format('M d, Y'),

@@ -15,6 +15,7 @@ class SpaVerificationDocumentHistory extends Model
         'mime_type',
         'file_size',
         'owner_expiry_date',
+        'owner_no_expiry',
         'ocr_expiry_date',
         'expiry_date',
         'expiry_date_raw',
@@ -29,6 +30,7 @@ class SpaVerificationDocumentHistory extends Model
 
     protected $casts = [
         'owner_expiry_date' => 'date',
+        'owner_no_expiry' => 'boolean',
         'ocr_expiry_date' => 'date',
         'expiry_date' => 'date',
         'expiry_scanned_at' => 'datetime',

@@ -6,23 +6,36 @@
                 'label' => 'Government ID',
                 'hint' => 'Owner or authorized representative. Name and photo must be readable.',
                 'icon' => 'fa-id-card',
+                'expiry' => true,
+                'no_expiry' => true,
             ],
             'dti_sec' => [
                 'label' => 'DTI / SEC Certificate',
                 'hint' => 'DTI Business Name Certificate or SEC Registration Certificate.',
                 'icon' => 'fa-building',
+                'expiry' => true,
+                'no_expiry' => true,
             ],
             'bir_certificate' => [
                 'label' => 'BIR Certificate of Registration',
                 'hint' => 'Proof that the business is registered for tax purposes.',
                 'icon' => 'fa-file-invoice',
+                'expiry' => false,
+                'no_expiry' => false,
             ],
             'business_permit' => [
                 'label' => 'Business Permit',
                 'hint' => 'A valid business or mayor\'s permit for this spa.',
                 'icon' => 'fa-store',
+                'expiry' => true,
+                'no_expiry' => false,
             ],
         ];
+
+        // Same field style as the Spa Profile documents form.
+        $inputClass = 'block w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl '
+            . 'focus:outline-none focus:ring-2 focus:ring-[#8B7355] focus:border-transparent '
+            . 'dark:bg-gray-700 dark:border-gray-600 dark:text-white';
 
         $documents = $spa
             ->verificationDocuments
@@ -184,6 +197,58 @@
                                     >
                                         {{ $errors->first($fieldName) }}
                                     </p>
+
+                                    @if ($meta['expiry'])
+                                        {{--
+                                            The expiration date is never read automatically as a
+                                            blocker: an administrator confirms it during review.
+                                        --}}
+                                        @if ($document && ! $document->expiry_verified_at && ! $hasError)
+                                            {{-- About the file already on record; hidden while a replacement is chosen. --}}
+                                            <p data-current-note class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                                @if ($document->owner_no_expiry)
+                                                    You marked this as having no expiration date. An administrator will confirm it during review.
+                                                @elseif ($document->owner_expiry_date)
+                                                    Expiration date you entered: {{ $document->owner_expiry_date->format('M d, Y') }}. An administrator will confirm it during review.
+                                                @else
+                                                    An administrator will confirm the expiration date during review.
+                                                @endif
+                                            </p>
+                                        @endif
+
+                                        <div data-expiry-wrapper class="hidden mt-3">
+                                            <label for="owner_expiry_{{ $type }}"
+                                                class="block mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                Expiration date
+                                                <span class="font-normal text-gray-500 dark:text-gray-400">· Optional</span>
+                                            </label>
+
+                                            <input type="date"
+                                                id="owner_expiry_{{ $type }}"
+                                                name="owner_expiry[{{ $type }}]"
+                                                min="{{ now()->format('Y-m-d') }}"
+                                                data-expiry-input
+                                                class="{{ $inputClass }} sm:max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
+
+                                            <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                                If the document shows one. An administrator confirms it.
+                                            </p>
+
+                                            @if ($meta['no_expiry'])
+                                                <label class="flex items-center gap-2 mt-2 cursor-pointer">
+                                                    <input type="checkbox"
+                                                        name="owner_no_expiry[{{ $type }}]"
+                                                        value="1"
+                                                        data-no-expiry
+                                                        class="w-4 h-4 rounded text-[#8B7355] border-gray-300 focus:ring-[#8B7355]/40">
+
+                                                    <span class="text-xs text-gray-600 dark:text-gray-300">
+                                                        This document has no expiration date
+                                                    </span>
+                                                </label>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
 
                                 <div class="shrink-0">
@@ -289,6 +354,49 @@
                 return !!(input.files && input.files.length > 0);
             }
 
+            // The optional date fields show once a file is chosen, and
+            // reset when it is cleared (a date travels with its file).
+            function setExpiryFields(input, chosen) {
+                const row = input.closest('li');
+                const wrapper = row.querySelector('[data-expiry-wrapper]');
+                const currentNote = row.querySelector('[data-current-note]');
+
+                if (currentNote) {
+                    currentNote.classList.toggle('hidden', chosen);
+                }
+
+                if (!wrapper) {
+                    return;
+                }
+
+                const dateInput = wrapper.querySelector('[data-expiry-input]');
+                const noExpiry = wrapper.querySelector('[data-no-expiry]');
+
+                wrapper.classList.toggle('hidden', !chosen);
+
+                if (!chosen) {
+                    dateInput.value = '';
+                    dateInput.disabled = false;
+
+                    if (noExpiry) {
+                        noExpiry.checked = false;
+                    }
+                }
+            }
+
+            form.querySelectorAll('[data-no-expiry]').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    const dateInput = checkbox.closest('[data-expiry-wrapper]')
+                        .querySelector('[data-expiry-input]');
+
+                    dateInput.disabled = checkbox.checked;
+
+                    if (checkbox.checked) {
+                        dateInput.value = '';
+                    }
+                });
+            });
+
             function setPill(input, chosen) {
                 const row = input.closest('li');
 
@@ -357,6 +465,7 @@
                         : input.dataset.defaultText;
 
                     setPill(input, picked);
+                    setExpiryFields(input, picked);
                     updateStatus();
                 });
             });
@@ -385,6 +494,7 @@
 
                 inputs.forEach(function (input) {
                     setPill(input, hasChosenFile(input));
+                    setExpiryFields(input, hasChosenFile(input));
                 });
 
                 updateStatus();

@@ -3,9 +3,12 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 use Throwable;
 
@@ -14,6 +17,15 @@ class VerificationDocumentScanner
     private const MIN_OCR_CONFIDENCE = 50;
     private const MAX_LOW_CONFIDENCE_RATIO = 0.55;
     private const MIN_OCR_WORDS = 4;
+
+    /** "Command not found" exit code from the POSIX shell. */
+    private const EXIT_COMMAND_NOT_FOUND = 127;
+
+    /** Log the "scanner offline" warning at most once per hour. */
+    private const UNAVAILABLE_LOG_SECONDS = 3600;
+
+    /** @var array<string, string> Resolved binary paths, per request. */
+    private array $binaries = [];
 
     public function scan(
         string $absolutePath,
@@ -39,6 +51,16 @@ class VerificationDocumentScanner
             return $this->scanImage(
                 $absolutePath
             );
+        } catch (ScannerUnavailableException $e) {
+            $this->logUnavailable($e);
+
+            return [
+                'expiry_date' => null,
+                'expiry_date_raw' => null,
+                'expiry_detection_status' => 'unavailable',
+                'expiry_detection_source' => null,
+                'expiry_scanned_at' => now(),
+            ];
         } catch (Throwable $e) {
             report($e);
 
@@ -61,6 +83,8 @@ class VerificationDocumentScanner
             $text = $this->extractPdfText(
                 $absolutePath
             );
+        } catch (ScannerUnavailableException $e) {
+            throw $e;
         } catch (Throwable $e) {
             report($e);
         }
@@ -119,9 +143,9 @@ class VerificationDocumentScanner
         string $absolutePath
     ): string {
         $process = new Process([
-            config(
-                'document_scanner.pdftotext'
-            ),
+            $this->binary(
+                    'pdftotext'
+                ),
             '-layout',
             $absolutePath,
             '-',
@@ -134,6 +158,10 @@ class VerificationDocumentScanner
         );
 
         $process->run();
+
+            $this->assertCommandFound(
+                $process
+            );
 
         if (!$process->isSuccessful()) {
             throw new RuntimeException(
@@ -168,8 +196,8 @@ class VerificationDocumentScanner
                 'page';
 
             $process = new Process([
-                config(
-                    'document_scanner.pdftoppm'
+                $this->binary(
+                    'pdftoppm'
                 ),
                 '-f',
                 '1',
@@ -191,6 +219,10 @@ class VerificationDocumentScanner
             );
 
             $process->run();
+
+            $this->assertCommandFound(
+                $process
+            );
 
             if (!$process->isSuccessful()) {
                 throw new RuntimeException(
@@ -279,9 +311,9 @@ class VerificationDocumentScanner
         string $absolutePath
     ): array {
         $process = new Process([
-            config(
-                'document_scanner.tesseract'
-            ),
+            $this->binary(
+                    'tesseract'
+                ),
             $absolutePath,
             'stdout',
             '-l',
@@ -299,6 +331,10 @@ class VerificationDocumentScanner
 
         $process->run();
 
+            $this->assertCommandFound(
+                $process
+            );
+
         if (!$process->isSuccessful()) {
             throw new RuntimeException(
                 trim(
@@ -310,6 +346,86 @@ class VerificationDocumentScanner
         return $this->parseTsv(
             $process->getOutput()
         );
+    }
+
+    /**
+     * Full path of an OCR tool, or ScannerUnavailableException when it is
+     * not installed, not on PATH, or PHP cannot start processes.
+     */
+    private function binary(
+        string $key
+    ): string {
+        if (isset($this->binaries[$key])) {
+            return $this->binaries[$key];
+        }
+
+        if (!function_exists('proc_open')) {
+            throw new ScannerUnavailableException(
+                'proc_open() is disabled in PHP, so the OCR tools cannot run.'
+            );
+        }
+
+        $configured = (string) config(
+            'document_scanner.' . $key
+        );
+
+        $isPath =
+            str_contains($configured, '/') ||
+            str_contains($configured, '\\');
+
+        $resolved = $isPath
+            ? (is_file($configured) ? $configured : null)
+            : (new ExecutableFinder())->find($configured);
+
+        if (!$resolved) {
+            throw new ScannerUnavailableException(
+                "OCR tool \"{$key}\" was not found (configured as \"{$configured}\"). " .
+                'Install Tesseract and Poppler, or set DOCUMENT_' .
+                strtoupper($key) . '_PATH in .env.'
+            );
+        }
+
+        return $this->binaries[$key] = $resolved;
+    }
+
+    /** A shell "command not found" means the tool is missing. */
+    private function assertCommandFound(
+        Process $process
+    ): void {
+        if (
+            $process->getExitCode() ===
+            self::EXIT_COMMAND_NOT_FOUND
+        ) {
+            throw new ScannerUnavailableException(
+                trim($process->getErrorOutput()) ?:
+                'An OCR tool could not be started.'
+            );
+        }
+    }
+
+    /**
+     * One warning per hour instead of a stack trace on every upload.
+     */
+    private function logUnavailable(
+        ScannerUnavailableException $e
+    ): void {
+        try {
+            $first = Cache::add(
+                'document-scanner:unavailable-logged',
+                true,
+                self::UNAVAILABLE_LOG_SECONDS
+            );
+        } catch (Throwable) {
+            $first = true;
+        }
+
+        if ($first) {
+            Log::warning(
+                'Document scanner unavailable: ' .
+                $e->getMessage() .
+                ' Uploads are still saved; the administrator enters expiration dates by hand.'
+            );
+        }
     }
 
     private function parseTsv(
@@ -537,7 +653,11 @@ class VerificationDocumentScanner
             'valid\s*thru|' .
             'validity\s*until|' .
             'expires?\s*on|' .
-            'shall\s*expire\s*on' .
+            'shall\s*expire\s*on|' .
+            // Abbreviations: "Exp. Date", "EXP:" (word boundary, so
+            // "Experience" does not match).
+            '\bexp\.?\s*date|' .
+            '\bexp\b\.?' .
             ')/i';
 
         foreach (
@@ -693,11 +813,11 @@ class VerificationDocumentScanner
             '(?:' .
                 '(?:' .
                     $months .
-                ')\s+\d{1,2},?\s+\d{4}' .
+                ')\s+\d{1,2}[,.]?\s+\d{4}' .
             '|' .
                 '\d{1,2}\s+(?:' .
                     $months .
-                '),?\s+\d{4}' .
+                ')[,.]?\s+\d{4}' .
             '|' .
                 '\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2}' .
             '|' .
@@ -773,11 +893,11 @@ class VerificationDocumentScanner
         $patterns = [
             '/\b(?:' .
                 $months .
-                ')\s+\d{1,2},?\s+\d{4}\b/i',
+                ')\s+\d{1,2}[,.]?\s+\d{4}\b/i',
 
             '/\b\d{1,2}\s+(?:' .
                 $months .
-                '),?\s+\d{4}\b/i',
+                ')[,.]?\s+\d{4}\b/i',
 
             '/\b\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2}\b/',
 
@@ -818,6 +938,13 @@ class VerificationDocumentScanner
                 $candidate
             )
         ) {
+            // "December 31. 2026" -> "December 31, 2026"
+            $candidate = preg_replace(
+                '/(\d)\.(?=\s+\d{4})/',
+                '$1,',
+                $candidate
+            ) ?? $candidate;
+
             try {
                 return [
                     'date' =>

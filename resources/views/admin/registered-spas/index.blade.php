@@ -544,6 +544,11 @@
                     <span data-doc="status"
                         class="inline-flex px-2.5 py-1 text-xs font-medium rounded-full">
                     </span>
+
+                    <span data-doc="date-needed"
+                        class="hidden px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        Date needed
+                    </span>
                 </div>
 
                 <p data-doc="file"
@@ -603,10 +608,9 @@
                     Dates do not match. Check the document.
                 </div>
 
-                <div data-doc="unreadable"
-                    class="hidden p-2.5 mt-3 text-xs text-red-700 border border-red-200 bg-red-50 rounded-xl dark:border-red-800 dark:bg-red-900/10 dark:text-red-300">
-
-                    OCR could not read this document clearly. Review the uploaded file.
+                {{-- Text and tone are set per scan status (SCAN_NOTES). --}}
+                <div data-doc="scan-note"
+                    class="hidden p-2.5 mt-3 text-xs border rounded-xl">
                 </div>
 
                 <p data-doc="source"
@@ -622,11 +626,24 @@
                 <input data-doc="expiry-input"
                     type="date"
                     min="{{ now()->format('Y-m-d') }}"
-                    class="{{ $inputClass }}">
+                    class="{{ $inputClass }} disabled:opacity-50 disabled:cursor-not-allowed">
 
                 <p data-doc="expiry-help"
                     class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 </p>
+
+                <label data-doc="no-expiry-wrapper"
+                    class="items-center hidden gap-2 mt-2 cursor-pointer">
+
+                    <input data-doc="no-expiry-input"
+                        type="checkbox"
+                        value="1"
+                        class="w-4 h-4 rounded text-[#8B7355] border-gray-300 focus:ring-[#8B7355]/40">
+
+                    <span class="text-xs text-gray-600 dark:text-gray-300">
+                        No expiration date
+                    </span>
+                </label>
             </div>
         </div>
 
@@ -765,20 +782,21 @@
     };
 
     const DOC_RULES = {
+        // 'decide': a date OR "No expiration date" (DocumentExpiryRules).
         government_id: {
-            expiry: 'required',
+            expiry: 'decide',
             label:
                 'Confirm Expiration Date',
             help:
-                'Confirm the expiration date shown on the Government ID.',
+                'Enter the date on the ID, or tick No expiration date (e.g. PhilSys, UMID, Senior Citizen, TIN ID).',
         },
 
         dti_sec: {
-            expiry: 'optional',
+            expiry: 'decide',
             label:
                 'Confirm Expiration Date',
             help:
-                'Leave blank if no expiration date applies.',
+                'DTI certificates last 5 years. Tick No expiration date for an SEC certificate.',
         },
 
         bir_certificate: {
@@ -804,25 +822,31 @@
         },
 
         verified_no_expiry: {
-            label: 'Reviewed',
+            label: 'Reviewed · No Expiry',
             classes:
                 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
         },
 
         detected: {
-            label: 'Detected',
+            label: 'Date Read',
             classes:
                 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
         },
 
         needs_review: {
-            label: 'Needs Review',
+            label: 'Unclear Date',
             classes:
                 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
         },
 
         not_found: {
-            label: 'No Expiry Found',
+            label: 'No Date Found',
+            classes:
+                'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+        },
+
+        unavailable: {
+            label: 'Scanner Offline',
             classes:
                 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
         },
@@ -834,13 +858,13 @@
         },
 
         failed: {
-            label: 'Scan Failed',
+            label: 'Scan Error',
             classes:
                 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
         },
 
         unreadable: {
-            label: 'Unreadable',
+            label: 'Couldn\'t Read',
             classes:
                 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
         },
@@ -850,6 +874,53 @@
             classes:
                 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
         },
+    };
+
+    const NOTE_TONES = {
+        amber:
+            'text-amber-800 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300',
+        red:
+            'text-red-700 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10 dark:text-red-300',
+        slate:
+            'text-slate-700 border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/20 dark:text-slate-300',
+    };
+
+    // What the admin should know about each scan result. The scan only
+    // pre-fills the date; the admin's confirmation is what counts.
+    const SCAN_NOTES = {
+        needs_review: doc => ({
+            tone: 'amber',
+            text:
+                'The date reads as ' +
+                (doc.expiry_date_raw || 'a number-only date') +
+                ', which could be day/month or month/day. Check the file.',
+        }),
+
+        not_found: doc => ({
+            tone: 'slate',
+            text:
+                DOC_RULES[doc.document_type]?.expiry === 'decide'
+                    ? 'No expiration label was found. Enter the date from the file, or tick No expiration date if it has none.'
+                    : 'No expiration label was found. Enter the date from the file.',
+        }),
+
+        unreadable: () => ({
+            tone: 'red',
+            text:
+                'The file was too unclear to read automatically. Check it yourself.',
+        }),
+
+        unavailable: () => ({
+            tone: 'slate',
+            text:
+                'OCR is not running on the server, so nothing was read. This is not a problem with the owner\'s file.',
+        }),
+
+        failed: () => ({
+            tone: 'red',
+            text:
+                'The scan hit an error. Enter the date from the file.',
+        }),
     };
 
     const SOURCE_LABELS = {
@@ -955,6 +1026,7 @@
                 input => {
                     input.required =
                         !on &&
+                        !input.disabled &&
                         input.dataset
                             .requiredForApproval ===
                             'true';
@@ -1060,9 +1132,24 @@
                         '[data-doc="mismatch"]'
                     );
 
-                const unreadable =
+                const scanNote =
                     row.querySelector(
-                        '[data-doc="unreadable"]'
+                        '[data-doc="scan-note"]'
+                    );
+
+                const dateNeeded =
+                    row.querySelector(
+                        '[data-doc="date-needed"]'
+                    );
+
+                const noExpiryWrapper =
+                    row.querySelector(
+                        '[data-doc="no-expiry-wrapper"]'
+                    );
+
+                const noExpiryInput =
+                    row.querySelector(
+                        '[data-doc="no-expiry-input"]'
                     );
 
                 const source =
@@ -1167,8 +1254,12 @@
                         );
                 } else {
                     ownerExpiry.textContent =
-                        doc.owner_expiry_date_display ??
-                        'Not provided';
+                        doc.owner_no_expiry
+                            ? 'No expiration date'
+                            : (
+                                doc.owner_expiry_date_display ??
+                                'Not provided'
+                            );
 
                     if (
                         doc.expiry_detection_status ===
@@ -1187,11 +1278,6 @@
                             'dark:text-red-300'
                         );
 
-                        unreadable
-                            .classList
-                            .remove(
-                                'hidden'
-                            );
                     } else if (
                         doc.ocr_expiry_date_display
                     ) {
@@ -1205,10 +1291,16 @@
                             'Not scanned';
                     } else if (
                         doc.expiry_detection_status ===
+                        'unavailable'
+                    ) {
+                        ocrExpiry.textContent =
+                            'Scanner offline';
+                    } else if (
+                        doc.expiry_detection_status ===
                         'failed'
                     ) {
                         ocrExpiry.textContent =
-                            'Scan failed';
+                            'Scan error';
 
                         ocrExpiry.classList.remove(
                             'text-gray-900',
@@ -1228,6 +1320,28 @@
                     } else {
                         ocrExpiry.textContent =
                             'Not detected';
+                    }
+
+                    const note =
+                        SCAN_NOTES[
+                            doc.expiry_detection_status
+                        ];
+
+                    if (
+                        note &&
+                        !doc.expiry_verified_at
+                    ) {
+                        const config =
+                            note(doc);
+
+                        scanNote.textContent =
+                            config.text;
+
+                        scanNote.className =
+                            'p-2.5 mt-3 text-xs border rounded-xl ' +
+                            NOTE_TONES[
+                                config.tone
+                            ];
                     }
 
                     const hasMismatch =
@@ -1288,9 +1402,13 @@
                     expiryHelp.textContent =
                         rule.help;
 
+                    // A date is needed unless "No expiration date" is
+                    // ticked (allowed for Government ID and DTI / SEC).
                     const required =
                         rule.expiry ===
-                        'required';
+                            'required' ||
+                        rule.expiry ===
+                            'decide';
 
                     expiryInput.dataset
                         .requiredForApproval =
@@ -1300,6 +1418,70 @@
 
                     expiryInput.required =
                         required;
+
+                    if (
+                        rule.expiry ===
+                        'decide'
+                    ) {
+                        noExpiryWrapper
+                            .classList
+                            .replace(
+                                'hidden',
+                                'flex'
+                            );
+
+                        noExpiryInput.name =
+                            'document_no_expiry[' +
+                            doc.id +
+                            ']';
+
+                        const applyNoExpiry =
+                            () => {
+                                expiryInput.disabled =
+                                    noExpiryInput.checked;
+
+                                // Never required while rejecting.
+                                expiryInput.required =
+                                    !noExpiryInput.checked &&
+                                    !!el(
+                                        'rejectActions'
+                                    )?.classList.contains(
+                                        'hidden'
+                                    );
+
+                                if (
+                                    noExpiryInput.checked
+                                ) {
+                                    expiryInput.value =
+                                        '';
+                                }
+                            };
+
+                        // Pre-ticked only when an administrator already
+                        // confirmed "no expiry"; the owner's own claim
+                        // is shown above but is not taken as given.
+                        noExpiryInput.checked =
+                            doc.expiry_detection_status ===
+                            'verified_no_expiry';
+
+                        noExpiryInput.addEventListener(
+                            'change',
+                            applyNoExpiry
+                        );
+
+                        applyNoExpiry();
+                    }
+
+                    if (
+                        !doc.shared &&
+                        !doc.expiry_verified_at
+                    ) {
+                        dateNeeded
+                            .classList
+                            .remove(
+                                'hidden'
+                            );
+                    }
                 }
 
                 // Shared documents (Government ID, DTI/SEC) are shown for
@@ -1313,6 +1495,21 @@
 
                     expiryInput.dataset
                         .requiredForApproval = 'false';
+
+                    noExpiryWrapper
+                        .classList
+                        .replace(
+                            'flex',
+                            'hidden'
+                        );
+
+                    noExpiryInput.disabled = true;
+
+                    dateNeeded
+                        .classList
+                        .add(
+                            'hidden'
+                        );
                 }
 
                 if (

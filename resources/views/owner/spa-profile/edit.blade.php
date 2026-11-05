@@ -62,14 +62,16 @@
     $documentMeta = [
         'government_id' => [
             'label' => 'Government ID',
-            'description' => 'Upload a valid government-issued ID showing its expiration date.',
+            'description' => 'Upload a valid government-issued ID.',
             'expiry' => 'required',
+            'no_expiry' => true,
         ],
 
         'dti_sec' => [
             'label' => 'DTI / SEC Certificate',
             'description' => 'Upload your DTI or SEC registration certificate.',
             'expiry' => 'optional',
+            'no_expiry' => true,
         ],
 
         'bir_certificate' => [
@@ -333,9 +335,11 @@
                                                 </p>
 
                                                 <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">
-                                                    {{ $document->owner_expiry_date
-                                                        ? $document->owner_expiry_date->format('M d, Y')
-                                                        : 'Not provided'
+                                                    {{ $document->owner_no_expiry
+                                                        ? 'No expiry'
+                                                        : ($document->owner_expiry_date
+                                                            ? $document->owner_expiry_date->format('M d, Y')
+                                                            : 'Not provided')
                                                     }}
                                                 </p>
                                             </div>
@@ -441,6 +445,7 @@
                                             data-picker-label-id="picker_label_{{ $type }}"
                                             data-picker-text-id="picker_text_{{ $type }}"
                                             data-expiry-required="{{ $meta['expiry'] === 'required' ? 'true' : 'false' }}"
+                                            data-no-expiry-id="owner_no_expiry_{{ $type }}"
                                             onchange="handleFileChange(this)">
 
                                         <label id="picker_label_{{ $type }}"
@@ -491,11 +496,27 @@
                                                 name="owner_expiry[{{ $type }}]"
                                                 value="{{ old($expiryField) }}"
                                                 min="{{ now()->format('Y-m-d') }}"
-                                                class="{{ $inputClass }}">
+                                                class="{{ $inputClass }} disabled:opacity-50 disabled:cursor-not-allowed">
 
                                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                                 Enter the date printed on the document.
                                             </p>
+
+                                            @if (!empty($meta['no_expiry']))
+                                                <label class="flex items-center gap-2 mt-2 cursor-pointer">
+                                                    <input type="checkbox"
+                                                        id="owner_no_expiry_{{ $type }}"
+                                                        name="owner_no_expiry[{{ $type }}]"
+                                                        value="1"
+                                                        data-expiry-input-id="owner_expiry_{{ $type }}"
+                                                        onchange="toggleNoExpiry(this)"
+                                                        class="w-4 h-4 rounded text-[#8B7355] border-gray-300 focus:ring-[#8B7355]/40">
+
+                                                    <span class="text-xs text-gray-600 dark:text-gray-300">
+                                                        This document has no expiration date
+                                                    </span>
+                                                </label>
+                                            @endif
 
                                             @error($expiryField)
                                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">
@@ -1130,8 +1151,26 @@ function toggleExpiry(
         !show
     );
 
+    const noExpiry =
+        fileInput.dataset.noExpiryId
+            ? document.getElementById(
+                fileInput.dataset.noExpiryId
+            )
+            : null;
+
+    if (
+        !show &&
+        noExpiry
+    ) {
+        noExpiry.checked = false;
+    }
+
+    expiryInput.disabled =
+        !!(noExpiry && noExpiry.checked);
+
     expiryInput.required =
         show &&
+        !expiryInput.disabled &&
         fileInput.dataset.expiryRequired ===
             'true';
 
@@ -1141,6 +1180,40 @@ function toggleExpiry(
 
     expiryInput.oninput =
         updateSubmitState;
+}
+
+// "This document has no expiration date": the date box is not needed.
+function toggleNoExpiry(checkbox) {
+    const expiryInput =
+        document.getElementById(
+            checkbox.dataset.expiryInputId
+        );
+
+    if (!expiryInput) {
+        return;
+    }
+
+    const fileInput =
+        document.querySelector(
+            '[data-no-expiry-id="' +
+            checkbox.id +
+            '"]'
+        );
+
+    expiryInput.disabled =
+        checkbox.checked;
+
+    if (checkbox.checked) {
+        expiryInput.value = '';
+    }
+
+    expiryInput.required =
+        !checkbox.checked &&
+        !!fileInput &&
+        fileInput.dataset.expiryRequired ===
+            'true';
+
+    updateSubmitState();
 }
 
 function updateSubmitState() {
@@ -1192,7 +1265,10 @@ function updateSubmitState() {
 
                 if (
                     !expiryInput ||
-                    !expiryInput.value
+                    (
+                        !expiryInput.value &&
+                        !expiryInput.disabled
+                    )
                 ) {
                     missingRequiredExpiry =
                         true;
