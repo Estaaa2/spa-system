@@ -7,6 +7,7 @@ use App\Mail\RescheduleRejectedMail;
 use App\Models\Booking;
 use App\Models\OperatingHours;
 use App\Models\RescheduleRequest;
+use App\Services\Bookings\StaleRequestExpiry;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -108,7 +109,7 @@ class RescheduleRequestController extends Controller
                     $q->where('branch_id', $branchId);
                 }
             })
-            ->where('status', 'pending')
+            ->open()   // past the original start = expired, never listed (Phase 3, D5)
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(fn($r) => $this->formatRequest($r));
@@ -121,11 +122,25 @@ class RescheduleRequestController extends Controller
     // =====================================================
     public function approve(Request $request, RescheduleRequest $rescheduleRequest)
     {
+        $this->abortUnlessReviewerScope($rescheduleRequest);
+
         if (!$rescheduleRequest->isPending()) {
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
         }
 
+        if ($stale = $this->expireIfStale($rescheduleRequest)) {
+            return $stale;
+        }
+
         $booking = $rescheduleRequest->booking;
+
+        // The requested slot itself may have passed while the request waited.
+        $requestedStart = Carbon::parse($rescheduleRequest->requested_date->toDateString().' '.$rescheduleRequest->requested_time);
+        if ($requestedStart->lte(now())) {
+            return response()->json([
+                'message' => 'The requested date and time have already passed. Please reject and ask the customer to pick a new time.',
+            ], 422);
+        }
 
         // Preserve original treatment duration so end_time is always correct
         // after the booking is moved to the new date/time
@@ -215,8 +230,14 @@ class RescheduleRequestController extends Controller
             'rejection_reason' => ['required', 'string', 'min:5', 'max:500'],
         ]);
 
+        $this->abortUnlessReviewerScope($rescheduleRequest);
+
         if (!$rescheduleRequest->isPending()) {
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
+
+        if ($stale = $this->expireIfStale($rescheduleRequest)) {
+            return $stale;
         }
 
         $rescheduleRequest->update([
@@ -242,20 +263,38 @@ class RescheduleRequestController extends Controller
     // =====================================================
     // CUSTOMER: Get reschedule status for a booking
     // =====================================================
-    public function status(Booking $booking)
+    /**
+     * Two routes reach this: the web one binds {booking}, the app's binds
+     * {bookingId}. It used to call authorize('view') with no BookingPolicy
+     * defined, so it always answered 403 (found in the lifecycle fix, Phase 3).
+     * Now: the customer's own booking only, otherwise 404.
+     */
+    public function status(Request $request)
     {
-        $this->authorize('view', $booking);
+        // Untyped on purpose: no implicit binding, so both route shapes give the raw id.
+        $id = $request->route('booking') ?? $request->route('bookingId');
+        $id = $id instanceof Booking ? $id->id : $id;
+
+        $booking = Booking::whereKey((int) $id)
+            ->where('customer_user_id', Auth::id())
+            ->firstOrFail();
 
         $latest = RescheduleRequest::where('booking_id', $booking->id)
             ->latest()
+            ->latest('id')
             ->first();
 
         if (!$latest) {
             return response()->json(['status' => null]);
         }
 
+        // Q1-C: the app is sent `rejected` for an expired request until it knows
+        // `expired`; the web reads the real value. `expired` is new and additive.
+        $isApi = $request->is('api/*') || $request->routeIs('reschedule.flutter.status');
+
         return response()->json([
-            'status'           => $latest->status,
+            'status'           => $isApi ? $latest->legacyStatus() : $latest->status,
+            'expired'          => $latest->isExpired(),
             'requested_date'   => $latest->requested_date->format('F j, Y'),
             'requested_time'   => Carbon::parse($latest->requested_time)->format('g:i A'),
             'reason'           => $latest->reason,
@@ -264,8 +303,42 @@ class RescheduleRequestController extends Controller
     }
 
     // =====================================================
-    // Helper
+    // Helpers
     // =====================================================
+
+    /**
+     * Reviewers act only on requests for bookings of their own spa and
+     * current branch (same scope as index()). The permission middleware
+     * checks the permission, not the request (lifecycle fix, Phase 3).
+     */
+    private function abortUnlessReviewerScope(RescheduleRequest $r): void
+    {
+        $user = Auth::user();
+        $branchId = $user->currentBranchId() ?? $user->branch_id;
+        $booking = $r->booking;
+
+        abort_unless(
+            $booking
+            && (int) $booking->spa_id === (int) $user->spa_id
+            && (int) $booking->branch_id === (int) $branchId,
+            404
+        );
+    }
+
+    /** D5: too late to answer → expire it now (customer emailed) and say so. */
+    private function expireIfStale(RescheduleRequest $r): ?\Illuminate\Http\JsonResponse
+    {
+        if (! $r->isPastDeadline()) {
+            return null;
+        }
+
+        app(StaleRequestExpiry::class)->expireReschedule($r);
+
+        return response()->json([
+            'message' => 'This request expired: the appointment has already started or is closed, so the original schedule stands.',
+        ], 422);
+    }
+
     private function formatRequest(RescheduleRequest $r): array
     {
         $booking = $r->booking;

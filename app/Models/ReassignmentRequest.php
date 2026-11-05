@@ -9,6 +9,14 @@ class ReassignmentRequest extends Model
 {
     use HasFactory;
 
+    public const STATUS_PENDING  = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+    /** Nobody acted on it before the booking ended (booking lifecycle fix, Phase 3, D6). */
+    public const STATUS_EXPIRED  = 'expired';
+
+    public const EXPIRED_REASON = 'Not reviewed before the appointment ended.';
+
     protected $fillable = [
         'booking_id',
         'requested_by',
@@ -80,6 +88,16 @@ class ReassignmentRequest extends Model
         return $query->where('status', 'rejected');
     }
 
+    /**
+     * Pending and still actionable: the booking is open and hasn't ended
+     * (D6). Lists, badges and the Dashboard alert count these.
+     */
+    public function scopeOpen($query)
+    {
+        return $query->where($query->qualifyColumn('status'), self::STATUS_PENDING)
+            ->whereHas('booking', fn ($b) => $b->whereIn('status', Booking::ACTIVE_STATUSES)->notEnded());
+    }
+
     // =====================
     // Helpers
     // =====================
@@ -97,5 +115,28 @@ class ReassignmentRequest extends Model
     public function isRejected(): bool
     {
         return $this->status === 'rejected';
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === self::STATUS_EXPIRED;
+    }
+
+    /** Too late to act: the booking is no longer open, or it has ended (D6). */
+    public function isPastDeadline(): bool
+    {
+        $booking = $this->booking;
+        $end = $booking?->endsAt();
+
+        return ! $booking
+            || ! in_array($booking->status, Booking::ACTIVE_STATUSES, true)
+            || $end === null
+            || now()->gte($end);
+    }
+
+    /** What the current mobile app is sent (Q1-C): `expired` goes out as `rejected`. */
+    public function legacyStatus(): string
+    {
+        return $this->isExpired() ? self::STATUS_REJECTED : (string) $this->status;
     }
 }

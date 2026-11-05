@@ -195,6 +195,20 @@ class Booking extends Model
             });
     }
 
+    /** Its start time hasn't come yet (reschedule requests expire at the start, D5). */
+    public function scopeNotStarted($query)
+    {
+        $now = now();
+
+        return $query->where(function ($q) use ($now) {
+            $q->whereDate('appointment_date', '>', $now->toDateString())
+                ->orWhere(function ($q2) use ($now) {
+                    $q2->whereDate('appointment_date', $now->toDateString())
+                        ->where('start_time', '>', $now->format('H:i:s'));
+                });
+        });
+    }
+
     /** Not past its end time yet (the opposite time test of scopeOverdue). */
     public function scopeNotEnded($query)
     {

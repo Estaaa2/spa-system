@@ -134,7 +134,8 @@ class ScheduleController extends Controller
                 ->with('latestRescheduleRequest')
                 ->where('spa_id', $user->spa_id)
                 ->where('branch_id', $currentBranchId)
-                ->whereHas('rescheduleRequests', fn ($q) => $q->pending())
+                // Open = pending and the original start hasn't come (Phase 3, D5).
+                ->whereHas('rescheduleRequests', fn ($q) => $q->open())
                 ->orderBy('appointment_date')
                 ->orderBy('start_time')
                 ->get()

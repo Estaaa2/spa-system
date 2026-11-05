@@ -2269,6 +2269,13 @@ function customerStatus(b) {
     return { key: 'ended', label: s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') : '' };
 }
 
+// A reschedule request still waiting for review. The server's reschedule_pending
+// is false once the original start has passed (lifecycle Phase 3); older
+// payloads without it fall back to the raw status.
+function rescheduleWaiting(b) {
+    return b.reschedule_pending ?? (b.reschedule_status === 'pending');
+}
+
 function customerStatusPill(b) {
     const st = customerStatus(b);
     return `<span class="apt-pill apt-pill--${st.key}">${escapeHtml(st.label)}</span>`;
@@ -2466,7 +2473,7 @@ function renderAppointmentRow(b, i, tab, mapName = '_appointmentMap') {
     } else if (tab === 'upcoming') {
         chips.push(`<span class="apt-chip"><i class="fa-solid fa-user" aria-hidden="true"></i>Therapist not assigned yet</span>`);
     }
-    if (b.reschedule_status === 'pending') {
+    if (rescheduleWaiting(b)) {
         chips.push(`<span class="apt-chip apt-chip--warn"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Reschedule requested</span>`);
     }
 
@@ -2896,9 +2903,22 @@ function renderDetailReschedule(booking) {
             text: 'text-sm text-red-800 dark:text-red-200',
             msg:  'Your last reschedule request was declined. Your original schedule still stands.',
         },
+        // Booking lifecycle fix, Phase 3 (D5): nobody reviewed it before the
+        // original start time. Not a decline, so not red.
+        expired: {
+            box:  'flex items-start gap-3 p-3 rounded-2xl ring-1 bg-gray-50 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700',
+            icon: 'mt-0.5 fa-solid fa-hourglass-end text-gray-500 dark:text-gray-400',
+            text: 'text-sm text-gray-700 dark:text-gray-300',
+            msg:  "Your reschedule request wasn't reviewed before your appointment, so your original schedule stands.",
+        },
     };
 
-    const notice = notices[booking.reschedule_status] || null;
+    // A pending request past its deadline counts as expired even before the
+    // server job marks it (reschedule_pending is false then).
+    const shownStatus = booking.reschedule_status === 'pending' && !rescheduleWaiting(booking)
+        ? 'expired'
+        : booking.reschedule_status;
+    const notice = notices[shownStatus] || null;
     if (notice) {
         wrap.className   = notice.box;
         icon.className   = notice.icon;
@@ -2910,7 +2930,7 @@ function renderDetailReschedule(booking) {
 
     const active      = ['reserved', 'pending', 'ongoing'].includes(booking.status);
     const canAsk      = bookingCanReschedule(booking);
-    const waiting     = booking.reschedule_status === 'pending';
+    const waiting     = rescheduleWaiting(booking);
     const showButton  = canAsk && !waiting;
 
     bdShow(btn, showButton, 'inline-flex');
@@ -3000,7 +3020,7 @@ function bdShowView(view, moveFocus = true) {
     document.getElementById('bdTitle').textContent = form ? 'Request reschedule' : 'Booking details';
 
     bdShow(document.getElementById('openRescheduleBtn'), !form && bookingCanReschedule(selectedBooking || {})
-        && selectedBooking?.reschedule_status !== 'pending', 'inline-flex');
+        && !rescheduleWaiting(selectedBooking || {}), 'inline-flex');
     bdShow(document.getElementById('rescheduleSubmitBtn'), form, 'inline-flex');
     if (form) bdShow(document.getElementById('bdFooter'), true);
     else if (selectedBooking) renderDetailReschedule(selectedBooking);

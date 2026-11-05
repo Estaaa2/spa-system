@@ -84,8 +84,15 @@ class CustomerAppointmentController extends Controller
                 : 'Not Assigned',
             'price'              => null,
             'service_type'       => $b->service_type_label,
-            'reschedule_status'  => $b->latestRescheduleRequest?->status ?? null,
-            'reschedule_pending' => $b->latestRescheduleRequest?->isPending() ?? false,
+            // Q1-C (lifecycle Phase 3): the app is sent `rejected` for an expired
+            // request until it knows `expired`; the web reads the real value.
+            'reschedule_status'  => $b->latestRescheduleRequest
+                ? (request()->is('api/*') ? $b->latestRescheduleRequest->legacyStatus() : $b->latestRescheduleRequest->status)
+                : null,
+            'reschedule_expired' => $b->latestRescheduleRequest?->isExpired() ?? false,
+            // A pending one past the original start is expired (job may not have run yet).
+            'reschedule_pending' => ($b->latestRescheduleRequest?->isPending() ?? false)
+                && ! $b->latestRescheduleRequest->isPastDeadline(),
             // Same rule the server enforces on submit; the app can read it too.
             'can_reschedule'     => $b->canRequestReschedule(),
             'has_rating'         => $hasRating,

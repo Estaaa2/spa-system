@@ -9,6 +9,14 @@ class RescheduleRequest extends Model
 {
     use HasFactory;
 
+    public const STATUS_PENDING  = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
+    /** Nobody reviewed it before the original start time (booking lifecycle fix, Phase 3). */
+    public const STATUS_EXPIRED  = 'expired';
+
+    public const EXPIRED_REASON = 'Not reviewed before your appointment started, so your original schedule stands.';
+
     protected $fillable = [
         'booking_id',
         'requested_by',
@@ -65,6 +73,18 @@ class RescheduleRequest extends Model
         return $query->where('status', 'rejected');
     }
 
+    /**
+     * Pending and still answerable: the booking is open and its original start
+     * hasn't come (booking lifecycle fix, Phase 3, D5). This is what staff lists
+     * and badges count; a pending row past that point is waiting for the
+     * expiry job and is never shown or approvable.
+     */
+    public function scopeOpen($query)
+    {
+        return $query->where($query->qualifyColumn('status'), self::STATUS_PENDING)
+            ->whereHas('booking', fn ($b) => $b->whereIn('status', Booking::ACTIVE_STATUSES)->notStarted());
+    }
+
     // =====================
     // Helpers
     // =====================
@@ -82,5 +102,35 @@ class RescheduleRequest extends Model
     public function isRejected(): bool
     {
         return $this->status === 'rejected';
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === self::STATUS_EXPIRED;
+    }
+
+    /**
+     * Too late to answer: the booking is no longer open, or its original start
+     * time has come (D5). The booking keeps its original schedule.
+     */
+    public function isPastDeadline(): bool
+    {
+        $booking = $this->booking;
+        $start = $booking?->startsAt();
+
+        return ! $booking
+            || ! in_array($booking->status, Booking::ACTIVE_STATUSES, true)
+            || $start === null
+            || now()->gte($start);
+    }
+
+    /**
+     * The status the mobile app is sent (Phase 3, Q1-C): `expired` goes out as
+     * `rejected` until the app knows the new value; `reschedule_expired` /
+     * `expired` fields carry the truth.
+     */
+    public function legacyStatus(): string
+    {
+        return $this->isExpired() ? self::STATUS_REJECTED : (string) $this->status;
     }
 }

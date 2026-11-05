@@ -43,7 +43,9 @@ class ReassignmentRequestController extends Controller
             ], 403);
         }
 
-        if (!in_array($booking->status, ['reserved', 'pending'])) {
+        // Also once it has ended: a pending booking can stay open past its end
+        // time now (lifecycle fix), and nobody can reassign a session that's over.
+        if (!in_array($booking->status, ['reserved', 'pending']) || $booking->isOverdue()) {
             return response()->json([
                 'message' => 'This appointment can no longer be reassigned.',
             ], 422);
@@ -115,7 +117,7 @@ class ReassignmentRequestController extends Controller
                     $q->where('branch_id', $branchId);
                 }
             })
-            ->where('status', 'pending')
+            ->open()   // ended bookings = expired, never listed (Phase 3, D6)
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(fn ($r) => $this->formatRequest($r));
@@ -130,8 +132,14 @@ class ReassignmentRequestController extends Controller
     // =====================================================
     public function approve(Request $request, ReassignmentRequest $reassignmentRequest)
     {
+        $this->abortUnlessReviewerScope($reassignmentRequest);
+
         if (!$reassignmentRequest->isPending()) {
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
+
+        if ($stale = $this->expireIfStale($reassignmentRequest)) {
+            return $stale;
         }
 
         $booking = $reassignmentRequest->booking;
@@ -179,8 +187,14 @@ class ReassignmentRequestController extends Controller
             'rejection_reason' => ['required', 'string', 'min:5', 'max:500'],
         ]);
 
+        $this->abortUnlessReviewerScope($reassignmentRequest);
+
         if (!$reassignmentRequest->isPending()) {
             return response()->json(['message' => 'This request has already been reviewed.'], 422);
+        }
+
+        if ($stale = $this->expireIfStale($reassignmentRequest)) {
+            return $stale;
         }
 
         $reassignmentRequest->update([
@@ -194,8 +208,41 @@ class ReassignmentRequestController extends Controller
     }
 
     // =====================================================
-    // Helper
+    // Helpers
     // =====================================================
+
+    /** Own spa and current branch only (same scope as index(); lifecycle fix, Phase 3). */
+    private function abortUnlessReviewerScope(ReassignmentRequest $r): void
+    {
+        $user = Auth::user();
+        $branchId = $user->currentBranchId() ?? $user->branch_id;
+        $booking = $r->booking;
+
+        abort_unless(
+            $booking
+            && (int) $booking->spa_id === (int) $user->spa_id
+            && (int) $booking->branch_id === (int) $branchId,
+            404
+        );
+    }
+
+    /**
+     * D6: a booking that ended or is closed can't be reassigned — that would
+     * change who it's credited to (commission). Expire it now and say so.
+     */
+    private function expireIfStale(ReassignmentRequest $r): ?\Illuminate\Http\JsonResponse
+    {
+        if (! $r->isPastDeadline()) {
+            return null;
+        }
+
+        app(\App\Services\Bookings\StaleRequestExpiry::class)->expireReassignment($r);
+
+        return response()->json([
+            'message' => 'This request expired: the appointment has already ended or is closed, so its therapist stays as recorded.',
+        ], 422);
+    }
+
     private function formatRequest(ReassignmentRequest $r): array
     {
         $booking = $r->booking;

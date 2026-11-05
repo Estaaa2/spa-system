@@ -151,7 +151,7 @@ class DashboardController extends Controller
             $pendingReassignments = ReassignmentRequest::whereHas('booking', function ($q) use ($spaId, $currentBranchId) {
                     $q->where('spa_id', $spaId)->where('branch_id', $currentBranchId);
                 })
-                ->where('status', 'pending')
+                ->open()   // not expired: the booking hasn't ended (lifecycle Phase 3, D6)
                 ->count();
         }
 
@@ -380,7 +380,7 @@ class DashboardController extends Controller
                 'pending_reassignments' => ReassignmentRequest::whereHas('booking', function ($q) use ($spaId, $currentBranchId) {
                         $q->where('spa_id', $spaId)->where('branch_id', $currentBranchId);
                     })
-                    ->where('status', 'pending')
+                    ->open()
                     ->count(),
             ];
         }

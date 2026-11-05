@@ -105,10 +105,20 @@ final class NavBadges
             $unassignedCount = (clone $unassigned)->count();
             $startingToday   = (clone $unassigned)->whereDate('appointment_date', today())->count();
 
-            $reassignments = ReassignmentRequest::query()
-                ->whereHas('booking', fn ($q) => $q->where('spa_id', $spaId)->where('branch_id', $branchId))
-                ->pending()
-                ->count();
+            // Open = pending and the booking hasn't ended (lifecycle Phase 3, D6).
+            // One query for the count and the "!" part (sidebar query budget).
+            $tomorrow = today()->addDay()->toDateString();
+            $r = ReassignmentRequest::query()
+                ->open()
+                ->join('bookings', 'bookings.id', '=', 'reassignment_requests.booking_id')
+                ->where('bookings.spa_id', $spaId)
+                ->where('bookings.branch_id', $branchId)
+                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN DATE(bookings.appointment_date) <= ? THEN 1 ELSE 0 END) as soon', [$tomorrow])
+                ->first();
+
+            $reassignments = (int) ($r->total ?? 0);
+            // D6: "!" when the affected booking is today or tomorrow.
+            $reassignSoon = (int) ($r->soon ?? 0);
 
             // Needs Checkout list: still open after the end time (booking lifecycle
             // fix, Phase 2, D3). Same query as BookingController::adminIndex.
@@ -117,28 +127,47 @@ final class NavBadges
                 ->where('branch_id', $branchId)
                 ->overdue();
 
-            $overdueCount   = (clone $overdue)->count();
-            $overdueEarlier = (clone $overdue)->whereDate('appointment_date', '<', today())->count();
+            $o = $overdue
+                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN DATE(appointment_date) < ? THEN 1 ELSE 0 END) as earlier', [today()->toDateString()])
+                ->first();
+
+            $overdueCount   = (int) ($o->total ?? 0);
+            $overdueEarlier = (int) ($o->earlier ?? 0);
 
             $total = $unassignedCount + $reassignments + $overdueCount;
             $parts = array_filter([
                 $overdueCount ? "$overdueCount to check out".($overdueEarlier ? " ($overdueEarlier from earlier days)" : '') : null,
                 $unassignedCount ? "$unassignedCount unassigned".($startingToday ? " ($startingToday starting today)" : '') : null,
-                $reassignments ? "$reassignments reassignment ".($reassignments === 1 ? 'request' : 'requests') : null,
+                $reassignments ? "$reassignments reassignment ".($reassignments === 1 ? 'request' : 'requests').($reassignSoon ? " ($reassignSoon today or tomorrow)" : '') : null,
             ]);
             // "!" for an unassigned booking that starts today (answer P14), or a booking
             // nobody closed from an earlier day (lifecycle Phase 2, Q3-A).
-            self::put($out, 'appointments', $total, implode(', ', $parts), $startingToday > 0 || $overdueEarlier > 0);
+            self::put($out, 'appointments', $total, implode(', ', $parts), $startingToday > 0 || $overdueEarlier > 0 || $reassignSoon > 0);
 
             // Schedule page: reschedule requests are reviewed there.
             // Counted per booking, like the "Reschedule Requests" list above the calendar
             // (ScheduleController, Phase 4.1). A booking has at most one pending request.
-            $reschedules = Booking::query()
+            // Open only: past the original start a request is expired (lifecycle Phase 3, D5).
+            $rescheduleBase = Booking::query()
                 ->where('spa_id', $spaId)
                 ->where('branch_id', $branchId)
-                ->whereHas('rescheduleRequests', fn ($q) => $q->pending())
-                ->count();
-            self::put($out, 'schedule', $reschedules, $reschedules.' reschedule '.($reschedules === 1 ? 'request' : 'requests').' waiting');
+                ->whereHas('rescheduleRequests', fn ($q) => $q->open());
+
+            $rs = $rescheduleBase
+                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN DATE(appointment_date) <= ? THEN 1 ELSE 0 END) as soon', [$tomorrow])
+                ->first();
+
+            $reschedules = (int) ($rs->total ?? 0);
+            // Q2-A: "!" when the original appointment is today or tomorrow (same rule as D6).
+            $rescheduleSoon = (int) ($rs->soon ?? 0);
+
+            self::put(
+                $out,
+                'schedule',
+                $reschedules,
+                $reschedules.' reschedule '.($reschedules === 1 ? 'request' : 'requests').' waiting'.($rescheduleSoon ? " ($rescheduleSoon today or tomorrow)" : ''),
+                $rescheduleSoon > 0
+            );
         }
 
         // Attendance & Leave: the pending-leave section (LeaveRequestController::index).

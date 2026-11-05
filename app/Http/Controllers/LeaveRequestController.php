@@ -353,8 +353,14 @@ class LeaveRequestController extends Controller
         $bookings = Booking::where('spa_id', $leave->spa_id)
             ->where('branch_id', $leave->branch_id)
             ->where('therapist_id', $leave->user_id)
-            ->whereIn('appointment_date', $leave->dateRange())
+            // Same days as $leave->dateRange(), as a date range so it matches on
+            // MySQL DATE and SQLite datetime storage alike.
+            ->whereDate('appointment_date', '>=', \Illuminate\Support\Carbon::parse($leave->start_date)->toDateString())
+            ->whereDate('appointment_date', '<=', \Illuminate\Support\Carbon::parse($leave->end_date)->toDateString())
             ->whereIn('status', ['reserved', 'pending'])
+            // Not an ongoing session, nor one that already ended — nobody could
+            // act on those (booking lifecycle fix, Phase 3, Q5-A).
+            ->notEnded()
             ->get();
 
         foreach ($bookings as $booking) {

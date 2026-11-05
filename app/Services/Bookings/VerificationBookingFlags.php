@@ -38,6 +38,7 @@ class VerificationBookingFlags
             ->where('service_type', 'in_home')
             ->whereIn('status', ['reserved', 'pending'])
             ->whereDate('appointment_date', '>=', today()->toDateString())
+            ->notEnded()   // an ended booking can't be reassigned (lifecycle Phase 3, Q4-A)
             ->whereDoesntHave('reassignmentRequests', fn ($q) => $q->where('status', 'pending'))
             ->get(['id', 'therapist_id']);
 

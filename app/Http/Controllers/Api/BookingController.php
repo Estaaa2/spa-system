@@ -93,9 +93,12 @@ class BookingController extends Controller
             'booking_source'   => $booking->booking_source ?? 'mobile',
             'date_raw'         => $booking->appointment_date?->format('Y-m-d'),
             // The therapist's latest "can't make it" request for this booking.
-            'reassignment_status'  => $reassignment?->status,
-            'reassignment_pending' => $reassignment?->status === 'pending',
-            'reassignment_rejection_reason' => $reassignment?->status === 'rejected'
+            // Q1-C (lifecycle Phase 3): `expired` is sent as `rejected` until the
+            // app knows it; `reassignment_expired` is the new, additive field.
+            'reassignment_status'  => $reassignment?->legacyStatus(),
+            'reassignment_expired' => $reassignment?->isExpired() ?? false,
+            'reassignment_pending' => $reassignment?->status === 'pending' && ! $reassignment->isPastDeadline(),
+            'reassignment_rejection_reason' => in_array($reassignment?->status, ['rejected', 'expired'], true)
                 ? $reassignment->rejection_reason
                 : null,
             // Home visits (staff verification Phase 6). The arrival code itself is
