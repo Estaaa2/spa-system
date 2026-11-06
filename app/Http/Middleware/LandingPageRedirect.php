@@ -2,10 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\BusinessHome;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
+/**
+ * Applied to the landing page (/) only. Public pages (layouts/public) must
+ * not use it: they are open to every role.
+ */
 class LandingPageRedirect
 {
     public function handle(Request $request, Closure $next)
@@ -18,12 +22,15 @@ class LandingPageRedirect
         $user = $request->user()?->refresh();
         if ($user) {
 
-            // Staff / admin / owner / manager → dashboard
-            if ($user->hasAnyRole(['staff', 'admin', 'owner', 'manager'])) {
-                if ($request->routeIs('dashboard')) {
-                    return $next($request);
-                }
-                return redirect()->route('dashboard');
+            // Any business role (owner, manager, therapist, receptionist, HR,
+            // finance, admin, …) → the page login sends them to.
+            // This used to check ['staff', 'admin', 'owner', 'manager'] and send
+            // them to route('dashboard'): 'staff' is not a role, so therapists,
+            // receptionists, HR and finance users fell through to the landing
+            // page, and admins were sent to a dashboard that doesn't allow them
+            // (403). Landing footer Phase 1.1.
+            if ($user->roles()->where('name', '!=', 'customer')->exists()) {
+                return redirect()->to(BusinessHome::url($user));
             }
 
             // Customer logic
@@ -42,7 +49,7 @@ class LandingPageRedirect
             }
         }
 
-        // Guests → landing page
+        // Guests (and a user with no role at all) → landing page
         return $next($request);
     }
 }

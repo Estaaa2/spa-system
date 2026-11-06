@@ -337,15 +337,26 @@
                 @if ($verification->fileViews->isEmpty())
                     <p class="px-4 py-6 text-sm text-gray-500 sm:px-6 dark:text-gray-400">Not opened yet.</p>
                 @else
+                    @php($viewsStep = 5)
+                    <div x-data="{ shown: {{ $viewsStep }}, total: {{ $verification->fileViews->count() }} }">
                     <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                         @foreach ($verification->fileViews as $view)
-                            <li class="px-4 py-3 text-sm sm:px-6">
+                            <li class="px-4 py-3 text-sm sm:px-6"
+                                @if ($loop->index >= $viewsStep) x-show="{{ $loop->index }} < shown" x-cloak @endif>
                                 <span class="font-medium text-gray-900 dark:text-white">{{ $view->viewer?->name ?? 'Deleted admin' }}</span>
                                 <span class="text-gray-500 dark:text-gray-400">opened the {{ strtolower($fileLabels[$view->file] ?? $view->file) }}</span>
                                 <span class="block text-xs text-gray-500 dark:text-gray-400">{{ $date($view->viewed_at) }}</span>
                             </li>
                         @endforeach
                     </ul>
+                    <div x-show="shown < total" x-cloak class="px-4 py-3 border-t border-gray-200 sm:px-6 dark:border-gray-700">
+                        <button type="button" @click="shown = Math.min(shown + {{ $viewsStep }}, total)"
+                            class="inline-flex items-center gap-1.5 text-sm font-medium text-[#8B7355] hover:text-[#6F5430] dark:text-[#C4A97D]">
+                            <i class="fa-solid fa-chevron-down text-xs" aria-hidden="true"></i>
+                            More logs (<span x-text="total - shown"></span> left)
+                        </button>
+                    </div>
+                    </div>
                 @endif
             </section>
         </div>

@@ -87,7 +87,7 @@
                             <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $user->email }}</td>
                             <td class="px-6 py-4">
                                 <span class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
-                                    {{ $currentRole ? ucfirst($currentRole) : 'No role' }}
+                                    {{ \App\Services\Payroll\PayrollPermissions::roleLabel($currentRole) }}
                                 </span>
                             </td>
                             @if ($showDeleted)
@@ -175,7 +175,7 @@
                         <option value="" disabled>Select a role</option>
                         @foreach($roles as $role)
                             @continue(in_array($role->name, ['admin', 'customer'], true))
-                            <option value="{{ $role->name }}">{{ ucfirst($role->name) }}</option>
+                            <option value="{{ $role->name }}">{{ \App\Services\Payroll\PayrollPermissions::roleLabel($role->name) }}</option>
                         @endforeach
                     </select>
                 </div>

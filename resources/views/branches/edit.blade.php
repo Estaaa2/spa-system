@@ -826,7 +826,7 @@
                             </div>
 
                             {{-- Custom amenity modal --}}
-                            <div x-show="openModal" x-transition.opacity
+                            <div x-show="openModal" x-cloak x-transition.opacity
                                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
                                 @click.self="openModal = false">
                                 <div class="w-full max-w-sm p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800" @click.stop>
