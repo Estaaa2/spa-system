@@ -42,11 +42,14 @@ class Applicant extends Model
         'phone',
         'notes',
         'status',
+        'privacy_consent_version',
+        'privacy_consent_at',
     ];
 
     protected $casts = [
         'date_of_birth' => 'date',
         'expected_start_date' => 'date',
+        'privacy_consent_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
 

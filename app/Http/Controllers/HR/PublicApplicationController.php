@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\HR;
 
+use App\Support\Legal\PrivacyPolicy;
 use App\Http\Controllers\Controller;
 use App\Models\Applicant;
 use App\Models\Branch;
@@ -44,11 +45,17 @@ class PublicApplicationController extends Controller
                 'emergency_contact_name'     => 'nullable|string|max:255',
                 'emergency_contact_relation' => 'nullable|string|max:100',
                 'emergency_contact_phone'    => 'nullable|string|max:20',
+                // Sensitive personal information (RA 10173 Sec. 3(l)): consent
+                // first, recorded below (landing footer Phase 2, Q5-A).
+                'privacy_consent'            => 'required|accepted',
+            ], [
+                'privacy_consent.required' => 'Please agree to the privacy notice to send your application.',
+                'privacy_consent.accepted' => 'Please agree to the privacy notice to send your application.',
             ]);
 
             $resumePath = $request->file('resume')->store('resumes', 'local'); // private disk: personal data
 
-            unset($validated['resume']);
+            unset($validated['resume'], $validated['privacy_consent']);
 
             Applicant::create([
                 ...$validated,
@@ -57,6 +64,8 @@ class PublicApplicationController extends Controller
                 'branch_id'   => $branch->id,
                 'source'      => 'website',
                 'status'      => 'pending',
+                'privacy_consent_version' => PrivacyPolicy::VERSION,
+                'privacy_consent_at'      => now(),
             ]);
 
             return response()->json([

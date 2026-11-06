@@ -5,3 +5,12 @@
 @tailwind components;
 @tailwind utilities;
 
+
+/* Links inside the legal text (App\Support\Legal\*): the pages, the
+   registration and booking terms windows. Tailwind doesn't scan app/, so
+   the PHP-generated links use this class (landing footer Phase 2). */
+@layer components {
+    .legal-link {
+        @apply font-medium text-[#6F5430] underline underline-offset-2 hover:text-[#8B7355] dark:text-[#C4A97D] dark:hover:text-white;
+    }
+}

@@ -2979,6 +2979,27 @@
                                 </div>
                             </div>
 
+                            {{-- Privacy notice and consent (landing footer Phase 2, Q5-A). Date of birth,
+                                 civil status and education are sensitive personal information under
+                                 RA 10173, so the applicant agrees before sending. Checked again on the server. --}}
+                            <div class="p-4 space-y-3 text-xs leading-relaxed text-gray-600 dark:text-gray-300 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10">
+                                <p>
+                                    <i class="mr-1 fa-solid fa-shield-halved text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                    Your application goes only to this spa's owner and HR staff, who use it to consider you for the job.
+                                    Your résumé is stored privately. The spa decides how long it keeps your application.
+                                </p>
+                                <label class="flex items-start gap-3 cursor-pointer">
+                                    <input type="checkbox" name="privacy_consent" value="1" required
+                                        class="w-4 h-4 mt-0.5 rounded accent-[#8B7355] cursor-pointer flex-shrink-0">
+                                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                                        I agree to this spa, and Levictas on its behalf, processing the details and résumé in this
+                                        application, including my date of birth, civil status and education, to assess my application.
+                                        I have read the
+                                        <a href="{{ route('legal.privacy') }}#job-applicants" target="_blank" rel="noopener" class="legal-link">Privacy Policy</a>.
+                                    </span>
+                                </label>
+                            </div>
+
                             <div id="applicationError"
                                 class="hidden p-3 text-sm text-red-600 dark:text-red-300 rounded-xl bg-red-50 dark:bg-red-900/20 ring-1 ring-red-200 dark:ring-red-800">
                                 <i class="mr-1 fa-solid fa-circle-exclamation"></i>
@@ -3004,46 +3025,15 @@
                     class="overflow-hidden bg-white shadow-2xl dark:bg-gray-800 rounded-3xl ring-1 ring-black/10 dark:ring-white/10">
                     <div
                         class="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/10">
-                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Terms & Conditions</h3>
+                        <h3 class="text-lg font-semibold text-[#3C2F23] dark:text-white">Terms and Conditions</h3>
                         <button type="button" onclick="closeTermsModal()"
                             class="flex items-center justify-center w-10 h-10 transition rounded-xl hover:bg-black/5 dark:hover:bg-white/10">
                             <i class="text-lg text-gray-700 dark:text-gray-300 fa-solid fa-xmark"></i>
                         </button>
                     </div>
                     <div class="overflow-y-auto max-h-[60vh] p-6">
-                        <ul class="space-y-4 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                            <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40">
-                                <i
-                                    class="fa-solid fa-circle-check text-[#8B7355] dark:text-[#C4A97D] mt-0.5 flex-shrink-0 text-sm"></i>
-                                <div>
-                                    <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">Downpayment</p>
-                                    <p>A 20% non-refundable downpayment is required to confirm your reservation. You
-                                        may pay the remaining 80% at the spa on the day of your appointment, or pay
-                                        the full amount online when you book.</p>
-                                </div>
-                            </li>
-                            <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40">
-                                <i
-                                    class="fa-solid fa-circle-check text-[#8B7355] dark:text-[#C4A97D] mt-0.5 flex-shrink-0 text-sm"></i>
-                                <div>
-                                    <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">Cancellation</p>
-                                    <p>Cancellations must be made at least 24 hours before your appointment. The 20%
-                                        downpayment is non-refundable regardless of cancellation timing. If you paid
-                                        in full, the remaining 80% is refunded by the spa directly, at the branch or
-                                        by contacting the spa's phone number. Rescheduling keeps your payment.</p>
-                                </div>
-                            </li>
-                            <li class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/50 dark:bg-gray-700/40">
-                                <i
-                                    class="fa-solid fa-circle-check text-[#8B7355] dark:text-[#C4A97D] mt-0.5 flex-shrink-0 text-sm"></i>
-                                <div>
-                                    <p class="font-semibold text-[#3C2F23] dark:text-white mb-1">No-Show Policy</p>
-                                    <p>Failure to arrive without prior notice will forfeit your 20% downpayment and may
-                                        result in restricted future bookings on this platform. If you paid in full,
-                                        the remaining 80% is still refundable by the spa directly.</p>
-                                </div>
-                            </li>
-                        </ul>
+                        {{-- From App\Support\Legal\Terms (landing footer Phase 2, D8). --}}
+                        @include('legal.partials.terms-summary', ['audiences' => ['bookings']])
                     </div>
                     <div class="px-6 pt-2 pb-6">
                         <button type="button" onclick="closeTermsModal()"

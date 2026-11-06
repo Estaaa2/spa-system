@@ -38,7 +38,7 @@ class ProfileController extends Controller
             'idTypes'            => config('identity.id_types', []),
             'uploadMaxMb'        => (int) round(config('identity.upload.max_kb', 5120) / 1024),
             'uploadMimes'        => config('identity.upload.mimes', []),
-            'privacyContact'     => config('identity.privacy_contact'),
+            'privacyContact'     => \App\Support\Identity\ConsentNotice::privacyContact(),
             'consentVersion'     => config('identity.consent_version'),
         ]);
     }

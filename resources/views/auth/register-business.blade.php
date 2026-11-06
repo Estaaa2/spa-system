@@ -319,6 +319,14 @@
                             class="font-medium text-[#6F5430] underline underline-offset-2 dark:text-[#C4A97D]">
                             Terms and Conditions
                         </button>
+
+                        and have read the
+
+                        <a
+                            href="{{ route('legal.privacy') }}"
+                            target="_blank"
+                            rel="noopener"
+                            class="font-medium text-[#6F5430] underline underline-offset-2 hover:text-[#8B7355] dark:text-[#C4A97D]">Privacy Policy</a>.
                     </p>
                 </div>
 
@@ -386,168 +394,7 @@
             </div>
 
             <div class="px-5 py-6 overflow-y-auto sm:px-6 max-h-[65vh]">
-                <div class="space-y-5 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            1. Business Account Information
-                        </h3>
-                        <p class="mt-1">
-                            The business owner is responsible for providing complete, accurate, and current
-                            information regarding the spa, its branches, services, treatments, packages,
-                            employees, operating hours, pricing, and other information published or maintained
-                            through Levictas.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            2. Authorized Use and Account Responsibility
-                        </h3>
-                        <p class="mt-1">
-                            The registered business owner is responsible for maintaining the security of the
-                            business account and for controlling access granted to managers, therapists,
-                            receptionists, finance personnel, human resources personnel, and other authorized
-                            staff members. Account credentials must not be shared with unauthorized persons.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            3. Customer Bookings and Service Fulfillment
-                        </h3>
-                        <p class="mt-1">
-                            The partner spa is responsible for honoring confirmed customer appointments,
-                            maintaining accurate service availability, assigning appropriate staff, and
-                            providing the services represented through the Levictas platform. Any cancellation,
-                            rescheduling, refund, or no-show policy presented to customers must be applied
-                            consistently.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            4. Platform Transaction Fee and Settlement
-                        </h3>
-                        <p class="mt-1">
-                            Levictas charges a platform transaction fee for each successfully paid customer
-                            transaction processed through the Levictas platform. By registering as a business
-                            partner and accepting these Terms and Conditions, the partner authorizes Levictas
-                            to deduct the applicable platform transaction fee from the gross amount collected
-                            for each eligible transaction before the remaining amount is credited or settled
-                            to the partner spa.
-                        </p>
-                        <p class="mt-2">
-                            The applicable transaction fee rate will be disclosed to the partner through the
-                            platform, business plan, merchant agreement, or other applicable pricing information
-                            before the fee is imposed. Levictas will provide transaction records showing the
-                            gross transaction amount, applicable platform fee, and resulting net amount due to
-                            the partner.
-                        </p>
-                        <p class="mt-2">
-                            Where a transaction is cancelled, refunded, reversed, disputed, or otherwise
-                            adjusted, the corresponding settlement and platform fee may also be adjusted in
-                            accordance with the applicable payment and refund rules.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            5. Payment Processing
-                        </h3>
-
-                        <p class="mt-1">
-                            Payments made through Levictas may be processed by an authorized third-party payment
-                            provider. The partner acknowledges that payment processing may be subject to the
-                            provider's processing requirements, verification procedures, settlement schedules,
-                            and applicable processing charges. Platform transaction fees charged by Levictas
-                            are separate from any fees that may be imposed by a payment service provider unless
-                            expressly stated otherwise.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            6. Pricing and Business Information
-                        </h3>
-                        <p class="mt-1">
-                            The partner is responsible for ensuring that all prices, services, treatments,
-                            packages, promotions, branch information, and availability displayed through
-                            Levictas are accurate. Customers must not be intentionally presented with misleading
-                            prices or service information.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            7. Customer Information and Privacy
-                        </h3>
-
-                        <p class="mt-1">
-                            Customer information obtained through Levictas may only be accessed and used for
-                            legitimate business purposes related to appointments, service delivery, customer
-                            communication, payment processing, and other authorized spa operations. Customer
-                            information must not be disclosed or used for unauthorized purposes.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            8. Inventory, Procurement, and Financial Records
-                        </h3>
-                        <p class="mt-1">
-                            The partner is responsible for maintaining accurate records for inventory,
-                            stock movements, procurement activities, supplier transactions, invoices,
-                            receipts, and other operational or financial information entered into Levictas.
-                            Transaction histories and audit records maintained by the system are intended
-                            to support accountability and traceability.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            9. Prohibited Activities
-                        </h3>
-                        <p class="mt-1">
-                            The partner must not use Levictas to conduct fraudulent transactions, manipulate
-                            business or financial records, gain unauthorized access to accounts or data,
-                            impersonate another person or business, interfere with platform operation, or use
-                            the system for unlawful or unauthorized purposes.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            10. Suspension or Termination
-                        </h3>
-                        <p class="mt-1">
-                            Levictas may restrict, suspend, or terminate access to a business account when
-                            necessary to address fraudulent activity, security risks, material violations of
-                            these Terms and Conditions, misuse of the platform, or other conduct that may
-                            compromise customers, partners, or the operation of the system.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            11. Service Availability
-                        </h3>
-                        <p class="mt-1">
-                            Levictas may periodically undergo maintenance, upgrades, or temporary service
-                            interruptions. Features, integrations, and platform functionality may be modified
-                            as necessary to maintain, secure, or improve the service.
-                        </p>
-                    </section>
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            12. Changes to These Terms
-                        </h3>
-                        <p class="mt-1">
-                            Levictas may revise these Terms and Conditions when necessary to reflect changes
-                            to platform functionality, pricing, payment arrangements, business requirements,
-                            or applicable policies. Material changes affecting partner obligations or platform
-                            fees should be communicated before they take effect.
-                        </p>
-                    </section>
-                    <div class="p-4 border border-[#C4A97D]/40 rounded-xl bg-[#F8F5F1] dark:border-[#C4A97D]/30 dark:bg-[#C4A97D]/10">
-                        <p class="text-sm font-medium text-[#6F5430] dark:text-[#C4A97D]">
-                            By selecting “Accept Terms and Conditions,” you acknowledge that you have read,
-                            understood, and agreed to these terms, including Levictas' right to deduct the
-                            applicable platform transaction fee from eligible transactions processed through
-                            the platform.
-                        </p>
-                    </div>
-                </div>
+                @include('legal.partials.terms-summary', ['audiences' => ['everyone', 'partners']])
             </div>
 
             <div class="px-5 py-4 border-t border-gray-200 sm:px-6 dark:border-gray-700">

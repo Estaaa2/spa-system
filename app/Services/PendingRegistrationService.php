@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\Legal\Terms;
 use App\Models\PendingRegistration;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -38,6 +39,10 @@ class PendingRegistrationService
                 'otp_sent_at' => null,
                 'otp_attempts' => 0,
                 'expires_at' => now()->addDay(),
+                // Every caller validated 'terms' as accepted (web customer,
+                // web business, API). Record what was accepted (Phase 2, Q10-A).
+                'terms_version' => Terms::VERSION,
+                'terms_accepted_at' => now(),
             ]);
 
             $pending->save();
@@ -84,6 +89,8 @@ class PendingRegistrationService
 
             $user->forceFill([
                 'email_verified_at' => now(),
+                'terms_version' => $pending->terms_version,
+                'terms_accepted_at' => $pending->terms_accepted_at,
             ])->saveQuietly();
 
             $user->assignRole(

@@ -33,6 +33,7 @@ use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Http\Controllers\Insights\ReportsController;
 use App\Http\Controllers\InventoryImportExportController;
 use App\Http\Controllers\LandingController;
+use App\Http\Controllers\LegalPageController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\OnlineBookingCheckoutController;
 use App\Http\Controllers\Owner\PlanLimitController;
@@ -119,6 +120,18 @@ Route::get('/flutter/payment/cancel', [FlutterBookingController::class, 'payment
 Route::get('/', [LandingController::class, 'index'])
     ->middleware(LandingPageRedirect::class)
     ->name('landing.page');
+
+/*
+|--------------------------------------------------------------------------
+| Legal pages (public)
+|--------------------------------------------------------------------------
+| Open to everyone, including logged-in business users: no auth and no
+| LandingPageRedirect (landing footer Phase 2).
+*/
+
+Route::get('/terms-and-conditions', [LegalPageController::class, 'terms'])->name('legal.terms');
+Route::get('/privacy-policy', [LegalPageController::class, 'privacy'])->name('legal.privacy');
+Route::get('/refund-policy', [LegalPageController::class, 'refund'])->name('legal.refund');
 
 /*
 |--------------------------------------------------------------------------

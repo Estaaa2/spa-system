@@ -37,6 +37,7 @@ class PendingRegistration extends Model
             'otp_sent_at' => 'datetime',
             'otp_attempts' => 'integer',
             'expires_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
         ];
     }
 

@@ -1855,6 +1855,12 @@ function setupApplicationForm() {
             return;
         }
 
+        // Consent to the privacy notice (landing footer Phase 2, Q5-A)
+        if (!this.querySelector('input[name="privacy_consent"]')?.checked) {
+            showSpaToast('Please read the privacy notice and tick the consent box to apply.', 'error');
+            return;
+        }
+
         // Validate resume is required
         if (!resume) {
             showSpaToast('Please upload your resume/CV.', 'error');

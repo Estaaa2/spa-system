@@ -322,6 +322,14 @@
                             class="font-medium text-[#6F5430] underline underline-offset-2 hover:text-[#8B7355] dark:text-[#C4A97D]">
                             Terms and Conditions
                         </button>
+
+                        and have read the
+
+                        <a
+                            href="{{ route('legal.privacy') }}"
+                            target="_blank"
+                            rel="noopener"
+                            class="font-medium text-[#6F5430] underline underline-offset-2 hover:text-[#8B7355] dark:text-[#C4A97D]">Privacy Policy</a>.
                     </p>
                 </div>
 
@@ -394,121 +402,7 @@
             </div>
 
             <div class="px-5 py-6 overflow-y-auto sm:px-6 max-h-[65vh]">
-                <div class="space-y-5 text-sm leading-6 text-gray-600 dark:text-gray-300">
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            1. Account Registration
-                        </h3>
-
-                        <p class="mt-1">
-                            You must provide accurate and complete information when creating
-                            your Levictas account and keep your account credentials secure.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            2. Appointments and Bookings
-                        </h3>
-
-                        <p class="mt-1">
-                            Appointment availability depends on the selected spa, branch,
-                            service, therapist, operating hours, and existing reservations.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            3. Payments and Down Payments
-                        </h3>
-
-                        <p class="mt-1">
-                            Where a down payment is required, applicable amounts and conditions
-                            will be presented during the booking process.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            4. Cancellations and No-Shows
-                        </h3>
-
-                        <p class="mt-1">
-                            Customers should follow the cancellation policy shown for their
-                            appointment. Applicable down payments may be forfeited for late
-                            cancellations or no-shows.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            5. Home Service Information
-                        </h3>
-
-                        <p class="mt-1">
-                            Customers using home service must provide an accurate service
-                            address and contact information.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            6. Responsible Use
-                        </h3>
-
-                        <p class="mt-1">
-                            You must not misuse the platform, create fraudulent bookings,
-                            impersonate another person, or attempt unauthorized access.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            7. Account Security
-                        </h3>
-
-                        <p class="mt-1">
-                            You are responsible for protecting your password and reporting
-                            suspected unauthorized account access.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            8. Personal Information
-                        </h3>
-
-                        <p class="mt-1">
-                            Information provided through Levictas may be used for account
-                            management, appointments, communication, payment processing,
-                            and service delivery.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            9. Service Availability
-                        </h3>
-
-                        <p class="mt-1">
-                            Levictas may occasionally be unavailable because of maintenance,
-                            technical issues, or platform updates.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h3 class="font-semibold text-gray-900 dark:text-white">
-                            10. Changes to These Terms
-                        </h3>
-
-                        <p class="mt-1">
-                            These terms may be updated when necessary to reflect changes to
-                            Levictas or its services.
-                        </p>
-                    </section>
-
-                </div>
+                @include('legal.partials.terms-summary', ['audiences' => ['everyone', 'customers', 'bookings']])
             </div>
 
             <div class="px-5 py-4 border-t border-gray-200 sm:px-6 dark:border-gray-700">

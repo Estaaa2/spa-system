@@ -1,8 +1,8 @@
 {{--
     Landing footer, shared by welcome.blade.php and layouts/public.blade.php
     (landing footer Phase 1). Social links come from config/levictas.php;
-    an empty URL hides its icon. Company and Legal links are replaced in
-    Phases 2 and 3.
+    an empty URL hides its icon. Legal links go to the Phase 2 pages; the
+    Company links (About, Contact, FAQ) are replaced in Phase 3.
 --}}
 @php
     $socialLinks = collect([
@@ -60,8 +60,9 @@
                     <div>
                         <p class="text-sm font-semibold tracking-wide">Legal</p>
                         <div class="mt-4 space-y-2 text-sm text-white/75">
-                            <a class="block transition hover:text-white" href="#">Terms</a>
-                            <a class="block transition hover:text-white" href="#">Privacy</a>
+                            <a class="{{ $footerLink }}" href="{{ route('legal.terms') }}">Terms and Conditions</a>
+                            <a class="{{ $footerLink }}" href="{{ route('legal.privacy') }}">Privacy Policy</a>
+                            <a class="{{ $footerLink }}" href="{{ route('legal.refund') }}">Refund Policy</a>
                         </div>
                     </div>
                     <div>

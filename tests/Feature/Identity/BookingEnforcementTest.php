@@ -155,6 +155,8 @@ class BookingEnforcementTest extends TestCase
             'customer_phone' => '09171234567', 'treatment' => 'treatment_'.$this->treatment->id,
             'service_type' => $serviceType, 'customer_address' => 'Imus, Cavite',
             'appointment_date' => $this->date, 'start_time' => '10:00',
+            // The web form's Terms checkbox (landing footer Phase 2, Q10-A).
+            'terms_agreed' => '1',
         ], $overrides));
     }
 

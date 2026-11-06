@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Legal\Terms;
 use App\Models\Booking;
 use App\Models\Branch;
 use App\Models\OnlineReservationPayment;
@@ -45,6 +46,13 @@ class OnlineBookingCheckoutController extends Controller
             'appointment_date' => ['required', 'date', 'after_or_equal:today', 'before_or_equal:' . now()->addDays(self::MAX_ADVANCE_DAYS)->toDateString()],
             'start_time'       => ['required'],
             'payment_option'   => ['nullable', 'in:downpayment,full'],
+            // The web booking form must accept the Terms (Phase 2, Q10-A).
+            // The Flutter app shares this endpoint and may not send it yet, so
+            // on the API it is checked only when present; record it either way.
+            'terms_agreed'     => [$request->is('api/*') ? 'sometimes' : 'required', 'accepted'],
+        ], [
+            'terms_agreed.required' => 'Please read and accept the Terms and Conditions to book.',
+            'terms_agreed.accepted' => 'Please read and accept the Terms and Conditions to book.',
         ]);
 
         $spa = Spa::find($validated['spa_id']);
@@ -186,7 +194,9 @@ class OnlineBookingCheckoutController extends Controller
         $isFullPayment = $paymentOption === 'full';
         $amountCharged = $isFullPayment ? round($fullAmount, 2) : $downpaymentAmount;
 
-        $pending = DB::transaction(function () use ($validated, $item, $bookableType, $fullAmount, $downpaymentAmount, $paymentOption, $amountCharged) {
+        $termsAccepted = $request->boolean('terms_agreed');
+
+        $pending = DB::transaction(function () use ($validated, $item, $bookableType, $fullAmount, $downpaymentAmount, $paymentOption, $amountCharged, $termsAccepted) {
             return OnlineReservationPayment::create([
                 'user_id'              => Auth::id(),
                 'spa_id'               => $validated['spa_id'],
@@ -207,6 +217,8 @@ class OnlineBookingCheckoutController extends Controller
                 'start_time'           => $validated['start_time'],
                 'payment_status'       => 'pending',
                 'reservation_status'   => 'awaiting_payment',
+                'terms_version'        => $termsAccepted ? Terms::VERSION : null,
+                'terms_accepted_at'    => $termsAccepted ? now() : null,
             ]);
         });
 

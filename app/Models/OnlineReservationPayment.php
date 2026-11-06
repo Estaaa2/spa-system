@@ -33,10 +33,13 @@ class OnlineReservationPayment extends Model
         'paymongo_payload',
         'paid_at',
         'booking_id',
+        'terms_version',
+        'terms_accepted_at',
     ];
 
     protected $casts = [
         'appointment_date' => 'date',
+        'terms_accepted_at' => 'datetime',
         'paid_at' => 'datetime',
         'paymongo_payload' => 'array',
         'full_amount' => 'decimal:2',

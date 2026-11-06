@@ -2,6 +2,8 @@
 
 namespace App\Support\Identity;
 
+use App\Support\Legal\Contact;
+
 /**
  * The identity-verification consent notice (RA 10173; NPC Circular 2023-04).
  *
@@ -20,7 +22,7 @@ class ConsentNotice
     /** @return list<array{title: string, body: string}> */
     public static function sections(): array
     {
-        $contact = config('identity.privacy_contact');
+        $contact = self::privacyContact();
 
         return [
             ['title' => 'What we collect', 'body' => 'One photo of a government ID, one selfie holding it, the ID type, and your name as shown on your profile.'],
@@ -35,6 +37,18 @@ class ConsentNotice
         ];
     }
 
+    /**
+     * The privacy contact email, from config/levictas.php (shared with the
+     * Privacy Policy, landing footer Phase 2, Q2-A). Null while it is still a
+     * placeholder, so the notice falls back to "contacting the Levictas team".
+     */
+    public static function privacyContact(): ?string
+    {
+        $email = Contact::email();
+
+        return Contact::isPlaceholder($email) ? null : $email;
+    }
+
     /** The whole notice for the API. */
     public static function toArray(): array
     {
@@ -44,7 +58,7 @@ class ConsentNotice
             'intro'           => self::INTRO,
             'sections'        => self::sections(),
             'agreement'       => self::AGREEMENT,
-            'privacy_contact' => config('identity.privacy_contact'),
+            'privacy_contact' => self::privacyContact(),
         ];
     }
 }

@@ -34,11 +34,10 @@ return [
     'consent_version' => '2026-11-06',
 
     /*
-     * Where staff send questions or requests about their verification data
-     * (access, correction, deletion). Shown in the consent notice. Set
-     * IDENTITY_PRIVACY_CONTACT in .env, e.g. privacy@levictas.lukew.cz.
+     * The privacy contact shown in the consent notice now comes from
+     * config/levictas.php → contact.email, shared with the Privacy Policy
+     * (landing footer Phase 2). IDENTITY_PRIVACY_CONTACT is no longer read.
      */
-    'privacy_contact' => env('IDENTITY_PRIVACY_CONTACT'),
 
     /*
      * Disk for every file in this feature. "local" is storage/app/private,
