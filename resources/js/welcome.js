@@ -1,12 +1,6 @@
-const btn = document.getElementById('mobile-menu-button');
-const menu = document.getElementById('mobile-menu');
-btn?.addEventListener('click', () => menu.classList.toggle('hidden'));
-
-const nav = document.getElementById('topNav');
-window.addEventListener('scroll', () => {
-    if (window.scrollY > 10) nav?.classList.add('nav-scrolled');
-    else nav?.classList.remove('nav-scrolled');
-});
+// Navbar behaviour (mobile menu, scroll glass, profile dropdown, logout
+// window) is shared with the public pages (landing footer Phase 1).
+import './landing-nav.js';
 
 let selectedSpa = null;
 let spaMap      = null;
@@ -22,10 +16,6 @@ const PROFILE_CAVITE_LAT_MAX = 14.520;
 const PROFILE_CAVITE_LNG_MIN = 120.620;
 const PROFILE_CAVITE_LNG_MAX = 121.100;
 const PROFILE_CAVITE_VIEWBOX = `${PROFILE_CAVITE_LNG_MIN},${PROFILE_CAVITE_LAT_MAX},${PROFILE_CAVITE_LNG_MAX},${PROFILE_CAVITE_LAT_MIN}`; // left,top,right,bottom — for Nominatim
-
-const profileDropdownBtn  = document.getElementById('profileDropdownBtn');
-const profileDropdownMenu = document.getElementById('profileDropdownMenu');
-const profileChevron      = document.getElementById('profileChevron');
 
 // =====================================================
 // FIX: Use local date instead of UTC
@@ -44,31 +34,6 @@ function isBookingPastNow(b) {
     const appointmentEnd = new Date(`${b.date_raw}T${timePart}`);
     return appointmentEnd.getTime() <= Date.now();
 }
-
-// =====================================================
-// PROFILE DROPDOWN
-// =====================================================
-
-function closeProfileDropdown() {
-    profileDropdownMenu?.classList.add('hidden');
-    profileChevron?.classList.remove('rotate-180');
-}
-
-profileDropdownBtn?.addEventListener('click', function (e) {
-    e.stopPropagation();
-    const isHidden = profileDropdownMenu.classList.contains('hidden');
-    if (isHidden) {
-        profileDropdownMenu.classList.remove('hidden');
-        profileChevron?.classList.add('rotate-180');
-    } else {
-        closeProfileDropdown();
-    }
-});
-
-document.addEventListener('click', function (e) {
-    const wrapper = document.getElementById('profileDropdownWrapper');
-    if (wrapper && !wrapper.contains(e.target)) closeProfileDropdown();
-});
 
 // Customer profile photo (D13): checks the size here so a too-large photo
 // doesn't upload for nothing, then submits #customerPhotoForm.
@@ -90,19 +55,6 @@ function submitCustomerPhoto(input) {
     input.closest('label')?.classList.add('opacity-60', 'pointer-events-none');
     input.form.submit();
 }
-
-function openLogoutModal() {
-    document.getElementById('logoutModal').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-}
-
-function closeLogoutModal() {
-    document.getElementById('logoutModal').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-}
-
-window.openLogoutModal  = openLogoutModal;
-window.closeLogoutModal = closeLogoutModal;
 
 // =====================================================
 // SPA MODAL
@@ -2539,22 +2491,6 @@ function renderTab(tab) {
     }).join('');
 }
 
-// =====================================================
-// BUSINESS INFO MODAL
-// =====================================================
-function openBusinessInfo() {
-    document.getElementById('businessInfoModal')?.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-}
-
-function closeBusinessInfo() {
-    document.getElementById('businessInfoModal')?.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
-}
-
-window.openBusinessInfo  = openBusinessInfo;
-window.closeBusinessInfo = closeBusinessInfo;
-
 // Helper function to escape HTML to prevent XSS
 function escapeHtml(str) {
     if (!str) return '';
@@ -4053,8 +3989,7 @@ document.getElementById('profileModal')?.addEventListener('keydown', (e) => {
 */
 const escapeCloseOrder = [
     ['photoLightbox',       () => closeLightbox()],          // z-[155]
-    ['businessInfoModal',   () => closeBusinessInfo()],      // z-[150]
-    ['logoutModal',         () => closeLogoutModal()],       // z-[145]
+    // logoutModal (z-[145]) is handled in landing-nav.js.
     ['reviewsModal',        () => closeReviewsModal()],      // z-[145]
     ['profileModal',        () => pfEscape()],               // z-[130]; an editor goes back first
     ['bookingDetailsModal', () => bdEscape()],               // z-[125]; the form view goes back first
@@ -4092,7 +4027,6 @@ window.changeMonth              = changeMonth;
 window.openProfileModal         = openProfileModal;
 window.submitCustomerPhoto      = submitCustomerPhoto;
 window.closeProfileModal        = closeProfileModal;
-window.closeProfileDropdown     = closeProfileDropdown;
 window.pfShowView               = pfShowView;
 window.pfSave                   = pfSave;
 window.pfBackdropClick          = pfBackdropClick;
@@ -4130,8 +4064,6 @@ window.clearResumeUpload        = clearResumeUpload;
 window.showResumeUploadStatus   = showResumeUploadStatus;
 window.handleResumeFileSelect   = handleResumeFileSelect;
 window.formatFileSize           = formatFileSize;
-window.openLogoutModal          = openLogoutModal;
-window.closeLogoutModal         = closeLogoutModal;
 window.setScheduleView          = setScheduleView;
 window.jumpToScheduleMonth      = jumpToScheduleMonth;
 window.openLightbox             = openLightbox;
@@ -4495,3 +4427,33 @@ function dismissRateReminder() {
 
 window.dismissRateReminder = dismissRateReminder;
 window.rateFromReminder    = rateFromReminder;
+
+// =====================================================
+// DEEP LINKS FROM OTHER PAGES  (/?open=appointments|schedule|profile)
+// =====================================================
+/*
+  My Appointments, My Schedule and Profile are modals on / only. On the public
+  pages the navbar and footer link to /?open=<name> instead (landing footer
+  Phase 1, Q1-A); this opens the matching modal once, then removes the
+  parameter so a refresh or Back doesn't open it again. Only customers have
+  these modals (the profile dropdown is the marker); anyone else just gets
+  the parameter removed.
+*/
+document.addEventListener('DOMContentLoaded', function () {
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get('open');
+    if (!target) return;
+
+    params.delete('open');
+    const query = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : '') + window.location.hash);
+
+    if (!document.getElementById('profileDropdownBtn')) return;
+
+    const openers = {
+        appointments: openAppointmentsModal,
+        schedule:     openScheduleModal,
+        profile:      openProfileModal,
+    };
+    if (Object.prototype.hasOwnProperty.call(openers, target)) openers[target]();
+});
