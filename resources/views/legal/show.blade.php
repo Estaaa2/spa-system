@@ -21,9 +21,10 @@
 
     <div class="px-4 py-12 sm:px-6 sm:py-16">
         <div class="mx-auto max-w-6xl">
+            @include('partials.public.back-home')
 
             {{-- Heading --}}
-            <header class="text-center">
+            <header class="mt-4 text-center">
                 <div class="flex items-center justify-center gap-4 sm:gap-6">
                     <span class="hidden sm:block h-px w-16 sm:w-24 bg-gradient-to-r from-transparent to-[#8B7355] dark:to-[#C4A97D]"></span>
                     <h1 class="text-3xl sm:text-4xl font-['Playfair_Display'] text-[#3C2F23] dark:text-white font-semibold">
@@ -101,4 +102,24 @@
             </div>
         </div>
     </div>
+
+    {{--
+        "On this page" links replace the address-bar entry instead of adding
+        one, so Back leaves the page in one step instead of walking back
+        through every section visited (Phase 3 review). On phones the
+        contents box closes after a pick.
+    --}}
+    <script>
+        document.querySelectorAll('nav[aria-label="On this page"] a[href^="#"]').forEach(link => {
+            link.addEventListener('click', event => {
+                const target = document.getElementById(decodeURIComponent(link.hash.slice(1)));
+                if (!target) return;
+                event.preventDefault();
+                const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+                history.replaceState(null, '', link.hash);
+                link.closest('details')?.removeAttribute('open');
+            });
+        });
+    </script>
 @endsection

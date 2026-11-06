@@ -4463,3 +4463,31 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     if (Object.prototype.hasOwnProperty.call(openers, target)) openers[target]();
 });
+
+// =====================================================
+// KEEP /#browseSections IN VIEW WHILE THE PAGE SETTLES
+// =====================================================
+/*
+  "Book Now" and "Browse spas" from other pages land on /#browseSections. The browser jumps
+  once on load, but content above can still grow afterwards (Spas near you
+  appears after the browser shares its location; images load), pushing the
+  target down. Re-align on every layout change for a few seconds, and stop
+  as soon as the visitor scrolls, clicks or types (landing footer Phase 3).
+*/
+(function keepHashTargetInView() {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (id !== 'browseSections') return;
+    const target = document.getElementById(id);
+    if (!target || typeof ResizeObserver === 'undefined') return;
+
+    let settled = false;
+    const stop = () => { settled = true; observer.disconnect(); };
+    ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(evt =>
+        window.addEventListener(evt, stop, { once: true, passive: true }));
+
+    const observer = new ResizeObserver(() => {
+        if (!settled) target.scrollIntoView({ block: 'start' });
+    });
+    observer.observe(document.body);
+    setTimeout(stop, 5000);
+})();

@@ -133,6 +133,12 @@ Route::get('/terms-and-conditions', [LegalPageController::class, 'terms'])->name
 Route::get('/privacy-policy', [LegalPageController::class, 'privacy'])->name('legal.privacy');
 Route::get('/refund-policy', [LegalPageController::class, 'refund'])->name('legal.refund');
 
+// About, FAQ and Contact (landing footer Phase 3): static pages on the public
+// layout, open to everyone.
+Route::view('/about', 'pages.about')->name('about');
+Route::view('/faq', 'pages.faq')->name('faq');
+Route::view('/contact', 'pages.contact')->name('contact');
+
 /*
 |--------------------------------------------------------------------------
 | Landing Page Online Booking / PayMongo

@@ -3383,7 +3383,9 @@
         {{-- Hidden for customers: listing a spa needs a business account
              (landing footer Phase 1, D7). Only guests and customers reach /. --}}
         @unlessrole('customer')
-            <section class="py-16">
+            {{-- No top padding: the section above already ends with py-20, and the two
+                 paddings stacked left a 144px gap (Phase 3 review). --}}
+            <section class="pb-16">
                 <div class="px-6 mx-auto max-w-7xl">
                     <div
                         class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#6F5430] to-[#8B7355] p-10 md:p-14 text-center text-white shadow-2xl">

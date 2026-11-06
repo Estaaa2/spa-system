@@ -529,7 +529,7 @@ img[data-fell-back] + .bg-gradient-to-t { display: none; }
    .hidden (landing.css loads after it): keep hidden meaning hidden. */
 .pf-edit.hidden, .pf-locked.hidden { display: none; }
 
-/* Anchor links (/#browseSections now, /#about and /#faq later) land below the
+/* Anchor links (/#browseSections, the legal pages' contents) land below the
    fixed 80px navbar instead of under it; scrollIntoView() honours it too.
    landing.css only loads on the landing page and layouts/public
    (landing footer Phase 1). */

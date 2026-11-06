@@ -21,9 +21,9 @@ return [
     | production repository, unless that repository is meant to be public.
     */
     'social' => [
-        'linkedin' => '',
-        'x'        => '',
-        'github'   => '',
+        'linkedin' => 'www.linkedin.com/in/levictas-development-8aa550449',
+        'x'        => 'https://x.com/LevOff25',
+        'github'   => 'https://github.com/levictasdevelopment',
     ],
 
     /*
@@ -35,9 +35,9 @@ return [
     */
     'operator' => [
         // e.g. "Juan Dela Cruz, Maria Santos and Jose Reyes"
-        'team'   => '[TEAM MEMBER NAMES]',
+        'team'   => 'Marjo Catibod, Piolo Lingo, Josh Wayne Melia, Princess Tamie Chan, and John Edward Dolor',
         // e.g. "the Polytechnic University of the Philippines"
-        'school' => '[SCHOOL NAME]',
+        'school' => 'National College of Science and Technology',
     ],
 
     /*
@@ -49,8 +49,8 @@ return [
     | PayMongo requires a Philippine physical address on the site.
     */
     'contact' => [
-        'email'   => '[TEAM EMAIL]',
-        'address' => '[SCHOOL ADDRESS]',
+        'email'   => 'levictas.business@gmail.com',
+        'address' => 'National College of Science and Technology, Dasmariñas, Cavite, Philippines',
     ],
 
 ];

@@ -15,8 +15,7 @@ namespace App\Support\Legal;
  *   partners  — business registration
  *
  * Every rule here must match what the code does or a decision on record
- * (see claude/legal-pages-review-draft.md). Lines marked PENDING DECISION
- * are the recommended wording awaiting confirmation.
+ * (see claude/legal-pages-review-draft.md).
  *
  * Change the wording → bump VERSION and UPDATED. The version is recorded
  * when a user registers and when a customer books.
@@ -94,7 +93,7 @@ class Terms extends LegalDocument
                 'blocks' => [
                     'A paid booking can\'t be cancelled in the app. To cancel, contact the branch at least 24 hours before your appointment. The branch\'s phone number is on its spa page.',
                     'The 20% downpayment is non-refundable, whatever the reason or timing of the cancellation. If you paid in full, the remaining 80% is refunded.',
-                    // PENDING DECISION (spa-side cancellation).
+                    // Spa-side cancellation → full refund (Phase 2 end, Q1-A).
                     'If the spa cancels your booking or can\'t provide the service, you get back everything you paid online, including the downpayment.',
                     'The {refund} explains how to ask for a refund.',
                 ],
@@ -137,7 +136,7 @@ class Terms extends LegalDocument
                     'Spa owners register a business account, give accurate business details and upload the business documents we ask for. Levictas reviews them before the spa is listed, and may decline or suspend a listing if they are invalid or expire.',
                     'Partner spas use Levictas on a subscription plan. New spas start with a free {trial_months}-month trial. Plans are paid per period through PayMongo and do not renew automatically. If a period ends unpaid, the spa gets a {grace_days}-day grace period. After that, the spa is locked until it renews: only billing stays open, staff can\'t sign in, and the spa is hidden from customers and can\'t take online bookings. The spa\'s data is kept.',
                     'Partner spas pay only the subscription. Levictas charges no fee on bookings.',
-                    // PENDING DECISION (how online booking payments reach the spa).
+                    // Payments reach the spa outside the system (Phase 2 end, Q2-A).
                     'Online reservation payments for your spa are collected by Levictas through PayMongo. Levictas passes them on to your spa, as agreed between your spa and Levictas.',
                     'Keep your services, prices, schedules and branch details accurate, honor the bookings customers make through Levictas, and follow the laws that apply to your business, including permit and labor laws.',
                     'Your spa decides what information it keeps about its staff, job applicants and suppliers, and is responsible for it. Levictas stores and processes that information for your spa, as described in the {privacy}.',
