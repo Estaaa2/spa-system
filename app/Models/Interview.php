@@ -23,6 +23,7 @@ class Interview extends Model
         'status',
         'remarks',
         'rejection_reason',
+        'applicant_message',
         'staff_account_created',
     ];
 

@@ -208,18 +208,31 @@
 
                                 @elseif($interview->status === 'approved' && !$interview->staff_account_created)
                                     @if($canCreateStaffFromInterview)
-                                        <button
-                                            type="button"
-                                            onclick="openCreateStaffModal(
-                                                {{ $interview->id }},
-                                                '{{ addslashes($interview->applicant->full_name ?? '') }}',
-                                                '{{ addslashes($interview->applicant->email ?? '') }}',
-                                                '{{ $interview->applicant->position_applied ?? $interview->applicant->role ?? '' }}'
-                                            )"
-                                            class="px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition whitespace-nowrap">
-                                            <i class="mr-1 fa-solid fa-user-plus" aria-hidden="true"></i>
-                                            Create Account
-                                        </button>
+                                        @if(in_array(mb_strtolower((string) $interview->applicant?->email), $existingStaffEmails ?? [], true))
+                                            {{-- Account was already added on the Staff page: link it. --}}
+                                            <form action="{{ route('interviews.create-staff', $interview) }}" method="POST">
+                                                @csrf
+                                                <button
+                                                    type="submit"
+                                                    title="A staff account with this email already exists. Link it to this interview."
+                                                    class="px-3 py-1.5 text-xs font-semibold text-[#8B7355] bg-white border border-[#8B7355] rounded-lg hover:bg-[#F6EFE6] transition whitespace-nowrap">
+                                                    <i class="mr-1 fa-solid fa-link" aria-hidden="true"></i>
+                                                    Link Existing Account
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button
+                                                type="button"
+                                                data-create-url="{{ route('interviews.create-staff', $interview) }}"
+                                                data-applicant-name="{{ $interview->applicant?->full_name }}"
+                                                data-applicant-email="{{ $interview->applicant?->email }}"
+                                                data-applicant-position="{{ $positionLabel($interview) }}"
+                                                onclick="openCreateStaffModal(this)"
+                                                class="px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition whitespace-nowrap">
+                                                <i class="mr-1 fa-solid fa-user-plus" aria-hidden="true"></i>
+                                                Create Account
+                                            </button>
+                                        @endif
                                     @else
                                         <span class="text-xs text-gray-400">
                                             No staff access
@@ -288,7 +301,7 @@
                         <i class="mt-0.5 text-red-600 fa-solid fa-circle-exclamation" aria-hidden="true"></i>
 
                         <p class="text-sm text-red-700 dark:text-red-300">
-                            This will mark the applicant as rejected. The reason will be kept in their recruitment record.
+                            This will mark the applicant as rejected and email them that they were not selected.
                         </p>
                     </div>
                 </div>
@@ -298,9 +311,10 @@
                         for="rejection_reason"
                         class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
                     >
-                        Reason for Rejection
+                        Internal Reason
                         <span class="text-red-600">*</span>
                     </label>
+                    <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">For HR records only. This is not sent to the applicant.</p>
 
                     <textarea
                         id="rejection_reason"
@@ -315,6 +329,34 @@
                     >{{ old('rejection_reason') }}</textarea>
 
                     @error('rejection_reason', 'rejectInterview')
+                        <p class="mt-1 text-xs text-red-600">
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label
+                        for="applicant_message"
+                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
+                    >
+                        Message to Applicant
+                        <span class="font-normal text-gray-400">(optional)</span>
+                    </label>
+                    <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">The applicant always gets a polite "not selected" email. Anything you write here is added to it.</p>
+
+                    <textarea
+                        id="applicant_message"
+                        name="applicant_message"
+                        rows="3"
+                        maxlength="2000"
+                        placeholder="Example: We encourage you to apply again once you have more hands-on massage experience."
+                        class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
+                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
+                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >{{ old('applicant_message') }}</textarea>
+
+                    @error('applicant_message', 'rejectInterview')
                         <p class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
@@ -359,30 +401,46 @@
         <form id="createStaffForm" method="POST" class="space-y-4">
             @csrf
 
-            <div>
-                <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Full Name *</label>
-                <input type="text" name="name" id="csName" required
-                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Applied as <span id="csFullName" class="font-semibold text-gray-700 dark:text-gray-200"></span>.
+                Confirm the legal name split below; it is used for identity verification and payroll.
+            </p>
+
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                    <label for="csFirstName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">First Name *</label>
+                    <input type="text" name="first_name" id="csFirstName" required maxlength="255" value="{{ old('first_name') }}"
+                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
+                </div>
+                <div>
+                    <label for="csLastName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Last Name *</label>
+                    <input type="text" name="last_name" id="csLastName" required maxlength="255" value="{{ old('last_name') }}"
+                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
+                </div>
             </div>
 
             <div>
-                <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Email *</label>
-                <input type="email" name="email" id="csEmail" required
+                <label for="csMiddleName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Middle Name</label>
+                <input type="text" name="middle_name" id="csMiddleName" maxlength="255" value="{{ old('middle_name') }}"
                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
             </div>
 
-            <div>
-                <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Role *</label>
-                <select name="roles" id="csRole" required
-                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                    <option value="">Select role</option>
-                    <option value="therapist">Therapist</option>
-                    <option value="receptionist">Receptionist</option>
-                    <option value="manager">Manager</option>
-                    <option value="hr">HR</option>
-                    <option value="finance">Finance</option>
-                </select>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                    <p class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Email</p>
+                    <p id="csEmail" class="px-3 py-2 text-sm text-gray-700 break-all bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"></p>
+                </div>
+                <div>
+                    <p class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Role</p>
+                    <p id="csRole" class="px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"></p>
+                </div>
             </div>
+
+            @foreach(['first_name', 'middle_name', 'last_name'] as $field)
+                @error($field, 'createStaff')
+                    <p class="text-xs text-red-600">{{ $message }}</p>
+                @enderror
+            @endforeach
 
             <div class="flex justify-end gap-2">
                 <button type="button" onclick="closeCreateStaffModal()"
@@ -468,19 +526,39 @@ document.getElementById('rejectInterviewForm')?.addEventListener('submit', funct
 @endif
 
 @if($canCreateStaffFromInterview)
-const baseInterviewUrl = @json(url('/interviews'));
+function openCreateStaffModal(button) {
+    const url = button?.dataset.createUrl;
 
-function openCreateStaffModal(interviewId, name, email, role = '') {
-    document.getElementById('csName').value = name || '';
-    document.getElementById('csEmail').value = email || '';
-    document.getElementById('csRole').value = role || '';
-    document.getElementById('createStaffForm').action = `${baseInterviewUrl}/${interviewId}/create-staff`;
+    if (!url) {
+        return;
+    }
+
+    // Best-guess split of the single "full name" from the application form:
+    // last word = last name, the rest = first name. HR confirms it in the modal.
+    const fullName = (button.dataset.applicantName || '').trim();
+    const parts = fullName.split(/\s+/).filter(Boolean);
+    const lastName = parts.length > 1 ? parts.pop() : '';
+
+    document.getElementById('csFullName').textContent = fullName || 'Unknown applicant';
+    document.getElementById('csFirstName').value = parts.join(' ');
+    document.getElementById('csMiddleName').value = '';
+    document.getElementById('csLastName').value = lastName;
+    document.getElementById('csEmail').textContent = button.dataset.applicantEmail || '';
+    document.getElementById('csRole').textContent = button.dataset.applicantPosition || '';
+    document.getElementById('createStaffForm').action = url;
     document.getElementById('createStaffModal').classList.remove('hidden');
 }
 
 function closeCreateStaffModal() {
     document.getElementById('createStaffModal').classList.add('hidden');
+    document.getElementById('createStaffForm').removeAttribute('action');
 }
+
+document.getElementById('createStaffForm')?.addEventListener('submit', function (e) {
+    if (!this.getAttribute('action')) {
+        e.preventDefault();
+    }
+});
 @endif
 </script>
 @endsection

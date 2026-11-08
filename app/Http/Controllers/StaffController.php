@@ -126,7 +126,7 @@ class StaffController extends Controller
             $user->assignRole($validated['roles']);
             $user->markEmailAsVerified();
 
-            Staff::create([
+            $staff = Staff::create([
                 'user_id'           => $user->id,
                 'spa_id'            => $currentUser->spa_id,
                 'branch_id'         => $branchId,
@@ -135,6 +135,9 @@ class StaffController extends Controller
                 // Therapists are always in the pool; the flag is for other roles.
                 'performs_treatments' => $validated['roles'] !== 'therapist' && ! empty($validated['performs_treatments']),
             ]);
+
+            // Hired applicant added here by hand: tie it to their approved interview.
+            app(\App\Services\RecruitmentWorkflowService::class)->linkStaffToApprovedApplicant($staff);
 
             Mail::to($user->email)->send(new StaffCredentialsMail($user, $tempPassword));
         });

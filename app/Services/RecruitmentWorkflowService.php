@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\ApplicantRejectedMail;
 use App\Mail\StaffCredentialsMail;
 use App\Models\Applicant;
 use App\Models\Interview;
@@ -168,11 +169,12 @@ class RecruitmentWorkflowService
     public function rejectInterview(
         User $user,
         Interview $interview,
-        string $reason
+        string $reason,
+        ?string $applicantMessage = null
     ): void {
         $this->assertInterviewAccessible($user, $interview);
 
-        DB::transaction(function () use ($user, $interview, $reason) {
+        DB::transaction(function () use ($user, $interview, $reason, $applicantMessage) {
             $interview = Interview::with('applicant')
                 ->whereKey($interview->id)
                 ->lockForUpdate()
@@ -192,22 +194,47 @@ class RecruitmentWorkflowService
                 ]);
             }
 
+            $applicantMessage = filled($applicantMessage) ? trim($applicantMessage) : null;
+
             $interview->update([
                 'status' => Interview::STATUS_REJECTED,
                 'rejection_reason' => trim($reason),
+                'applicant_message' => $applicantMessage,
             ]);
 
             $interview->applicant->update([
                 'status' => Applicant::STATUS_REJECTED,
             ]);
+
+            // The internal reason never leaves HR; only the optional message does.
+            DB::afterCommit(function () use ($interview) {
+                $email = $interview->applicant?->email;
+
+                if (! $email) {
+                    return;
+                }
+
+                try {
+                    Mail::to($email)->send(new ApplicantRejectedMail($interview->fresh(['applicant', 'spa'])));
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            });
         });
     }
 
-    public function hireApplicant(User $actor, Interview $interview): User
+    /**
+     * Creates the staff account for an approved interview, or links the staff
+     * account that was already added by hand on the Staff page with the same email.
+     *
+     * @param  array{first_name?: ?string, middle_name?: ?string, last_name?: ?string}  $name
+     * @return array{user: User, linked: bool}
+     */
+    public function hireApplicant(User $actor, Interview $interview, array $name = []): array
     {
         $this->assertInterviewAccessible($actor, $interview);
 
-        return DB::transaction(function () use ($actor, $interview) {
+        return DB::transaction(function () use ($actor, $interview, $name) {
             $interview = Interview::with('applicant')
                 ->whereKey($interview->id)
                 ->lockForUpdate()
@@ -235,6 +262,36 @@ class RecruitmentWorkflowService
             ) {
                 throw ValidationException::withMessages([
                     'staff' => 'A staff account has already been created for this applicant.',
+                ]);
+            }
+
+            // Account already added on the Staff page with this email: link it
+            // instead of failing with "email already exists".
+            $existingUser = User::where('email', $applicant->email)->first();
+
+            if ($existingUser) {
+                $existingStaff = Staff::where('user_id', $existingUser->id)
+                    ->where('spa_id', $applicant->spa_id)
+                    ->first();
+
+                if (! $existingStaff || $existingStaff->applicant_id !== null) {
+                    throw ValidationException::withMessages([
+                        'staff' => 'This email already belongs to another account (for example a customer account or another staff member). Ask the applicant for a different email.',
+                    ]);
+                }
+
+                $this->markHired($interview, $applicant, $existingStaff);
+
+                return ['user' => $existingUser, 'linked' => true];
+            }
+
+            $firstName = trim((string) ($name['first_name'] ?? ''));
+            $lastName = trim((string) ($name['last_name'] ?? ''));
+            $middleName = trim((string) ($name['middle_name'] ?? ''));
+
+            if ($firstName === '' || $lastName === '') {
+                throw ValidationException::withMessages([
+                    'staff' => 'First name and last name are required to create the staff account.',
                 ]);
             }
 
@@ -272,16 +329,13 @@ class RecruitmentWorkflowService
                 ]);
             }
 
-            if (User::where('email', $applicant->email)->exists()) {
-                throw ValidationException::withMessages([
-                    'staff' => 'A user account with this email already exists.',
-                ]);
-            }
-
             $tempPassword = Str::random(12);
 
+            // users has first/middle/last name columns; there is no "name" column.
             $user = User::create([
-                'name' => $applicant->full_name,
+                'first_name' => $firstName,
+                'middle_name' => $middleName !== '' ? $middleName : null,
+                'last_name' => $lastName,
                 'email' => $applicant->email,
                 'password' => Hash::make($tempPassword),
                 'spa_id' => $applicant->spa_id,
@@ -293,22 +347,15 @@ class RecruitmentWorkflowService
             $user->assignRole($role);
             $user->markEmailAsVerified();
 
-            Staff::create([
+            $staff = Staff::create([
                 'user_id' => $user->id,
-                'applicant_id' => $applicant->id,
                 'spa_id' => $applicant->spa_id,
                 'branch_id' => $applicant->branch_id,
                 'employment_status' => 'active',
                 'hire_date' => now(),
             ]);
 
-            $interview->update([
-                'staff_account_created' => true,
-            ]);
-
-            $applicant->update([
-                'status' => Applicant::STATUS_HIRED,
-            ]);
+            $this->markHired($interview, $applicant, $staff);
 
             DB::afterCommit(function () use ($user, $tempPassword) {
                 try {
@@ -319,7 +366,45 @@ class RecruitmentWorkflowService
                 }
             });
 
-            return $user;
+            return ['user' => $user, 'linked' => false];
         });
+    }
+
+    /**
+     * Staff added by hand on the Staff page: if an approved applicant of the same
+     * spa has this email and no staff account yet, link them so the Interviews
+     * page shows "Account Created" instead of offering a second account.
+     */
+    public function linkStaffToApprovedApplicant(Staff $staff): void
+    {
+        $email = $staff->user?->email;
+
+        if (! $email || $staff->applicant_id !== null) {
+            return;
+        }
+
+        $applicant = Applicant::query()
+            ->where('spa_id', $staff->spa_id)
+            ->where('email', $email)
+            ->where('status', Applicant::STATUS_APPROVED)
+            ->whereDoesntHave('staff')
+            ->whereHas('interview', fn ($q) => $q
+                ->where('status', Interview::STATUS_APPROVED)
+                ->where('staff_account_created', false))
+            ->latest()
+            ->first();
+
+        if (! $applicant) {
+            return;
+        }
+
+        $this->markHired($applicant->interview, $applicant, $staff);
+    }
+
+    private function markHired(Interview $interview, Applicant $applicant, Staff $staff): void
+    {
+        $staff->update(['applicant_id' => $applicant->id]);
+        $interview->update(['staff_account_created' => true]);
+        $applicant->update(['status' => Applicant::STATUS_HIRED]);
     }
 }
