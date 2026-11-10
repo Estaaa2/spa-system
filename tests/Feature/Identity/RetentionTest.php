@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * OCR & verification Phase 3 (claude/ocr-phase3-findings.md):
+ * OCR & verification Phase 3:
  * G1 — a request nobody reviews is closed after config('identity.pending_max_days');
  * G2 — deleting an account closes its pending request and deletes the files.
  * RA 10173 Sec. 11(e): keep personal data only as long as necessary.

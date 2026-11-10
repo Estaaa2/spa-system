@@ -21,7 +21,7 @@ use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
- * OCR is a helper only (claude/ocr-verification-phases.md, D1):
+ * OCR is a helper only:
  * it never blocks an upload, and an administrator always confirms the
  * expiration date (a date, or "No expiration date" where allowed).
  *

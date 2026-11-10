@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Gate;
  * Mobile API for the staff profile photo and identity verification (Phase 6).
  * Same Form Requests, policy and service as the web profile page
  * (ProfilePhotoController, IdentityVerificationController); only the replies
- * are JSON. Endpoint reference: claude/staff-verification-phase6.md.
+ * are JSON.
  *
  * GET    /api/me/identity                  state + everything the screen needs
  * POST   /api/me/photo                     multipart: photo

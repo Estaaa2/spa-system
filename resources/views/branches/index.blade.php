@@ -13,6 +13,16 @@
 </style>
 
 @php
+    // Buttons are only rendered when the matching route would let the user through
+    // (routes/web.php: branch.permission middleware), so nobody clicks into a 403.
+    $authUser       = auth()->user();
+    $isOwner        = $authUser->hasRole('owner');
+    $canCreateBranch = $isOwner || $authUser->hasBranchPermission('create branches');
+    $canEditGeneral = $authUser->hasBranchPermission('edit branch general');
+    $canEditHours   = $authUser->hasBranchPermission('edit branch hours');
+    $canEditProfile = $authUser->hasBranchPermission('edit branch profile');
+    $canEditAnyTab  = $canEditGeneral || $canEditHours || $canEditProfile;
+
     $branchCount = $branches->count();
 
     $currentPlan = strtolower((string) ($spa->currentPlan() ?: 'basic'));
@@ -77,13 +87,15 @@
                     </p>
                 </div>
 
-                <a
-                    href="{{ route('owner.subscription.index') }}"
-                    class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto"
-                >
-                    <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
-                    View Subscription Plans
-                </a>
+                @if ($isOwner)
+                    <a
+                        href="{{ route('owner.subscription.index') }}"
+                        class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto"
+                    >
+                        <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
+                        View Subscription Plans
+                    </a>
+                @endif
             </div>
         </div>
     @elseif ($hasReachedBranchLimit)
@@ -101,13 +113,15 @@
                     </p>
                 </div>
 
-                <a
-                    href="{{ route('owner.subscription.index') }}"
-                    class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto"
-                >
-                    <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                    Change Subscription
-                </a>
+                @if ($isOwner)
+                    <a
+                        href="{{ route('owner.subscription.index') }}"
+                        class="{{ $btn['primary'] }} w-full shrink-0 md:w-auto"
+                    >
+                        <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                        Change Subscription
+                    </a>
+                @endif
             </div>
         </div>
     @else
@@ -206,6 +220,7 @@
                     </p>
                 </div>
 
+                @if ($canCreateBranch)
                 @if (! $hasAccess)
                     <a
                         href="{{ route('owner.subscription.index') }}"
@@ -232,6 +247,7 @@
                         <i class="fa-solid fa-plus" aria-hidden="true"></i>
                         Add New Branch
                     </button>
+                @endif
                 @endif
             </div>
         </div>
@@ -362,26 +378,37 @@
                          a line of explanatory text when it isn't — so card heights stay equal. --}}
                     <div class="pt-4 mt-5 space-y-2 border-t border-gray-200 dark:border-gray-700">
 
-                        {{-- Three tab direct-links in a row --}}
-                        <div class="grid grid-cols-3 gap-2">
-                            <a href="{{ route('branches.edit', $branch->id) }}?tab=general"
-                               class="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-2 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-xl transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800">
-                                <i class="fa-solid fa-pen text-[#8B7355] text-[11px]" aria-hidden="true"></i>
-                                General
-                            </a>
-                            <a href="{{ route('branches.edit', $branch->id) }}?tab=hours"
-                               class="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-2 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-xl transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800">
-                                <i class="fa-solid fa-clock text-[#8B7355] text-[11px]" aria-hidden="true"></i>
-                                Hours
-                            </a>
-                            <a href="{{ route('branches.edit', $branch->id) }}?tab=profile"
-                               class="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-2 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-xl transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800">
-                                <i class="fa-solid fa-image text-[#8B7355] text-[11px]" aria-hidden="true"></i>
-                                Profile
-                            </a>
-                        </div>
+                        {{-- Tab direct-links: only the ones this user may open (see routes: branches.edit) --}}
+                        @if ($canEditAnyTab)
+                            @php $tabCount = (int) $canEditGeneral + (int) $canEditHours + (int) $canEditProfile; @endphp
+                            <div class="grid gap-2 {{ ['1' => 'grid-cols-1', '2' => 'grid-cols-2', '3' => 'grid-cols-3'][$tabCount] }}">
+                                @if ($canEditGeneral)
+                                    <a href="{{ route('branches.edit', $branch->id) }}?tab=general"
+                                       class="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-2 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-xl transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800">
+                                        <i class="fa-solid fa-pen text-[#8B7355] text-[11px]" aria-hidden="true"></i>
+                                        General
+                                    </a>
+                                @endif
+                                @if ($canEditHours)
+                                    <a href="{{ route('branches.edit', $branch->id) }}?tab=hours"
+                                       class="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-2 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-xl transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800">
+                                        <i class="fa-solid fa-clock text-[#8B7355] text-[11px]" aria-hidden="true"></i>
+                                        Hours
+                                    </a>
+                                @endif
+                                @if ($canEditProfile)
+                                    <a href="{{ route('branches.edit', $branch->id) }}?tab=profile"
+                                       class="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-2 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-xl transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600 dark:focus-visible:ring-offset-gray-800">
+                                        <i class="fa-solid fa-image text-[#8B7355] text-[11px]" aria-hidden="true"></i>
+                                        Profile
+                                    </a>
+                                @endif
+                            </div>
+                        @endif
 
-                        @if($canRemove)
+                        @if (! $isOwner)
+                            {{-- Removing a branch is owner-only; nothing to show. --}}
+                        @elseif($canRemove)
                             <button type="button"
                                 onclick="openDeleteModal({{ $branch->id }}, {{ Js::from($branch->name) }})"
                                 class="w-full min-h-[44px] inline-flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 transition-colors rounded-xl hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 dark:text-red-400 dark:hover:bg-red-900/20 dark:focus-visible:ring-offset-gray-800">
@@ -410,8 +437,13 @@
                 </div>
                 <h3 class="mt-4 text-base font-semibold text-gray-900 dark:text-white">No branches yet</h3>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Get started by creating your first branch for this spa.
+                    @if ($canCreateBranch)
+                        Get started by creating your first branch for this spa.
+                    @else
+                        No branch is available to show yet.
+                    @endif
                 </p>
+                @if ($canCreateBranch)
                 <div class="mt-6">
                     @if (! $hasAccess)
                         <a
@@ -441,6 +473,7 @@
                         </button>
                     @endif
                 </div>
+                @endif
             </div>
         @endif
 

@@ -5,7 +5,7 @@ namespace App\Support\Legal;
 /**
  * Privacy Policy — /privacy-policy (landing footer Phase 2).
  *
- * Written from the data inventory (claude/legal-data-inventory.md); each
+ * Written from the data inventory; each
  * section notes the inventory rows it covers. Part A is data Levictas is
  * responsible for; Part B is data it stores for partner spas (Q6-A).
  *

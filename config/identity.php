@@ -7,7 +7,7 @@
 |
 | Settings for the profile photo + ID + selfie verification that staff in
 | the treatment-provider pool must pass before they can be assigned online
-| home-service bookings. See claude/staff-verification-phases.md.
+| home-service bookings.
 |
 */
 

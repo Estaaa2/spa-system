@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * The only place that changes identity-verification state or the files behind it.
  *
- * Rules (claude/staff-verification-phases.md, D1–D15 + Phase 0 decisions):
+ * Rules:
  * - Only treatment providers (therapist role or "Performs treatments") submit.
  * - One pending submission per person; resubmit after rejection/withdrawal/supersede.
  * - Verified = users.identity_verified_at is set. A new profile photo, a legal-name

@@ -14,8 +14,7 @@ namespace App\Support\Legal;
  *   bookings  — the booking modal on the landing page
  *   partners  — business registration
  *
- * Every rule here must match what the code does or a decision on record
- * (see claude/legal-pages-review-draft.md).
+ * Every rule here must match what the code does or a decision on record.
  *
  * Change the wording → bump VERSION and UPDATED. The version is recorded
  * when a user registers and when a customer books.
