@@ -30,7 +30,7 @@
 </div>
 
 {{-- Review modal --}}
-<div id="reassignReviewModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+<div id="reassignReviewModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
     <div class="w-full max-w-lg mx-auto mt-16 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
@@ -91,7 +91,7 @@
 </div>
 
 {{-- Reject reason modal — rejecting needs its own required reason, same rule as reschedule rejection --}}
-<div id="reassignRejectModal" class="fixed inset-0 z-[60] hidden p-4 bg-black/50">
+<div id="reassignRejectModal" class="fixed inset-0 z-[60] hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
     <div class="w-full max-w-md mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Reject Reassignment Request</h3>

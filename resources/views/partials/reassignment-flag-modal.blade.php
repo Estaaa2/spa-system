@@ -1,12 +1,19 @@
 <!-- Reassignment Flag Modal -->
-<div id="reassignFlagModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
-    <div class="w-full max-w-lg mx-auto mt-16 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+{{-- overflow-y-auto: the panel grows when "Also request leave" is ticked; on a
+     short laptop screen the buttons used to fall below the fold with no way to
+     scroll to them (body scroll is locked while the modal is open). --}}
+<div id="reassignFlagModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50"
+     role="dialog" aria-modal="true" aria-labelledby="reassignFlagTitle">
+    <div class="w-full max-w-lg mx-auto my-8 bg-white shadow-xl sm:my-16 rounded-2xl dark:bg-gray-800">
+        <div class="flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Can't Make This Appointment?</h2>
+                <h2 id="reassignFlagTitle" class="text-xl font-semibold text-gray-900 dark:text-white">Can't Make This Appointment?</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">The front desk will be notified immediately and will assign a replacement.</p>
             </div>
-            <button type="button" onclick="closeReassignFlagModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
+            <button type="button" onclick="closeReassignFlagModal()" aria-label="Close"
+                    class="inline-flex items-center justify-center w-11 h-11 text-gray-400 shrink-0 rounded-xl hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
         </div>
 
         <form id="reassignFlagForm" class="px-6 py-6 space-y-4">
@@ -17,8 +24,8 @@
             </div>
 
             <div>
-                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Reason <span class="text-red-500">*</span>
+                <label for="reassign_flag_reason" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Reason <span class="text-red-600 dark:text-red-400" aria-hidden="true">*</span>
                 </label>
                 <textarea id="reassign_flag_reason" name="reason" rows="3" minlength="10" maxlength="1000" required
                     placeholder="e.g. Family emergency, need to leave early today..."
@@ -37,7 +44,7 @@
                     </span>
                 </label>
                 <div id="reassign_leave_type_wrapper" class="hidden mt-3">
-                    <label class="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">Leave Type</label>
+                    <label for="reassign_leave_type" class="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">Leave Type</label>
                     <select id="reassign_leave_type" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="sick">Sick</option>
                         <option value="emergency">Emergency</option>
@@ -85,8 +92,11 @@
         }
         document.getElementById('reassignFlagError').classList.add('hidden');
 
-        document.getElementById('reassignFlagModal').classList.remove('hidden');
+        const modal = document.getElementById('reassignFlagModal');
+        modal.classList.remove('hidden');
+        modal.scrollTop = 0;
         document.body.classList.add('overflow-hidden');
+        document.getElementById('reassign_flag_reason').focus();
     };
 
     window.closeReassignFlagModal = function () {
@@ -94,6 +104,12 @@
         document.body.classList.remove('overflow-hidden');
         reassignFlagBookingId = null;
     };
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !document.getElementById('reassignFlagModal').classList.contains('hidden')) {
+            closeReassignFlagModal();
+        }
+    });
 
     window.toggleReassignLeaveType = function () {
         const checked = document.getElementById('reassign_also_leave').checked;

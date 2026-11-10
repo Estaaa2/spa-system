@@ -24,6 +24,36 @@
 
     $inputBase = 'w-full min-h-[44px] px-3 py-2 mt-1 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700 dark:text-white';
 
+    $hintText = 'mt-1 text-xs text-gray-500 dark:text-gray-400';
+    $errorText = 'mt-1 text-sm text-red-600 dark:text-red-400';
+    $requiredMark = '<span class="text-red-600 dark:text-red-400" aria-hidden="true">*</span>';
+
+    // Same caps as SupplierController, so the browser stops the value before the server does.
+    $maxUnitCost = \App\Http\Controllers\SupplierController::MAX_UNIT_COST;
+    $maxLeadTimeDays = \App\Http\Controllers\SupplierController::MAX_LEAD_TIME_DAYS;
+    $maxOrderQuantity = \App\Http\Controllers\SupplierController::MAX_ORDER_QUANTITY;
+
+    // When the server rejects an edit or a product assignment, reopen that
+    // dialog on the same supplier with what was typed, instead of closing it
+    // and leaving only a toast.
+    $reopenSupplier = old('_supplier_id')
+        ? $suppliers->firstWhere('id', (int) old('_supplier_id'))
+        : null;
+    $reopenEdit = $reopenSupplier && $errors->editSupplier->any();
+    $reopenProduct = $reopenSupplier && $errors->supplierProduct->any();
+    // old() input is shared by every form on the page; only refill the form that failed.
+    $refillCreate = $errors->createSupplier->any();
+
+    $initialSupplier = [
+        'id' => $reopenSupplier?->id,
+        'name' => $reopenEdit ? old('name', '') : ($reopenSupplier?->name ?? ''),
+        'contact_person' => $reopenEdit ? old('contact_person', '') : '',
+        'email' => $reopenEdit ? old('email', '') : '',
+        'phone' => $reopenEdit ? old('phone', '') : '',
+        'address' => $reopenEdit ? old('address', '') : '',
+        'status' => $reopenSupplier?->status ?? 'active',
+    ];
+
     $supplierUpdateUrl = route('procurement.suppliers.update', '__ID__');
     $supplierStatusUrl = route('procurement.suppliers.status', '__ID__');
     $supplierProductStoreUrl = route('procurement.suppliers.products.store', '__ID__');
@@ -41,20 +71,12 @@
     class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl"
     x-data="{
         createOpen: {{ $errors->createSupplier->any() ? 'true' : 'false' }},
-        editOpen: false,
+        editOpen: {{ $reopenEdit ? 'true' : 'false' }},
         statusOpen: false,
-        productOpen: false,
+        productOpen: {{ $reopenProduct ? 'true' : 'false' }},
         editProductOpen: false,
 
-        supplier: {
-            id: null,
-            name: '',
-            contact_person: '',
-            email: '',
-            phone: '',
-            address: '',
-            status: 'active'
-        },
+        supplier: @js($initialSupplier),
 
         productItem: {
             id: null,
@@ -486,27 +508,31 @@
                 </div>
 
                 <div class="p-5 space-y-4 sm:p-6">
+                    <p class="{{ $hintText }}">
+                        Fields marked {!! $requiredMark !!} are required.
+                    </p>
+
                     <div>
                         <label
                             for="supplier-name"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Supplier Name
+                            Supplier Name {!! $requiredMark !!}
                         </label>
 
                         <input
                             id="supplier-name"
                             type="text"
                             name="name"
-                            value="{{ old('name') }}"
+                            value="{{ $refillCreate ? old('name') : '' }}"
+                            maxlength="255"
+                            placeholder="e.g. Cavite Beauty Supplies"
                             required
                             class="{{ $inputBase }}"
                         >
 
                         @error('name', 'createSupplier')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">
-                                {{ $message }}
-                            </p>
+                            <p class="{{ $errorText }}">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -522,9 +548,15 @@
                             id="supplier-contact"
                             type="text"
                             name="contact_person"
-                            value="{{ old('contact_person') }}"
+                            value="{{ $refillCreate ? old('contact_person') : '' }}"
+                            maxlength="255"
+                            placeholder="e.g. Maria Santos"
                             class="{{ $inputBase }}"
                         >
+
+                        @error('contact_person', 'createSupplier')
+                            <p class="{{ $errorText }}">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -540,9 +572,15 @@
                                 id="supplier-email"
                                 type="email"
                                 name="email"
-                                value="{{ old('email') }}"
+                                value="{{ $refillCreate ? old('email') : '' }}"
+                                maxlength="255"
+                                placeholder="e.g. orders@supplier.com"
                                 class="{{ $inputBase }}"
                             >
+
+                            @error('email', 'createSupplier')
+                                <p class="{{ $errorText }}">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
@@ -555,11 +593,27 @@
 
                             <input
                                 id="supplier-phone"
-                                type="text"
+                                type="tel"
                                 name="phone"
-                                value="{{ old('phone') }}"
+                                value="{{ $refillCreate ? old('phone') : '' }}"
+                                inputmode="numeric"
+                                autocomplete="tel-national"
+                                maxlength="11"
+                                pattern="09[0-9]{9}"
+                                title="11-digit mobile number that starts with 09, e.g. 09171234567"
+                                placeholder="09XXXXXXXXX"
+                                aria-describedby="supplier-phone-hint"
+                                x-on:input="$el.value = $el.value.replace(/\D/g, '').replace(/^639/, '09').slice(0, 11)"
                                 class="{{ $inputBase }}"
                             >
+
+                            <p id="supplier-phone-hint" class="{{ $hintText }}">
+                                11 digits, starts with 09.
+                            </p>
+
+                            @error('phone', 'createSupplier')
+                                <p class="{{ $errorText }}">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -575,8 +629,14 @@
                             id="supplier-address"
                             name="address"
                             rows="3"
+                            maxlength="1000"
+                            placeholder="e.g. 123 Aguinaldo Hwy, Imus, Cavite"
                             class="{{ $inputBase }}"
-                        >{{ old('address') }}</textarea>
+                        >{{ $refillCreate ? old('address') : '' }}</textarea>
+
+                        @error('address', 'createSupplier')
+                            <p class="{{ $errorText }}">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
 
@@ -640,72 +700,139 @@
                 </div>
 
                 <div class="p-5 space-y-4 sm:p-6">
+                    {{-- Lets the page reopen this dialog on the right supplier when the server rejects the save. --}}
+                    <input type="hidden" name="_supplier_id" :value="supplier.id">
+
+                    <p class="{{ $hintText }}">
+                        Fields marked {!! $requiredMark !!} are required.
+                    </p>
+
                     <div>
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Supplier Name
+                        <label
+                            for="edit-supplier-name"
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                        >
+                            Supplier Name {!! $requiredMark !!}
                         </label>
 
                         <input
+                            id="edit-supplier-name"
                             type="text"
                             name="name"
                             x-model="supplier.name"
+                            maxlength="255"
+                            placeholder="e.g. Cavite Beauty Supplies"
                             required
                             class="{{ $inputBase }}"
                         >
+
+                        @error('name', 'editSupplier')
+                            <p class="{{ $errorText }}">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        <label
+                            for="edit-supplier-contact"
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                        >
                             Contact Person
                         </label>
 
                         <input
+                            id="edit-supplier-contact"
                             type="text"
                             name="contact_person"
                             x-model="supplier.contact_person"
+                            maxlength="255"
+                            placeholder="e.g. Maria Santos"
                             class="{{ $inputBase }}"
                         >
+
+                        @error('contact_person', 'editSupplier')
+                            <p class="{{ $errorText }}">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                            <label
+                                for="edit-supplier-email"
+                                class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                            >
                                 Email
                             </label>
 
                             <input
+                                id="edit-supplier-email"
                                 type="email"
                                 name="email"
                                 x-model="supplier.email"
+                                maxlength="255"
+                                placeholder="e.g. orders@supplier.com"
                                 class="{{ $inputBase }}"
                             >
+
+                            @error('email', 'editSupplier')
+                                <p class="{{ $errorText }}">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                            <label
+                                for="edit-supplier-phone"
+                                class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                            >
                                 Phone
                             </label>
 
                             <input
-                                type="text"
+                                id="edit-supplier-phone"
+                                type="tel"
                                 name="phone"
                                 x-model="supplier.phone"
+                                inputmode="numeric"
+                                autocomplete="tel-national"
+                                maxlength="11"
+                                pattern="09[0-9]{9}"
+                                title="11-digit mobile number that starts with 09, e.g. 09171234567"
+                                placeholder="09XXXXXXXXX"
+                                aria-describedby="edit-supplier-phone-hint"
+                                x-on:input="$el.value = $el.value.replace(/\D/g, '').replace(/^639/, '09').slice(0, 11); supplier.phone = $el.value"
                                 class="{{ $inputBase }}"
                             >
+
+                            <p id="edit-supplier-phone-hint" class="{{ $hintText }}">
+                                11 digits, starts with 09.
+                            </p>
+
+                            @error('phone', 'editSupplier')
+                                <p class="{{ $errorText }}">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
                     <div>
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        <label
+                            for="edit-supplier-address"
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                        >
                             Address
                         </label>
 
                         <textarea
+                            id="edit-supplier-address"
                             name="address"
                             rows="3"
+                            maxlength="1000"
+                            placeholder="e.g. 123 Aguinaldo Hwy, Imus, Cavite"
                             x-model="supplier.address"
                             class="{{ $inputBase }}"
                         ></textarea>
+
+                        @error('address', 'editSupplier')
+                            <p class="{{ $errorText }}">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
 
@@ -858,12 +985,18 @@
                 </div>
 
                 <div class="p-5 space-y-4 sm:p-6">
+                    <input type="hidden" name="_supplier_id" :value="supplier.id">
+
+                    <p class="{{ $hintText }}">
+                        Fields marked {!! $requiredMark !!} are required.
+                    </p>
+
                     <div>
                         <label
                             for="supplier-product"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Product
+                            Product {!! $requiredMark !!}
                         </label>
 
                         <select
@@ -877,7 +1010,7 @@
                             </option>
 
                             @foreach($products as $product)
-                                <option value="{{ $product->id }}">
+                                <option value="{{ $product->id }}" @selected($reopenProduct && (string) old('product_id') === (string) $product->id)>
                                     {{ $product->name }}
                                     @if($product->purchase_unit)
                                         — {{ $product->purchase_unit }}
@@ -885,6 +1018,10 @@
                                 </option>
                             @endforeach
                         </select>
+
+                        @error('product_id', 'supplierProduct')
+                            <p class="{{ $errorText }}">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
@@ -892,17 +1029,25 @@
                             for="supplier-cost"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Supplier Unit Cost
+                            Supplier Unit Cost (₱)
                         </label>
 
                         <input
                             id="supplier-cost"
                             type="number"
                             name="unit_cost"
+                            value="{{ $reopenProduct ? old('unit_cost') : '' }}"
                             min="0"
+                            max="{{ $maxUnitCost }}"
                             step="0.01"
+                            inputmode="decimal"
+                            placeholder="e.g. 250.00"
                             class="{{ $inputBase }}"
                         >
+
+                        @error('unit_cost', 'supplierProduct')
+                            <p class="{{ $errorText }}">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -911,17 +1056,25 @@
                                 for="supplier-lead-time"
                                 class="text-sm font-medium text-gray-700 dark:text-gray-200"
                             >
-                                Lead Time
+                                Lead Time (days)
                             </label>
 
                             <input
                                 id="supplier-lead-time"
                                 type="number"
                                 name="lead_time_days"
+                                value="{{ $reopenProduct ? old('lead_time_days') : '' }}"
                                 min="0"
+                                max="{{ $maxLeadTimeDays }}"
                                 step="1"
+                                inputmode="numeric"
+                                placeholder="e.g. 7"
                                 class="{{ $inputBase }}"
                             >
+
+                            @error('lead_time_days', 'supplierProduct')
+                                <p class="{{ $errorText }}">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div>
@@ -936,10 +1089,20 @@
                                 id="supplier-moq"
                                 type="number"
                                 name="minimum_order_quantity"
+                                value="{{ $reopenProduct ? old('minimum_order_quantity') : '' }}"
                                 min="0.001"
+                                max="{{ $maxOrderQuantity }}"
                                 step="0.001"
+                                inputmode="decimal"
+                                data-stock-limit="{{ $maxOrderQuantity }}"
+                                data-stock-decimals="3"
+                                placeholder="e.g. 10"
                                 class="{{ $inputBase }}"
                             >
+
+                            @error('minimum_order_quantity', 'supplierProduct')
+                                <p class="{{ $errorText }}">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
 
@@ -948,6 +1111,7 @@
                             type="checkbox"
                             name="is_preferred"
                             value="1"
+                            @checked($reopenProduct && old('is_preferred'))
                             class="mt-0.5 rounded border-gray-300 text-[#8B7355] focus:ring-[#8B7355]"
                         >
 
@@ -1026,15 +1190,22 @@
 
                 <div class="p-5 space-y-4 sm:p-6">
                     <div>
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Unit Cost
+                        <label
+                            for="edit-supplier-cost"
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                        >
+                            Unit Cost (₱)
                         </label>
 
                         <input
+                            id="edit-supplier-cost"
                             type="number"
                             name="unit_cost"
                             min="0"
+                            max="{{ $maxUnitCost }}"
                             step="0.01"
+                            inputmode="decimal"
+                            placeholder="e.g. 250.00"
                             x-model="productItem.unit_cost"
                             class="{{ $inputBase }}"
                         >
@@ -1042,30 +1213,46 @@
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
-                                Lead Time
+                            <label
+                                for="edit-supplier-lead-time"
+                                class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                            >
+                                Lead Time (days)
                             </label>
 
                             <input
+                                id="edit-supplier-lead-time"
                                 type="number"
                                 name="lead_time_days"
                                 min="0"
+                                max="{{ $maxLeadTimeDays }}"
                                 step="1"
+                                inputmode="numeric"
+                                placeholder="e.g. 7"
                                 x-model="productItem.lead_time_days"
                                 class="{{ $inputBase }}"
                             >
                         </div>
 
                         <div>
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                            <label
+                                for="edit-supplier-moq"
+                                class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                            >
                                 Minimum Order Qty
                             </label>
 
                             <input
+                                id="edit-supplier-moq"
                                 type="number"
                                 name="minimum_order_quantity"
                                 min="0.001"
+                                max="{{ $maxOrderQuantity }}"
                                 step="0.001"
+                                inputmode="decimal"
+                                data-stock-limit="{{ $maxOrderQuantity }}"
+                                data-stock-decimals="3"
+                                placeholder="e.g. 10"
                                 x-model="productItem.minimum_order_quantity"
                                 class="{{ $inputBase }}"
                             >

@@ -11,6 +11,14 @@ use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
 {
+    /** Philippine mobile number, local format (same rule as bookings, profile and hiring). */
+    public const PHONE_REGEX = '/^09\d{9}$/';
+
+    /** Supplier-product term caps; the suppliers page reads these for its input max values. */
+    public const MAX_UNIT_COST = 1000000;
+    public const MAX_LEAD_TIME_DAYS = 365;
+    public const MAX_ORDER_QUANTITY = 20000;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -55,9 +63,9 @@ class SupplierController extends Controller
             ],
             'contact_person' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'string', 'regex:' . self::PHONE_REGEX],
             'address' => ['nullable', 'string', 'max:1000'],
-        ]);
+        ], $this->supplierMessages());
 
         Supplier::create([
             'spa_id' => $spaId,
@@ -92,9 +100,9 @@ class SupplierController extends Controller
             ],
             'contact_person' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'string', 'regex:' . self::PHONE_REGEX],
             'address' => ['nullable', 'string', 'max:1000'],
-        ]);
+        ], $this->supplierMessages());
 
         $supplier->update($data);
 
@@ -166,11 +174,9 @@ class SupplierController extends Controller
                         ->where('spa_id', $user->spa_id)
                         ->where('is_active', true)),
             ],
-            'unit_cost' => ['nullable', 'numeric', 'min:0'],
-            'lead_time_days' => ['nullable', 'integer', 'min:0'],
-            'minimum_order_quantity' => ['nullable', 'numeric', 'gt:0'],
+            ...$this->productTermRules(),
             'is_preferred' => ['nullable', 'boolean'],
-        ]);
+        ], $this->productTermMessages());
 
         $product = Product::query()
             ->where('spa_id', $user->spa_id)
@@ -209,12 +215,10 @@ class SupplierController extends Controller
         );
 
         $data = $request->validateWithBag('editSupplierProduct', [
-            'unit_cost' => ['nullable', 'numeric', 'min:0'],
-            'lead_time_days' => ['nullable', 'integer', 'min:0'],
-            'minimum_order_quantity' => ['nullable', 'numeric', 'gt:0'],
+            ...$this->productTermRules(),
             'is_preferred' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
-        ]);
+        ], $this->productTermMessages());
 
         if (
             $supplier->status !== 'active'
@@ -244,5 +248,32 @@ class SupplierController extends Controller
             'success',
             'Supplier product updated successfully.'
         );
+    }
+
+    private function supplierMessages(): array
+    {
+        return [
+            'phone.regex' => 'Enter an 11-digit mobile number that starts with 09, e.g. 09171234567.',
+        ];
+    }
+
+    private function productTermRules(): array
+    {
+        return [
+            'unit_cost' => ['nullable', 'numeric', 'min:0', 'max:' . self::MAX_UNIT_COST, 'decimal:0,2'],
+            'lead_time_days' => ['nullable', 'integer', 'min:0', 'max:' . self::MAX_LEAD_TIME_DAYS],
+            'minimum_order_quantity' => ['nullable', 'numeric', 'gt:0', 'max:' . self::MAX_ORDER_QUANTITY, 'decimal:0,3'],
+        ];
+    }
+
+    private function productTermMessages(): array
+    {
+        return [
+            'unit_cost.max' => 'Unit cost cannot be more than ₱' . number_format(self::MAX_UNIT_COST) . '.',
+            'unit_cost.decimal' => 'Unit cost can have at most 2 decimal places.',
+            'lead_time_days.max' => 'Lead time cannot be more than ' . self::MAX_LEAD_TIME_DAYS . ' days.',
+            'minimum_order_quantity.max' => 'Minimum order quantity cannot be more than ' . number_format(self::MAX_ORDER_QUANTITY) . '.',
+            'minimum_order_quantity.decimal' => 'Minimum order quantity can have at most 3 decimal places.',
+        ];
     }
 }

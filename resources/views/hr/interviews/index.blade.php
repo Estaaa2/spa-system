@@ -389,7 +389,7 @@
 
 {{-- Create Staff Account Modal --}}
 @if($canCreateStaffFromInterview)
-<div id="createStaffModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+<div id="createStaffModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
     <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Create Staff Account</h2>

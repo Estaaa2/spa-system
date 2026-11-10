@@ -14,3 +14,12 @@
         @apply font-medium text-[#6F5430] underline underline-offset-2 hover:text-[#8B7355] dark:text-[#C4A97D] dark:hover:text-white;
     }
 }
+
+/* Full-screen overlays (modal backdrops) must never pick up a margin from a
+   space-y-* / space-x-* parent. Tailwind v3 spaces siblings with margin-top,
+   so a modal placed inside a space-y-6 page wrapper was pushed down 1.5rem
+   when shown, leaving an undimmed white strip across the top of the screen.
+   !important is needed: the space-y selector is more specific (0,3,0). */
+.fixed.inset-0 {
+    margin: 0 !important;
+}

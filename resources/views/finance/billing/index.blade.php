@@ -336,7 +336,7 @@
 </div>
 
 {{-- ── FILE EXPENSE MODAL ───────────────────────────────────────────────── --}}
-<div id="expenseModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+<div id="expenseModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
     <div class="w-full max-w-lg mx-auto mt-20 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
@@ -383,7 +383,7 @@
 </div>
 
 {{-- ── REVIEW EXPENSE MODAL ─────────────────────────────────────────────── --}}
-<div id="reviewModal" class="fixed inset-0 z-50 hidden p-4 bg-black/50">
+<div id="reviewModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
     <div class="w-full max-w-lg mx-auto mt-20 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div>
