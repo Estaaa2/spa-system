@@ -63,6 +63,17 @@ final class EarningsCalculator
             return new EarningsResult([], false, '0.00', ["Staff #{$staff->id} has no pay profile in effect between {$start} and {$end}."]);
         }
 
+        // Closed weekdays for every branch of the spa, so each date is checked against
+        // the branch the staff member worked at that day (deployments).
+        $closedByBranch = [];
+        OperatingHours::query()
+            ->whereIn('branch_id', Branch::withTrashed()->where('spa_id', $staff->spa_id)->select('id'))
+            ->where('is_closed', true)
+            ->get(['branch_id', 'day_of_week'])
+            ->each(function (OperatingHours $h) use (&$closedByBranch) {
+                $closedByBranch[(int) $h->branch_id][] = (string) $h->day_of_week;
+            });
+
         $ctx = new CutoffContext(
             staffId: (int) $staff->id,
             spaId: (int) $staff->spa_id,
@@ -79,6 +90,7 @@ final class EarningsCalculator
                 ->pluck('day_of_week')
                 ->map(fn ($d) => (string) $d)
                 ->all(),
+            closedWeekdaysByBranch: $closedByBranch,
         );
 
         $att = $this->attendance->forPeriod($staff, $ctx);

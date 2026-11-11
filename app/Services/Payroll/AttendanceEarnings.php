@@ -25,8 +25,9 @@ use App\Models\PayslipLine;
  *  - Daily-paid BASIC: one line per worked day at the daily rate.
  *  - Monthly-paid BASIC: ½ of base_rate per cutoff (prorated by calendar days when a
  *    profile covers only part of the cutoff — UNVERIFIED), minus the daily rate for
- *    each absent/on_leave day. Absence rows on rest days or non-working holidays are
- *    ignored: the 365 factor already pays those days (§10). Deductions are capped so
+ *    each absent/on_leave day. Absence rows on rest days, non-working holidays or
+ *    days the branch is closed are ignored: the 365 factor already pays those days
+ *    (§10; staff scheduling Phase 1 for closed days). Deductions are capped so
  *    the cutoff's BASIC never goes below 0. Days with no attendance row are NOT
  *    absences (reported as a warning instead).
  *  - Premium days (rest day, special non-working, regular holiday and their rest-day
@@ -289,7 +290,7 @@ final class AttendanceEarnings
             $skipped = match (true) {
                 $ctx->nonWorkingHoliday($ymd) !== null => 'holiday',
                 $p->isRestDay($ymd)                    => 'rest day',
-                $ctx->isBranchClosed($ymd)             => 'branch closed',
+                $ctx->isBranchClosed($ymd, $row?->branchId) => 'branch closed',
                 default                                => null,
             };
 
@@ -342,10 +343,18 @@ final class AttendanceEarnings
         $missing = [];
 
         foreach ($segDates as $date) {
-            if ($p->isRestDay($date) || $ctx->nonWorkingHoliday($date) !== null) {
-                continue; // paid day under the 365 factor; an absence here is not deducted
-            }
             $row = $byDate[$date] ?? null;
+            // Rest days, non-working holidays and days the branch is closed are paid
+            // days under the 365 factor (Omnibus Rules Book III Rule IV: monthly-paid
+            // employees are paid for all days of the month; a closed day is a
+            // "non-working day in the establishment", Sec. 6(c)). An absence or leave
+            // row here is not deducted, and a missing row is not a missing workday.
+            // The branch is the row's (deployments), or the home branch with no row.
+            if ($p->isRestDay($date)
+                || $ctx->nonWorkingHoliday($date) !== null
+                || $ctx->isBranchClosed($date, $row?->branchId)) {
+                continue;
+            }
             if ($row === null) {
                 $missing[] = $date;
                 continue;

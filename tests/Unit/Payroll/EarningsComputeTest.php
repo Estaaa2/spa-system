@@ -64,7 +64,7 @@ final class EarningsComputeTest extends TestCase
      * @param list<PayProfileSnapshot> $profiles
      * @param list<string>             $closed   weekdays the home branch is closed
      */
-    private function ctx(array $profiles, string $start = '2026-08-16', string $end = '2026-08-31', int $cutoff = 2, array $closed = []): CutoffContext
+    private function ctx(array $profiles, string $start = '2026-08-16', string $end = '2026-08-31', int $cutoff = 2, array $closed = [], array $closedByBranch = []): CutoffContext
     {
         $from = (new \DateTimeImmutable($start))->modify('-'.AttendanceEarnings::LOOKBACK_DAYS.' days')->format('Y-m-d');
         $holidays = [];
@@ -72,7 +72,7 @@ final class EarningsComputeTest extends TestCase
             $holidays[$h->date] = $h;
         }
 
-        return new CutoffContext(1, 1, self::HOME, $start, $end, $cutoff, 99, new ProfileTimeline($profiles), $holidays, $closed);
+        return new CutoffContext(1, 1, self::HOME, $start, $end, $cutoff, 99, new ProfileTimeline($profiles), $holidays, $closed, $closedByBranch);
     }
 
     private function row(string $date, string $status = 'present', ?string $in = '09:00:00', ?string $out = '18:00:00', int $branch = self::HOME, bool $autoClosed = false): AttendanceDay
@@ -418,6 +418,63 @@ final class EarningsComputeTest extends TestCase
 
         // Working days with no row: 17, 20, 22, 24–29 (21 special, 23/30 Sunday, 31 holiday)
         $this->assertStringContainsString('9 scheduled working day(s) have no attendance record', implode(' ', $r->warnings));
+    }
+
+    // Staff scheduling Phase 1 — branch-closed days are paid days for monthly-paid staff.
+
+    public function test_monthly_paid_absence_on_branch_closed_day_is_not_deducted(): void
+    {
+        $rows = [
+            $this->row('2026-08-17', 'absent', null, null),   // Monday, branch closed
+            $this->row('2026-08-24', 'on_leave', null, null), // Monday, branch closed
+            $this->row('2026-08-18', 'absent', null, null),   // Tuesday, open → deducted
+        ];
+        $r = $this->computeRows($rows, $this->ctx([$this->monthly('18250')], closed: ['Monday']));
+
+        $basic = $this->of($r, 'BASIC');
+        $this->assertCount(2, $basic);
+        $this->assertSame('8525.00', $this->total($basic)); // 9,125 − 600
+        $this->assertSame('2026-08-18', $basic[1]->date);
+    }
+
+    public function test_monthly_paid_closed_day_without_row_is_not_a_missing_workday(): void
+    {
+        $r = $this->computeRows([], $this->ctx([$this->monthly('18250')], closed: ['Monday']));
+
+        // Working days with no row: 18–20, 22, 25–29 (17/24 closed, 21 special, 23/30 Sunday, 31 holiday)
+        $warning = implode(' ', $r->warnings);
+        $this->assertStringContainsString('9 scheduled working day(s) have no attendance record', $warning);
+        $this->assertStringNotContainsString('2026-08-17', $warning);
+        $this->assertStringNotContainsString('2026-08-24', $warning);
+    }
+
+    public function test_closed_day_uses_the_attendance_rows_branch(): void
+    {
+        // Home closed Mondays, deployed branch closed Tuesdays.
+        $ctx = $this->ctx([$this->monthly('18250')], closed: ['Monday'],
+            closedByBranch: [self::HOME => ['Monday'], self::DEPLOYED => ['Tuesday']]);
+        $rows = [
+            $this->row('2026-08-17', 'absent', null, null, self::DEPLOYED), // Monday at deployed (open) → deducted
+            $this->row('2026-08-18', 'absent', null, null, self::DEPLOYED), // Tuesday at deployed (closed) → not
+            $this->row('2026-08-24', 'absent', null, null, self::HOME),     // Monday at home (closed) → not
+        ];
+        $basic = $this->of($this->computeRows($rows, $ctx), 'BASIC');
+
+        $this->assertCount(2, $basic);
+        $this->assertSame('2026-08-17', $basic[1]->date);
+    }
+
+    public function test_daily_paid_absences_produce_no_lines_on_any_day(): void
+    {
+        $rows = [
+            $this->row('2026-08-17', 'absent', null, null), // closed
+            $this->row('2026-08-18', 'absent', null, null), // open
+            $this->row('2026-08-23', 'absent', null, null), // rest day
+        ];
+        $r = $this->computeRows($rows, $this->ctx([$this->daily()], closed: ['Monday']));
+
+        $this->assertSame([], $this->of($r, 'BASIC'));
+        $this->assertSame([], $r->workedDays);
     }
 
     public function test_monthly_paid_rest_day_work_gets_premium_only(): void

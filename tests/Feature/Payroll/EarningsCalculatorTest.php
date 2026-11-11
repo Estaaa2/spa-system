@@ -162,6 +162,45 @@ class EarningsCalculatorTest extends TestCase
         $this->assertStringContainsString('have no attendance record', implode(' ', $r->warnings));
     }
 
+    public function test_monthly_paid_absence_on_closed_day_is_not_deducted(): void
+    {
+        $this->profile(['pay_basis' => 'monthly', 'base_rate' => '18250.00']);
+        \App\Models\OperatingHours::create([
+            'branch_id' => $this->branchA->id, 'day_of_week' => 'Monday',
+            'opening_time' => '09:00:00', 'closing_time' => '18:00:00', 'is_closed' => true,
+        ]);
+        $this->attend('2026-08-17', 'absent', null, null);   // Monday, closed
+        $this->attend('2026-08-18', 'absent', null, null);   // Tuesday, open
+
+        $r = $this->calculate();
+        $this->assertSame('8525.00', $r->totalFor('BASIC')); // 9,125 − 600 (Tuesday only)
+        $this->assertStringNotContainsString('2026-08-24', implode(' ', $r->warnings));
+    }
+
+    public function test_closed_day_follows_the_branch_worked_at(): void
+    {
+        $this->profile(['pay_basis' => 'monthly', 'base_rate' => '18250.00']);
+        \App\Models\OperatingHours::create([
+            'branch_id' => $this->branchB->id, 'day_of_week' => 'Tuesday',
+            'opening_time' => '09:00:00', 'closing_time' => '18:00:00', 'is_closed' => true,
+        ]);
+        $this->attend('2026-08-18', 'absent', null, null, $this->branchB); // closed at B → not deducted
+        $this->attend('2026-08-25', 'absent', null, null);                 // Tuesday at A (open) → deducted
+
+        $this->assertSame('8525.00', $this->calculate()->totalFor('BASIC'));
+    }
+
+    public function test_daily_paid_absence_is_never_deducted(): void
+    {
+        $this->profile(); // daily ₱600
+        $this->attend('2026-08-18');
+        $this->attend('2026-08-19', 'absent', null, null);
+
+        $r = $this->calculate();
+        $this->assertSame('600.00', $r->totalFor('BASIC'));
+        $this->assertCount(1, $this->lines($r, 'BASIC'));
+    }
+
     // ── Commission ────────────────────────────────────────────────────────
 
     public function test_commission_excluded_when_completed_but_unpaid(): void
