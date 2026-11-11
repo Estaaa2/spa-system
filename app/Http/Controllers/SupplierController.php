@@ -11,13 +11,13 @@ use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
 {
-    /** Philippine mobile number, local format (same rule as bookings, profile and hiring). */
-    public const PHONE_REGEX = '/^09\d{9}$/';
-
-    /** Supplier-product term caps; the suppliers page reads these for its input max values. */
-    public const MAX_UNIT_COST = 1000000;
-    public const MAX_LEAD_TIME_DAYS = 365;
-    public const MAX_ORDER_QUANTITY = 20000;
+    /**
+     * Philippine phone, local format, digits only. Suppliers are businesses and
+     * often only have a landline, so both are accepted:
+     *   mobile   09XXXXXXXXX  (11 digits, same rule as bookings, profile, hiring)
+     *   landline 0 + area code + number, 10 digits (e.g. 0461234567, 0281234567)
+     */
+    public const PHONE_REGEX = '/^(09\d{9}|0[2-8]\d{8})$/';
 
     public function index(Request $request)
     {
@@ -236,9 +236,10 @@ class SupplierController extends Controller
         $supplierService->updateProduct(
             $supplierProduct,
             [
-                'unit_cost' => $data['unit_cost'] ?? $supplierProduct->unit_cost,
-                'lead_time_days' => $data['lead_time_days'] ?? $supplierProduct->lead_time_days,
-                'minimum_order_quantity' => $data['minimum_order_quantity'] ?? $supplierProduct->minimum_order_quantity,
+                // A field left blank clears the saved value (it used to keep the old one).
+                'unit_cost' => $data['unit_cost'] ?? null,
+                'lead_time_days' => $data['lead_time_days'] ?? null,
+                'minimum_order_quantity' => $data['minimum_order_quantity'] ?? null,
                 'is_preferred' => $request->boolean('is_preferred'),
                 'is_active' => $request->boolean('is_active'),
             ]
@@ -253,26 +254,26 @@ class SupplierController extends Controller
     private function supplierMessages(): array
     {
         return [
-            'phone.regex' => 'Enter an 11-digit mobile number that starts with 09, e.g. 09171234567.',
+            'phone.regex' => 'Enter a mobile number (09171234567) or a landline with area code (0461234567), digits only.',
         ];
     }
 
     private function productTermRules(): array
     {
         return [
-            'unit_cost' => ['nullable', 'numeric', 'min:0', 'max:' . self::MAX_UNIT_COST, 'decimal:0,2'],
-            'lead_time_days' => ['nullable', 'integer', 'min:0', 'max:' . self::MAX_LEAD_TIME_DAYS],
-            'minimum_order_quantity' => ['nullable', 'numeric', 'gt:0', 'max:' . self::MAX_ORDER_QUANTITY, 'decimal:0,3'],
+            'unit_cost' => ['nullable', 'numeric', 'min:0', 'max:' . config('limits.money'), 'decimal:0,2'],
+            'lead_time_days' => ['nullable', 'integer', 'min:0', 'max:' . config('limits.lead_time_days')],
+            'minimum_order_quantity' => ['nullable', 'numeric', 'gt:0', 'max:' . config('limits.quantity'), 'decimal:0,3'],
         ];
     }
 
     private function productTermMessages(): array
     {
         return [
-            'unit_cost.max' => 'Unit cost cannot be more than ₱' . number_format(self::MAX_UNIT_COST) . '.',
+            'unit_cost.max' => 'Unit cost cannot be more than ₱' . number_format(config('limits.money')) . '.',
             'unit_cost.decimal' => 'Unit cost can have at most 2 decimal places.',
-            'lead_time_days.max' => 'Lead time cannot be more than ' . self::MAX_LEAD_TIME_DAYS . ' days.',
-            'minimum_order_quantity.max' => 'Minimum order quantity cannot be more than ' . number_format(self::MAX_ORDER_QUANTITY) . '.',
+            'lead_time_days.max' => 'Lead time cannot be more than ' . config('limits.lead_time_days') . ' days.',
+            'minimum_order_quantity.max' => 'Minimum order quantity cannot be more than ' . number_format(config('limits.quantity')) . '.',
             'minimum_order_quantity.decimal' => 'Minimum order quantity can have at most 3 decimal places.',
         ];
     }

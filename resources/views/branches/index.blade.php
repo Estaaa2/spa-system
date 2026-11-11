@@ -505,8 +505,8 @@
                 <div class="px-4 py-6 space-y-6 sm:px-6">
 
                     <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Branch Name *</label>
-                        <input type="text" id="name" name="name" required
+                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Branch Name <x-required-mark /></label>
+                        <input type="text" id="name" name="name" required maxlength="255" placeholder="e.g. Imus Branch"
                                aria-describedby="name_help name_error"
                                class="block w-full mt-2 min-h-[44px] border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
                         <p id="name_error" class="hidden mt-1 text-xs font-medium text-red-600 dark:text-red-400"></p>
@@ -515,7 +515,7 @@
 
                     <div>
                         <div class="flex items-center justify-between mb-1">
-                            <label for="locationSelect" class="text-sm font-medium text-gray-700 dark:text-gray-300">Location / City *</label>
+                            <label for="locationSelect" class="text-sm font-medium text-gray-700 dark:text-gray-300">Location / City <x-required-mark /></label>
                             {{-- -my-3 keeps the 44px tap target without making this label row
                                  taller than a plain label. Same trick as appointments' phone field. --}}
                             <button type="button" id="toggleLocationMode"
@@ -563,7 +563,7 @@
                             <label for="locationManualInput" class="sr-only">Location / City, typed manually</label>
                             <input type="text" id="locationManualInput" aria-describedby="location_help location_error"
                                 class="block w-full min-h-[44px] border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                                placeholder="Type city / area manually"/>
+                                maxlength="255" placeholder="e.g. Imus, Cavite"/>
                         </div>
 
                         <input type="hidden" name="location" id="locationValue"/>

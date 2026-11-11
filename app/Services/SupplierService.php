@@ -75,9 +75,11 @@ class SupplierService
             }
 
             $supplierProduct->update([
-                'unit_cost' => $data['unit_cost'] ?? $supplierProduct->unit_cost,
-                'lead_time_days' => $data['lead_time_days'] ?? $supplierProduct->lead_time_days,
-                'minimum_order_quantity' => $data['minimum_order_quantity'] ?? $supplierProduct->minimum_order_quantity,
+                // Keys the caller sends are saved as given, null included, so a
+                // cleared field really clears; keys it leaves out keep their value.
+                'unit_cost' => array_key_exists('unit_cost', $data) ? $data['unit_cost'] : $supplierProduct->unit_cost,
+                'lead_time_days' => array_key_exists('lead_time_days', $data) ? $data['lead_time_days'] : $supplierProduct->lead_time_days,
+                'minimum_order_quantity' => array_key_exists('minimum_order_quantity', $data) ? $data['minimum_order_quantity'] : $supplierProduct->minimum_order_quantity,
                 'is_preferred' => array_key_exists('is_preferred', $data)
                     ? (bool) $data['is_preferred']
                     : $supplierProduct->is_preferred,

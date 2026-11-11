@@ -208,7 +208,7 @@ class BranchController extends Controller
                 Rule::unique('branches', 'name')
                     ->where(fn ($query) => $query->where('spa_id', $spa->id)),
             ],
-            'location' => 'required|string',
+            'location' => 'required|string|max:255',
             'is_main' => 'nullable|boolean',
             'hours' => 'required|array',
             'hours.*.day_of_week' => 'required|string',

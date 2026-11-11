@@ -468,6 +468,8 @@
                         @csrf
 
                         <div class="px-4 py-5 space-y-4 sm:px-6">
+                            <x-required-note />
+
 
                             <div>
                                 <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -487,7 +489,7 @@
                             <div>
                                 <label for="destination_branch_id"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Destination Branch
+                                    Destination Branch <x-required-mark />
                                 </label>
 
                                 <select id="destination_branch_id"
@@ -519,7 +521,7 @@
                             <div>
                                 <label for="transfer_product_id"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Product
+                                    Product <x-required-mark />
                                 </label>
 
                                 <select id="transfer_product_id"
@@ -549,7 +551,7 @@
                             <div>
                                 <label for="transfer_quantity"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Quantity
+                                    Quantity <x-required-mark />
                                 </label>
 
                                 <input type="number"

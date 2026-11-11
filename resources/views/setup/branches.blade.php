@@ -68,7 +68,7 @@
 
                         <div class="mt-5">
                             <label for="branch_name" class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Branch Name <span class="text-red-600">*</span>
+                                Branch Name <x-required-mark />
                             </label>
 
                             <input
@@ -102,7 +102,7 @@
 
                         <div class="relative">
                             <label for="addressSearch" class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Search Address <span class="text-red-600">*</span>
+                                Search Address <x-required-mark />
                             </label>
 
                             <input

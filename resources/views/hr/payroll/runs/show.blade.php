@@ -566,7 +566,7 @@
                 </div>
                 <div class="px-4 py-6 space-y-4 sm:px-6">
                     <div>
-                        <label for="adj_code" class="{{ $labelClass }}">Type</label>
+                        <label for="adj_code" class="{{ $labelClass }}">Type <x-required-mark /></label>
                         <select id="adj_code" name="component_code" required class="{{ $inputClass }}">
                             @foreach($manualOptions as $code => $text)
                                 @php $blocked = $isThirteenth && $code === 'ADJ_EARNING'; @endphp
@@ -578,13 +578,13 @@
                         @if($ab->has('component_code'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $ab->first('component_code') }}</p>@endif
                     </div>
                     <div>
-                        <label for="adj_label" class="{{ $labelClass }}">Label on the payslip</label>
+                        <label for="adj_label" class="{{ $labelClass }}">Label on the payslip <x-required-mark /></label>
                         <input type="text" id="adj_label" name="label" required maxlength="100" class="{{ $inputClass }}"
                                placeholder="e.g. Service incentive leave — 2 days" value="{{ $adjOld ? old('label') : '' }}">
                         @if($ab->has('label'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $ab->first('label') }}</p>@endif
                     </div>
                     <div>
-                        <label for="adj_amount" class="{{ $labelClass }}">Amount (₱)</label>
+                        <label for="adj_amount" class="{{ $labelClass }}">Amount (₱) <x-required-mark /></label>
                         <input type="text" inputmode="decimal" id="adj_amount" name="amount" required maxlength="20" class="{{ $inputClass }}"
                                placeholder="e.g. 1500.00" value="{{ $adjOld ? old('amount') : '' }}" aria-describedby="adj_amount_help">
                         <p id="adj_amount_help" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Always a positive number — choose “Deduction” to take money off.</p>

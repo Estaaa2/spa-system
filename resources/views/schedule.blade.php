@@ -583,7 +583,7 @@
                                     </div>
                                     <div id="rejectReasonBlock" class="hidden space-y-2">
                                         <label for="rejectReasonInput" class="sr-only">Reason for rejection</label>
-                                        <textarea id="rejectReasonInput" rows="3"
+                                        <textarea id="rejectReasonInput" rows="3" maxlength="500"
                                             placeholder="Reason for rejection (required, min 5 characters)..."
                                             class="w-full px-3 py-2 text-sm border border-gray-200 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-red-400/40"></textarea>
                                         <div class="flex gap-2">

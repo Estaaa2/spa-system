@@ -151,7 +151,7 @@
                 <p class="text-sm font-semibold text-gray-700 dark:text-white">New profile from date</p>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <div>
-                        <label for="pc_from" class="{{ $labelClass }}">Effective from</label>
+                        <label for="pc_from" class="{{ $labelClass }}">Effective from <x-required-mark /></label>
                         <input type="date" id="pc_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $oldModal ? $today : old('effective_from', $today) }}">
                         @if($eb->has('effective_from'))<p class="{{ $errText }}">{{ $eb->first('effective_from') }}</p>@endif
                     </div>
@@ -163,7 +163,7 @@
                         </select>
                     </div>
                     <div>
-                        <label for="pc_rate" class="{{ $labelClass }}"><span data-rate-label>Daily rate (₱)</span></label>
+                        <label for="pc_rate" class="{{ $labelClass }}"><span data-rate-label>Daily rate (₱)</span> <x-required-mark /></label>
                         <input type="text" inputmode="decimal" id="pc_rate" name="base_rate" required class="{{ $inputClass }}" value="{{ $oldModal ? '' : old('base_rate') }}" placeholder="e.g. 600 (0 allowed)" aria-describedby="pc_rate_hint">
                         @if($eb->has('base_rate'))<p class="{{ $errText }}">{{ $eb->first('base_rate') }}</p>@endif
                     </div>
@@ -393,12 +393,12 @@
                         @if($eb->has('component_code'))<p class="{{ $errText }}">{{ $eb->first('component_code') }}</p>@endif
                     </div>
                     <div class="md:col-span-2">
-                        <label for="ri_label" class="{{ $labelClass }}">Label</label>
+                        <label for="ri_label" class="{{ $labelClass }}">Label <x-required-mark /></label>
                         <input type="text" id="ri_label" name="label" required maxlength="100" class="{{ $inputClass }}" value="{{ $o('label') }}" placeholder="e.g. Transportation allowance">
                         @if($eb->has('label'))<p class="{{ $errText }}">{{ $eb->first('label') }}</p>@endif
                     </div>
                     <div>
-                        <label for="ri_amount" class="{{ $labelClass }}">Amount (₱)</label>
+                        <label for="ri_amount" class="{{ $labelClass }}">Amount (₱) <x-required-mark /></label>
                         <input type="text" inputmode="decimal" id="ri_amount" name="amount" required class="{{ $inputClass }}" value="{{ $o('amount') }}">
                         @if($eb->has('amount'))<p class="{{ $errText }}">{{ $eb->first('amount') }}</p>@endif
                     </div>
@@ -409,7 +409,7 @@
                         </select>
                     </div>
                     <div>
-                        <label for="ri_start" class="{{ $labelClass }}">Start date</label>
+                        <label for="ri_start" class="{{ $labelClass }}">Start date <x-required-mark /></label>
                         <input type="date" id="ri_start" name="start_date" required class="{{ $inputClass }}" value="{{ $o('start_date', $today) }}">
                         @if($eb->has('start_date'))<p class="{{ $errText }}">{{ $eb->first('start_date') }}</p>@endif
                     </div>
@@ -539,7 +539,7 @@
                 <div class="px-4 py-6 space-y-4 sm:px-6">
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <label for="pe_from" class="{{ $labelClass }}">Effective from</label>
+                            <label for="pe_from" class="{{ $labelClass }}">Effective from <x-required-mark /></label>
                             <input type="date" id="pe_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
                         </div>
                         <div>
@@ -554,7 +554,7 @@
                             </select>
                         </div>
                         <div>
-                            <label for="pe_rate" class="{{ $labelClass }}"><span data-rate-label>Daily rate (₱)</span></label>
+                            <label for="pe_rate" class="{{ $labelClass }}"><span data-rate-label>Daily rate (₱)</span> <x-required-mark /></label>
                             <input type="text" inputmode="decimal" id="pe_rate" name="base_rate" required class="{{ $inputClass }}" value="{{ $isOld ? old('base_rate') : '' }}">
                         </div>
                     </div>
@@ -678,7 +678,7 @@
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400"><span id="stop_label" class="font-medium text-gray-900 dark:text-white"></span> will not be paid or deducted after the date you pick.</p>
                     </div>
                     <div>
-                        <label for="stop_date" class="{{ $labelClass }}">Last day it applies</label>
+                        <label for="stop_date" class="{{ $labelClass }}">Last day it applies <x-required-mark /></label>
                         <input type="date" id="stop_date" name="end_date" required class="{{ $inputClass }}" value="{{ $isOld ? old('end_date') : '' }}">
                         <p id="stop_lock" class="hidden mt-1 text-xs text-amber-700 dark:text-amber-300"></p>
                         @if($eb->any())<p class="{{ $errText }}">{{ $eb->first() }}</p>@endif

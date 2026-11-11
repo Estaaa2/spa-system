@@ -490,12 +490,14 @@
                 </div>
 
                 <div class="p-5 space-y-5 sm:p-6">
+                    <x-required-note />
+
                     <div>
                         <label
                             for="purchase_order_id"
                             class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
                         >
-                            Purchase Order
+                            Purchase Order <x-required-mark />
                         </label>
 
                         <select
@@ -560,7 +562,7 @@
                                 for="invoice_number"
                                 class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
                             >
-                                Invoice Number
+                                Invoice Number <x-required-mark />
                             </label>
 
                             <input
@@ -569,7 +571,7 @@
                                 value="{{ old('invoice_number') }}"
                                 required
                                 maxlength="100"
-                                placeholder="INV-2026-001"
+                                placeholder="e.g. INV-2026-001"
                                 class="{{ $inputBase }}"
                             >
 
@@ -585,7 +587,7 @@
                                 for="invoice_date"
                                 class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
                             >
-                                Invoice Date
+                                Invoice Date <x-required-mark />
                             </label>
 
                             <input
@@ -678,13 +680,15 @@
                                             <label
                                                 class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
                                             >
-                                                Billed Quantity
+                                                Billed Quantity <x-required-mark />
                                             </label>
 
                                             <input
                                                 type="number"
                                                 step="0.001"
                                                 min="0.001"
+                                                max="{{ config('limits.quantity') }}"
+                                                inputmode="decimal"
                                                 required
                                                 :name="`items[${index}][billed_quantity]`"
                                                 x-model.number="item.billed_quantity"
@@ -696,13 +700,15 @@
                                             <label
                                                 class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
                                             >
-                                                Unit Cost
+                                                Unit Cost <x-required-mark />
                                             </label>
 
                                             <input
                                                 type="number"
                                                 step="0.01"
                                                 min="0.01"
+                                                max="{{ config('limits.money') }}"
+                                                inputmode="decimal"
                                                 required
                                                 :name="`items[${index}][unit_cost]`"
                                                 x-model.number="item.billed_unit_cost"
@@ -1082,6 +1088,8 @@
                 </div>
 
                 <div class="p-5 space-y-5 sm:p-6">
+                    <x-required-note />
+
                     <div class="p-4 border border-gray-200 bg-gray-50 rounded-xl dark:border-gray-700 dark:bg-gray-900/40">
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
@@ -1116,7 +1124,7 @@
                                 for="edit_invoice_number"
                                 class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
                             >
-                                Invoice Number
+                                Invoice Number <x-required-mark />
                             </label>
 
                             <input
@@ -1125,6 +1133,7 @@
                                 x-model="selectedEditBill.invoice_number"
                                 required
                                 maxlength="100"
+                                placeholder="e.g. INV-2026-001"
                                 class="{{ $inputBase }}"
                             >
                         </div>
@@ -1134,7 +1143,7 @@
                                 for="edit_invoice_date"
                                 class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
                             >
-                                Invoice Date
+                                Invoice Date <x-required-mark />
                             </label>
 
                             <input
@@ -1202,13 +1211,15 @@
 
                                     <div>
                                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Billed Quantity
+                                            Billed Quantity <x-required-mark />
                                         </label>
 
                                         <input
                                             type="number"
                                             step="0.001"
                                             min="0.001"
+                                            max="{{ config('limits.quantity') }}"
+                                            inputmode="decimal"
                                             required
                                             :name="`items[${index}][billed_quantity]`"
                                             x-model.number="item.billed_quantity"
@@ -1218,13 +1229,15 @@
 
                                     <div>
                                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Unit Cost
+                                            Unit Cost <x-required-mark />
                                         </label>
 
                                         <input
                                             type="number"
                                             step="0.01"
                                             min="0.01"
+                                            max="{{ config('limits.money') }}"
+                                            inputmode="decimal"
                                             required
                                             :name="`items[${index}][unit_cost]`"
                                             x-model.number="item.unit_cost"

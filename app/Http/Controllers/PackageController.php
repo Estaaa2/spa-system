@@ -13,10 +13,10 @@ class PackageController extends Controller
         $validated = $request->validate([
             'name'                  => 'required|string|max:255',
             'duration'              => 'nullable|integer|min:5',
-            'price'                 => 'required|numeric|min:0',
+            'price'                 => ['required', 'numeric', 'min:' . config('limits.package_price.min'), 'max:' . config('limits.package_price.max'), 'decimal:0,2'],
             'included_treatments'   => 'nullable|array',
             'included_treatments.*' => 'exists:treatments,id',
-            'description'           => 'nullable|string',
+            'description'           => ['nullable', 'string', 'max:' . config('limits.long_text')],
             'image'                 => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'image_2'               => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'cover'                 => 'nullable|in:1,2',
@@ -63,8 +63,8 @@ class PackageController extends Controller
         $validated = $request->validate([
             'name'                  => 'required|string|max:255',
             'duration'              => 'required|integer|min:1',
-            'price'                 => 'required|numeric|min:0',
-            'description'           => 'nullable|string',
+            'price'                 => ['required', 'numeric', 'min:' . config('limits.package_price.min'), 'max:' . config('limits.package_price.max'), 'decimal:0,2'],
+            'description'           => ['nullable', 'string', 'max:' . config('limits.long_text')],
             'included_treatments'   => 'nullable|array',
             'included_treatments.*' => 'exists:treatments,id',
             'image'                 => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',

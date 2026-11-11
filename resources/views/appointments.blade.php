@@ -819,7 +819,7 @@
                 @csrf
                 @method('PUT')
                 <div>
-                    <label for="assign_therapist_id" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Therapist</label>
+                    <label for="assign_therapist_id" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Therapist <x-required-mark /></label>
                     <select id="assign_therapist_id" name="therapist_id" required
                             class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         <option value="">Choose a therapist</option>

@@ -267,9 +267,11 @@
                     :value="selectedOrder?.id || ''"
                 >
 
+                <x-required-note />
+
                 <div>
                     <label for="purchase_order_select" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Purchase Order
+                        Purchase Order <x-required-mark />
                     </label>
 
                     <select
@@ -335,7 +337,8 @@
                             type="text"
                             name="delivery_reference"
                             value="{{ old('delivery_reference') }}"
-                            placeholder="Example: DR-2026-001"
+                            maxlength="255"
+                            placeholder="e.g. DR-2026-001"
                             class="{{ $inputClass }}"
                         >
                     </div>
@@ -385,7 +388,7 @@
                                 <div class="grid gap-4 sm:grid-cols-3">
                                     <div>
                                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Delivered
+                                            Delivered <x-required-mark />
                                         </label>
 
                                         <input
@@ -402,7 +405,7 @@
 
                                     <div>
                                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Accepted
+                                            Accepted <x-required-mark />
                                         </label>
 
                                         <input
@@ -419,13 +422,14 @@
 
                                     <div>
                                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Rejected
+                                            Rejected <x-required-mark />
                                         </label>
 
                                         <input
                                             type="number"
                                             min="0"
                                             step="0.001"
+                                            :max="item.outstanding"
                                             :name="`items[${index}][rejected_quantity]`"
                                             x-model.number="item.rejected_quantity"
                                             class="{{ $inputClass }}"
@@ -437,13 +441,15 @@
                                 <div class="grid gap-4 mt-4 sm:grid-cols-2">
                                     <div x-show="Number(item.accepted_quantity || 0) > 0">
                                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Batch Number
+                                            Batch Number <x-required-mark />
                                         </label>
 
                                         <input
                                             type="text"
                                             :name="`items[${index}][batch_number]`"
                                             x-model="item.batch_number"
+                                            maxlength="100"
+                                            placeholder="e.g. LOT-2026-0412"
                                             class="{{ $inputClass }}"
                                             :required="Number(item.accepted_quantity || 0) > 0"
                                         >
@@ -451,13 +457,15 @@
 
                                     <div x-show="Number(item.rejected_quantity || 0) > 0">
                                         <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Rejection Reason
+                                            Rejection Reason <x-required-mark />
                                         </label>
 
                                         <input
                                             type="text"
                                             :name="`items[${index}][rejection_reason]`"
                                             x-model="item.rejection_reason"
+                                            maxlength="1000"
+                                            placeholder="e.g. Damaged packaging"
                                             class="{{ $inputClass }}"
                                             :required="Number(item.rejected_quantity || 0) > 0"
                                         >
@@ -496,6 +504,8 @@
                         id="receipt_notes"
                         name="notes"
                         rows="3"
+                        maxlength="2000"
+                        placeholder="Optional notes about this delivery"
                         class="{{ $inputClass }}"
                     >{{ old('notes') }}</textarea>
                 </div>

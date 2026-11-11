@@ -306,6 +306,16 @@ class LegalPagesPhase2Test extends TestCase
 
     public function test_placeholders_are_shown_as_text_and_reported(): void
     {
+        // config/levictas.php now holds the real details, so none are reported.
+        $this->assertSame([], Contact::placeholders());
+        $this->assertSame(config('levictas.contact.email'), ConsentNotice::privacyContact());
+
+        // Put the original placeholders back to check how they are handled.
+        Config::set('levictas.operator.team', '[TEAM MEMBER NAMES]');
+        Config::set('levictas.operator.school', '[SCHOOL NAME]');
+        Config::set('levictas.contact.email', '[TEAM EMAIL]');
+        Config::set('levictas.contact.address', '[SCHOOL ADDRESS]');
+
         $this->assertSame([
             'levictas.operator.team', 'levictas.operator.school', 'levictas.contact.email', 'levictas.contact.address',
         ], Contact::placeholders());

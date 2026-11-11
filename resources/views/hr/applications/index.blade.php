@@ -453,7 +453,7 @@
                         for="interview_date"
                         class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
                     >
-                        Interview Date <span class="text-red-600">*</span>
+                        Interview Date <x-required-mark />
                     </label>
 
                     <input
@@ -479,7 +479,7 @@
                         for="interview_time"
                         class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
                     >
-                        Interview Time <span class="text-red-600">*</span>
+                        Interview Time <x-required-mark />
                     </label>
 
                     <input
@@ -512,6 +512,7 @@
                         id="interview_remarks"
                         name="remarks"
                         rows="3"
+                        maxlength="5000"
                         placeholder="Optional notes..."
                         class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
                                focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none

@@ -25,7 +25,7 @@
 
                 <div>
                     <label for="spa_name" class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Spa Business Name <span class="text-red-600">*</span>
+                        Spa Business Name <x-required-mark />
                     </label>
 
                     <input

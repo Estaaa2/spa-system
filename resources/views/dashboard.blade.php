@@ -147,7 +147,7 @@
                     @csrf
                     <input type="hidden" name="response" value="declined">
                     <label for="decline_reason" class="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                        Please tell us why you're declining (required):
+                        Please tell us why you're declining (required): <x-required-mark />
                     </label>
                     <textarea name="decline_reason" id="decline_reason" rows="2" required maxlength="1000"
                               class="mt-1.5 w-full text-sm rounded-xl border-gray-200 dark:border-gray-700 dark:bg-gray-900 focus:ring-[#8B7355] focus:border-[#8B7355]"
@@ -254,7 +254,7 @@
                         <div class="px-4 py-6 space-y-4 sm:px-6">
                             <div>
                                 <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                                    Target Branch <span class="text-red-500">*</span>
+                                    Target Branch <x-required-mark />
                                 </label>
 
                                 <select name="to_branch_id" required
@@ -271,7 +271,7 @@
 
                             <div>
                                 <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                                    Start Date <span class="text-red-500">*</span>
+                                    Start Date <x-required-mark />
                                 </label>
 
                                 <input type="date"
@@ -308,11 +308,12 @@
 
                             <div>
                                 <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                                    Reason <span class="text-red-500">*</span>
+                                    Reason <x-required-mark />
                                 </label>
 
                                 <textarea name="notes"
                                     rows="3"
+                                    maxlength="1000"
                                     required
                                     placeholder="Why are you requesting this transfer?"
                                     class="block w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 resize-none rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"></textarea>

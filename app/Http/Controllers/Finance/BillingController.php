@@ -134,8 +134,11 @@ class BillingController extends Controller
 
         $request->validate([
             'title'       => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'amount'      => ['required', 'numeric', 'min:0.01'],
+            'description' => ['nullable', 'string', 'max:' . config('limits.long_text')],
+            'amount'      => ['required', 'numeric', 'min:0.01', 'max:' . config('limits.money'), 'decimal:0,2'],
+        ], [
+            'amount.max' => 'Amount cannot be more than ₱' . number_format(config('limits.money')) . '.',
+            'amount.decimal' => 'Amount can have at most 2 decimal places.',
         ]);
 
         Expense::create([

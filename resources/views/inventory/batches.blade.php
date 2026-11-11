@@ -590,6 +590,8 @@
                                 :value="lossBatch.id">
 
                             <div class="px-4 py-5 space-y-4 sm:px-6">
+                                <x-required-note />
+
 
                                 <div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/40">
 
@@ -623,7 +625,7 @@
                                 <div>
                                     <label for="loss_type"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Loss Type
+                                        Loss Type <x-required-mark />
                                     </label>
 
                                     <select id="loss_type"
@@ -668,7 +670,7 @@
                                 <div>
                                     <label for="loss_quantity"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Quantity
+                                        Quantity <x-required-mark />
                                     </label>
 
                                     <div class="flex">
@@ -703,7 +705,7 @@
                                 <div>
                                     <label for="loss_reason"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Reason
+                                        Reason <x-required-mark />
                                     </label>
 
                                     <textarea id="loss_reason"

@@ -8,6 +8,12 @@
 
     $user = auth()->user();
 
+    // Price and text limits shared with the server (config/limits.php).
+    $treatmentPrice = config('limits.treatment_price');
+    $packagePrice   = config('limits.package_price');
+    $longText       = config('limits.long_text');
+    $peso = fn ($n) => '₱' . number_format($n);
+
     // ── STOP-AND-FLAG ZONE ───────────────────────────────────────────────────
     // These eight gates are carried over byte-identical from the previous file.
     // $canViewServices is computed and never read (audit X1). It is left in
@@ -102,7 +108,7 @@
             'fields'  => [
                 ['name',         'required'],
                 ['duration',     'required, minutes (whole number)'],
-                ['price',        'required, ₱300–₱1,400'],
+                ['price',        'required, ' . $peso($treatmentPrice['min']) . '–' . $peso($treatmentPrice['max'])],
                 ['service_type', 'required, exactly: in_branch_only or in_branch_and_home'],
                 ['description',  'optional'],
             ],
@@ -118,7 +124,7 @@
             'fields'  => [
                 ['name',           'required'],
                 ['total_duration', 'optional, minutes (whole number)'],
-                ['price',          'required, number'],
+                ['price',          'required, ' . $peso($packagePrice['min']) . '–' . $peso($packagePrice['max'])],
                 ['description',    'optional'],
             ],
             'example'  => 'Relax & Renew Package, 120, 1500, Full body massage plus facial combo',
@@ -631,16 +637,17 @@
             <form action="{{ route('treatments.store') }}" method="POST" id="addTreatmentForm"
                   enctype="multipart/form-data" novalidate class="px-4 py-6 space-y-4 sm:px-6">
                 @csrf
+                <x-required-note />
 
                 <div>
-                    <label for="add_treatment_name" class="{{ $label }}">Name *</label>
-                    <input type="text" name="name" id="add_treatment_name" required class="{{ $input }}">
+                    <label for="add_treatment_name" class="{{ $label }}">Name <x-required-mark /></label>
+                    <input type="text" name="name" id="add_treatment_name" required maxlength="255" placeholder="e.g. Swedish Massage" class="{{ $input }}">
                     <p class="{{ $err }}" id="add_name_error">Treatment name is required.</p>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <label for="add_treatment_duration" class="{{ $label }}">Duration *</label>
+                        <label for="add_treatment_duration" class="{{ $label }}">Duration <x-required-mark /></label>
                         <select name="duration" id="add_treatment_duration" required class="{{ $input }}">
                             <option value="" disabled selected>Select duration</option>
                             <option value="30">30 mins</option>
@@ -652,15 +659,15 @@
                     </div>
 
                     <div>
-                        <label for="add_treatment_price" class="{{ $label }}">Price (₱) *</label>
+                        <label for="add_treatment_price" class="{{ $label }}">Price (₱) <x-required-mark /></label>
                         <input type="number" name="price" id="add_treatment_price"
-                               step="0.01" min="300" max="1400" required placeholder="300 – 1,400" class="{{ $input }}">
-                        <p class="{{ $err }}" id="add_price_error">Price must be between ₱300 and ₱1,400.</p>
+                               step="0.01" min="{{ $treatmentPrice['min'] }}" max="{{ $treatmentPrice['max'] }}" required inputmode="decimal" placeholder="e.g. 800" class="{{ $input }}">
+                        <p class="{{ $err }}" id="add_price_error">Price must be between {{ $peso($treatmentPrice['min']) }} and {{ $peso($treatmentPrice['max']) }}.</p>
                     </div>
                 </div>
 
                 <div>
-                    <label for="add_treatment_service_type" class="{{ $label }}">Service Type *</label>
+                    <label for="add_treatment_service_type" class="{{ $label }}">Service Type <x-required-mark /></label>
                     <select name="service_type" id="add_treatment_service_type" required class="{{ $input }}">
                         <option value="in_branch_only">In Branch Only</option>
                         <option value="in_branch_and_home">In Branch &amp; Home</option>
@@ -671,7 +678,7 @@
 
                 <div>
                     <label for="add_treatment_description" class="{{ $label }}">Description</label>
-                    <textarea name="description" id="add_treatment_description" rows="3" class="{{ $input }}"></textarea>
+                    <textarea name="description" id="add_treatment_description" rows="3" maxlength="{{ $longText }}" placeholder="What the customer can expect, in a sentence or two" class="{{ $input }}"></textarea>
                 </div>
 
                 <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
@@ -703,17 +710,18 @@
             <form id="editTreatmentForm" method="POST" enctype="multipart/form-data" novalidate
                   class="px-4 py-6 space-y-4 sm:px-6">
                 @csrf
+                <x-required-note />
                 @method('PUT')
 
                 <div>
-                    <label for="edit_treatment_name" class="{{ $label }}">Name *</label>
-                    <input type="text" id="edit_treatment_name" name="name" required class="{{ $input }}">
+                    <label for="edit_treatment_name" class="{{ $label }}">Name <x-required-mark /></label>
+                    <input type="text" id="edit_treatment_name" name="name" required maxlength="255" placeholder="e.g. Swedish Massage" class="{{ $input }}">
                     <p class="{{ $err }}" id="edit_name_error">Treatment name is required.</p>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <label for="edit_treatment_duration" class="{{ $label }}">Duration *</label>
+                        <label for="edit_treatment_duration" class="{{ $label }}">Duration <x-required-mark /></label>
                         <select name="duration" id="edit_treatment_duration" required class="{{ $input }}">
                             <option value="30">30 mins</option>
                             <option value="60">60 mins</option>
@@ -728,15 +736,15 @@
                     </div>
 
                     <div>
-                        <label for="edit_treatment_price" class="{{ $label }}">Price (₱) *</label>
+                        <label for="edit_treatment_price" class="{{ $label }}">Price (₱) <x-required-mark /></label>
                         <input type="number" id="edit_treatment_price" name="price" step="0.01" required
-                               min="300" max="1400" class="{{ $input }}">
-                        <p class="{{ $err }}" id="edit_price_error">Price must be between ₱300 and ₱1,400.</p>
+                               min="{{ $treatmentPrice['min'] }}" max="{{ $treatmentPrice['max'] }}" inputmode="decimal" placeholder="e.g. 800" class="{{ $input }}">
+                        <p class="{{ $err }}" id="edit_price_error">Price must be between {{ $peso($treatmentPrice['min']) }} and {{ $peso($treatmentPrice['max']) }}.</p>
                     </div>
                 </div>
 
                 <div>
-                    <label for="edit_treatment_service_type" class="{{ $label }}">Service Type *</label>
+                    <label for="edit_treatment_service_type" class="{{ $label }}">Service Type <x-required-mark /></label>
                     <select name="service_type" id="edit_treatment_service_type" required class="{{ $input }}">
                         <option value="in_branch_only">In Branch Only</option>
                         <option value="in_branch_and_home">In Branch &amp; Home</option>
@@ -747,7 +755,7 @@
 
                 <div>
                     <label for="edit_treatment_description" class="{{ $label }}">Description</label>
-                    <textarea id="edit_treatment_description" name="description" rows="3" class="{{ $input }}"></textarea>
+                    <textarea id="edit_treatment_description" name="description" rows="3" maxlength="{{ $longText }}" placeholder="What the customer can expect, in a sentence or two" class="{{ $input }}"></textarea>
                 </div>
 
                 <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
@@ -889,15 +897,16 @@
             <form action="{{ route('packages.store') }}" method="POST" id="addPackageForm"
                   enctype="multipart/form-data" novalidate class="px-4 py-6 space-y-4 sm:px-6">
                 @csrf
+                <x-required-note />
 
                 <div>
-                    <label for="add_package_name" class="{{ $label }}">Package Name *</label>
-                    <input type="text" name="name" id="add_package_name" required class="{{ $input }}">
+                    <label for="add_package_name" class="{{ $label }}">Package Name <x-required-mark /></label>
+                    <input type="text" name="name" id="add_package_name" required maxlength="255" placeholder="e.g. Essential Relaxation Package" class="{{ $input }}">
                     <p class="{{ $err }}" id="add_package_name_error">Package name is required.</p>
                 </div>
 
                 <fieldset>
-                    <legend class="{{ $label }}">Included Treatments *</legend>
+                    <legend class="{{ $label }}">Included Treatments <x-required-mark /></legend>
                     <div id="addIncludedTreatments"
                          class="p-3 space-y-2 overflow-y-auto border border-gray-300 rounded-xl max-h-48 dark:border-gray-600 dark:bg-gray-700">
                         @forelse($treatments as $treatment)
@@ -922,14 +931,15 @@
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <label for="addDuration" class="{{ $label }}">Duration (mins) *</label>
+                        <label for="addDuration" class="{{ $label }}">Duration (mins) <x-required-mark /></label>
                         <input type="number" name="duration" id="addDuration" required min="1" readonly class="{{ $inputReadonly }}">
                         <p class="{{ $hint }}">Auto-calculated from selected treatments.</p>
                     </div>
                     <div>
-                        <label for="addPrice" class="{{ $label }}">Price (₱) *</label>
-                        <input type="number" name="price" id="addPrice" step="0.01" required min="0" readonly class="{{ $inputReadonly }}">
+                        <label for="addPrice" class="{{ $label }}">Price (₱) <x-required-mark /></label>
+                        <input type="number" name="price" id="addPrice" step="0.01" required min="{{ $packagePrice['min'] }}" max="{{ $packagePrice['max'] }}" readonly class="{{ $inputReadonly }}">
                         <p class="{{ $hint }}">Auto-calculated from selected treatments.</p>
+                        <p class="{{ $err }}" id="add_package_price_error">Package price must be between {{ $peso($packagePrice['min']) }} and {{ $peso($packagePrice['max']) }}. Adjust the treatments.</p>
                     </div>
                 </div>
 
@@ -937,7 +947,7 @@
 
                 <div>
                     <label for="add_package_description" class="{{ $label }}">Description</label>
-                    <textarea name="description" id="add_package_description" rows="3" class="{{ $input }}"></textarea>
+                    <textarea name="description" id="add_package_description" rows="3" maxlength="{{ $longText }}" placeholder="What the customer can expect, in a sentence or two" class="{{ $input }}"></textarea>
                 </div>
 
                 <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
@@ -969,6 +979,7 @@
             <form id="editPackageForm" method="POST" enctype="multipart/form-data" novalidate
                   class="px-4 py-6 space-y-4 sm:px-6">
                 @csrf
+                <x-required-note />
                 @method('PUT')
 
                 {{-- Shown only when this package includes a treatment that has no
@@ -982,13 +993,13 @@
                 </div>
 
                 <div>
-                    <label for="edit_package_name" class="{{ $label }}">Package Name *</label>
-                    <input type="text" id="edit_package_name" name="name" required class="{{ $input }}">
+                    <label for="edit_package_name" class="{{ $label }}">Package Name <x-required-mark /></label>
+                    <input type="text" id="edit_package_name" name="name" required maxlength="255" placeholder="e.g. Essential Relaxation Package" class="{{ $input }}">
                     <p class="{{ $err }}" id="edit_package_name_error">Package name is required.</p>
                 </div>
 
                 <fieldset>
-                    <legend class="{{ $label }}">Included Treatments *</legend>
+                    <legend class="{{ $label }}">Included Treatments <x-required-mark /></legend>
                     <div id="editIncludedTreatments"
                          class="p-3 space-y-2 overflow-y-auto border border-gray-300 rounded-xl max-h-48 dark:border-gray-600 dark:bg-gray-700">
                         @forelse($treatments as $treatment)
@@ -1013,14 +1024,15 @@
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <label for="edit_package_duration" class="{{ $label }}">Duration (mins) *</label>
+                        <label for="edit_package_duration" class="{{ $label }}">Duration (mins) <x-required-mark /></label>
                         <input type="number" id="edit_package_duration" name="duration" required min="1" readonly class="{{ $inputReadonly }}">
                         <p class="{{ $hint }}">Auto-calculated from selected treatments.</p>
                     </div>
                     <div>
-                        <label for="edit_package_price" class="{{ $label }}">Price (₱) *</label>
+                        <label for="edit_package_price" class="{{ $label }}">Price (₱) <x-required-mark /></label>
                         <input type="number" id="edit_package_price" name="price" step="0.01" required min="0" readonly class="{{ $inputReadonly }}">
                         <p class="{{ $hint }}">Auto-calculated from selected treatments.</p>
+                        <p class="{{ $err }}" id="edit_package_price_error">Package price must be between {{ $peso($packagePrice['min']) }} and {{ $peso($packagePrice['max']) }}. Adjust the treatments.</p>
                     </div>
                 </div>
 
@@ -1028,7 +1040,7 @@
 
                 <div>
                     <label for="edit_package_description" class="{{ $label }}">Description</label>
-                    <textarea id="edit_package_description" name="description" rows="3" class="{{ $input }}"></textarea>
+                    <textarea id="edit_package_description" name="description" rows="3" maxlength="{{ $longText }}" placeholder="What the customer can expect, in a sentence or two" class="{{ $input }}"></textarea>
                 </div>
 
                 <div class="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
@@ -1398,6 +1410,9 @@
     // ════════════════════════════════════════════════════════════════
     // TREATMENTS
     // ════════════════════════════════════════════════════════════════
+    const TREATMENT_PRICE = @json($treatmentPrice);
+    const PACKAGE_PRICE = @json($packagePrice);
+
     const ADD_TREATMENT_FIELDS = [
         ['add_treatment_name',     'add_name_error'],
         ['add_treatment_duration', 'add_duration_error'],
@@ -1476,7 +1491,7 @@
         if (duration === '') valid = false;
 
         const price = parseFloat(document.getElementById(prefix + '_price').value);
-        const priceInvalid = isNaN(price) || price < 300 || price > 1400;
+        const priceInvalid = isNaN(price) || price < TREATMENT_PRICE.min || price > TREATMENT_PRICE.max;
         setFieldError(prefix + '_price', pairs[2][1], priceInvalid);
         if (priceInvalid) valid = false;
 
@@ -1509,7 +1524,7 @@
         if (priceInput) priceInput.addEventListener('input', function () {
             if (this.value === '') return;
             const price = parseFloat(this.value);
-            setFieldError(prefix + '_price', pairs[2][1], isNaN(price) || price < 300 || price > 1400);
+            setFieldError(prefix + '_price', pairs[2][1], isNaN(price) || price < TREATMENT_PRICE.min || price > TREATMENT_PRICE.max);
         });
     }
 
@@ -1921,6 +1936,14 @@
             setFieldError(containerId, listErrId, !anyChecked);
             if (!anyChecked) valid = false;
 
+            // The total is auto-calculated, so an out-of-range total can only be
+            // fixed by changing the treatments; say so instead of a server error.
+            const priceField = form.querySelector('input[name="price"]');
+            const total = parseFloat(priceField ? priceField.value : '');
+            const priceBad = anyChecked && (isNaN(total) || total < PACKAGE_PRICE.min || total > PACKAGE_PRICE.max);
+            if (priceField) setFieldError(priceField.id, priceField.id === 'addPrice' ? 'add_package_price_error' : 'edit_package_price_error', priceBad);
+            if (priceBad) valid = false;
+
             if (!valid) {
                 e.preventDefault();
                 revealFirstError(formId);
@@ -1933,6 +1956,8 @@
                 if (e.target.matches('input[type="checkbox"]')) {
                     recalc();
                     setFieldError(containerId, listErrId, false);
+                    const priceField = form.querySelector('input[name="price"]');
+                    if (priceField) setFieldError(priceField.id, priceField.id === 'addPrice' ? 'add_package_price_error' : 'edit_package_price_error', false);
                 }
             });
         }

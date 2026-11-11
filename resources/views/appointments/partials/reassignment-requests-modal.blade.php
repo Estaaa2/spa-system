@@ -30,60 +30,62 @@
 </div>
 
 {{-- Review modal --}}
-<div id="reassignReviewModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
-    <div class="w-full max-w-lg mx-auto mt-16 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div>
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Review Reassignment</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Choose a replacement therapist or reject the request.</p>
-            </div>
-            <button type="button" onclick="closeReassignReviewModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
-        </div>
-
-        <div class="px-6 py-6 space-y-4">
-            <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
-                <p class="text-sm font-semibold text-gray-900 dark:text-white" id="reassign_review_customer"></p>
-                <p class="text-sm text-gray-500 dark:text-gray-400" id="reassign_review_treatment"></p>
-                <p class="mt-1 text-xs text-gray-400" id="reassign_review_datetime"></p>
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Currently assigned: <span class="font-medium text-gray-700 dark:text-gray-300" id="reassign_review_old_therapist"></span>
-                </p>
-                <p class="mt-2 text-sm italic text-gray-600 dark:text-gray-300" id="reassign_review_reason"></p>
+<div id="reassignReviewModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center sm:p-6">
+        <div class="w-full max-w-lg bg-white border border-gray-200 shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Review Reassignment</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Choose a replacement therapist or reject the request.</p>
+                </div>
+                <button type="button" onclick="closeReassignReviewModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
             </div>
 
-            <div id="reassign_leave_warning" class="hidden p-3 text-sm rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                This was triggered by an <strong>already-approved</strong> leave request — the therapist will not be available regardless. Rejecting leaves this appointment assigned to a therapist who won't be there.
-            </div>
+            <div class="px-6 py-6 space-y-4">
+                <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white" id="reassign_review_customer"></p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" id="reassign_review_treatment"></p>
+                    <p class="mt-1 text-xs text-gray-400" id="reassign_review_datetime"></p>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Currently assigned: <span class="font-medium text-gray-700 dark:text-gray-300" id="reassign_review_old_therapist"></span>
+                    </p>
+                    <p class="mt-2 text-sm italic text-gray-600 dark:text-gray-300" id="reassign_review_reason"></p>
+                </div>
 
-            <div>
-                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Replacement Therapist</label>
-                <select id="reassign_review_therapist" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                    <option value="">Loading available therapists…</option>
-                </select>
-                <p id="reassign_review_hint" class="hidden mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    No therapist auto-matched for this slot — pick one manually or reject the request.
-                </p>
-            </div>
+                <div id="reassign_leave_warning" class="hidden p-3 text-sm rounded-xl bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    This was triggered by an <strong>already-approved</strong> leave request — the therapist will not be available regardless. Rejecting leaves this appointment assigned to a therapist who won't be there.
+                </div>
 
-            <div id="reassignReviewError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200 dark:bg-red-900/20 dark:ring-red-800">
-                <span id="reassignReviewErrorText"></span>
-            </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Replacement Therapist</label>
+                    <select id="reassign_review_therapist" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <option value="">Loading available therapists…</option>
+                    </select>
+                    <p id="reassign_review_hint" class="hidden mt-1 text-xs text-amber-600 dark:text-amber-400">
+                        No therapist auto-matched for this slot — pick one manually or reject the request.
+                    </p>
+                </div>
 
-            <div class="flex justify-between gap-2 pt-2">
-                <button type="button" id="reassignRejectBtn" onclick="rejectReassignment()"
-                        class="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700">
-                    Reject
-                </button>
-                <div class="flex gap-2">
-                    <button type="button" onclick="closeReassignReviewModal()"
-                            class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-                        Cancel
+                <div id="reassignReviewError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200 dark:bg-red-900/20 dark:ring-red-800">
+                    <span id="reassignReviewErrorText"></span>
+                </div>
+
+                <div class="flex justify-between gap-2 pt-2">
+                    <button type="button" id="reassignRejectBtn" onclick="rejectReassignment()"
+                            class="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700">
+                        Reject
                     </button>
-                    <button type="button" id="reassignApproveBtn" onclick="approveReassignment()"
-                            class="rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348] disabled:opacity-50 disabled:cursor-not-allowed">
-                        Confirm Reassignment
-                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeReassignReviewModal()"
+                                class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                            Cancel
+                        </button>
+                        <button type="button" id="reassignApproveBtn" onclick="approveReassignment()"
+                                class="rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348] disabled:opacity-50 disabled:cursor-not-allowed">
+                            Confirm Reassignment
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -91,26 +93,28 @@
 </div>
 
 {{-- Reject reason modal — rejecting needs its own required reason, same rule as reschedule rejection --}}
-<div id="reassignRejectModal" class="fixed inset-0 z-[60] hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
-    <div class="w-full max-w-md mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Reject Reassignment Request</h3>
-        </div>
-        <div class="px-6 py-4 space-y-3">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Reason <span class="text-red-500">*</span></label>
-            <textarea id="reassign_reject_reason" rows="3" minlength="5" maxlength="500"
-                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white resize-none"
-                placeholder="Why is this request being rejected?"></textarea>
-        </div>
-        <div class="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-gray-900/40 rounded-b-2xl">
-            <button type="button" onclick="closeRejectReasonModal()"
-                    class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-                Cancel
-            </button>
-            <button type="button" onclick="confirmRejectReassignment()"
-                    class="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700">
-                Confirm Reject
-            </button>
+<div id="reassignRejectModal" class="fixed inset-0 z-[60] hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center sm:p-6">
+        <div class="w-full max-w-md bg-white border border-gray-200 shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Reject Reassignment Request</h3>
+            </div>
+            <div class="px-6 py-4 space-y-3">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Reason <x-required-mark /></label>
+                <textarea id="reassign_reject_reason" rows="3" minlength="5" maxlength="500"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white resize-none"
+                    placeholder="Why is this request being rejected?"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 px-6 py-4 bg-gray-50 dark:bg-gray-900/40 rounded-b-2xl">
+                <button type="button" onclick="closeRejectReasonModal()"
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                    Cancel
+                </button>
+                <button type="button" onclick="confirmRejectReassignment()"
+                        class="px-4 py-2 text-sm text-white bg-red-600 rounded-xl hover:bg-red-700">
+                    Confirm Reject
+                </button>
+            </div>
         </div>
     </div>
 </div>

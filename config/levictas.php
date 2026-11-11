@@ -21,7 +21,7 @@ return [
     | production repository, unless that repository is meant to be public.
     */
     'social' => [
-        'linkedin' => 'www.linkedin.com/in/levictas-development-8aa550449',
+        'linkedin' => 'https://www.linkedin.com/in/levictas-development-8aa550449',
         'x'        => 'https://x.com/LevOff25',
         'github'   => 'https://github.com/levictasdevelopment',
     ],

@@ -312,7 +312,7 @@
                         class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
                     >
                         Internal Reason
-                        <span class="text-red-600">*</span>
+                        <x-required-mark />
                     </label>
                     <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">For HR records only. This is not sent to the applicant.</p>
 
@@ -389,70 +389,72 @@
 
 {{-- Create Staff Account Modal --}}
 @if($canCreateStaffFromInterview)
-<div id="createStaffModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
-    <div class="w-full max-w-md p-6 mx-auto mt-24 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Create Staff Account</h2>
-            <button type="button" onclick="closeCreateStaffModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+<div id="createStaffModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center sm:p-6">
+        <div class="w-full max-w-md p-6 bg-white border border-gray-200 shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Create Staff Account</h2>
+                <button type="button" onclick="closeCreateStaffModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="createStaffForm" method="POST" class="space-y-4">
+                @csrf
+
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Applied as <span id="csFullName" class="font-semibold text-gray-700 dark:text-gray-200"></span>.
+                    Confirm the legal name split below; it is used for identity verification and payroll.
+                </p>
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="csFirstName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">First Name <x-required-mark /></label>
+                        <input type="text" name="first_name" id="csFirstName" required maxlength="255" value="{{ old('first_name') }}"
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
+                    </div>
+                    <div>
+                        <label for="csLastName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Last Name <x-required-mark /></label>
+                        <input type="text" name="last_name" id="csLastName" required maxlength="255" value="{{ old('last_name') }}"
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="csMiddleName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Middle Name</label>
+                    <input type="text" name="middle_name" id="csMiddleName" maxlength="255" value="{{ old('middle_name') }}"
+                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <p class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Email</p>
+                        <p id="csEmail" class="px-3 py-2 text-sm text-gray-700 break-all bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"></p>
+                    </div>
+                    <div>
+                        <p class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Role</p>
+                        <p id="csRole" class="px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"></p>
+                    </div>
+                </div>
+
+                @foreach(['first_name', 'middle_name', 'last_name'] as $field)
+                    @error($field, 'createStaff')
+                        <p class="text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                @endforeach
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeCreateStaffModal()"
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 text-sm font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348]">
+                        Create Account
+                    </button>
+                </div>
+            </form>
         </div>
-
-        <form id="createStaffForm" method="POST" class="space-y-4">
-            @csrf
-
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-                Applied as <span id="csFullName" class="font-semibold text-gray-700 dark:text-gray-200"></span>.
-                Confirm the legal name split below; it is used for identity verification and payroll.
-            </p>
-
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                    <label for="csFirstName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">First Name *</label>
-                    <input type="text" name="first_name" id="csFirstName" required maxlength="255" value="{{ old('first_name') }}"
-                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
-                </div>
-                <div>
-                    <label for="csLastName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Last Name *</label>
-                    <input type="text" name="last_name" id="csLastName" required maxlength="255" value="{{ old('last_name') }}"
-                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
-                </div>
-            </div>
-
-            <div>
-                <label for="csMiddleName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Middle Name</label>
-                <input type="text" name="middle_name" id="csMiddleName" maxlength="255" value="{{ old('middle_name') }}"
-                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
-            </div>
-
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                    <p class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Email</p>
-                    <p id="csEmail" class="px-3 py-2 text-sm text-gray-700 break-all bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"></p>
-                </div>
-                <div>
-                    <p class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Role</p>
-                    <p id="csRole" class="px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"></p>
-                </div>
-            </div>
-
-            @foreach(['first_name', 'middle_name', 'last_name'] as $field)
-                @error($field, 'createStaff')
-                    <p class="text-xs text-red-600">{{ $message }}</p>
-                @enderror
-            @endforeach
-
-            <div class="flex justify-end gap-2">
-                <button type="button" onclick="closeCreateStaffModal()"
-                    class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                    Cancel
-                </button>
-                <button type="submit"
-                    class="px-4 py-2 text-sm font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348]">
-                    Create Account
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 @endif

@@ -336,107 +336,114 @@
 </div>
 
 {{-- ── FILE EXPENSE MODAL ───────────────────────────────────────────────── --}}
-<div id="expenseModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
-    <div class="w-full max-w-lg mx-auto mt-20 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div>
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">File Expense Request</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Submit an operational expense for review and approval.</p>
+<div id="expenseModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center sm:p-6">
+        <div class="w-full max-w-lg bg-white border border-gray-200 shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">File Expense Request</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Submit an operational expense for review and approval.</p>
+                </div>
+                <button type="button" onclick="closeExpenseModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
             </div>
-            <button type="button" onclick="closeExpenseModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
+
+            <form method="POST" action="{{ route('billing.expense.store') }}" class="px-6 py-6 space-y-4">
+                @csrf
+                <x-required-note />
+
+                <div>
+                    <label for="expense_title" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Expense Request / Title <x-required-mark /></label>
+                    <input type="text" name="title" id="expense_title" required maxlength="255"
+                        placeholder="e.g. Office supplies, Equipment maintenance..."
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                </div>
+
+                <div>
+                    <label for="expense_description" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                    <textarea name="description" id="expense_description" rows="3" maxlength="{{ config('limits.long_text') }}"
+                        placeholder="Describe what the expense is for..."
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
+                </div>
+
+                <div>
+                    <label for="expense_amount" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Amount (₱) <x-required-mark /></label>
+                    <input type="number" name="amount" id="expense_amount" step="0.01" min="0.01" max="{{ config('limits.money') }}" required
+                        inputmode="decimal" placeholder="e.g. 1500.00"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeExpenseModal()"
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">
+                        Submit Request
+                    </button>
+                </div>
+            </form>
         </div>
-
-        <form method="POST" action="{{ route('billing.expense.store') }}" class="px-6 py-6 space-y-4">
-            @csrf
-            <div>
-                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Expense Request / Title</label>
-                <input type="text" name="title" required
-                    placeholder="e.g. Office supplies, Equipment maintenance..."
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-            </div>
-
-            <div>
-                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-                <textarea name="description" rows="3"
-                    placeholder="Describe what the expense is for..."
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
-            </div>
-
-            <div>
-                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Amount (₱)</label>
-                <input type="number" name="amount" step="0.01" min="0.01" required
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeExpenseModal()"
-                    class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-                    Cancel
-                </button>
-                <button type="submit"
-                    class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">
-                    Submit Request
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 
 {{-- ── REVIEW EXPENSE MODAL ─────────────────────────────────────────────── --}}
-<div id="reviewModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50">
-    <div class="w-full max-w-lg mx-auto mt-20 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div>
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Review Expense</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Accept to release funds, or reject / put on review.</p>
+<div id="reviewModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center sm:p-6">
+        <div class="w-full max-w-lg bg-white border border-gray-200 shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Review Expense</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Accept to release funds, or reject / put on review.</p>
+                </div>
+                <button type="button" onclick="closeReviewModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
             </div>
-            <button type="button" onclick="closeReviewModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">✕</button>
+
+            <form id="reviewForm" method="POST" class="px-6 py-6 space-y-4">
+                @csrf
+                @method('PATCH')
+
+                <div class="p-4 bg-gray-50 rounded-xl dark:bg-gray-900/40">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white" id="review_title"></p>
+                    <p class="mt-1 text-sm font-bold text-[#8B7355]" id="review_amount"></p>
+                </div>
+
+                <div>
+                    <label for="review_status" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Decision</label>
+                    <select name="status" id="review_status"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        onchange="toggleNotesField()">
+                        <option value="on_review">Mark as Under Review</option>
+                        <option value="accepted">Accept — Release Funds</option>
+                        <option value="rejected">Reject</option>
+                    </select>
+                </div>
+
+                <div id="notesWrapper">
+                    <label for="review_notes" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Notes <x-required-mark id="notesRequired" class="hidden" />
+                        <span id="notesOptional" class="font-normal text-gray-400">(optional)</span>
+                    </label>
+                    <textarea name="review_notes" id="review_notes" rows="3" maxlength="1000"
+                        placeholder="Add a note for the requester..."
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        This note will be visible to the person who filed the request.
+                    </p>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeReviewModal()"
+                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">
+                        Save Decision
+                    </button>
+                </div>
+            </form>
         </div>
-
-        <form id="reviewForm" method="POST" class="px-6 py-6 space-y-4">
-            @csrf
-            @method('PATCH')
-
-            <div class="p-4 bg-gray-50 rounded-xl dark:bg-gray-900/40">
-                <p class="text-sm font-semibold text-gray-900 dark:text-white" id="review_title"></p>
-                <p class="mt-1 text-sm font-bold text-[#8B7355]" id="review_amount"></p>
-            </div>
-
-            <div>
-                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Decision</label>
-                <select name="status" id="review_status"
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                    onchange="toggleNotesField()">
-                    <option value="on_review">Mark as Under Review</option>
-                    <option value="accepted">Accept — Release Funds</option>
-                    <option value="rejected">Reject</option>
-                </select>
-            </div>
-
-            <div id="notesWrapper">
-                <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Notes <span id="notesRequired" class="hidden text-red-500">*</span>
-                    <span id="notesOptional" class="font-normal text-gray-400">(optional)</span>
-                </label>
-                <textarea name="review_notes" id="review_notes" rows="3"
-                    placeholder="Add a note for the requester..."
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
-                <p class="mt-1 text-xs text-gray-400">
-                    This note will be visible to the person who filed the request.
-                </p>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeReviewModal()"
-                    class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-                    Cancel
-                </button>
-                <button type="submit"
-                    class="px-4 py-2 text-sm font-medium text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">
-                    Save Decision
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 

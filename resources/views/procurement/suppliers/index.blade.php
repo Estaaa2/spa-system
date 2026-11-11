@@ -26,12 +26,11 @@
 
     $hintText = 'mt-1 text-xs text-gray-500 dark:text-gray-400';
     $errorText = 'mt-1 text-sm text-red-600 dark:text-red-400';
-    $requiredMark = '<span class="text-red-600 dark:text-red-400" aria-hidden="true">*</span>';
 
-    // Same caps as SupplierController, so the browser stops the value before the server does.
-    $maxUnitCost = \App\Http\Controllers\SupplierController::MAX_UNIT_COST;
-    $maxLeadTimeDays = \App\Http\Controllers\SupplierController::MAX_LEAD_TIME_DAYS;
-    $maxOrderQuantity = \App\Http\Controllers\SupplierController::MAX_ORDER_QUANTITY;
+    // Same caps the server checks (config/limits.php), so the browser stops the value first.
+    $maxUnitCost = config('limits.money');
+    $maxLeadTimeDays = config('limits.lead_time_days');
+    $maxOrderQuantity = config('limits.quantity');
 
     // When the server rejects an edit or a product assignment, reopen that
     // dialog on the same supplier with what was typed, instead of closing it
@@ -508,16 +507,14 @@
                 </div>
 
                 <div class="p-5 space-y-4 sm:p-6">
-                    <p class="{{ $hintText }}">
-                        Fields marked {!! $requiredMark !!} are required.
-                    </p>
+                    <x-required-note />
 
                     <div>
                         <label
                             for="supplier-name"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Supplier Name {!! $requiredMark !!}
+                            Supplier Name <x-required-mark />
                         </label>
 
                         <input
@@ -599,16 +596,16 @@
                                 inputmode="numeric"
                                 autocomplete="tel-national"
                                 maxlength="11"
-                                pattern="09[0-9]{9}"
-                                title="11-digit mobile number that starts with 09, e.g. 09171234567"
-                                placeholder="09XXXXXXXXX"
+                                pattern="09[0-9]{9}|0[2-8][0-9]{8}"
+                                title="Mobile number (09171234567) or landline with area code (0461234567), digits only"
+                                placeholder="e.g. 09171234567"
                                 aria-describedby="supplier-phone-hint"
                                 x-on:input="$el.value = $el.value.replace(/\D/g, '').replace(/^639/, '09').slice(0, 11)"
                                 class="{{ $inputBase }}"
                             >
 
                             <p id="supplier-phone-hint" class="{{ $hintText }}">
-                                11 digits, starts with 09.
+                                Mobile, or landline with area code (e.g. 0461234567).
                             </p>
 
                             @error('phone', 'createSupplier')
@@ -703,16 +700,14 @@
                     {{-- Lets the page reopen this dialog on the right supplier when the server rejects the save. --}}
                     <input type="hidden" name="_supplier_id" :value="supplier.id">
 
-                    <p class="{{ $hintText }}">
-                        Fields marked {!! $requiredMark !!} are required.
-                    </p>
+                    <x-required-note />
 
                     <div>
                         <label
                             for="edit-supplier-name"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Supplier Name {!! $requiredMark !!}
+                            Supplier Name <x-required-mark />
                         </label>
 
                         <input
@@ -794,16 +789,16 @@
                                 inputmode="numeric"
                                 autocomplete="tel-national"
                                 maxlength="11"
-                                pattern="09[0-9]{9}"
-                                title="11-digit mobile number that starts with 09, e.g. 09171234567"
-                                placeholder="09XXXXXXXXX"
+                                pattern="09[0-9]{9}|0[2-8][0-9]{8}"
+                                title="Mobile number (09171234567) or landline with area code (0461234567), digits only"
+                                placeholder="e.g. 09171234567"
                                 aria-describedby="edit-supplier-phone-hint"
                                 x-on:input="$el.value = $el.value.replace(/\D/g, '').replace(/^639/, '09').slice(0, 11); supplier.phone = $el.value"
                                 class="{{ $inputBase }}"
                             >
 
                             <p id="edit-supplier-phone-hint" class="{{ $hintText }}">
-                                11 digits, starts with 09.
+                                Mobile, or landline with area code (e.g. 0461234567).
                             </p>
 
                             @error('phone', 'editSupplier')
@@ -987,16 +982,14 @@
                 <div class="p-5 space-y-4 sm:p-6">
                     <input type="hidden" name="_supplier_id" :value="supplier.id">
 
-                    <p class="{{ $hintText }}">
-                        Fields marked {!! $requiredMark !!} are required.
-                    </p>
+                    <x-required-note />
 
                     <div>
                         <label
                             for="supplier-product"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Product {!! $requiredMark !!}
+                            Product <x-required-mark />
                         </label>
 
                         <select

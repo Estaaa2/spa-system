@@ -483,7 +483,7 @@
                                                 Expiration Date
 
                                                 @if ($meta['expiry'] === 'required')
-                                                    <span class="text-red-600">*</span>
+                                                    <x-required-mark />
                                                 @else
                                                     <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
                                                         Optional
@@ -872,7 +872,7 @@
                                                 class="block mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
 
                                                 Expiration Date
-                                                <span class="text-red-600">*</span>
+                                                <x-required-mark />
                                             </label>
 
                                             <input type="date"

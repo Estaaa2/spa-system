@@ -132,6 +132,16 @@ class AboutFaqContactPhase3Test extends TestCase
 
     public function test_contact_page_shows_the_shared_contact_details(): void
     {
+        // The real details from config/levictas.php are what visitors see.
+        $this->get(route('contact'))->assertOk()
+            ->assertSee('href="mailto:' . config('levictas.contact.email') . '"', false)
+            ->assertSee(config('levictas.contact.address'));
+
+        // While a value is still a [PLACEHOLDER] it shows as plain text, never as a link.
+        Config::set('levictas.contact.email', '[TEAM EMAIL]');
+        Config::set('levictas.contact.address', '[SCHOOL ADDRESS]');
+        Config::set('levictas.social', []);
+
         $this->get(route('contact'))->assertOk()
             ->assertSee('[TEAM EMAIL]')
             ->assertSee('[SCHOOL ADDRESS]')

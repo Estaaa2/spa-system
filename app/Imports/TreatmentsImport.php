@@ -38,9 +38,9 @@ class TreatmentsImport implements OnEachRow, WithHeadingRow, WithValidation
         return [
             '*.name' => ['required', 'string', 'max:255'],
             '*.duration' => ['required', 'numeric', 'min:1'],
-            '*.price' => ['required', 'numeric', 'min:0'],
+            '*.price' => ['required', 'numeric', 'min:' . config('limits.treatment_price.min'), 'max:' . config('limits.treatment_price.max')],
             '*.service_type' => ['required', 'in:in_branch_only,in_branch_and_home'],
-            '*.description' => ['nullable', 'string'],
+            '*.description' => ['nullable', 'string', 'max:' . config('limits.long_text')],
         ];
     }
 }

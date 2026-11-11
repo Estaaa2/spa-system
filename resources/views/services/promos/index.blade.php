@@ -260,34 +260,39 @@
                     <div id="promoOrphanNotice"
                          class="hidden p-3 text-sm border rounded-xl border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300"></div>
 
+                    <x-required-note />
+
                     <div>
-                        <label for="promoName" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Promo Name</label>
-                        <input type="text" name="name" id="promoName" required placeholder="e.g. Summer Sale"
+                        <label for="promoName" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Promo Name <x-required-mark /></label>
+                        <input type="text" name="name" id="promoName" required maxlength="255" placeholder="e.g. Summer Sale"
                                class="{{ $inputBase }}">
                     </div>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                            <label for="promoDiscountType" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Discount Type</label>
+                            <label for="promoDiscountType" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Discount Type <x-required-mark /></label>
                             <select name="discount_type" id="promoDiscountType" required class="{{ $inputBase }}">
                                 <option value="percent">% Off</option>
                                 <option value="fixed">₱ Off</option>
                             </select>
                         </div>
                         <div>
-                            <label for="promoDiscountValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Discount Value</label>
-                            <input type="number" name="discount_value" id="promoDiscountValue" step="0.01" min="0" required placeholder="20"
+                            <label for="promoDiscountValue" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Discount Value <x-required-mark /></label>
+                            <input type="number" name="discount_value" id="promoDiscountValue" step="0.01" min="0.01" max="100" required
+                                   inputmode="decimal" placeholder="e.g. 20" aria-describedby="promoDiscountHint"
+                                   data-fixed-max="{{ config('limits.promo_fixed_discount') }}"
                                    class="{{ $inputBase }}">
+                            <p id="promoDiscountHint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Up to 100%.</p>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                            <label for="promoStartDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date</label>
+                            <label for="promoStartDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date <x-required-mark /></label>
                             <input type="date" name="start_date" id="promoStartDate" required class="{{ $inputBase }}">
                         </div>
                         <div>
-                            <label for="promoEndDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">End Date</label>
+                            <label for="promoEndDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">End Date <x-required-mark /></label>
                             <input type="date" name="end_date" id="promoEndDate" required class="{{ $inputBase }}">
                         </div>
                     </div>
@@ -312,6 +317,7 @@
                                     <span class="flex items-center gap-2 shrink-0">
                                         <span class="text-xs text-gray-500 dark:text-gray-400">₱{{ number_format($t->price, 2) }}</span>
                                         <input type="checkbox" name="treatment_ids[]" value="{{ $t->id }}"
+                                               data-price="{{ (float) $t->price }}" data-name="{{ $t->name }}"
                                                class="promo-treatment-checkbox w-4 h-4 rounded accent-[#8B7355] focus:ring-[#8B7355]">
                                     </span>
                                 </label>
@@ -331,6 +337,7 @@
                                     <span class="flex items-center gap-2 shrink-0">
                                         <span class="text-xs text-gray-500 dark:text-gray-400">₱{{ number_format($p->price, 2) }}</span>
                                         <input type="checkbox" name="package_ids[]" value="{{ $p->id }}"
+                                               data-price="{{ (float) $p->price }}" data-name="{{ $p->name }}"
                                                class="promo-package-checkbox w-4 h-4 rounded accent-[#8B7355] focus:ring-[#8B7355]">
                                     </span>
                                 </label>
@@ -523,6 +530,7 @@
         }
 
         syncEndDateFloor();
+        syncDiscountLimit();
         openModal('promoModal', '#promoName');
     }
 
@@ -537,6 +545,24 @@
     }
     if (startInput) startInput.addEventListener('change', syncEndDateFloor);
 
+    // Percent stops at 100; a peso amount stops at config('limits.promo_fixed_discount'),
+    // the same limits PromoController checks.
+    const typeInput  = document.getElementById('promoDiscountType');
+    const valueInput = document.getElementById('promoDiscountValue');
+    const valueHint  = document.getElementById('promoDiscountHint');
+
+    function syncDiscountLimit() {
+        if (!typeInput || !valueInput) return;
+        const fixed = typeInput.value === 'fixed';
+        const max = fixed ? Number(valueInput.dataset.fixedMax) : 100;
+        valueInput.max = String(max);
+        valueInput.placeholder = fixed ? 'e.g. 200' : 'e.g. 20';
+        if (valueHint) valueHint.textContent = fixed
+            ? 'Must be lower than the cheapest selected item.'
+            : 'Up to 100%.';
+    }
+    if (typeInput) typeInput.addEventListener('change', syncDiscountLimit);
+
     if (form) {
         form.addEventListener('submit', function (e) {
             const treatments = document.querySelectorAll('.promo-treatment-checkbox:checked').length;
@@ -546,6 +572,21 @@
                 e.preventDefault();
                 setPromoError('Select at least one treatment or package.');
                 return;
+            }
+
+            // Same rule as PromoController: a fixed amount must be lower than every
+            // selected item's price, or the promo would make that item free.
+            if (typeInput && typeInput.value === 'fixed' && valueInput) {
+                const amount = parseFloat(valueInput.value);
+                const cheapest = [...document.querySelectorAll('.promo-treatment-checkbox:checked, .promo-package-checkbox:checked')]
+                    .sort((a, b) => Number(a.dataset.price) - Number(b.dataset.price))[0];
+                if (cheapest && !isNaN(amount) && amount >= Number(cheapest.dataset.price)) {
+                    e.preventDefault();
+                    setPromoError('A fixed discount must be lower than the price of every selected item. "'
+                        + cheapest.dataset.name + '" costs ₱'
+                        + Number(cheapest.dataset.price).toLocaleString('en-PH', { minimumFractionDigits: 2 }) + '.');
+                    return;
+                }
             }
 
             const start = startInput?.value;

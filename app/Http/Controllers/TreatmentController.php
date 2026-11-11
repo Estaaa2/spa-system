@@ -12,9 +12,9 @@ class TreatmentController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255',
             'duration'     => 'required|integer|min:1',
-            'price'        => 'required|numeric|min:0',
+            'price'        => ['required', 'numeric', 'min:' . config('limits.treatment_price.min'), 'max:' . config('limits.treatment_price.max'), 'decimal:0,2'],
             'service_type' => 'required|in:in_branch_only,in_branch_and_home',
-            'description'  => 'nullable|string',
+            'description'  => ['nullable', 'string', 'max:' . config('limits.long_text')],
             'image'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'image_2'      => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'cover'        => 'nullable|in:1,2',
@@ -55,9 +55,9 @@ class TreatmentController extends Controller
         $validated = $request->validate([
             'name'           => 'required|string|max:255',
             'duration'       => 'required|integer|min:1',
-            'price'          => 'required|numeric|min:0',
+            'price'          => ['required', 'numeric', 'min:' . config('limits.treatment_price.min'), 'max:' . config('limits.treatment_price.max'), 'decimal:0,2'],
             'service_type'   => 'required|in:in_branch_only,in_branch_and_home',
-            'description'    => 'nullable|string',
+            'description'    => ['nullable', 'string', 'max:' . config('limits.long_text')],
             'image'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'image_2'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'remove_image'   => 'nullable|boolean',

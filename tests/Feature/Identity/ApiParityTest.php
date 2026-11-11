@@ -164,8 +164,21 @@ class ApiParityTest extends TestCase
     {
         $page = $this->actingAs($this->user('idv.paolo@levictas.test'))->get(route('profile.edit'))->assertOk();
 
+        $contact = ConsentNotice::privacyContact();
+
         foreach (ConsentNotice::sections() as $section) {
-            $page->assertSee($section['title'])->assertSee($section['body']);
+            $page->assertSee($section['title']);
+
+            // On the web the privacy email is a mailto link, so the sentence is
+            // split around it: check each side of the link and the link itself.
+            if ($contact && str_contains($section['body'], $contact)) {
+                foreach (explode($contact, $section['body']) as $part) {
+                    $page->assertSee($part);
+                }
+                $page->assertSee('href="mailto:' . $contact . '"', false);
+            } else {
+                $page->assertSee($section['body']);
+            }
         }
         $page->assertSee(ConsentNotice::AGREEMENT);
     }

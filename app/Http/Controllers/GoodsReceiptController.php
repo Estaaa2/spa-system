@@ -81,18 +81,24 @@ class GoodsReceiptController extends Controller
                 'required',
                 'numeric',
                 'gt:0',
+                'decimal:0,3',
+                'max:' . config('limits.quantity'),
             ],
 
             'items.*.accepted_quantity' => [
                 'required',
                 'numeric',
                 'min:0',
+                'decimal:0,3',
+                'max:' . config('limits.quantity'),
             ],
 
             'items.*.rejected_quantity' => [
                 'required',
                 'numeric',
                 'min:0',
+                'decimal:0,3',
+                'max:' . config('limits.quantity'),
             ],
 
             'items.*.batch_number' => [
@@ -105,6 +111,8 @@ class GoodsReceiptController extends Controller
                 'nullable',
                 'numeric',
                 'min:0',
+                'decimal:0,2',
+                'max:' . config('limits.money'),
             ],
 
             'items.*.manufactured_at' => [

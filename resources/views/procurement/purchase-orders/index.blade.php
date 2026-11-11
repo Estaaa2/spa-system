@@ -499,6 +499,8 @@
                 </div>
 
                 <div class="p-5 space-y-5 sm:p-6">
+                    <x-required-note />
+
                     <div class="p-4 border border-blue-200 bg-blue-50 rounded-xl dark:border-blue-800 dark:bg-blue-900/10">
                         <div class="flex items-start gap-3">
                             <i
@@ -544,7 +546,7 @@
                             for="purchase-order-request"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Approved Purchase Request
+                            Approved Purchase Request <x-required-mark />
                         </label>
 
                         <select
@@ -647,7 +649,7 @@
                             for="purchase-order-supplier"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Supplier
+                            Supplier <x-required-mark />
                         </label>
 
                         <select
@@ -1183,7 +1185,7 @@
                             for="cancel-purchase-order-reason"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Cancellation Reason
+                            Cancellation Reason <x-required-mark />
                         </label>
 
                         <textarea

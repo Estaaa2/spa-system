@@ -451,17 +451,17 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label for="leave_start_date" class="{{ $labelClass }}">Start date</label>
+                        <label for="leave_start_date" class="{{ $labelClass }}">Start date <x-required-mark /></label>
                         <input type="date" id="leave_start_date" required min="{{ $today->toDateString() }}" max="{{ $leaveMax }}" class="{{ $inputClass }}">
                     </div>
                     <div>
-                        <label for="leave_end_date" class="{{ $labelClass }}">End date</label>
+                        <label for="leave_end_date" class="{{ $labelClass }}">End date <x-required-mark /></label>
                         <input type="date" id="leave_end_date" required min="{{ $today->toDateString() }}" max="{{ $leaveMax }}" class="{{ $inputClass }}">
                     </div>
                 </div>
                 <p class="-mt-2 text-xs text-gray-500 dark:text-gray-400">From today up to {{ \Carbon\Carbon::parse($leaveMax)->format('M j, Y') }}.</p>
                 <div>
-                    <label for="leave_reason" class="{{ $labelClass }}">Reason <span class="text-red-600" aria-hidden="true">*</span></label>
+                    <label for="leave_reason" class="{{ $labelClass }}">Reason <x-required-mark /></label>
                     <textarea id="leave_reason" rows="3" minlength="10" maxlength="1000" required class="{{ $inputClass }} resize-none" aria-describedby="leave_reason_hint"></textarea>
                     <p id="leave_reason_hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">At least 10 characters.</p>
                 </div>
@@ -552,7 +552,7 @@
                 </button>
             </div>
             <div class="px-4 py-6 sm:px-6">
-                <label for="leave_reject_reason" class="{{ $labelClass }}">Reason <span class="text-red-600" aria-hidden="true">*</span></label>
+                <label for="leave_reject_reason" class="{{ $labelClass }}">Reason <x-required-mark /></label>
                 <textarea id="leave_reject_reason" rows="3" minlength="5" maxlength="500" required class="{{ $inputClass }} resize-none" aria-describedby="leave_reject_hint"></textarea>
                 <p id="leave_reject_hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">At least 5 characters. The staff member sees this reason.</p>
                 <p id="leaveRejectError" role="alert" class="hidden mt-2 text-sm text-red-700 dark:text-red-300"></p>

@@ -257,7 +257,7 @@
                     {{-- Row 1: Name Fields --}}
                     <div>
                         <p class="mb-2 text-sm font-semibold text-gray-700 dark:text-white">
-                            Full Name <span class="text-red-500">*</span>
+                            Full Name <x-required-mark />
                         </p>
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                             <div>
@@ -313,7 +313,7 @@
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label for="email" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                                Email Address <span class="text-red-500">*</span>
+                                Email Address <x-required-mark />
                             </label>
                             <input
                                 type="email"
@@ -330,7 +330,7 @@
                         </div>
                         <div>
                             <label for="roles" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                                Staff Assignment <span class="text-red-500">*</span>
+                                Staff Assignment <x-required-mark />
                             </label>
                             <select
                                 id="roles"
@@ -762,7 +762,7 @@
         // the form can't actually submit.
         document.getElementById('editFormContent').innerHTML = `
             <div>
-                <label for="editRoleSelect" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role *</label>
+                <label for="editRoleSelect" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role <x-required-mark /></label>
                 <select id="editRoleSelect" name="roles" required class="${esc(INPUT_CLASS)}">
                     <option value=""${currentRole ? '' : ' selected'}>Select Role</option>
                     <optgroup label="Spa Staff">

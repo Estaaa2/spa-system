@@ -185,7 +185,7 @@
             <form method="POST" class="px-4 py-6 space-y-4 sm:px-6" data-arrival-form>
                 @csrf
                 <div>
-                    <label for="arrival_code_input" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Arrival code</label>
+                    <label for="arrival_code_input" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Arrival code <x-required-mark /></label>
                     <input id="arrival_code_input" name="arrival_code" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
                            autocomplete="one-time-code" required placeholder="••••"
                            class="w-full min-h-[44px] px-3 py-2 text-2xl font-semibold tracking-[0.5em] text-center border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
@@ -227,7 +227,7 @@
                     <p class="text-sm text-amber-800 dark:text-amber-300">Call the customer first and check that the right person arrived.</p>
                 </div>
                 <div>
-                    <label for="arrival_reason_input" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Why couldn't the code be used?</label>
+                    <label for="arrival_reason_input" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Why couldn't the code be used? <x-required-mark /></label>
                     <textarea id="arrival_reason_input" name="arrival_reason" rows="3" maxlength="500" required minlength="5"
                               placeholder="e.g. Customer's phone is dead; called them and they confirmed the therapist arrived."
                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>

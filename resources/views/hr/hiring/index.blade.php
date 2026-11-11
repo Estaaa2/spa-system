@@ -58,7 +58,7 @@
                         <div class="lg:col-span-2">
                             <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                 Full Name
-                                <span class="text-red-500">*</span>
+                                <x-required-mark />
                             </label>
 
                             <input
@@ -81,7 +81,7 @@
                         <div class="lg:col-span-2">
                             <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                 Email
-                                <span class="text-red-500">*</span>
+                                <x-required-mark />
                             </label>
 
                             <input
@@ -104,7 +104,7 @@
                         <div>
                             <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                 Phone
-                                <span class="text-red-500">*</span>
+                                <x-required-mark />
                             </label>
 
                             <input
@@ -218,7 +218,7 @@
                         <div class="lg:col-span-3">
                             <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                 Address
-                                <span class="text-red-500">*</span>
+                                <x-required-mark />
                             </label>
 
                             <input
@@ -259,7 +259,7 @@
                             <div>
                                 <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                     Applying For
-                                    <span class="text-red-500">*</span>
+                                    <x-required-mark />
                                 </label>
 
                                 <select

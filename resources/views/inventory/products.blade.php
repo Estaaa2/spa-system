@@ -548,6 +548,8 @@
 
                         <div class="px-4 py-5 space-y-4 overflow-y-auto sm:px-6 max-h-[calc(100vh-12rem)]">
 
+                            <x-required-note />
+
                             <div class="grid grid-cols-1 gap-4">
 
                                 <div>
@@ -557,9 +559,10 @@
                                     </label>
 
                                     <input id="add_sku"
+                                        maxlength="255"
                                         name="sku"
                                         value="{{ old('sku') }}"
-                                        placeholder="Optional"
+                                        placeholder="e.g. OIL-LAV-500"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
                                     @error('sku')
@@ -574,10 +577,10 @@
                             <div>
                                 <label for="add_product_name"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Product Name
+                                    Product Name <x-required-mark />
                                 </label>
 
-                                <input id="add_product_name"
+                                <input id="add_product_name" maxlength="255" placeholder="e.g. Lavender Massage Oil"
                                     name="name"
                                     value="{{ old('name') }}"
                                     required
@@ -599,9 +602,10 @@
                                     </label>
 
                                     <input id="add_product_brand"
+                                        maxlength="255"
                                         name="brand"
                                         value="{{ old('brand') }}"
-                                        placeholder="Optional"
+                                        placeholder="e.g. Human Nature"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
                                     @error('brand')
@@ -618,9 +622,10 @@
                                     </label>
 
                                     <input id="add_category"
+                                        maxlength="255"
                                         name="category"
                                         value="{{ old('category') }}"
-                                        placeholder="Example: Massage Oils"
+                                        placeholder="e.g. Massage Oils"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
                                     @error('category')
@@ -639,9 +644,10 @@
                                 </label>
 
                                 <textarea id="add_description"
+                                    maxlength="{{ config('limits.long_text') }}"
                                     name="description"
                                     rows="3"
-                                    placeholder="Optional"
+                                    placeholder="e.g. 500 ml bottle, used for full-body massage"
                                     class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('description') }}</textarea>
 
                                 @error('description')
@@ -654,7 +660,7 @@
                             <div>
                                 <label for="add_inventory_type"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Inventory Type
+                                    Inventory Type <x-required-mark />
                                 </label>
 
                                 <select id="add_inventory_type"
@@ -695,9 +701,10 @@
                                     </label>
 
                                     <input id="add_purchase_unit"
+                                        maxlength="30"
                                         name="purchase_unit"
                                         value="{{ old('purchase_unit') }}"
-                                        placeholder="Example: bottle"
+                                        placeholder="e.g. bottle"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
                                     @error('purchase_unit')
@@ -710,7 +717,7 @@
                                 <div>
                                     <label for="add_usage_unit"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Usage Unit
+                                        Usage Unit <x-required-mark />
                                     </label>
 
                                     <select id="add_usage_unit"
@@ -739,7 +746,7 @@
                             <div>
                                 <label for="add_conversion_factor"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Conversion Factor
+                                    Conversion Factor <x-required-mark />
                                 </label>
 
                                 <input type="number"
@@ -776,11 +783,13 @@
 
                                     <input type="number"
                                         id="add_acquisition_cost"
+                                        max="{{ config('limits.money') }}"
+                                        inputmode="decimal"
                                         name="acquisition_cost"
                                         step="0.01"
                                         min="0"
                                         value="{{ old('acquisition_cost') }}"
-                                        placeholder="Optional"
+                                        placeholder="e.g. 350.00"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
                                     @error('acquisition_cost')
@@ -798,11 +807,13 @@
 
                                     <input type="number"
                                         id="add_retail_price"
+                                        max="{{ config('limits.money') }}"
+                                        inputmode="decimal"
                                         name="retail_price"
                                         step="0.01"
                                         min="0"
                                         value="{{ old('retail_price') }}"
-                                        placeholder="Optional"
+                                        placeholder="e.g. 450.00"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
                                     @error('retail_price')
@@ -819,7 +830,7 @@
                                 <div>
                                     <label for="add_opening_stock"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Opening Stock
+                                        Opening Stock <x-required-mark />
                                     </label>
 
                                     <input type="number"
@@ -845,7 +856,7 @@
                                 <div>
                                     <label for="add_reorder_level"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Threshold Level
+                                        Threshold Level <x-required-mark />
                                     </label>
 
                                     <input type="number"
@@ -996,6 +1007,8 @@
 
                         <div class="px-4 py-5 space-y-4 sm:px-6">
 
+                            <x-required-note />
+
                             <div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/40">
                                 <p class="text-sm font-semibold text-gray-900 dark:text-white"
                                     x-text="receiveProduct.name">
@@ -1014,14 +1027,15 @@
                             <div>
                                 <label for="receive_batch_number"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Batch Number
+                                    Batch Number <x-required-mark />
                                 </label>
 
                                 <input type="text"
                                     id="receive_batch_number"
+                                    maxlength="100"
                                     name="batch_number"
                                     value="{{ old('batch_number') }}"
-                                    placeholder="Example: LAV-2026-001"
+                                    placeholder="e.g. LAV-2026-001"
                                     required
                                     class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
@@ -1035,7 +1049,7 @@
                             <div>
                                 <label for="receive_quantity"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Quantity Received
+                                    Quantity Received <x-required-mark />
                                 </label>
 
                                 <div class="flex">
@@ -1076,11 +1090,13 @@
 
                                 <input type="number"
                                     id="receive_unit_cost"
+                                    max="{{ config('limits.money') }}"
+                                    inputmode="decimal"
                                     name="unit_cost"
                                     step="0.01"
                                     min="0"
                                     value="{{ old('unit_cost') }}"
-                                    placeholder="Optional"
+                                    placeholder="e.g. 350.00"
                                     class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
 
                                 @error('unit_cost', 'receiveStock')
@@ -1133,9 +1149,10 @@
                                 </label>
 
                                 <textarea id="receive_notes"
+                                    maxlength="1000"
                                     name="notes"
                                     rows="3"
-                                    placeholder="Example: Delivered by main supplier"
+                                    placeholder="e.g. Delivered by main supplier"
                                     class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">{{ old('notes') }}</textarea>
                             </div>
 
@@ -1215,6 +1232,8 @@
                             @csrf
                             @method('PUT')
 
+                            <x-required-note />
+
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
                                 <div>
@@ -1224,9 +1243,10 @@
                                     </label>
 
                                     <input id="edit_sku"
+                                        maxlength="255"
                                         name="sku"
                                         x-model="edit.sku"
-                                        placeholder="Optional"
+                                        placeholder="e.g. OIL-LAV-500"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 </div>
                             </div>
@@ -1234,10 +1254,10 @@
                             <div>
                                 <label for="edit_product_name"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Product Name
+                                    Product Name <x-required-mark />
                                 </label>
 
-                                <input id="edit_product_name"
+                                <input id="edit_product_name" maxlength="255" placeholder="e.g. Lavender Massage Oil"
                                     name="name"
                                     x-model="edit.name"
                                     required
@@ -1253,9 +1273,10 @@
                                     </label>
 
                                     <input id="edit_product_brand"
+                                        maxlength="255"
                                         name="brand"
                                         x-model="edit.brand"
-                                        placeholder="Optional"
+                                        placeholder="e.g. Human Nature"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 </div>
 
@@ -1266,9 +1287,10 @@
                                     </label>
 
                                     <input id="edit_category"
+                                        maxlength="255"
                                         name="category"
                                         x-model="edit.category"
-                                        placeholder="Optional"
+                                        placeholder="e.g. Massage Oils"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 </div>
 
@@ -1281,17 +1303,18 @@
                                 </label>
 
                                 <textarea id="edit_description"
+                                    maxlength="{{ config('limits.long_text') }}"
                                     name="description"
                                     rows="3"
                                     x-model="edit.description"
-                                    placeholder="Optional"
+                                    placeholder="e.g. 500 ml bottle, used for full-body massage"
                                     class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
                             </div>
 
                             <div>
                                 <label for="edit_inventory_type"
                                     class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Inventory Type
+                                    Inventory Type <x-required-mark />
                                 </label>
 
                                 <select id="edit_inventory_type"
@@ -1370,11 +1393,13 @@
 
                                     <input type="number"
                                         id="edit_acquisition_cost"
+                                        max="{{ config('limits.money') }}"
+                                        inputmode="decimal"
                                         name="acquisition_cost"
                                         step="0.01"
                                         min="0"
                                         x-model="edit.acquisition_cost"
-                                        placeholder="Optional"
+                                        placeholder="e.g. 350.00"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 </div>
 
@@ -1386,11 +1411,13 @@
 
                                     <input type="number"
                                         id="edit_retail_price"
+                                        max="{{ config('limits.money') }}"
+                                        inputmode="decimal"
                                         name="retail_price"
                                         step="0.01"
                                         min="0"
                                         x-model="edit.retail_price"
-                                        placeholder="Optional"
+                                        placeholder="e.g. 450.00"
                                         class="w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 </div>
 
@@ -1401,7 +1428,7 @@
                                 <div>
                                     <label for="edit_reorder_level"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Reorder Level
+                                        Reorder Level <x-required-mark />
                                     </label>
 
                                     <input type="number"
@@ -1478,6 +1505,8 @@
 
                                 @csrf
 
+                                <x-required-note />
+
                                 <input type="hidden"
                                     name="product_id"
                                     :value="edit.id">
@@ -1503,7 +1532,7 @@
                                     <div>
                                         <label for="adjustment_type"
                                             class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Adjustment Type
+                                            Adjustment Type <x-required-mark />
                                         </label>
 
                                         <select id="adjustment_type"
@@ -1525,7 +1554,7 @@
                                     <div>
                                         <label for="adjustment_quantity"
                                             class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Quantity
+                                            Quantity <x-required-mark />
                                         </label>
 
                                         <div class="flex">
@@ -1562,10 +1591,11 @@
                                 <div>
                                     <label for="adjustment_reason"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Reason
+                                        Reason <x-required-mark />
                                     </label>
 
                                     <textarea id="adjustment_reason"
+                                        maxlength="1000"
                                         name="reason"
                                         rows="3"
                                         required

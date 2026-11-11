@@ -623,7 +623,7 @@
 
                             <div>
                                 <label for="nr_year" class="{{ $labelClass }}">
-                                    Year
+                                    Year <x-required-mark />
                                 </label>
 
                                 @php $regYear = (int) ($reopen ? old('year', $suggested['year']) : $suggested['year']); @endphp

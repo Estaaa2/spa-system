@@ -37,8 +37,8 @@ class PackagesImport implements OnEachRow, WithHeadingRow, WithValidation
         return [
             '*.name' => ['required', 'string', 'max:255'],
             '*.total_duration' => ['nullable', 'numeric', 'min:1'],
-            '*.price' => ['required', 'numeric', 'min:0'],
-            '*.description' => ['nullable', 'string'],
+            '*.price' => ['required', 'numeric', 'min:' . config('limits.package_price.min'), 'max:' . config('limits.package_price.max')],
+            '*.description' => ['nullable', 'string', 'max:' . config('limits.long_text')],
         ];
     }
 }

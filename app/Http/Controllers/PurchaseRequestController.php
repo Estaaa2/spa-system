@@ -77,6 +77,8 @@ class PurchaseRequestController extends Controller
                 'required',
                 'numeric',
                 'gt:0',
+                'decimal:0,3',
+                'max:' . config('limits.quantity'),
             ],
         ]);
 

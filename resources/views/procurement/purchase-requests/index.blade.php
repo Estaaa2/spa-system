@@ -440,6 +440,8 @@
                 </div>
 
                 <div class="p-5 space-y-5 sm:p-6">
+                    <x-required-note />
+
                     <div>
                         <div class="p-4 mb-4 border border-blue-200 bg-blue-50 rounded-xl dark:border-blue-800 dark:bg-blue-900/10">
                             <div class="flex items-start gap-3">
@@ -523,7 +525,7 @@
                                                 :for="'purchase-product-' + item.key"
                                                 class="text-sm font-medium text-gray-700 dark:text-gray-200"
                                             >
-                                                Product
+                                                Product <x-required-mark />
                                             </label>
 
                                             <select
@@ -553,7 +555,7 @@
                                                 :for="'purchase-quantity-' + item.key"
                                                 class="text-sm font-medium text-gray-700 dark:text-gray-200"
                                             >
-                                                Quantity
+                                                Quantity <x-required-mark />
                                             </label>
 
                                             <input
@@ -562,7 +564,10 @@
                                                 :name="'items[' + index + '][quantity]'"
                                                 x-model="item.quantity"
                                                 min="0.001"
+                                                max="{{ config('limits.quantity') }}"
                                                 step="0.001"
+                                                inputmode="decimal"
+                                                placeholder="e.g. 10"
                                                 required
                                                 class="{{ $inputBase }}"
                                             >
@@ -1009,7 +1014,7 @@
                             for="reject-review-reason"
                             class="text-sm font-medium text-gray-700 dark:text-gray-200"
                         >
-                            Rejection Reason
+                            Rejection Reason <x-required-mark />
                         </label>
 
                         <textarea

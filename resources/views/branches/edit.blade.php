@@ -230,7 +230,7 @@
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
                         <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Branch Name <span class="text-red-500">*</span>
+                            Branch Name <x-required-mark />
                         </label>
                         <input type="text" name="name" id="name"
                                value="{{ old('name', $branch->name) }}"

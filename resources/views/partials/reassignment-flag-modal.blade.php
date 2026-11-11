@@ -2,74 +2,76 @@
 {{-- overflow-y-auto: the panel grows when "Also request leave" is ticked; on a
      short laptop screen the buttons used to fall below the fold with no way to
      scroll to them (body scroll is locked while the modal is open). --}}
-<div id="reassignFlagModal" class="fixed inset-0 z-50 hidden p-4 overflow-y-auto overscroll-contain bg-black/50"
+<div id="reassignFlagModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50"
      role="dialog" aria-modal="true" aria-labelledby="reassignFlagTitle">
-    <div class="w-full max-w-lg mx-auto my-8 bg-white shadow-xl sm:my-16 rounded-2xl dark:bg-gray-800">
-        <div class="flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div>
-                <h2 id="reassignFlagTitle" class="text-xl font-semibold text-gray-900 dark:text-white">Can't Make This Appointment?</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">The front desk will be notified immediately and will assign a replacement.</p>
-            </div>
-            <button type="button" onclick="closeReassignFlagModal()" aria-label="Close"
-                    class="inline-flex items-center justify-center w-11 h-11 text-gray-400 shrink-0 rounded-xl hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200">
-                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            </button>
-        </div>
-
-        <form id="reassignFlagForm" class="px-6 py-6 space-y-4">
-            <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
-                <p class="text-sm font-semibold text-gray-900 dark:text-white" id="reassign_flag_customer"></p>
-                <p class="text-sm text-gray-500 dark:text-gray-400" id="reassign_flag_treatment"></p>
-                <p class="mt-1 text-xs text-gray-400" id="reassign_flag_datetime"></p>
-            </div>
-
-            <div>
-                <label for="reassign_flag_reason" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Reason <span class="text-red-600 dark:text-red-400" aria-hidden="true">*</span>
-                </label>
-                <textarea id="reassign_flag_reason" name="reason" rows="3" minlength="10" maxlength="1000" required
-                    placeholder="e.g. Family emergency, need to leave early today..."
-                    class="w-full px-3 py-2 text-sm border border-gray-300 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
-                <p class="mt-1 text-xs text-gray-400">Minimum 10 characters. This is shown to whoever approves the reassignment.</p>
-            </div>
-
-            {{-- Only for staff who may file leave (same rule as the leave route; Phase 6.1). --}}
-            @if (auth()->user()?->hasBranchPermission('create leave requests'))
-            <div class="p-3 border border-gray-300 border-dashed rounded-xl dark:border-gray-600">
-                <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" id="reassign_also_leave" onchange="toggleReassignLeaveType()"
-                        class="mt-0.5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355]">
-                    <span class="text-sm text-gray-700 dark:text-gray-300">
-                        Also request leave for this day — this submits a leave request using the same reason above, so your attendance reflects it too.
-                    </span>
-                </label>
-                <div id="reassign_leave_type_wrapper" class="hidden mt-3">
-                    <label for="reassign_leave_type" class="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">Leave Type</label>
-                    <select id="reassign_leave_type" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                        <option value="sick">Sick</option>
-                        <option value="emergency">Emergency</option>
-                        <option value="personal">Personal</option>
-                        <option value="other">Other</option>
-                    </select>
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center sm:p-6">
+        <div class="w-full max-w-lg bg-white border border-gray-200 shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                    <h2 id="reassignFlagTitle" class="text-xl font-semibold text-gray-900 dark:text-white">Can't Make This Appointment?</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">The front desk will be notified immediately and will assign a replacement.</p>
                 </div>
-            </div>
-            @endif
-
-            <div id="reassignFlagError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200 dark:bg-red-900/20 dark:ring-red-800">
-                <span id="reassignFlagErrorText"></span>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeReassignFlagModal()"
-                        class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-                    Cancel
-                </button>
-                <button type="submit" id="reassignFlagSubmitBtn"
-                        class="rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348] disabled:opacity-50 disabled:cursor-not-allowed">
-                    Submit Request
+                <button type="button" onclick="closeReassignFlagModal()" aria-label="Close"
+                        class="inline-flex items-center justify-center w-11 h-11 text-gray-400 shrink-0 rounded-xl hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
             </div>
-        </form>
+
+            <form id="reassignFlagForm" class="px-6 py-6 space-y-4">
+                <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white" id="reassign_flag_customer"></p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" id="reassign_flag_treatment"></p>
+                    <p class="mt-1 text-xs text-gray-400" id="reassign_flag_datetime"></p>
+                </div>
+
+                <div>
+                    <label for="reassign_flag_reason" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Reason <x-required-mark />
+                    </label>
+                    <textarea id="reassign_flag_reason" name="reason" rows="3" minlength="10" maxlength="1000" required
+                        placeholder="e.g. Family emergency, need to leave early today..."
+                        class="w-full px-3 py-2 text-sm border border-gray-300 resize-none rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
+                    <p class="mt-1 text-xs text-gray-400">Minimum 10 characters. This is shown to whoever approves the reassignment.</p>
+                </div>
+
+                {{-- Only for staff who may file leave (same rule as the leave route; Phase 6.1). --}}
+                @if (auth()->user()?->hasBranchPermission('create leave requests'))
+                <div class="p-3 border border-gray-300 border-dashed rounded-xl dark:border-gray-600">
+                    <label class="flex items-start gap-2 cursor-pointer">
+                        <input type="checkbox" id="reassign_also_leave" onchange="toggleReassignLeaveType()"
+                            class="mt-0.5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355]">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">
+                            Also request leave for this day — this submits a leave request using the same reason above, so your attendance reflects it too.
+                        </span>
+                    </label>
+                    <div id="reassign_leave_type_wrapper" class="hidden mt-3">
+                        <label for="reassign_leave_type" class="block mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">Leave Type</label>
+                        <select id="reassign_leave_type" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <option value="sick">Sick</option>
+                            <option value="emergency">Emergency</option>
+                            <option value="personal">Personal</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                @endif
+
+                <div id="reassignFlagError" class="hidden p-3 text-sm text-red-600 rounded-xl bg-red-50 ring-1 ring-red-200 dark:bg-red-900/20 dark:ring-red-800">
+                    <span id="reassignFlagErrorText"></span>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeReassignFlagModal()"
+                            class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" id="reassignFlagSubmitBtn"
+                            class="rounded-xl bg-[#8B7355] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A6348] disabled:opacity-50 disabled:cursor-not-allowed">
+                        Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

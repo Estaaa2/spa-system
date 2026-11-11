@@ -255,7 +255,7 @@
                             @endif
                         </fieldset>
                         <div>
-                            <label for="payroll_pay_day_offset" class="{{ $labelClass }}">Pay day is this many days after each cutoff ends</label>
+                            <label for="payroll_pay_day_offset" class="{{ $labelClass }}">Pay day is this many days after each cutoff ends <x-required-mark /></label>
                             <input type="number" id="payroll_pay_day_offset" name="payroll_pay_day_offset" min="0" max="{{ $maxInterval }}" required
                                    value="{{ old('payroll_pay_day_offset', $spa->payroll_pay_day_offset) }}" class="{{ $inputClass }}" aria-describedby="payDayPreview">
                             <p id="payDayPreview" class="mt-1 text-xs text-gray-500 dark:text-gray-400" aria-live="polite"></p>
@@ -546,13 +546,13 @@
                             </select>
                         </div>
                         <div>
-                            <label for="rc_value" class="{{ $labelClass }}"><span data-value-label>Value</span></label>
+                            <label for="rc_value" class="{{ $labelClass }}"><span data-value-label>Value</span> <x-required-mark /></label>
                             <input type="text" inputmode="decimal" id="rc_value" name="value" required value="{{ $oldModal ? '' : old('value') }}" class="{{ $inputClass }}" placeholder="e.g. 10">
                             @if($eb->has('value'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('value') }}</p>@endif
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label for="rc_from" class="{{ $labelClass }}">From</label>
+                                <label for="rc_from" class="{{ $labelClass }}">From <x-required-mark /></label>
                                 <input type="date" id="rc_from" name="effective_from" required value="{{ $oldModal ? $today : old('effective_from', $today) }}" class="{{ $inputClass }}">
                             </div>
                             <div>
@@ -707,19 +707,19 @@
                 </div>
                 <div class="px-4 py-6 space-y-4 sm:px-6">
                     <div>
-                        <label for="wage_amount" class="{{ $labelClass }}">Minimum daily wage (₱)</label>
+                        <label for="wage_amount" class="{{ $labelClass }}">Minimum daily wage (₱) <x-required-mark /></label>
                         <input type="text" inputmode="decimal" id="wage_amount" name="min_daily_wage" required class="{{ $inputClass }}"
                                value="{{ $oldModal === 'wageModal' ? old('min_daily_wage') : '' }}">
                         @if($eb->has('min_daily_wage'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('min_daily_wage') }}</p>@endif
                     </div>
                     <div>
-                        <label for="wage_ref" class="{{ $labelClass }}">Wage order reference</label>
+                        <label for="wage_ref" class="{{ $labelClass }}">Wage order reference <x-required-mark /></label>
                         <input type="text" id="wage_ref" name="wage_order_ref" required maxlength="255" class="{{ $inputClass }}" placeholder="e.g. Wage Order No. RB IVA-xx"
                                value="{{ $oldModal === 'wageModal' ? old('wage_order_ref') : '' }}">
                         @if($eb->has('wage_order_ref'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('wage_order_ref') }}</p>@endif
                     </div>
                     <div>
-                        <label for="wage_from" class="{{ $labelClass }}">Effective from</label>
+                        <label for="wage_from" class="{{ $labelClass }}">Effective from <x-required-mark /></label>
                         <input type="date" id="wage_from" name="min_wage_effective_from" required class="{{ $inputClass }}"
                                value="{{ $oldModal === 'wageModal' ? old('min_wage_effective_from') : '' }}">
                         @if($eb->has('min_wage_effective_from'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('min_wage_effective_from') }}</p>@endif
@@ -789,11 +789,11 @@
                         </select>
                     </div>
                     <div>
-                        <label for="re_value" class="{{ $labelClass }}"><span data-value-label>Value</span></label>
+                        <label for="re_value" class="{{ $labelClass }}"><span data-value-label>Value</span> <x-required-mark /></label>
                         <input type="text" inputmode="decimal" id="re_value" name="value" required class="{{ $inputClass }}" value="{{ $isOld ? old('value') : '' }}">
                     </div>
                     <div>
-                        <label for="re_from" class="{{ $labelClass }}">From</label>
+                        <label for="re_from" class="{{ $labelClass }}">From <x-required-mark /></label>
                         <input type="date" id="re_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
                     </div>
                     <div>
@@ -847,11 +847,11 @@
                         </select>
                     </div>
                     <div>
-                        <label for="rch_value" class="{{ $labelClass }}"><span data-value-label>Value</span></label>
+                        <label for="rch_value" class="{{ $labelClass }}"><span data-value-label>Value</span> <x-required-mark /></label>
                         <input type="text" inputmode="decimal" id="rch_value" name="value" required class="{{ $inputClass }}" value="{{ $isOld ? old('value') : '' }}">
                     </div>
                     <div>
-                        <label for="rch_from" class="{{ $labelClass }}">New rate starts</label>
+                        <label for="rch_from" class="{{ $labelClass }}">New rate starts <x-required-mark /></label>
                         <input type="date" id="rch_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
                     </div>
                     <div>
@@ -893,7 +893,7 @@
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400"><span id="rend_label"></span>. Bookings after the end date fall through to the next rule in the order.</p>
                     </div>
                     <div>
-                        <label for="rend_to" class="{{ $labelClass }}">Last day this rule applies</label>
+                        <label for="rend_to" class="{{ $labelClass }}">Last day this rule applies <x-required-mark /></label>
                         <input type="date" id="rend_to" name="effective_to" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
                         <p id="rend_lock" class="hidden mt-1 text-xs text-amber-700 dark:text-amber-300"></p>
                         @if($eb->any())<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first() }}</p>@endif

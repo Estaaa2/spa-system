@@ -77,11 +77,15 @@ class VendorBillController extends Controller
                 'required',
                 'numeric',
                 'gt:0',
+                'decimal:0,3',
+                'max:' . config('limits.quantity'),
             ],
             'items.*.unit_cost' => [
                 'required',
                 'numeric',
                 'gt:0',
+                'decimal:0,2',
+                'max:' . config('limits.money'),
             ],
         ]);
 
@@ -257,11 +261,15 @@ class VendorBillController extends Controller
                 'required',
                 'numeric',
                 'gt:0',
+                'decimal:0,3',
+                'max:' . config('limits.quantity'),
             ],
             'items.*.unit_cost' => [
                 'required',
                 'numeric',
                 'gt:0',
+                'decimal:0,2',
+                'max:' . config('limits.money'),
             ],
         ]);
 
