@@ -101,4 +101,16 @@ class Staff extends Model
     {
         return $this->belongsTo(Applicant::class);
     }
+
+    /** Weekly work patterns, newest first (staff scheduling Phase 2). */
+    public function workSchedules(): HasMany
+    {
+        return $this->hasMany(StaffWorkSchedule::class)->orderByDesc('effective_from');
+    }
+
+    /** One-off schedule changes for single dates. */
+    public function scheduleOverrides(): HasMany
+    {
+        return $this->hasMany(StaffScheduleOverride::class)->orderBy('date');
+    }
 }

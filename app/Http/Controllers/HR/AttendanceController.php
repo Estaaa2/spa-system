@@ -68,6 +68,8 @@ class AttendanceController extends Controller
         $myStaff   = $this->myStaffRecord();
         $myToday   = null;
         $myHistory = collect();
+        $myWeek    = [];   // staff scheduling Phase 2: my next 7 days (Q7 A)
+        $myRestDays = null;
 
         if ($myStaff) {
             $myToday = StaffAttendance::where('staff_id', $myStaff->id)
@@ -78,6 +80,10 @@ class AttendanceController extends Controller
                 ->where('date', '>=', now()->subDays(13)->toDateString())
                 ->orderByDesc('date')
                 ->get();
+
+            $resolver = app(\App\Services\Staff\WorkScheduleResolver::class);
+            $myWeek = $resolver->forRange($myStaff, today()->toDateString(), today()->addDays(6)->toDateString());
+            $myRestDays = $resolver->scheduleOn($myStaff, today()->toDateString())?->restDays();
         }
 
         // ── My leave request history ────────────────────────────────────
@@ -88,7 +94,7 @@ class AttendanceController extends Controller
 
         return view('hr.attendance.index', compact(
             'staffList', 'date', 'canViewRoster', 'canEditRoster', 'canApproveLeave', 'canRequestLeave',
-            'myStaff', 'myToday', 'myHistory', 'myLeaveRequests'
+            'myStaff', 'myToday', 'myHistory', 'myLeaveRequests', 'myWeek', 'myRestDays'
         ));
     }
 

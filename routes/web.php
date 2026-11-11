@@ -61,6 +61,7 @@ use App\Http\Controllers\LockedSpaController;
 use App\Http\Controllers\Owner\TrialController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\StaffScheduleController;
 use App\Http\Controllers\TherapistPerformanceController;
 use App\Http\Controllers\TreatmentController;
 use App\Http\Controllers\TreatmentRecipeController;
@@ -488,6 +489,14 @@ Route::middleware([
     Route::middleware('branch.permission:view staff')->group(function () {
         Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
         Route::get('/staff/{staff}', [StaffController::class, 'show'])->name('staff.show');
+        // Work schedule modal (staff scheduling Phase 2). JSON.
+        Route::get('/staff/{staff}/schedule', [StaffScheduleController::class, 'show'])->name('staff.schedule.show');
+    });
+
+    Route::middleware('branch.permission:edit staff schedules')->group(function () {
+        Route::put('/staff/{staff}/schedule', [StaffScheduleController::class, 'update'])->name('staff.schedule.update');
+        Route::post('/staff/{staff}/schedule/overrides', [StaffScheduleController::class, 'storeOverride'])->name('staff.schedule.overrides.store');
+        Route::delete('/staff/{staff}/schedule/overrides/{override}', [StaffScheduleController::class, 'destroyOverride'])->name('staff.schedule.overrides.destroy');
     });
 
     Route::middleware('branch.permission:create staff')->group(function () {

@@ -16,6 +16,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Request-lifetime permission memo (sidebar & RBAC rework Phase 2).
         $this->app->singleton(\App\Services\Permissions\BranchPermissionCache::class);
+
+        // Request/job-lifetime schedule memo (staff scheduling Phase 2).
+        $this->app->scoped(\App\Services\Staff\WorkScheduleResolver::class);
     }
 
     /**
@@ -23,6 +26,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Keep the schedule memo fresh: per request, and whenever a schedule input changes.
+        $flushSchedules = function () {
+            if ($this->app->resolved(\App\Services\Staff\WorkScheduleResolver::class)) {
+                $this->app->make(\App\Services\Staff\WorkScheduleResolver::class)->flush();
+            }
+        };
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Foundation\Http\Events\RequestHandled::class, $flushSchedules);
+        foreach ([
+            \App\Models\StaffWorkSchedule::class, \App\Models\StaffWorkScheduleDay::class,
+            \App\Models\StaffScheduleOverride::class, \App\Models\LeaveRequest::class, \App\Models\OperatingHours::class,
+        ] as $model) {
+            $model::saved($flushSchedules);
+            $model::deleted($flushSchedules);
+        }
+
         // Keep the permission memo fresh: per request, and whenever an override
         // or a branch changes through the model.
         $flushPermissionCache = fn () => $this->app->make(\App\Services\Permissions\BranchPermissionCache::class)->flush();

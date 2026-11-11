@@ -178,9 +178,34 @@ class BookingController extends Controller
                 ->orderBy('start_time')
                 ->get();
 
+            // Staff scheduling Phase 2 (additive, D7): the therapist's shift for each
+            // day of the requested range (capped at 31 days). Empty with no staff record;
+            // a bad week_start/week_end must not break the existing bookings payload.
+            $shifts = [];
+            $staff = \App\Models\Staff::where('user_id', $user->id)->where('employment_status', 'active')->first();
+            if ($staff) {
+                try {
+                    $from = \Illuminate\Support\Carbon::parse($start);
+                    $to = \Illuminate\Support\Carbon::parse($end);
+                    if ($to->lt($from)) {
+                        $to = $from->copy();
+                    }
+                    if ($from->diffInDays($to) > 30) {
+                        $to = $from->copy()->addDays(30);
+                    }
+                    $shifts = array_map(
+                        fn ($d) => $d->toArray(),
+                        app(\App\Services\Staff\WorkScheduleResolver::class)->forRange($staff, $from->toDateString(), $to->toDateString())
+                    );
+                } catch (\Throwable $e) {
+                    $shifts = [];
+                }
+            }
+
             return response()->json([
                 'success'  => true,
                 'bookings' => $bookings->map(fn($b) => $this->formatBooking($b))->values(),
+                'shifts'   => $shifts,
             ]);
         } catch (\Exception $e) {
             \Log::error('therapistSchedule error: ' . $e->getMessage());

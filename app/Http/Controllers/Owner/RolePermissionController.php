@@ -299,6 +299,7 @@ class RolePermissionController extends Controller
             'edit branch general'               => 'Edit General Information',
             'edit branch hours'                 => 'Edit Operating Hours',
             'edit branch profile'               => 'Edit Public Profile',
+            'edit staff schedules'              => 'Edit Work Schedules',
             'view payroll'                      => 'View Payroll',
             'manage payroll setup'              => 'Manage Payroll Setup',
             'prepare payroll runs'              => 'Prepare Pay Runs',
@@ -323,6 +324,7 @@ class RolePermissionController extends Controller
             'view dashboard my today'           => 'Shows the therapist\'s own personal schedule widget with only their assigned appointments.',
             'edit branches'                     => '(Deprecated) Superseded by the granular Edit General Information, Edit Operating Hours, and Edit Public Profile permissions. No longer used for access control.',
             'edit branch general'               => 'Allows this role to edit the branch general information, such as the branch name.',
+            'edit staff schedules'              => 'Set each staff member\'s weekly work days, rest days and shift hours, and add one-off changes (a day off or an extra shift). Only the owner can change the HR Head\'s and Finance Head\'s schedules.',
             'edit branch hours'                 => 'Allows this role to edit only the branch operating hours (opening and closing times and closed days), separately from the branch name and public profile.',
             'edit branch profile'               => 'Allows this role to edit the branch public profile listing — photos, description, amenities, contact details, and whether the branch is listed publicly.',
             'view payroll'                      => 'Open pay runs, payslips, payroll setup and staff pay. HR Head, Finance Head and the owner see every branch; other roles see only their own branch\'s staff.',
@@ -471,6 +473,8 @@ class RolePermissionController extends Controller
             Str::contains($name, ['payroll', 'statutory'])                               => 'payroll',
 
             Str::contains($name, ['appointment', 'booking'])                             => 'appointments',
+            // Staff work schedules belong with Staff Accounts, not the booking Schedule page.
+            Str::contains($name, ['staff schedule'])                                     => 'staff',
             Str::contains($name, ['schedule'])                                           => 'schedule',
             Str::contains($name, ['attendance', 'availability', 'leave'])                => 'attendance_leave',
             Str::contains($name, ['hiring', 'applicant', 'application', 'interview', 'deployment']) => 'hiring',

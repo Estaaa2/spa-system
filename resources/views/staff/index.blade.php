@@ -15,7 +15,10 @@
     $canCreateStaff = $user?->hasBranchPermission('create staff') ?? false;
     $canEditStaff = $user?->hasBranchPermission('edit staff') ?? false;
     $canDeleteStaff = $user?->hasBranchPermission('delete staff') ?? false;
-    $showActions = $canEditStaff || $canDeleteStaff;
+    // Work schedule (staff scheduling Phase 2): everyone on this page (view staff)
+    // can open it read-only, so the Actions column always shows.
+    $canEditSchedules = $user?->hasBranchPermission('edit staff schedules') ?? false;
+    $showActions = true;
 
     $staffCount = $activeStaffCount
     ?? $staff->where('employment_status', 'active')->count();
@@ -77,6 +80,16 @@
                    . 'dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
         'remove'  => $btnBase . ' bg-red-700 text-white hover:bg-red-800',
         'upgrade' => $btnBase . ' text-white bg-gradient-to-r from-[#8B7355] to-[#6F5430] hover:opacity-90',
+    ];
+
+    // Work-schedule day status → chip classes (canon palette §6), single source for the
+    // JS-built schedule modal (§5). Keys match App\Services\Staff\ScheduledDay.
+    $scheduleStatusClasses = [
+        'working'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+        'rest_day' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+        'day_off'  => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+        'on_leave' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+        'closed'   => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
     ];
 
     // Shared by the create form and the JS-built edit form.
@@ -516,6 +529,15 @@
                         @if($showActions)
                         <td role="cell" data-label="Actions" class="px-6 py-4 rt-actions">
                             <div class="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onclick='openWorkScheduleModal({{ $member->id }}, @json($shortName))'
+                                    class="{{ $btn['edit'] }}"
+                                    aria-label="Work schedule for {{ $shortName }}"
+                                >
+                                    <i class="text-xs fa-solid fa-calendar-days" aria-hidden="true"></i>
+                                    <span>Schedule</span>
+                                </button>
                                 @if($canEditStaff && ($isOwner || ! in_array($role, $headRoles, true)))
                                 <button
                                     type="button"
@@ -625,6 +647,36 @@
     </div>
 </div>
 @endif
+{{-- Work Schedule Modal (staff scheduling Phase 2). Content is built by JS from
+     GET staff.schedule.show; read-only unless the response says can_edit. --}}
+<div id="workScheduleModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="workScheduleModalTitle"
+             class="w-full max-w-3xl bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                <div>
+                    <h2 id="workScheduleModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Work Schedule</h2>
+                    <p id="workScheduleModalSubtitle" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
+                </div>
+                <button type="button" onclick="closeWorkScheduleModal()" aria-label="Close dialog"
+                        class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="px-4 py-6 space-y-6 sm:px-6">
+                <div id="scheduleFlash" aria-live="polite" class="hidden space-y-2"></div>
+                <div id="scheduleBody" class="space-y-6"></div>
+            </div>
+            <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button type="button" onclick="closeWorkScheduleModal()" class="w-full {{ $btn['neutral'] }} sm:w-auto">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
 // Everything lives in one IIFE. Functions that inline onclick= attributes call
 // are attached to window explicitly at the bottom of each block, so nothing
@@ -652,7 +704,7 @@
     // ════════════════════════════════════════════════════════════════
     // SHARED MODAL BEHAVIOUR (open/close, Escape, focus, backdrop)
     // ════════════════════════════════════════════════════════════════
-    const MODAL_IDS = ['editModal', 'deleteModal'];
+    const MODAL_IDS = ['editModal', 'workScheduleModal', 'deleteModal'];
     const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
     let lastFocused = null;   // element to restore focus to on close
@@ -837,6 +889,372 @@
         });
     }
 @endif
+
+    // ════════════════════════════════════════════════════════════════
+    // WORK SCHEDULE (staff scheduling Phase 2)
+    // Read-only for anyone on this page; editable when the server says can_edit
+    // (edit staff schedules; HR Head / Finance Head rows are owner-only).
+    // ════════════════════════════════════════════════════════════════
+    const SCHEDULE_ROUTES = {
+        show:      @json(route('staff.schedule.show', '__ID__')),
+        update:    @json(route('staff.schedule.update', '__ID__')),
+        ovStore:   @json(route('staff.schedule.overrides.store', '__ID__')),
+        ovDestroy: @json(route('staff.schedule.overrides.destroy', ['__ID__', '__OV__'])),
+    };
+    const SCHEDULE_STATUS = @json($scheduleStatusClasses);
+    const BTN = @json($btn);
+    const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    let scheduleStaffId = null;
+    let scheduleData = null;
+    let scheduleBusy = false;
+
+    function fmtTime(hm) {
+        if (!hm) return '';
+        const [h, m] = hm.split(':').map(Number);
+        const ap = h >= 12 ? 'PM' : 'AM';
+        return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${ap}`;
+    }
+
+    function flash(kind, message, list) {
+        const box = document.getElementById('scheduleFlash');
+        if (!message && !(list && list.length)) { box.innerHTML = ''; box.classList.add('hidden'); return; }
+        box.classList.remove('hidden');
+        const tone = {
+            success: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-300',
+            warning: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300',
+            error:   'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/10 dark:text-red-300',
+        }[kind];
+        const icon = { success: 'fa-circle-check', warning: 'fa-triangle-exclamation', error: 'fa-circle-exclamation' }[kind];
+        box.insertAdjacentHTML('beforeend', `
+            <div class="p-3 text-sm border rounded-xl ${tone}" role="${kind === 'error' ? 'alert' : 'status'}">
+                ${message ? `<p class="font-medium"><i class="fa-solid ${icon} mr-1" aria-hidden="true"></i>${esc(message)}</p>` : ''}
+                ${list && list.length ? `<ul class="mt-1 space-y-1 list-disc list-inside">${list.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+            </div>`);
+    }
+
+    async function scheduleRequest(method, url, body) {
+        const res = await fetch(url, {
+            method,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        let data = {};
+        try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
+        return { ok: res.ok, status: res.status, data };
+    }
+
+    function errorList(data) {
+        return data && data.errors ? Object.values(data.errors).flat() : [];
+    }
+
+    async function openWorkScheduleModal(staffId, name) {
+        scheduleStaffId = staffId;
+        scheduleData = null;
+        document.getElementById('workScheduleModalSubtitle').textContent = name || '';
+        flash(null, null);
+        document.getElementById('scheduleBody').innerHTML = `
+            <p class="py-8 text-sm text-center text-gray-500 dark:text-gray-400">
+                <i class="mr-1 fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Loading schedule…
+            </p>`;
+        openModal('workScheduleModal', 'button[aria-label="Close dialog"]');
+
+        const r = await scheduleRequest('GET', routeFor(SCHEDULE_ROUTES.show, staffId));
+        if (!r.ok) {
+            document.getElementById('scheduleBody').innerHTML = '';
+            flash('error', r.data.message || 'Could not load the schedule. Please try again.');
+            return;
+        }
+        renderSchedule(r.data);
+    }
+    function closeWorkScheduleModal() { closeModal('workScheduleModal'); }
+
+    function chip(status, label) {
+        return `<span class="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${SCHEDULE_STATUS[status] || SCHEDULE_STATUS.closed}">${esc(label)}</span>`;
+    }
+
+    function renderSchedule(d) {
+        scheduleData = d;
+        const st = d.staff;
+        document.getElementById('workScheduleModalSubtitle').textContent =
+            [st.name, st.branch_name].filter(Boolean).join(' · ');
+
+        const editingDays = d.editing ? d.editing.days : defaultDays(d);
+        const effectiveFrom = d.editing ? d.editing.effective_from : d.today;
+
+        document.getElementById('scheduleBody').innerHTML = `
+            ${summaryHtml(d)}
+            ${weekHtml(d)}
+            ${d.can_edit ? patternFormHtml(d, editingDays, effectiveFrom) : patternReadHtml(d, editingDays)}
+            ${overridesHtml(d)}
+        `;
+        if (d.can_edit) wireForms(d);
+    }
+
+    // No schedule yet: start the editor from the pay-profile rest days, if any.
+    function defaultDays(d) {
+        const rest = d.payroll_rest_days || [];
+        const out = {};
+        WEEKDAYS.forEach(w => { out[w] = { mode: rest.includes(w) ? 'rest' : 'branch', start: null, end: null }; });
+        return out;
+    }
+
+    function summaryHtml(d) {
+        const first = esc(d.staff.first_name);
+        let html;
+        if (!d.has_schedule) {
+            html = `<div class="p-3 text-sm border rounded-xl border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/10 dark:text-blue-300">
+                <i class="mr-1 fa-solid fa-circle-info" aria-hidden="true"></i>
+                No work schedule yet. ${first} works the branch's opening hours on every open day, with no rest day, until one is set.
+            </div>`;
+        } else {
+            const cur = d.current
+                ? `In effect since <span class="font-medium text-gray-900 dark:text-white">${esc(d.current.effective_from_label)}</span> · Rest days: <span class="font-medium text-gray-900 dark:text-white">${esc(d.current.rest_days.join(', ') || 'none')}</span>`
+                : 'No pattern in effect today (branch hours apply).';
+            const up = d.upcoming.map(u => `<li>From <span class="font-medium text-gray-900 dark:text-white">${esc(u.effective_from_label)}</span>: rest days ${esc(u.rest_days.join(', ') || 'none')}</li>`).join('');
+            html = `<div class="text-sm text-gray-600 dark:text-gray-300">
+                <p>${cur}</p>
+                ${up ? `<ul class="mt-1 space-y-0.5">${up}</ul>` : ''}
+            </div>`;
+        }
+        if (d.staff.is_head && !d.can_edit) {
+            html += `<p class="text-xs text-gray-500 dark:text-gray-400"><i class="mr-1 fa-solid fa-lock" aria-hidden="true"></i>Only the owner can change the HR Head's and Finance Head's schedules.</p>`;
+        }
+        return `<section class="space-y-2">${html}</section>`;
+    }
+
+    function weekHtml(d) {
+        const tiles = d.week.map(day => `
+            <li class="p-2 border border-gray-200 rounded-xl dark:border-gray-700">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">${esc(day.date_label)}</p>
+                <p class="mt-1">${chip(day.status, day.status === 'working' ? 'Working' : day.label)}</p>
+                ${day.status === 'working' ? `<p class="mt-1 text-xs text-gray-700 dark:text-gray-200">${esc(day.label)}</p>` : ''}
+                ${day.source === 'override' ? `<p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">One-off change</p>` : ''}
+            </li>`).join('');
+        return `<section>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Next 14 days</h3>
+            <ul class="grid grid-cols-2 gap-2 mt-3 sm:grid-cols-4 lg:grid-cols-7">${tiles}</ul>
+        </section>`;
+    }
+
+    function patternReadHtml(d, days) {
+        const rows = WEEKDAYS.map(w => {
+            const day = days[w], bh = d.branch_hours[w];
+            const text = day.mode === 'rest' ? 'Rest day'
+                : day.mode === 'custom' ? `${fmtTime(day.start)} – ${fmtTime(day.end)}`
+                : `Branch hours (${bh.label})`;
+            return `<li class="flex justify-between gap-3 py-2 text-sm"><span class="font-medium text-gray-900 dark:text-white">${w}</span><span class="text-gray-600 dark:text-gray-300">${esc(text)}</span></li>`;
+        }).join('');
+        return `<section>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Weekly pattern</h3>
+            <ul class="mt-2 divide-y divide-gray-200 dark:divide-gray-700">${rows}</ul>
+        </section>`;
+    }
+
+    function patternFormHtml(d, days, effectiveFrom) {
+        const rows = WEEKDAYS.map(w => {
+            const day = days[w], bh = d.branch_hours[w];
+            const opt = (v, l) => `<option value="${v}"${day.mode === v ? ' selected' : ''}>${l}</option>`;
+            return `
+            <div class="grid items-center grid-cols-1 gap-2 py-3 sm:grid-cols-[7rem_11rem_1fr]" data-day="${w}">
+                <label for="sched-mode-${w}" class="text-sm font-medium text-gray-900 dark:text-white">${w}</label>
+                <select id="sched-mode-${w}" name="mode" class="${esc(INPUT_CLASS)}">
+                    ${opt('branch', 'Branch hours')}${opt('custom', 'Custom hours')}${opt('rest', 'Rest day')}
+                </select>
+                <div>
+                    <div class="flex items-center gap-2 sched-times${day.mode === 'custom' ? '' : ' hidden'}">
+                        <input type="time" name="start" aria-label="${w} start time" value="${esc(day.start || bh.open || '')}" class="${esc(INPUT_CLASS)}">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">to</span>
+                        <input type="time" name="end" aria-label="${w} end time" value="${esc(day.end || bh.close || '')}" class="${esc(INPUT_CLASS)}">
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 sched-hint">${bh.closed ? '<i class="mr-1 fa-solid fa-store-slash" aria-hidden="true"></i>Branch closed' : 'Branch: ' + esc(bh.label)}</p>
+                </div>
+            </div>`;
+        }).join('');
+
+        return `<section>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Weekly pattern</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">"Branch hours" follows the branch if its hours change. Custom hours may start before opening or end after closing.</p>
+            <form id="schedulePatternForm" class="mt-2" novalidate>
+                <div class="divide-y divide-gray-200 dark:divide-gray-700">${rows}</div>
+                <div id="schedulePatternNotes" class="mt-3 space-y-2" aria-live="polite"></div>
+                <div class="flex flex-col gap-3 mt-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <label for="schedEffectiveFrom" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Applies from <x-required-mark /></label>
+                        <input type="date" id="schedEffectiveFrom" name="effective_from" required
+                               min="${esc(d.today)}" max="${esc(d.max_date)}" value="${esc(effectiveFrom)}" class="${esc(INPUT_CLASS)}">
+                    </div>
+                    <button type="submit" class="w-full ${esc(BTN.primary)} sm:w-auto">
+                        <i class="text-xs fa-solid fa-floppy-disk" aria-hidden="true"></i><span>Save Weekly Pattern</span>
+                    </button>
+                </div>
+            </form>
+        </section>`;
+    }
+
+    function overridesHtml(d) {
+        const items = d.overrides.map(o => `
+            <li class="flex items-center justify-between gap-3 py-2">
+                <div class="text-sm">
+                    <p class="font-medium text-gray-900 dark:text-white">${esc(o.date_label)}
+                        <span class="ml-1">${chip(o.type === 'day_off' ? 'day_off' : 'working', o.label)}</span></p>
+                    ${o.reason ? `<p class="text-xs text-gray-500 dark:text-gray-400">${esc(o.reason)}</p>` : ''}
+                </div>
+                ${d.can_edit ? `<button type="button" data-remove-override="${o.id}" class="${esc(BTN.neutral)}" aria-label="Remove the change on ${esc(o.date_label)}">
+                    <i class="text-xs fa-solid fa-trash" aria-hidden="true"></i><span>Remove</span></button>` : ''}
+            </li>`).join('');
+
+        const list = items
+            ? `<ul class="mt-2 divide-y divide-gray-200 dark:divide-gray-700">${items}</ul>`
+            : `<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">No upcoming one-off changes.</p>`;
+
+        const form = d.can_edit ? `
+            <form id="scheduleOverrideForm" class="grid grid-cols-1 gap-3 p-3 mt-3 border border-gray-200 rounded-xl sm:grid-cols-2 dark:border-gray-700" novalidate>
+                <div>
+                    <label for="ovDate" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Date <x-required-mark /></label>
+                    <input type="date" id="ovDate" name="date" required min="${esc(d.today)}" max="${esc(d.max_date)}" class="${esc(INPUT_CLASS)}">
+                </div>
+                <div>
+                    <label for="ovType" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Change <x-required-mark /></label>
+                    <select id="ovType" name="type" class="${esc(INPUT_CLASS)}">
+                        <option value="day_off">Day off</option>
+                        <option value="shift">Shift (changed or extra hours)</option>
+                    </select>
+                </div>
+                <div id="ovTimes" class="hidden sm:col-span-2">
+                    <div class="flex items-center gap-2">
+                        <input type="time" name="start_time" aria-label="Shift start time" class="${esc(INPUT_CLASS)}">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">to</span>
+                        <input type="time" name="end_time" aria-label="Shift end time" class="${esc(INPUT_CLASS)}">
+                    </div>
+                </div>
+                <div class="sm:col-span-2">
+                    <label for="ovReason" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Reason (optional)</label>
+                    <input type="text" id="ovReason" name="reason" maxlength="150" placeholder="e.g. Swapped rest day with Ana" class="${esc(INPUT_CLASS)}">
+                </div>
+                <div class="sm:col-span-2 sm:flex sm:justify-end">
+                    <button type="submit" class="w-full ${esc(BTN.primary)} sm:w-auto">
+                        <i class="text-xs fa-solid fa-plus" aria-hidden="true"></i><span>Add Change</span>
+                    </button>
+                </div>
+            </form>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">A change applies right away and replaces any other change on the same date. A day off doesn't use up leave.</p>` : '';
+
+        return `<section>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">One-off changes</h3>
+            ${list}${form}
+        </section>`;
+    }
+
+    function readPattern() {
+        const days = {};
+        document.querySelectorAll('#schedulePatternForm [data-day]').forEach(row => {
+            const w = row.dataset.day;
+            const mode = row.querySelector('select[name="mode"]').value;
+            days[w] = { mode };
+            if (mode === 'custom') {
+                days[w].start = row.querySelector('input[name="start"]').value || null;
+                days[w].end = row.querySelector('input[name="end"]').value || null;
+            }
+        });
+        return days;
+    }
+
+    // Live notes while editing (the server repeats them on save): Art. 91 rest day,
+    // and workdays on days the branch is closed.
+    function refreshPatternNotes() {
+        const d = scheduleData, days = readPattern(), notes = [];
+        if (!Object.values(days).some(x => x.mode === 'rest')) {
+            notes.push('No rest day is set. The Labor Code (Art. 91) gives every employee at least 24 consecutive hours of rest after six consecutive workdays. You can still save.');
+        }
+        WEEKDAYS.forEach(w => {
+            if (d.branch_hours[w].closed && days[w].mode !== 'rest') notes.push(`The branch is closed on ${w}s, so that day won't be worked.`);
+        });
+        document.getElementById('schedulePatternNotes').innerHTML = notes.map(n =>
+            `<p class="p-3 text-sm border rounded-xl border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+                <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>${esc(n)}</p>`).join('');
+    }
+
+    function setBusy(form, busy) {
+        scheduleBusy = busy;
+        const b = form.querySelector('button[type="submit"]');
+        if (b) { b.disabled = busy; b.classList.toggle('opacity-70', busy); b.classList.toggle('cursor-not-allowed', busy); }
+    }
+
+    function wireForms(d) {
+        const pf = document.getElementById('schedulePatternForm');
+        pf.querySelectorAll('[data-day] select[name="mode"]').forEach(sel => {
+            sel.addEventListener('change', () => {
+                sel.closest('[data-day]').querySelector('.sched-times').classList.toggle('hidden', sel.value !== 'custom');
+                refreshPatternNotes();
+            });
+        });
+        refreshPatternNotes();
+
+        pf.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (scheduleBusy) return;
+            setBusy(pf, true);
+            flash(null, null);
+            const r = await scheduleRequest('PUT', routeFor(SCHEDULE_ROUTES.update, scheduleStaffId), {
+                effective_from: document.getElementById('schedEffectiveFrom').value,
+                days: readPattern(),
+            });
+            setBusy(pf, false);
+            handleResult(r);
+        });
+
+        const of = document.getElementById('scheduleOverrideForm');
+        const typeSel = document.getElementById('ovType');
+        typeSel.addEventListener('change', () => document.getElementById('ovTimes').classList.toggle('hidden', typeSel.value !== 'shift'));
+        of.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (scheduleBusy) return;
+            setBusy(of, true);
+            flash(null, null);
+            const fd = new FormData(of);
+            const body = { date: fd.get('date'), type: fd.get('type'), reason: fd.get('reason') || null };
+            if (body.type === 'shift') { body.start_time = fd.get('start_time') || null; body.end_time = fd.get('end_time') || null; }
+            const r = await scheduleRequest('POST', routeFor(SCHEDULE_ROUTES.ovStore, scheduleStaffId), body);
+            setBusy(of, false);
+            handleResult(r);
+        });
+
+        document.querySelectorAll('[data-remove-override]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (scheduleBusy) return;
+                scheduleBusy = true;
+                btn.disabled = true;
+                flash(null, null);
+                const url = routeFor(SCHEDULE_ROUTES.ovDestroy, scheduleStaffId).replace('__OV__', encodeURIComponent(btn.dataset.removeOverride));
+                const r = await scheduleRequest('DELETE', url);
+                scheduleBusy = false;
+                handleResult(r);
+            });
+        });
+    }
+
+    function handleResult(r) {
+        if (r.ok) {
+            renderSchedule(r.data.schedule);
+            flash('success', r.data.message);
+            if (r.data.warnings && r.data.warnings.length) flash('warning', 'Please note:', r.data.warnings);
+        } else {
+            const errs = errorList(r.data);
+            flash('error', r.status === 422 && errs.length ? 'Please fix the following:' : (r.data.message || 'Something went wrong. Please try again.'), errs);
+        }
+        document.getElementById('scheduleFlash').scrollIntoView({ block: 'nearest' });
+    }
+
+    window.openWorkScheduleModal  = openWorkScheduleModal;
+    window.closeWorkScheduleModal = closeWorkScheduleModal;
 
 }()); // end page script
 </script>

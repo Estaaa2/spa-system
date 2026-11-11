@@ -137,6 +137,50 @@
                 </div>
             </div>
 
+            {{-- My work schedule (staff scheduling Phase 2, Q7 A). Read-only; set on the Staff page. --}}
+            @php
+                $scheduleChip = [
+                    'working'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+                    'rest_day' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+                    'day_off'  => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+                    'on_leave' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+                    'closed'   => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
+                ];
+            @endphp
+            <div class="{{ $card }}">
+                <div class="{{ $cardHead }}">
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">My Work Schedule</h2>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        @if($myRestDays === null)
+                            No schedule set yet — you work the branch's opening hours on every open day.
+                        @else
+                            Rest days: {{ $myRestDays ? implode(', ', $myRestDays) : 'none' }}.
+                        @endif
+                        Your HR or manager sets this on the Staff page.
+                    </p>
+                </div>
+                <ul class="grid grid-cols-2 gap-2 p-4 sm:grid-cols-4 lg:grid-cols-7 sm:p-5">
+                    @foreach($myWeek as $day)
+                        <li class="p-2 border border-gray-200 rounded-xl dark:border-gray-700">
+                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                {{ \Carbon\Carbon::parse($day->date)->isToday() ? 'Today' : \Carbon\Carbon::parse($day->date)->format('D, M j') }}
+                            </p>
+                            <p class="mt-1">
+                                <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full {{ $scheduleChip[$day->status] ?? $scheduleChip['closed'] }}">
+                                    {{ $day->isWorking() ? 'Working' : $day->label() }}
+                                </span>
+                            </p>
+                            @if($day->isWorking())
+                                <p class="mt-1 text-xs text-gray-700 dark:text-gray-200">{{ $day->label() }}</p>
+                            @endif
+                            @if($day->source === \App\Services\Staff\ScheduledDay::SOURCE_OVERRIDE && $day->note)
+                                <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{{ $day->note }}</p>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+
             {{-- My recent history --}}
             <div class="{{ $card }}">
                 <div class="{{ $cardHead }}">

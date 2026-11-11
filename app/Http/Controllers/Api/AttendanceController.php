@@ -70,10 +70,21 @@ class AttendanceController extends Controller
             ->orderByDesc('date')
             ->get();
 
+        // Staff scheduling Phase 2 (additive, D7): my next 7 days and rest days.
+        $resolver = app(\App\Services\Staff\WorkScheduleResolver::class);
+
         return response()->json([
             'has_staff' => true,
             'today'     => $this->formatRecord($this->todayFor($staff)),
             'history'   => $history->map(fn ($r) => $this->formatRecord($r))->values(),
+            'schedule'  => [
+                'has_schedule' => $resolver->scheduleOn($staff, today()->toDateString()) !== null,
+                'rest_days'    => $resolver->scheduleOn($staff, today()->toDateString())?->restDays() ?? [],
+                'week'         => array_map(
+                    fn ($d) => $d->toArray(),
+                    $resolver->forRange($staff, today()->toDateString(), today()->addDays(6)->toDateString())
+                ),
+            ],
         ]);
     }
 

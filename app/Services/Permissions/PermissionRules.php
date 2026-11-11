@@ -80,6 +80,7 @@ final class PermissionRules
         'create staff' => ['view staff'],
         'edit staff'   => ['view staff'],
         'delete staff' => ['view staff'],
+        'edit staff schedules' => ['view staff'],
 
         // Hiring
         'create hiring'       => ['view hiring'],
@@ -225,6 +226,7 @@ final class PermissionRules
         'view staff',
         'create staff',
         'edit staff',
+        'edit staff schedules',
         'view dashboard kpis',
     ];
 

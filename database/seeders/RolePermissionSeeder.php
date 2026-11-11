@@ -17,6 +17,7 @@ class RolePermissionSeeder extends Seeder
         'view staff',
         'create staff',
         'edit staff',
+        'edit staff schedules',
         'delete staff',
 
         'view branches',
@@ -133,6 +134,7 @@ class RolePermissionSeeder extends Seeder
             'view staff',
             'create staff',
             'edit staff',
+            'edit staff schedules',  // staff scheduling Phase 2: weekly pattern + one-off changes
             'delete staff',
 
             // ── Services ──────────────────────────────────────────────────────
@@ -323,6 +325,7 @@ class RolePermissionSeeder extends Seeder
             'view staff',
             'create staff',
             'edit staff',
+            'edit staff schedules',
             'delete staff',
 
             'view services',
@@ -429,6 +432,7 @@ class RolePermissionSeeder extends Seeder
             'view staff',
             'create staff',
             'edit staff',
+            'edit staff schedules',
 
             'view services',
             'create treatments',
@@ -526,6 +530,7 @@ class RolePermissionSeeder extends Seeder
             'view staff',
             'create staff',
             'edit staff',
+            'edit staff schedules',
             'delete staff',
 
             'view branches',
