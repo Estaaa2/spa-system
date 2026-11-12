@@ -451,8 +451,6 @@ class BranchController extends Controller
             'location_confirmed' => 'required|accepted',
             'amenities' => 'nullable|array',
             'amenities.*' => 'nullable|string|max:100',
-            'is_hiring' => 'nullable|boolean',
-            'hiring_note' => 'nullable|string|max:150',
         ]);
 
         if ($validator->fails()) {
@@ -496,10 +494,8 @@ class BranchController extends Controller
             $branch->isOperational() &&
             $readinessMessage === null &&
             $request->boolean('is_listed');
-        $profileData['is_hiring'] = $request->boolean('is_hiring');
-        $profileData['hiring_note'] = $profileData['is_hiring']
-            ? ($profileData['hiring_note'] ?? null)
-            : null;
+        // "We're Hiring" now comes from open job postings (staff scheduling &
+        // hiring Phase 5, Q7 A); the old toggle is no longer saved here.
 
         if ($request->boolean('remove_cover_image')) {
             if ($profile->cover_image) {

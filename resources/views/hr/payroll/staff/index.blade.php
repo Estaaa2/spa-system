@@ -23,8 +23,7 @@
     ];
     $roleColorFallback = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
 
-    $filters = [
-        'all'         => 'All staff',
+    $setupLabels = [
         'missing'     => 'Missing setup',
         'no_profile'  => 'No pay profile',
         'missing_ids' => 'Missing IDs',
@@ -80,19 +79,17 @@
         </div>
     </div>
 
-    {{-- Filter — same chip treatment as the billing date presets --}}
+    {{-- Filters (table filters workstream; same bar as Pay Runs) --}}
     <div class="p-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <nav class="flex flex-wrap items-center gap-2" aria-label="Filter staff">
-            @foreach($filters as $key => $label)
-                <a href="{{ route('payroll.staff.index', $key === 'all' ? [] : ['filter' => $key]) }}"
-                   @if($filter === $key) aria-current="page" @endif
-                   class="inline-flex items-center min-h-[44px] px-3 text-xs font-medium rounded-lg transition-colors
-                          {{ $filter === $key ? 'bg-[#8B7355] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' }}">
-                    {{ $label }}
-                </a>
-            @endforeach
-            <span class="ml-auto text-xs text-gray-500 dark:text-gray-400">{{ $shown }} shown</span>
-        </nav>
+        <x-table-filters :action="route('payroll.staff.index')" :shown="$shown" :total="$counts['total']"
+                         :active="$activeFilters ?? 0" noun="staff member" align="start"
+                         :search="$filters['q'] ?? ''" search-placeholder="Name or email">
+            <x-table-filters.select name="filter" label="Setup" all="All staff" :options="$setupLabels" :value="$filter === 'all' ? '' : $filter" width="sm:w-44" />
+            <x-table-filters.select name="role" label="Role" all="All roles" :options="$roleOptions ?? []" :value="$filters['role'] ?? null" width="sm:w-40" />
+            @if (count($branchOptions ?? []) > 1)
+                <x-table-filters.select name="branch" label="Branch" all="All branches" :options="$branchOptions" :value="$filters['branch'] ?? null" width="sm:w-44" />
+            @endif
+        </x-table-filters>
     </div>
 
     @forelse($groups as $branchId => $rows)
@@ -194,7 +191,7 @@
     @empty
         <div class="px-6 py-12 text-center bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
             <i class="mb-3 text-4xl text-gray-400 fa-solid fa-users" aria-hidden="true"></i>
-            <p class="mb-2 text-gray-600 dark:text-gray-400">{{ $filter === 'all' ? 'No active staff yet' : 'Nothing missing — every active staff member is set up for this filter.' }}</p>
+            <p class="mb-2 text-gray-600 dark:text-gray-400">{{ ($activeFilters ?? 0) === 0 ? 'No active staff yet' : ($filter !== 'all' && empty($filters['q']) && empty($filters['role']) && empty($filters['branch']) ? 'Nothing missing — every active staff member is set up for this filter.' : 'No staff member matches these filters.') }}</p>
         </div>
     @endforelse
 </div>

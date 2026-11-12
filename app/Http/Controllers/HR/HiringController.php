@@ -8,6 +8,7 @@ use App\Models\JobPosting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use App\Services\RecruitmentWorkflowService;
 
 class HiringController extends Controller
@@ -28,23 +29,46 @@ class HiringController extends Controller
 
     public function index()
     {
-        return view('hr.hiring.index');
+        // Open postings of this branch the walk-in can be recorded against (Phase 5, Q8 A).
+        $openings = $this->recruitment->postingsFor(Auth::user())
+            ->open()
+            ->orderBy('title')
+            ->get();
+
+        return view('hr.hiring.index', [
+            'openings' => $openings,
+            'branchHours' => app(\App\Services\Staff\WorkScheduleResolver::class)
+                ->branchHours((int) Auth::user()->currentBranchId()),
+        ]);
     }
 
     public function store(Request $request)
     {
+        [$spa, $branchId] = $this->getSpaAndBranch();
+
+        abort_unless($spa && $branchId, 403);
+
+        // Same fields as the public form (Phase 5, Q2 A / Q3 A): no date of birth
+        // (RA 10911), no gender or civil status (RA 10173, only what is needed).
         $validated = $request->validateWithBag('application', [
+            'job_posting_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('job_postings', 'id')->where(fn ($q) => $q
+                    ->where('spa_id', $spa->id)
+                    ->where('branch_id', $branchId)
+                    ->whereNull('deleted_at')),
+            ],
             'full_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'phone' => 'required|regex:/^09\d{9}$/',
-            'position_applied' => 'required|in:therapist,receptionist,manager,hr,finance',
-            'availability' => 'nullable|string|max:255',
-            'gender' => 'nullable|in:male,female,other',
-            'date_of_birth' => 'nullable|date|before:today',
-            'civil_status' => 'nullable|string|max:255',
+            'position_applied' => 'required_without:job_posting_id|nullable|in:therapist,receptionist,manager,hr,finance',
+            'availability' => 'nullable|in:full_time,part_time,weekdays,weekends,shifting,flexible',
+            'schedule_fit' => 'required_with:job_posting_id|nullable|boolean',
+            'schedule_fit_note' => 'nullable|string|max:255',
             'address' => 'required|string|max:255',
-            'education' => 'nullable|string|max:255',
-            'resume' => 'nullable|file|mimes:pdf|max:5120',
+            'education' => 'nullable|in:high_school,vocational,undergraduate,college,postgrad',
+            'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_relation' => 'nullable|string|max:255',
             'emergency_contact_phone' => [
@@ -53,11 +77,27 @@ class HiringController extends Controller
             ],
             'expected_start_date' => 'nullable|date',
             'notes' => 'nullable|string|max:5000',
+        ], [
+            'position_applied.required_without' => 'Pick the position, or pick a job opening.',
+            'schedule_fit.required_with' => 'Say whether the applicant can work this opening\'s schedule.',
+            'job_posting_id.exists' => 'That job opening is not in this branch.',
         ]);
 
-        [$spa, $branchId] = $this->getSpaAndBranch();
+        if (! empty($validated['job_posting_id'])) {
+            $posting = JobPosting::find($validated['job_posting_id']);
 
-        abort_unless($spa && $branchId, 403);
+            if (! $posting?->isOpen()) {
+                return back()->withInput()->withErrors(['job_posting_id' => 'That job opening is closed. Pick another or "No posting".'], 'application');
+            }
+
+            // The opening decides the role and the schedule (Phase 5, Q9 A).
+            $validated['position_applied'] = $posting->role;
+            $validated['availability'] = null;
+        } else {
+            $validated['job_posting_id'] = null;
+            $validated['schedule_fit'] = null;
+            $validated['schedule_fit_note'] = null;
+        }
 
         if ($request->hasFile('resume')) {
             $validated['resume_path'] = $request
@@ -152,29 +192,5 @@ class HiringController extends Controller
             'Content-Disposition' => 'inline; filename="' . $filename . '"',
             'X-Content-Type-Options' => 'nosniff',
         ]);
-    }
-
-    public function update(Request $request, JobPosting $posting)
-    {
-        $validated = $request->validate([
-            'status' => 'required|in:open,closed,draft',
-        ]);
-
-        $posting->update($validated);
-
-        return back()->with(
-            'success',
-            'Job posting updated.'
-        );
-    }
-
-    public function destroy(JobPosting $posting)
-    {
-        $posting->delete();
-
-        return back()->with(
-            'success',
-            'Job posting deleted.'
-        );
     }
 }

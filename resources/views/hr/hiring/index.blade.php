@@ -101,7 +101,7 @@
                         </div>
 
                         {{-- Phone --}}
-                        <div>
+                        <div class="lg:col-span-2">
                             <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                 Phone
                                 <x-required-mark />
@@ -126,96 +126,8 @@
                             @enderror
                         </div>
 
-                        {{-- Gender --}}
-                        <div>
-                            <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                                Gender
-                            </label>
-
-                            <select
-                                name="gender"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
-                                       focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                                       dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            >
-                                <option value="">Select</option>
-
-                                <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>
-                                    Male
-                                </option>
-
-                                <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>
-                                    Female
-                                </option>
-
-                                <option value="other" {{ old('gender') === 'other' ? 'selected' : '' }}>
-                                    Other
-                                </option>
-                            </select>
-
-                            @error('gender', 'application')
-                                <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        {{-- Date of Birth --}}
-                        <div>
-                            <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                                Date of Birth
-                            </label>
-
-                            <input
-                                type="date"
-                                name="date_of_birth"
-                                value="{{ old('date_of_birth') }}"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
-                                       focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                                       dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            >
-
-                            @error('date_of_birth', 'application')
-                                <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        {{-- Civil Status --}}
-                        <div>
-                            <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                                Civil Status
-                            </label>
-
-                            <select
-                                name="civil_status"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
-                                       focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                                       dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            >
-                                <option value="">Select</option>
-
-                                <option value="single" {{ old('civil_status') === 'single' ? 'selected' : '' }}>
-                                    Single
-                                </option>
-
-                                <option value="married" {{ old('civil_status') === 'married' ? 'selected' : '' }}>
-                                    Married
-                                </option>
-
-                                <option value="widowed" {{ old('civil_status') === 'widowed' ? 'selected' : '' }}>
-                                    Widowed
-                                </option>
-
-                                <option value="separated" {{ old('civil_status') === 'separated' ? 'selected' : '' }}>
-                                    Separated
-                                </option>
-                            </select>
-
-                            @error('civil_status', 'application')
-                                <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                            @enderror
-                        </div>
-
                         {{-- Address --}}
-                        <div class="lg:col-span-3">
+                        <div class="lg:col-span-6">
                             <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                 Address
                                 <x-required-mark />
@@ -255,14 +167,86 @@
 
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 
+                            {{-- Job Opening (staff scheduling & hiring Phase 5, Q8 A) --}}
+                            <div class="md:col-span-2">
+                                <label for="job_posting_id" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                    Job Opening
+                                </label>
+
+                                <select
+                                    id="job_posting_id"
+                                    name="job_posting_id"
+                                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
+                                           focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
+                                           dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                >
+                                    <option value="">No posting (general walk-in)</option>
+                                    @foreach ($openings as $opening)
+                                        <option value="{{ $opening->id }}"
+                                            data-role="{{ $opening->role }}"
+                                            data-schedule='@json($opening->scheduleLines($branchHours))'
+                                            {{ (string) old('job_posting_id') === (string) $opening->id ? 'selected' : '' }}>
+                                            {{ $opening->title }} · {{ $opening->roleLabel() }} · {{ $opening->employmentTypeLabel() }}
+                                        </option>
+                                    @endforeach
+                                </select>
+
+                                <p class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+                                    @if ($openings->isEmpty())
+                                        This branch has no open job openings, so this walk-in is recorded without one.
+                                    @else
+                                        Picking an opening sets the position and asks about its schedule.
+                                    @endif
+                                </p>
+
+                                @error('job_posting_id', 'application')
+                                    <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            {{-- Schedule fit, shown when an opening is picked (Q9 A) --}}
+                            <div id="walkinScheduleFit" class="hidden p-4 md:col-span-2 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10">
+                                <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Opening's weekly schedule</p>
+                                <ul id="walkinScheduleLines" class="grid grid-cols-1 mt-2 text-xs text-gray-600 sm:grid-cols-2 gap-x-6 gap-y-1 dark:text-gray-300"></ul>
+
+                                <fieldset class="mt-3">
+                                    <legend class="mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                        Can the applicant work this schedule?
+                                        <x-required-mark />
+                                    </legend>
+                                    <div class="flex gap-4">
+                                        <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer dark:text-gray-300 min-h-[44px]">
+                                            <input type="radio" name="schedule_fit" value="1" class="accent-[#8B7355]" {{ old('schedule_fit') === '1' ? 'checked' : '' }}>
+                                            Yes
+                                        </label>
+                                        <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer dark:text-gray-300 min-h-[44px]">
+                                            <input type="radio" name="schedule_fit" value="0" class="accent-[#8B7355]" {{ old('schedule_fit') === '0' ? 'checked' : '' }}>
+                                            No
+                                        </label>
+                                    </div>
+                                    @error('schedule_fit', 'application')
+                                        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                                    @enderror
+                                </fieldset>
+
+                                <label for="schedule_fit_note" class="block mt-2 mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Note</label>
+                                <input type="text" id="schedule_fit_note" name="schedule_fit_note" maxlength="255"
+                                    value="{{ old('schedule_fit_note') }}"
+                                    placeholder="e.g. Can't work Sundays"
+                                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white
+                                           focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
+                                           dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+
                             {{-- Applying For --}}
-                            <div>
+                            <div id="walkinPositionField">
                                 <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                     Applying For
                                     <x-required-mark />
                                 </label>
 
                                 <select
+                                    id="position_applied"
                                     name="position_applied"
                                     required
                                     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50
@@ -295,10 +279,13 @@
                                 @error('position_applied', 'application')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                 @enderror
+                                @error('resume', 'application')
+                                    <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
+                                @enderror
                             </div>
 
-                            {{-- Availability --}}
-                            <div>
+                            {{-- Availability (walk-ins without an opening only) --}}
+                            <div id="walkinAvailabilityField">
                                 <label class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                                     Shift Availability
                                 </label>
@@ -416,14 +403,14 @@
                                     type="file"
                                     id="resume"
                                     name="resume"
-                                    accept=".pdf"
+                                    accept=".pdf,.doc,.docx"
                                     class="w-full px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl
                                         focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
                                         dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 >
 
                                 <p class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
-                                    Optional for walk-in applicants. Upload their résumé if they brought one. PDF only, maximum 5MB.
+                                    Optional for walk-in applicants. Upload their résumé if they brought one. PDF, DOC or DOCX, maximum 5MB.
                                 </p>
                             </div>
                         </div>
@@ -566,4 +553,42 @@
     @endif
 
 </div>
+
+@if ($canCreateHiring)
+<script>
+(function () {
+    'use strict';
+    const posting = document.getElementById('job_posting_id');
+    const position = document.getElementById('position_applied');
+    const fit = document.getElementById('walkinScheduleFit');
+    const lines = document.getElementById('walkinScheduleLines');
+    const availability = document.getElementById('walkinAvailabilityField');
+    if (!posting || !position) return;
+
+    function esc(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function sync() {
+        const opt = posting.selectedOptions[0];
+        const picked = !!posting.value;
+        // The opening decides the role; the server sets it too.
+        if (picked && opt?.dataset.role) position.value = opt.dataset.role;
+        position.disabled = picked;
+        position.required = !picked;
+        availability?.classList.toggle('hidden', picked);
+        fit.classList.toggle('hidden', !picked);
+        fit.querySelectorAll('input[name="schedule_fit"]').forEach(r => { r.required = picked; });
+        lines.innerHTML = picked
+            ? JSON.parse(opt.dataset.schedule || '[]').map(l =>
+                `<li class="flex justify-between gap-3"><span class="font-medium">${esc(l.day)}</span><span>${esc(l.label)}</span></li>`).join('')
+            : '';
+    }
+
+    posting.addEventListener('change', sync);
+    posting.closest('form')?.addEventListener('reset', () => setTimeout(sync, 0));
+    sync();
+})();
+</script>
+@endif
 @endsection

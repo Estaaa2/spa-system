@@ -42,7 +42,7 @@
     // One pass over the collection resolves the role for every member and keeps
     // it, so the table rows below don't call getRoleNames() a second time.
     $memberRoles = [];
-    foreach ($staff as $member) {
+    foreach (($allStaff ?? $staff) as $member) {
         $role = $member->user?->getRoleNames()->first();
         $memberRoles[$member->id] = $role;
         if ($role && array_key_exists($role, $roleCounts)) {
@@ -414,16 +414,21 @@
     @endif
     {{-- Staff Directory --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <div class="flex flex-col gap-1 px-4 py-4 border-b border-gray-200 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 dark:border-gray-700">
+        <div class="flex flex-col gap-4 px-4 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between sm:px-6 dark:border-gray-700">
             <div>
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Staff Directory</h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     View assigned roles and manage staff accounts for this branch.
                 </p>
             </div>
-            <span class="text-sm text-gray-500 shrink-0 dark:text-gray-400">
-                {{ $staffCount }} staff member(s)
-            </span>
+            {{-- Filters (table filters workstream; same bar as Pay Runs) --}}
+            <x-table-filters :action="route('staff.index')" :shown="$staff->count()" :total="($allStaff ?? $staff)->count()"
+                             :active="$activeFilters ?? 0" noun="staff member"
+                             :search="$filters['q'] ?? ''" search-placeholder="Name or email">
+                <x-table-filters.select name="role" label="Role" all="All roles" :options="$roleOptions ?? []" :value="$filters['role'] ?? null" width="sm:w-40" />
+                <x-table-filters.select name="status" label="Status" all="All statuses"
+                    :options="['active' => 'Active', 'paused' => 'Paused (plan limit)']" :value="$filters['status'] ?? null" width="sm:w-44" />
+            </x-table-filters>
         </div>
         <div class="md:overflow-x-auto">
             {{-- .rt collapses this table into stacked cards below md. The explicit
@@ -569,7 +574,11 @@
                                 <i class="mb-3 text-4xl text-gray-400 fa-solid fa-users" aria-hidden="true"></i>
                                 <p class="mb-2 text-gray-600 dark:text-gray-400">No staff members found</p>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                                    {{ $canCreateStaff ? 'Add your first staff member using the form above.' : 'No staff members are available for this branch yet.' }}
+                                    @if (($activeFilters ?? 0) > 0)
+                                        No staff member matches these filters.
+                                    @else
+                                        {{ $canCreateStaff ? 'Add your first staff member using the form above.' : 'No staff members are available for this branch yet.' }}
+                                    @endif
                                 </p>
                             </div>
                         </td>

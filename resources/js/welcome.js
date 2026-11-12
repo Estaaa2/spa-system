@@ -128,6 +128,7 @@ function openSpaModal(spaData) {
         } else {
             hiringBlock.classList.add('hidden');
         }
+        renderSpaModalOpenings(spaData);
     }
 
     function getAddressSummary(fullAddress) {
@@ -1783,13 +1784,114 @@ function clearBookingSelections() {
     if (submitBtn) submitBtn.disabled = false;
 }
 
-function openApplicationModal(spaId, branchId, spaName) {
+// ── Job openings (staff scheduling & hiring Phase 5) ────────────────────────
+// GET /apply/{branch}/openings → { openings: [{ id, title, role_label, openings,
+// employment_type, description, requirements, pay, deadline, schedule: [{ day, label, rest }] }] }
+let applicationOpenings = [];
+
+async function fetchBranchOpenings(branchId) {
+    const res = await fetch(`/apply/${encodeURIComponent(branchId)}/openings`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data.openings) ? data.openings : [];
+}
+
+function openingMetaText(o) {
+    const parts = [o.role_label, o.employment_type];
+    if (o.openings > 1) parts.push(`${o.openings} openings`);
+    if (o.pay) parts.push(o.pay);
+    if (o.deadline) parts.push(`Apply by ${o.deadline}`);
+    return parts.filter(Boolean).join(' · ');
+}
+
+function renderApplicationPosting() {
+    const select  = document.getElementById('applicationPosting');
+    const details = document.getElementById('applicationPostingDetails');
+    if (!select || !details) return;
+
+    const o = applicationOpenings.find(x => String(x.id) === select.value);
+    details.classList.toggle('hidden', !o);
+    details.querySelectorAll('input[name="schedule_fit"]').forEach(r => { r.required = !!o; });
+    if (!o) return;
+
+    document.getElementById('applicationPostingMeta').textContent = openingMetaText(o);
+    const desc = document.getElementById('applicationPostingDesc');
+    const text = [o.description, o.requirements ? `Requirements: ${o.requirements}` : ''].filter(Boolean).join('\n\n');
+    desc.textContent = text;
+    desc.classList.toggle('hidden', !text);
+    document.getElementById('applicationPostingSchedule').innerHTML = (o.schedule || []).map(l =>
+        `<li class="flex justify-between gap-3"><span class="font-medium">${escapeHtml(l.day)}</span><span class="${l.rest ? 'text-gray-400' : ''}">${escapeHtml(l.label)}</span></li>`
+    ).join('');
+}
+
+async function loadApplicationOpenings(branchId, postingId) {
+    const select = document.getElementById('applicationPosting');
+    if (!select) return;
+    applicationOpenings = [];
+    select.innerHTML = '<option value="">Loading openings…</option>';
+    select.disabled = true;
+
+    try {
+        applicationOpenings = await fetchBranchOpenings(branchId);
+    } catch (err) {
+        console.warn('Could not load job openings:', err);
+    }
+
+    if (!applicationOpenings.length) {
+        select.innerHTML = '<option value="">No open positions right now</option>';
+        renderApplicationPosting();
+        return;
+    }
+
+    select.innerHTML = '<option value="">Select a job opening</option>' + applicationOpenings.map(o =>
+        `<option value="${escapeHtml(String(o.id))}">${escapeHtml(o.title)}</option>`).join('');
+    select.disabled = false;
+
+    const preselect = postingId ?? (applicationOpenings.length === 1 ? applicationOpenings[0].id : null);
+    if (preselect != null) select.value = String(preselect);
+    renderApplicationPosting();
+}
+
+/** Fill the spa modal's "We're Hiring" list with Apply buttons. */
+async function renderSpaModalOpenings(spaData) {
+    const list = document.getElementById('spaModalOpenings');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!spaData?.is_hiring || !spaData.branch_id) return;
+
+    let openings = [];
+    try {
+        openings = await fetchBranchOpenings(spaData.branch_id);
+    } catch (err) {
+        console.warn('Could not load job openings:', err);
+        return;
+    }
+
+    list.innerHTML = openings.map(o => `
+        <li class="flex flex-wrap items-center justify-between gap-3 p-3 bg-white/70 dark:bg-gray-900/30 rounded-xl ring-1 ring-green-200/70 dark:ring-green-800/60">
+            <div class="min-w-0">
+                <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(o.title)}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-300">${escapeHtml(openingMetaText(o))}</p>
+            </div>
+            <button type="button" data-posting-id="${escapeHtml(String(o.id))}"
+                class="spa-modal-apply-btn inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2 text-xs font-semibold text-white rounded-xl booking-btn shadow-sm">
+                <i class="fa-solid fa-paper-plane text-[10px]" aria-hidden="true"></i> Apply
+            </button>
+        </li>`).join('');
+
+    list.querySelectorAll('.spa-modal-apply-btn').forEach(btn => {
+        btn.addEventListener('click', () => openApplicationModal(spaData.id, spaData.branch_id, spaData.name, Number(btn.dataset.postingId)));
+    });
+}
+
+function openApplicationModal(spaId, branchId, spaName, postingId = null) {
     const modal = document.getElementById('applicationModal');
     const form  = document.getElementById('applicationForm');
     if (!modal || !form) return;
 
     form.reset();
     form.action = `/apply/${branchId}`;
+    loadApplicationOpenings(branchId, postingId);
 
     document.getElementById('applicationSpaId').value    = spaId;
     document.getElementById('applicationBranchId').value = branchId;
@@ -1821,6 +1923,8 @@ function setupApplicationForm() {
     const form = document.getElementById('applicationForm');
     if (!form) return;
 
+    document.getElementById('applicationPosting')?.addEventListener('change', renderApplicationPosting);
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -1837,11 +1941,21 @@ function setupApplicationForm() {
         const email = this.querySelector('input[name="email"]')?.value.trim();
         const phone = this.querySelector('input[name="phone"]')?.value.trim();
         const address = this.querySelector('input[name="address"]')?.value.trim();
-        const position = this.querySelector('select[name="position_applied"]')?.value;
+        const posting = this.querySelector('select[name="job_posting_id"]')?.value;
         const resume = this.querySelector('input[name="resume"]')?.files[0];
 
-        if (!fullName || !email || !phone || !address || !position) {
+        if (!posting) {
+            showSpaToast('Please pick the job opening you are applying for.', 'error');
+            return;
+        }
+
+        if (!fullName || !email || !phone || !address) {
             showSpaToast('Please fill in all required fields.', 'error');
+            return;
+        }
+
+        if (!this.querySelector('input[name="schedule_fit"]:checked')) {
+            showSpaToast('Please tell us if you can work this schedule.', 'error');
             return;
         }
 
@@ -1921,6 +2035,7 @@ function setupApplicationForm() {
 
             // Reset form
             this.reset();
+            renderApplicationPosting();
             hideResumeUploadStatus();
 
         } catch (err) {

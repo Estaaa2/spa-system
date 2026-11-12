@@ -7,6 +7,7 @@ use App\Models\Interview;
 use App\Models\User;
 use App\Services\RecruitmentWorkflowService;
 use Illuminate\Support\Facades\Auth;
+use App\Support\TableFilters;
 use Illuminate\Http\Request;
 
 class InterviewController extends Controller
@@ -16,19 +17,45 @@ class InterviewController extends Controller
     ) {
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
-        $interviews = $this->recruitment
+        $all = $this->recruitment
             ->interviewsFor($user)
             ->with([
-                'applicant.jobPosting',
+                'applicant.jobPosting' => fn ($q) => $q->withTrashed(),
                 'applicant.branch',
                 'interviewer',
             ])
             ->latest()
             ->get();
+
+        // Summary cards count everything; the table is filtered (table filters workstream).
+        $summary = [
+            'total'    => $all->count(),
+            'pending'  => $all->where('status', Interview::STATUS_PENDING)->count(),
+            'approved' => $all->where('status', Interview::STATUS_APPROVED)->count(),
+            'rejected' => $all->where('status', Interview::STATUS_REJECTED)->count(),
+        ];
+
+        $postingOptions = $all->pluck('applicant.jobPosting')->filter()->unique('id')->sortBy('title')
+            ->mapWithKeys(fn ($p) => [$p->id => $p->title.($p->trashed() ? ' (deleted)' : '')]);
+
+        $filters = [
+            'q'       => TableFilters::search($request),
+            'status'  => TableFilters::choice($request, 'status', [Interview::STATUS_PENDING, Interview::STATUS_APPROVED, Interview::STATUS_REJECTED]),
+            'posting' => TableFilters::choice($request, 'posting', ['none', ...$postingOptions->keys()->all()]),
+        ];
+
+        $interviews = $all->filter(fn (Interview $i) =>
+            TableFilters::matches($filters['q'], $i->applicant?->full_name, $i->applicant?->email)
+            && ($filters['status'] === null || $i->status === $filters['status'])
+            && ($filters['posting'] === null
+                || ($filters['posting'] === 'none'
+                    ? $i->applicant?->job_posting_id === null
+                    : (string) $i->applicant?->job_posting_id === $filters['posting']))
+        )->values();
 
         // Emails that already have a staff account in this spa (added by hand on
         // the Staff page). Those rows offer "Link Account" instead of a new one.
@@ -43,7 +70,14 @@ class InterviewController extends Controller
             ->map(fn ($email) => mb_strtolower($email))
             ->all();
 
-        return view('hr.interviews.index', compact('interviews', 'existingStaffEmails'));
+        return view('hr.interviews.index', [
+            'interviews'          => $interviews,
+            'existingStaffEmails' => $existingStaffEmails,
+            'summary'             => $summary,
+            'filters'             => $filters,
+            'activeFilters'       => TableFilters::activeCount($filters),
+            'postingOptions'      => $postingOptions,
+        ]);
     }
 
     public function approve(Interview $interview)

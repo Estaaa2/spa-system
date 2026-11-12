@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\HR;
 
+use App\Support\TableFilters;
+
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\HR\Concerns\AuthorizesPayroll;
 use App\Http\Controllers\HR\Concerns\HandlesPayrollSetupForms;
@@ -97,18 +99,34 @@ class StaffPayProfileController extends Controller
             'excluded'    => $rows->where('in_payroll', false)->count(),
         ];
 
+        // Table filters workstream: search, role and branch join the setup filter.
+        $roleOptions = $rows->pluck('role')->filter()->unique()->sort()
+            ->mapWithKeys(fn ($r) => [$r => P::roleLabel($r)])->all();
+        $branchOptions = $rows->pluck('staff.branch')->filter()->unique('id')->sortBy('name')
+            ->mapWithKeys(fn ($b) => [$b->id => $b->name.($b->trashed() ? ' (deleted)' : '')])->all();
+        $search = TableFilters::search($request);
+        $role = TableFilters::choice($request, 'role', array_keys($roleOptions));
+        $branchFilter = TableFilters::choice($request, 'branch', array_keys($branchOptions));
+
         $filtered = $rows->filter(fn ($r) => match ($filter) {
             'no_profile'  => $r['profile'] === null,
             'missing_ids' => $r['missing_ids'] !== [],
             'missing'     => $r['profile'] === null || $r['missing_ids'] !== [],
             default       => true,
-        });
+        })->filter(fn ($r) =>
+            TableFilters::matches($search, $r['name'], $r['staff']->user?->email)
+            && ($role === null || $r['role'] === $role)
+            && ($branchFilter === null || (string) $r['staff']->branch_id === $branchFilter)
+        );
+
+        $filters = ['q' => $search, 'filter' => $filter === 'all' ? null : $filter, 'role' => $role, 'branch' => $branchFilter];
+        $activeFilters = TableFilters::activeCount($filters);
 
         // Grouped by home branch; main branch first, then by name; no-branch last.
         $groups = $filtered->groupBy(fn ($r) => $r['staff']->branch_id ?? 0)
             ->sortBy(fn ($g, $key) => $key === 0 ? 'zzz' : ($g->first()['staff']->branch->is_main ? '0' : '1').$g->first()['staff']->branch->name);
 
-        return view('hr.payroll.staff.index', compact('groups', 'counts', 'filter'));
+        return view('hr.payroll.staff.index', compact('groups', 'counts', 'filter', 'filters', 'activeFilters', 'roleOptions', 'branchOptions'));
     }
 
     // =====================================================================

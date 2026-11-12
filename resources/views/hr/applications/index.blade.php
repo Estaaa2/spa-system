@@ -24,24 +24,23 @@
     {{-- One white card holds the header row, filter tabs, and the table --}}
     <div class="mt-6 overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
 
-        {{-- Section header + Filter Tabs --}}
-        <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-5 border-b border-gray-100 dark:border-gray-700">
-            <h2 class="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white">
+        {{-- Section header + filters (table filters workstream; same bar as Pay Runs) --}}
+        <div class="flex flex-col gap-4 px-6 py-5 border-b border-gray-100 lg:flex-row lg:items-start lg:justify-between dark:border-gray-700">
+            <h2 class="flex items-center gap-2 text-lg font-semibold text-gray-800 shrink-0 whitespace-nowrap dark:text-white">
                 Applicant List
                 <span class="px-2 py-0.5 text-xs font-semibold text-gray-500 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
-                    {{ $applicants->count() }}
+                    {{ $total }}
                 </span>
             </h2>
 
-            <div class="flex flex-wrap gap-2">
-                @foreach (['all' => 'All', 'pending' => 'Pending', 'interview' => 'Interview', 'approved' => 'Approved', 'hired' => 'Hired', 'rejected' => 'Rejected'] as $val => $label)
-                    <button onclick="filterStatus('{{ $val }}')" id="filter-{{ $val }}"
-                        class="px-3 py-1 text-xs font-semibold rounded-full border transition
-                    {{ $val === 'all' ? 'bg-[#8B7355] text-white border-[#8B7355]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#8B7355] hover:text-[#8B7355] dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' }}">
-                        {{ $label }}
-                    </button>
-                @endforeach
-            </div>
+            <x-table-filters :action="route('applications.index')" :shown="$applicants->count()" :total="$total"
+                             :active="$activeFilters" noun="applicant"
+                             :search="$filters['q'] ?? ''" search-placeholder="Name, email or phone">
+                <x-table-filters.select name="status" label="Status" all="All statuses" :options="$statusOptions" :value="$filters['status']" width="sm:w-36" />
+                <x-table-filters.select name="source" label="Applied" all="Online & walk-in" :options="$sourceOptions" :value="$filters['source']" width="sm:w-40" />
+                <x-table-filters.select name="posting" label="Job opening" all="All openings"
+                    :options="['none' => 'No posting'] + $postingOptions->all()" :value="$filters['posting']" width="sm:w-48" />
+            </x-table-filters>
         </div>
 
         {{-- Applicants Table --}}
@@ -73,8 +72,11 @@
                                 'civil_status' => $applicant->civil_status,
                                 'address' => $applicant->address,
                                 'position_applied' => $applicant->position_applied,
+                                'job_posting' => $applicant->jobPosting?->title,
+                                'schedule_fit' => $applicant->schedule_fit === null ? null : ($applicant->schedule_fit ? 'Yes' : 'No'),
+                                'schedule_fit_note' => $applicant->schedule_fit_note,
                                 'availability' => $applicant->availability,
-                                'source' => $applicant->source,
+                                'source' => match ($applicant->source) { 'website' => 'Online', 'manual' => 'Walk-in', default => $applicant->source },
                                 'education' => $applicant->education,
                                 'expected_start_date' => optional($applicant->expected_start_date)->format('M d, Y'),
 
@@ -127,6 +129,14 @@
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full bg-[#F6EFE6] text-[#6F5430]">
                                     {{ $formatLabel($applicant->position_applied ?? $applicant->role) }}
                                 </span>
+                                @if ($applicant->source === 'website')
+                                    <span class="ml-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300">Online</span>
+                                @elseif ($applicant->source === 'manual')
+                                    <span class="ml-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">Walk-in</span>
+                                @endif
+                                @if ($applicant->jobPosting)
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate max-w-[180px]">{{ $applicant->jobPosting->title }}</p>
+                                @endif
                             </td>
 
                             <td class="px-6 py-4">
@@ -199,7 +209,7 @@
                                 <i class="block mb-3 text-4xl text-gray-200 fa-solid fa-users"></i>
 
                                 <p class="text-sm text-gray-400">
-                                    No applicants yet.
+                                    {{ $activeFilters > 0 ? 'No applicants match these filters.' : 'No applicants yet.' }}
                                 </p>
 
                                 <p class="mt-1 text-xs text-gray-300">
@@ -259,17 +269,18 @@
                         <p id="detailPhone"></p>
                     </div>
 
-                    <div>
+                    {{-- No longer collected (Phase 5, RA 10911 / RA 10173); shown only on older applications. --}}
+                    <div id="detailGenderWrap">
                         <span class="text-xs text-gray-400">Gender</span>
                         <p id="detailGender"></p>
                     </div>
 
-                    <div>
+                    <div id="detailDobWrap">
                         <span class="text-xs text-gray-400">Date of Birth</span>
                         <p id="detailDob"></p>
                     </div>
 
-                    <div>
+                    <div id="detailCivilStatusWrap">
                         <span class="text-xs text-gray-400">Civil Status</span>
                         <p id="detailCivilStatus"></p>
                     </div>
@@ -295,6 +306,14 @@
                         <p id="detailPosition"></p>
                     </div>
                     <div>
+                        <span class="text-xs text-gray-400">Job Opening</span>
+                        <p id="detailJobPosting"></p>
+                    </div>
+                    <div id="detailScheduleFitWrap">
+                        <span class="text-xs text-gray-400">Can work the schedule</span>
+                        <p id="detailScheduleFit"></p>
+                    </div>
+                    <div id="detailAvailabilityWrap">
                         <span class="text-xs text-gray-400">Availability</span>
                         <p id="detailAvailability"></p>
                     </div>
@@ -616,6 +635,14 @@
         document.getElementById('detailGender').textContent =   fmt(data.gender);
         document.getElementById('detailDob').textContent =      data.date_of_birth || 'N/A';
         document.getElementById('detailCivilStatus').textContent =  fmt(data.civil_status);
+        document.getElementById('detailGenderWrap').classList.toggle('hidden', !data.gender);
+        document.getElementById('detailDobWrap').classList.toggle('hidden', !data.date_of_birth);
+        document.getElementById('detailCivilStatusWrap').classList.toggle('hidden', !data.civil_status);
+        document.getElementById('detailJobPosting').textContent = data.job_posting || 'No posting';
+        document.getElementById('detailScheduleFit').textContent =
+            (data.schedule_fit || 'N/A') + (data.schedule_fit_note ? ' — ' + data.schedule_fit_note : '');
+        document.getElementById('detailScheduleFitWrap').classList.toggle('hidden', !data.schedule_fit);
+        document.getElementById('detailAvailabilityWrap').classList.toggle('hidden', !data.availability);
         document.getElementById('detailAddress').textContent =  data.address || 'N/A';
         document.getElementById('detailPosition').textContent = fmt(data.position_applied);
         document.getElementById('detailAvailability').textContent = fmt(data.availability);
@@ -707,44 +734,6 @@
     }
 
 
-    function filterStatus(status) {
-        document.querySelectorAll('.applicant-row').forEach(row => {
-            row.style.display =
-                (status === 'all' || row.dataset.status === status)
-                    ? ''
-                    : 'none';
-        });
-
-        document.querySelectorAll('[id^="filter-"]').forEach(btn => {
-            btn.classList.remove(
-                'bg-[#8B7355]',
-                'text-white',
-                'border-[#8B7355]'
-            );
-
-            btn.classList.add(
-                'bg-white',
-                'text-gray-600',
-                'border-gray-200'
-            );
-        });
-
-        const active = document.getElementById('filter-' + status);
-
-        if (active) {
-            active.classList.add(
-                'bg-[#8B7355]',
-                'text-white',
-                'border-[#8B7355]'
-            );
-
-            active.classList.remove(
-                'bg-white',
-                'text-gray-600',
-                'border-gray-200'
-            );
-        }
-    }
 
 
     document.getElementById('applicantDetailsModal')?.addEventListener('click', function (e) {

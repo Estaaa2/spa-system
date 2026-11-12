@@ -6,9 +6,11 @@ use App\Mail\ApplicantRejectedMail;
 use App\Mail\StaffCredentialsMail;
 use App\Models\Applicant;
 use App\Models\Interview;
+use App\Models\JobPosting;
 use App\Models\Spa;
 use App\Models\Staff;
 use App\Models\User;
+use App\Services\Staff\WorkScheduleWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +23,30 @@ class RecruitmentWorkflowService
     public function hasSpaWideAccess(User $user): bool
     {
         return $user->hasAnyRole(['owner', 'hr', 'hr_head']);
+    }
+
+    /**
+     * Job openings live in the branch zone (staff scheduling & hiring Phase 5):
+     * everyone works on the branch they have selected.
+     */
+    public function postingsFor(User $user): Builder
+    {
+        $branchId = $user->currentBranchId();
+
+        abort_unless($user->spa_id && $branchId, 403, 'No active branch selected.');
+
+        return JobPosting::query()
+            ->where('spa_id', $user->spa_id)
+            ->where('branch_id', $branchId);
+    }
+
+    public function assertPostingAccessible(User $user, JobPosting $posting): void
+    {
+        abort_unless(
+            (int) $posting->spa_id === (int) $user->spa_id
+                && (int) $posting->branch_id === (int) $user->currentBranchId(),
+            403
+        );
     }
 
     public function applicantsFor(User $user): Builder
@@ -357,6 +383,18 @@ class RecruitmentWorkflowService
 
             $this->markHired($interview, $applicant, $staff);
 
+            // Hired from a job opening: its weekly schedule becomes the new staff
+            // member's work schedule from today; HR can edit it (Phase 5, Q10 A).
+            $posting = $applicant->jobPosting;
+            if ($posting && is_array($posting->schedule) && $posting->schedule !== []) {
+                app(WorkScheduleWriter::class)->savePattern(
+                    $staff,
+                    now()->toDateString(),
+                    self::patternFromPosting($posting->schedule),
+                    $actor->id
+                );
+            }
+
             DB::afterCommit(function () use ($user, $tempPassword) {
                 try {
                     Mail::to($user->email)
@@ -406,5 +444,28 @@ class RecruitmentWorkflowService
         $staff->update(['applicant_id' => $applicant->id]);
         $interview->update(['staff_account_created' => true]);
         $applicant->update(['status' => Applicant::STATUS_HIRED]);
+
+        // Closes the opening when the hires reach its number of openings (Phase 5, Q6 A).
+        $applicant->jobPosting?->closeIfFilled();
+    }
+
+    /**
+     * A posting's schedule in the shape WorkScheduleWriter::savePattern takes.
+     *
+     * @param array<string, array<string, mixed>> $schedule
+     * @return array<string, array{mode: string, start?: string, end?: string}>
+     */
+    public static function patternFromPosting(array $schedule): array
+    {
+        $out = [];
+        foreach (\App\Models\StaffWorkSchedule::WEEKDAYS as $day) {
+            $d = $schedule[$day] ?? [];
+            $mode = in_array($d['mode'] ?? null, ['rest', 'branch', 'custom'], true) ? $d['mode'] : 'branch';
+            $out[$day] = $mode === 'custom' && ! empty($d['start']) && ! empty($d['end'])
+                ? ['mode' => 'custom', 'start' => substr((string) $d['start'], 0, 5), 'end' => substr((string) $d['end'], 0, 5)]
+                : ['mode' => $mode === 'custom' ? 'branch' : $mode];
+        }
+
+        return $out;
     }
 }

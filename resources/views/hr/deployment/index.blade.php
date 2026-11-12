@@ -71,14 +71,20 @@
 
     {{-- Staff List --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex flex-col gap-4 px-6 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between dark:border-gray-700">
             <div>
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Staff Members</h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     Click a staff member to view or manage their deployment request.
                 </p>
             </div>
-            <span class="text-sm text-gray-500 dark:text-gray-400">{{ $staff->count() }} member(s)</span>
+            {{-- Filters (table filters workstream; same bar as Pay Runs) --}}
+            <x-table-filters :action="route('deployment.index')" :shown="$staff->count()" :total="$allStaffCount ?? $staff->count()"
+                             :active="$activeFilters ?? 0" noun="staff member"
+                             :search="$filters['q'] ?? ''" search-placeholder="Name or email">
+                <x-table-filters.select name="role" label="Role" all="All roles" :options="$roleOptions ?? []" :value="$filters['role'] ?? null" width="sm:w-40" />
+                <x-table-filters.select name="deployment" label="Latest deployment" all="Any" :options="$deploymentOptions ?? []" :value="$filters['deployment'] ?? null" width="sm:w-44" />
+            </x-table-filters>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -200,7 +206,7 @@
                         <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="mb-3 text-4xl text-gray-300 fas fa-users"></i>
-                                <p>No staff members found in this branch.</p>
+                                <p>{{ ($activeFilters ?? 0) > 0 ? 'No staff member matches these filters.' : 'No staff members found in this branch.' }}</p>
                             </div>
                         </td>
                     </tr>

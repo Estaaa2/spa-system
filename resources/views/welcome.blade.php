@@ -1385,6 +1385,8 @@
                                     </div>
                                     <p id="spaModalHiringNote"
                                         class="mt-1 text-sm text-green-700/90 dark:text-green-300/80"></p>
+                                    {{-- Open job openings, each with Apply (staff scheduling & hiring Phase 5, Q4 A) --}}
+                                    <ul id="spaModalOpenings" class="mt-3 space-y-2"></ul>
                                 </div>
                                 <hr class="border-[#E8DDD0] dark:border-gray-700">
                                 <div>
@@ -2806,37 +2808,6 @@
                                             title="Phone number must be 11 digits starting with 09"
                                             class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
                                     </div>
-                                    <div>
-                                        <label
-                                            class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Gender</label>
-                                        <select name="gender"
-                                            class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
-                                            <option value="">Select</option>
-                                            <option value="male">Male</option>
-                                            <option value="female">Female</option>
-                                            <option value="other">Other</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label
-                                            class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Date
-                                            of Birth</label>
-                                        <input type="date" name="date_of_birth"
-                                            class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
-                                    </div>
-                                    <div>
-                                        <label
-                                            class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Civil
-                                            Status</label>
-                                        <select name="civil_status"
-                                            class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
-                                            <option value="">Select</option>
-                                            <option value="single">Single</option>
-                                            <option value="married">Married</option>
-                                            <option value="widowed">Widowed</option>
-                                            <option value="separated">Separated</option>
-                                        </select>
-                                    </div>
                                     <div class="md:col-span-2">
                                         <label
                                             class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Address
@@ -2857,34 +2828,46 @@
                                     <i class="fa-solid fa-briefcase"></i> Position Details
                                 </h4>
                                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div>
-                                        <label
-                                            class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Applying
-                                            For <span class="text-red-500">*</span></label>
-                                        <select name="position_applied" required
+                                    {{-- You apply to a job opening (staff scheduling & hiring Phase 5, Q8 A);
+                                         its role and schedule come from the opening. Filled by welcome.js. --}}
+                                    <div class="md:col-span-2">
+                                        <label for="applicationPosting"
+                                            class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Job
+                                            Opening <span class="text-red-500">*</span></label>
+                                        <select name="job_posting_id" id="applicationPosting" required
                                             class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
-                                            <option value="">Select</option>
-                                            <option value="therapist">Therapist</option>
-                                            <option value="receptionist">Receptionist</option>
-                                            <option value="manager">Manager</option>
-                                            <option value="hr">HR</option>
-                                            <option value="finance">Finance</option>
+                                            <option value="">Loading openings…</option>
                                         </select>
                                     </div>
-                                    <div>
-                                        <label
-                                            class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Shift
-                                            Availability</label>
-                                        <select name="availability"
-                                            class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
-                                            <option value="">Select</option>
-                                            <option value="full_time">Full Time</option>
-                                            <option value="part_time">Part Time</option>
-                                            <option value="weekdays">Weekdays Only</option>
-                                            <option value="weekends">Weekends Only</option>
-                                            <option value="shifting">Shifting</option>
-                                            <option value="flexible">Flexible</option>
-                                        </select>
+                                    <div id="applicationPostingDetails"
+                                        class="hidden md:col-span-2 p-4 space-y-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10">
+                                        <p id="applicationPostingMeta" class="text-xs font-semibold text-[#6F5430] dark:text-[#C4A97D]"></p>
+                                        <p id="applicationPostingDesc" class="hidden text-xs leading-relaxed text-gray-600 whitespace-pre-line dark:text-gray-300"></p>
+                                        <div>
+                                            <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Weekly schedule</p>
+                                            <ul id="applicationPostingSchedule"
+                                                class="grid grid-cols-1 mt-1 text-xs text-gray-600 sm:grid-cols-2 gap-x-6 gap-y-1 dark:text-gray-300"></ul>
+                                        </div>
+                                        <fieldset>
+                                            <legend class="mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                                Can you work this schedule? <span class="text-red-500">*</span></legend>
+                                            <div class="flex gap-4">
+                                                <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer dark:text-gray-200 min-h-[44px]">
+                                                    <input type="radio" name="schedule_fit" value="1" class="accent-[#8B7355]"> Yes
+                                                </label>
+                                                <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer dark:text-gray-200 min-h-[44px]">
+                                                    <input type="radio" name="schedule_fit" value="0" class="accent-[#8B7355]"> No
+                                                </label>
+                                            </div>
+                                        </fieldset>
+                                        <div>
+                                            <label for="applicationScheduleNote"
+                                                class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Note
+                                                <span class="font-normal text-gray-400">(optional)</span></label>
+                                            <input type="text" name="schedule_fit_note" id="applicationScheduleNote" maxlength="255"
+                                                placeholder="e.g. I can't work Sundays"
+                                                class="w-full px-3 py-2 text-sm rounded-xl border-black/10 dark:border-white/10 dark:bg-gray-700 dark:text-white ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-[#8B7355]/40">
+                                        </div>
                                     </div>
                                     <div>
                                         <label
@@ -2979,9 +2962,10 @@
                                 </div>
                             </div>
 
-                            {{-- Privacy notice and consent (landing footer Phase 2, Q5-A). Date of birth,
-                                 civil status and education are sensitive personal information under
-                                 RA 10173, so the applicant agrees before sending. Checked again on the server. --}}
+                            {{-- Privacy notice and consent (landing footer Phase 2, Q5-A). Education is
+                                 sensitive personal information under RA 10173, so the applicant agrees before
+                                 sending. Date of birth, gender and civil status are no longer asked
+                                 (staff scheduling & hiring Phase 5). Checked again on the server. --}}
                             <div class="p-4 space-y-3 text-xs leading-relaxed text-gray-600 dark:text-gray-300 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/40 ring-1 ring-black/5 dark:ring-white/10">
                                 <p>
                                     <i class="mr-1 fa-solid fa-shield-halved text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
@@ -2993,7 +2977,7 @@
                                         class="w-4 h-4 mt-0.5 rounded accent-[#8B7355] cursor-pointer flex-shrink-0">
                                     <span class="font-medium text-gray-700 dark:text-gray-200">
                                         I agree to this spa, and Levictas on its behalf, processing the details and résumé in this
-                                        application, including my date of birth, civil status and education, to assess my application.
+                                        application, including my education, to assess my application.
                                         I have read the
                                         <a href="{{ route('legal.privacy') }}#job-applicants" target="_blank" rel="noopener" class="legal-link">Privacy Policy</a>.
                                     </span>

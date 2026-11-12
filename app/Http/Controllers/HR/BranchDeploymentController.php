@@ -3,6 +3,8 @@
 
 namespace App\Http\Controllers\HR;
 
+use App\Support\TableFilters;
+
 use App\Http\Controllers\Controller;
 use App\Mail\DeploymentApproved;
 use App\Mail\DeploymentAwaitingResponse;
@@ -21,6 +23,16 @@ class BranchDeploymentController extends Controller
      * Display the deployment management page.
      * Loads staff list + all their deployment data for ALL branches (so 1 HR can handle all staff)
      */
+    public const LATEST_DEPLOYMENT_FILTERS = [
+        'none'      => 'No deployment',
+        'pending'   => 'Pending',
+        'approved'  => 'Approved',
+        'active'    => 'Active',
+        'rejected'  => 'Rejected',
+        'completed' => 'Completed',
+        'cancelled' => 'Cancelled',
+    ];
+
     public function index(Request $request)
     {
         $user     = Auth::user();
@@ -44,6 +56,25 @@ class BranchDeploymentController extends Controller
             ->where('spa_id', $spaId)
             ->where('branch_id', $branchId)
             ->get();
+
+        // Staff Members table filters (table filters workstream).
+        $allStaffCount = $staff->count();
+        $roleOptions = $staff->map(fn (Staff $m) => $m->user?->getRoleNames()->first())->filter()->unique()->sort()
+            ->mapWithKeys(fn ($r) => [$r => \App\Services\Payroll\PayrollPermissions::roleLabel($r)])->all();
+        $deploymentOptions = self::LATEST_DEPLOYMENT_FILTERS;
+        $filters = [
+            'q'          => TableFilters::search($request),
+            'role'       => TableFilters::choice($request, 'role', array_keys($roleOptions)),
+            'deployment' => TableFilters::choice($request, 'deployment', array_keys($deploymentOptions)),
+        ];
+        $staff = $staff->filter(function (Staff $m) use ($filters) {
+            $latest = $m->deployments->first()?->status;
+
+            return TableFilters::matches($filters['q'], $m->user?->name, trim(($m->user?->first_name ?? '').' '.($m->user?->last_name ?? '')), $m->user?->email)
+                && ($filters['role'] === null || $m->user?->getRoleNames()->first() === $filters['role'])
+                && ($filters['deployment'] === null || ($filters['deployment'] === 'none' ? $latest === null : $latest === $filters['deployment']));
+        })->values();
+        $activeFilters = TableFilters::activeCount($filters);
 
         $branchId = session('current_branch_id') ?? $user->branch_id;
         $summaryCounts = StaffBranchDeployment::where('spa_id', $spaId)
@@ -112,6 +143,11 @@ class BranchDeploymentController extends Controller
 
         return view('hr.deployment.index', compact(
             'staff',
+            'allStaffCount',
+            'filters',
+            'activeFilters',
+            'roleOptions',
+            'deploymentOptions',
             'summaryCounts',
             'branches',
             'allBranches',        // ← ADD THIS

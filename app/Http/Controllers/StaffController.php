@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\TableFilters;
+
 use App\Models\User;
 use App\Models\Staff;
 use App\Models\Branch;
@@ -42,17 +44,38 @@ class StaffController extends Controller
             ->whereNull('deleted_at')
             ->count();
 
-        $staff = Staff::with(['user.roles', 'branch'])
+        $allStaff = Staff::with(['user.roles', 'branch'])
             ->where('spa_id', $user->spa_id)
             ->where('branch_id', $branchId)
             ->latest()
             ->get();
+
+        // Staff Directory filters (table filters workstream). Summary cards keep
+        // counting everyone ($allStaff); the table shows $staff.
+        // Only roles someone in this branch has, so the list stays short.
+        $roleOptions = $allStaff->map(fn (Staff $m) => $m->user?->roles->pluck('name')->first())->filter()->unique()->sort()
+            ->mapWithKeys(fn ($r) => [$r => PayrollPermissions::roleLabel($r)])->all();
+        $filters = [
+            'q'      => TableFilters::search($request),
+            'role'   => TableFilters::choice($request, 'role', array_keys($roleOptions)),
+            'status' => TableFilters::choice($request, 'status', ['active', 'paused']),
+        ];
+        $staff = $allStaff->filter(fn (Staff $m) =>
+            TableFilters::matches($filters['q'], trim(($m->user?->first_name ?? '').' '.($m->user?->middle_name ?? '').' '.($m->user?->last_name ?? '')), trim(($m->user?->first_name ?? '').' '.($m->user?->last_name ?? '')), $m->user?->email)
+            && ($filters['role'] === null || $m->user?->roles->pluck('name')->first() === $filters['role'])
+            && ($filters['status'] === null || ($filters['status'] === 'paused' ? $m->plan_paused_at !== null : $m->plan_paused_at === null))
+        )->values();
+        $activeFilters = TableFilters::activeCount($filters);
 
         // Staff paused because the spa is over its plan's staff limit.
         $pausedStaffCount = $spa?->planPausedStaffCount() ?? 0;
 
         return view('staff.index', compact(
             'staff',
+            'allStaff',
+            'filters',
+            'activeFilters',
+            'roleOptions',
             'hasManpower',
             'staffLimit',
             'activeStaffCount',

@@ -389,7 +389,7 @@ class RolePermissionController extends Controller
             ],
             'hiring' => [
                 'title'       => 'Hiring & Recruitment',
-                'description' => 'Hiring postings, applicants, applications, interviews, and deployments.',
+                'description' => 'Job openings, the walk-in application form, applicants, interviews, and deployments. "Hiring" permissions cover job openings and the walk-in form.',
                 'icon'        => 'fa-solid fa-user-plus',
                 'suite'       => 'workforce',
             ],

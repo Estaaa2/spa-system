@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Request/job-lifetime schedule memo (staff scheduling Phase 2).
         $this->app->scoped(\App\Services\Staff\WorkScheduleResolver::class);
+
+        // Request-lifetime "is this branch hiring?" memo (staff scheduling & hiring Phase 5).
+        $this->app->scoped(\App\Services\Hiring\HiringStatus::class);
     }
 
     /**

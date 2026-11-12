@@ -4,6 +4,7 @@ namespace Tests\Feature\Landing;
 
 use App\Models\Applicant;
 use App\Models\Branch;
+use App\Models\JobPosting;
 use App\Models\OnlineReservationPayment;
 use App\Models\OperatingHours;
 use App\Models\PendingRegistration;
@@ -273,12 +274,16 @@ class LegalPagesPhase2Test extends TestCase
             ->assertSee(route('legal.privacy') . '#job-applicants', false);
 
         $branch = Branch::where('name', 'Test Branch A')->firstOrFail();
-        $branch->profile()->updateOrCreate([], ['is_hiring' => true]);
+        // "We're Hiring" comes from an open job opening since staff scheduling & hiring Phase 5.
+        $posting = JobPosting::create([
+            'spa_id' => $branch->spa_id, 'branch_id' => $branch->id, 'created_by' => User::where('email', 'owner@levictas.test')->value('id'),
+            'title' => 'Massage Therapist', 'role' => 'therapist', 'status' => 'open',
+        ]);
 
         $form = [
             'full_name' => 'Ana Applicant', 'email' => 'ana@example.com', 'phone' => '09171234567',
-            'date_of_birth' => '2000-01-01', 'civil_status' => 'single', 'address' => 'Imus, Cavite',
-            'position_applied' => 'therapist', 'resume' => UploadedFile::fake()->create('cv.pdf', 50, 'application/pdf'),
+            'address' => 'Imus, Cavite', 'job_posting_id' => $posting->id, 'schedule_fit' => '1',
+            'resume' => UploadedFile::fake()->create('cv.pdf', 50, 'application/pdf'),
         ];
 
         $this->postJson('/apply/' . $branch->id, $form)

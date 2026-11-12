@@ -15,9 +15,9 @@ namespace App\Support\Legal;
  */
 class PrivacyPolicy extends LegalDocument
 {
-    public const VERSION = '2026-11-07';
+    public const VERSION = '2026-11-12';
 
-    public const UPDATED = 'November 7, 2026';
+    public const UPDATED = 'November 12, 2026';
 
     private const PART_A = 'Part A — Data Levictas is responsible for';
     private const PART_B = 'Part B — Data we handle for partner spas';
@@ -177,7 +177,7 @@ class PrivacyPolicy extends LegalDocument
                 'blocks' => [
                     ['list' => [
                         '<strong>Staff and employee records:</strong> names, contact details, address, pay rates, payroll and payslips, attendance, leave, and government numbers (TIN, SSS, PhilHealth and Pag-IBIG), which are sensitive personal information.',
-                        '<strong>Job applicants:</strong> what is sent with the Apply Now form (name, contact details, gender, date of birth, civil status, education, address, availability, an emergency contact and a résumé) and interview notes.',
+                        '<strong>Job applicants:</strong> what is sent with the Apply Now form (the job opening applied for, name, contact details, address, education, whether they can work the opening\'s schedule, an expected start date, an emergency contact and a résumé) and interview notes. We do not ask for age, date of birth, gender or civil status. Older applications may still include gender, date of birth and civil status, which the form used to ask for.',
                         '<strong>Supplier contacts:</strong> names and contact details.',
                     ]],
                 ],

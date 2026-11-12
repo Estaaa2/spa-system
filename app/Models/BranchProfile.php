@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Hiring\HiringStatus;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -23,8 +25,6 @@ class BranchProfile extends Model
         'latitude',
         'longitude',
         'amenities',
-        'is_hiring',
-        'hiring_note',
     ];
 
     protected $casts = [
@@ -32,9 +32,26 @@ class BranchProfile extends Model
         'gallery_captions' => 'array',
         'amenities' => 'array',
         'is_listed' => 'boolean',
-        'is_hiring' => 'boolean',
-        'hiring_note' => 'string',
     ];
+
+    /*
+     * is_hiring / hiring_note are worked out from the branch's open job postings
+     * (staff scheduling & hiring Phase 5, Q7 A). The columns are kept (no data
+     * migration) but nothing reads them any more; these accessors win.
+     */
+    protected function isHiring(): Attribute
+    {
+        return Attribute::get(fn () => $this->branch_id
+            ? app(HiringStatus::class)->isHiring((int) $this->branch_id)
+            : false);
+    }
+
+    protected function hiringNote(): Attribute
+    {
+        return Attribute::get(fn () => $this->branch_id
+            ? app(HiringStatus::class)->note((int) $this->branch_id)
+            : null);
+    }
 
     public function branch()
     {

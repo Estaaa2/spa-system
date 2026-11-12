@@ -24,6 +24,8 @@ class Applicant extends Model
         'branch_id',
         'position_applied',
         'availability',
+        'schedule_fit',
+        'schedule_fit_note',
         'source',
         'gender',
         'date_of_birth',
@@ -50,6 +52,7 @@ class Applicant extends Model
         'date_of_birth' => 'date',
         'expected_start_date' => 'date',
         'privacy_consent_at' => 'datetime',
+        'schedule_fit' => 'boolean',
         'deleted_at' => 'datetime',
     ];
 

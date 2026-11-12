@@ -43,7 +43,7 @@
         return 'N/A';
     };
 
-    $summary = [
+    $summary = $summary ?? [
         'total'    => $interviews->count(),
         'pending'  => $interviews->where('status', 'pending')->count(),
         'approved' => $interviews->where('status', 'approved')->count(),
@@ -94,7 +94,7 @@
 
         {{-- Interviews Table --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <div class="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex flex-col gap-4 px-6 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between dark:border-gray-700">
             <div>
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Interview Records</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -102,19 +102,15 @@
                 </p>
             </div>
 
-            {{-- Filter Tabs --}}
-            <div class="flex flex-wrap gap-2">
-                @foreach(['all' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $val => $label)
-                    <button
-                        type="button"
-                        onclick="filterStatus('{{ $val }}')"
-                        id="filter-{{ $val }}"
-                        class="px-3 py-1 text-xs font-semibold rounded-full border transition
-                        {{ $val === 'all' ? 'bg-[#8B7355] text-white border-[#8B7355]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#8B7355] hover:text-[#8B7355] dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600' }}">
-                        {{ $label }}
-                    </button>
-                @endforeach
-            </div>
+            {{-- Filters (table filters workstream; same bar as Pay Runs) --}}
+            <x-table-filters :action="route('interviews.index')" :shown="$interviews->count()" :total="$summary['total']"
+                             :active="$activeFilters ?? 0" noun="interview"
+                             :search="$filters['q'] ?? ''" search-placeholder="Applicant name or email">
+                <x-table-filters.select name="status" label="Status" all="All statuses"
+                    :options="['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected']" :value="$filters['status'] ?? null" width="sm:w-36" />
+                <x-table-filters.select name="posting" label="Job opening" all="All openings"
+                    :options="['none' => 'No posting'] + ($postingOptions ?? collect())->all()" :value="$filters['posting'] ?? null" width="sm:w-48" />
+            </x-table-filters>
         </div>
 
         <div class="overflow-x-auto">
@@ -255,7 +251,7 @@
                     @empty
                         <tr>
                             <td colspan="5" class="px-6 py-10 text-sm text-center text-gray-400 dark:text-gray-500">
-                                No interviews scheduled.
+                                {{ ($activeFilters ?? 0) > 0 ? 'No interviews match these filters.' : 'No interviews scheduled.' }}
                             </td>
                         </tr>
                     @endforelse
@@ -460,27 +456,6 @@
 @endif
 
 <script>
-function filterStatus(status) {
-    document.querySelectorAll('.interview-row').forEach(row => {
-        row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
-    });
-
-    document.querySelectorAll('[id^="filter-"]').forEach(btn => {
-        btn.classList.remove('bg-[#8B7355]', 'text-white', 'border-[#8B7355]');
-        btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
-
-        if (btn.classList.contains('dark:bg-gray-800') === false) {
-            btn.classList.add('dark:bg-gray-800', 'dark:text-gray-300', 'dark:border-gray-600');
-        }
-    });
-
-    const active = document.getElementById('filter-' + status);
-    if (active) {
-        active.classList.add('bg-[#8B7355]', 'text-white', 'border-[#8B7355]');
-        active.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
-    }
-}
-
 @if($canReviewInterview)
 
 function openInterviewRejectModal(button) {

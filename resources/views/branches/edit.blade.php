@@ -624,9 +624,7 @@
                                     </div>
                                 @endif
 
-                                {{-- Job Posting requires the manpower feature.
-                                The locked state intentionally renders no is_hiring or hiring_note
-                                inputs, so a plan without this feature cannot submit stale values. --}}
+                                {{-- Job Posting requires the manpower feature. --}}
                                 @if(!$canUseHiring)
                                     <div class="sm:pl-6">
                                         <div class="flex items-start gap-3 p-4 border border-gray-300 border-dashed rounded-2xl bg-gray-50 dark:bg-gray-900/20 dark:border-gray-600">
@@ -659,43 +657,43 @@
                                         </div>
                                     </div>
                                 @else
-                                <div class="sm:pl-6" x-data="{ hiring: {{ optional($branch->profile)->is_hiring ? 'true' : 'false' }} }">
+                                {{-- Read-only since staff scheduling & hiring Phase 5 (Q7 A): the badge shows
+                                     while this branch has an open job opening. Managed on Job Openings. --}}
+                                @php
+                                    $hiringOpenings = app(\App\Services\Hiring\HiringStatus::class)->openings($branch->id);
+                                    $canViewJobOpenings = auth()->user()?->hasBranchPermission('view hiring') ?? false;
+                                @endphp
+                                <div class="sm:pl-6">
                                     <div class="flex items-start justify-between gap-4">
                                         <div>
                                             <h2 class="text-base font-semibold text-gray-900 dark:text-white">Job Posting</h2>
                                             <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                                                Shows a "We're Hiring" badge on this branch's card.
+                                                The "We're Hiring" badge shows while this branch has an open job opening.
                                             </p>
                                         </div>
-                                        <label class="relative inline-flex items-center flex-shrink-0 cursor-pointer">
-                                            <input type="hidden" name="is_hiring" value="0">
-                                            <input type="checkbox" name="is_hiring" value="1"
-                                                x-model="hiring"
-                                                {{ optional($branch->profile)->is_hiring ? 'checked' : '' }}
-                                                class="sr-only peer">
-                                            <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8B7355] transition-colors dark:bg-gray-600
-                                                        after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
-                                                        peer-checked:after:translate-x-5"></div>
-                                        </label>
                                     </div>
 
-                                    <div x-show="hiring" x-transition class="mt-4 space-y-3">
-                                        <div class="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
-                                            <i class="text-xs text-green-500 fa-solid fa-briefcase"></i>
-                                            <p class="text-xs font-medium text-green-700 dark:text-green-300">"We're Hiring" badge will show publicly.</p>
+                                    @if ($hiringOpenings->isNotEmpty())
+                                        <div class="flex items-center gap-2 px-3 py-2 mt-4 bg-green-50 rounded-xl ring-1 ring-green-200 dark:bg-green-900/10 dark:ring-green-800">
+                                            <i class="text-xs text-green-500 fa-solid fa-briefcase" aria-hidden="true"></i>
+                                            <p class="text-xs font-medium text-green-700 dark:text-green-300">
+                                                Showing publicly: {{ $hiringOpenings->count() }} open {{ \Illuminate\Support\Str::plural('opening', $hiringOpenings->count()) }}.
+                                            </p>
                                         </div>
+                                    @else
+                                        <div class="flex items-center gap-2 px-3 py-2 mt-4 bg-gray-50 rounded-xl ring-1 ring-gray-200 dark:bg-gray-900/20 dark:ring-gray-700">
+                                            <i class="text-xs text-gray-400 fa-solid fa-briefcase" aria-hidden="true"></i>
+                                            <p class="text-xs font-medium text-gray-600 dark:text-gray-300">No open job openings, so no badge is shown.</p>
+                                        </div>
+                                    @endif
 
-                                        <div>
-                                            <label for="hiring_note" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Hiring Note <span class="font-normal text-gray-400">(optional)</span>
-                                            </label>
-                                            <input type="text" name="hiring_note" id="hiring_note" maxlength="150"
-                                                value="{{ old('hiring_note', optional($branch->profile)->hiring_note) }}"
-                                                placeholder="e.g. Now hiring: Massage Therapists"
-                                                class="block w-full mt-2 border-gray-300 rounded-xl shadow-sm focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
-                                            <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Shown when applicants open the branch details.</p>
-                                        </div>
-                                    </div>
+                                    @if ($canViewJobOpenings)
+                                        <a href="{{ route('job-openings.index') }}"
+                                           class="inline-flex items-center gap-2 mt-3 min-h-[44px] -my-2 text-sm font-medium text-[#8B7355] dark:text-[#C4A97D] hover:underline">
+                                            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                                            Manage job openings
+                                        </a>
+                                    @endif
                                 </div>
                                 @endif
 

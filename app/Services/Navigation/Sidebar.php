@@ -272,6 +272,7 @@ final class Sidebar
                     ? $this->link('deployment', 'Staff Deployment', 'deployment.index', ['deployment.*'], 'fa-people-arrows') : null,
             ]],
             'hiring' => ['branch', 'Hiring', 'fa-user-plus', $this->feature('manpower') ? [
+                $can('view hiring') ? $this->link('job-openings', 'Job Openings', 'job-openings.index', ['job-openings.*'], 'fa-bullhorn') : null,
                 $can('view hiring') ? $this->link('hiring', 'Application Form', 'hiring.index', ['hiring.*'], 'fa-file-signature') : null,
                 $can('view applications') ? $this->link('applicants', 'Applicants', 'applications.index', ['applications.*'], 'fa-id-card') : null,
                 $can('view interviews') ? $this->link('interviews', 'Interviews', 'interviews.index', ['interviews.*'], 'fa-comments') : null,

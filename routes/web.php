@@ -21,6 +21,7 @@ use App\Http\Controllers\HR\ApplicationController;
 use App\Http\Controllers\HR\AttendanceController;
 use App\Http\Controllers\HR\BranchDeploymentController;
 use App\Http\Controllers\HR\HiringController;
+use App\Http\Controllers\HR\JobOpeningController;
 use App\Http\Controllers\HR\InterviewController;
 use App\Http\Controllers\HR\MyPayslipController;
 use App\Http\Controllers\HR\PayrollController;
@@ -174,6 +175,10 @@ Route::post('/webhooks/paymongo', [PaymongoWebhookController::class, 'handle'])
 
 Route::post('/apply/{branch}', [PublicApplicationController::class, 'store'])
     ->name('public.apply');
+
+// Open job openings for a branch (staff scheduling & hiring Phase 5).
+Route::get('/apply/{branch}/openings', [PublicApplicationController::class, 'openings'])
+    ->name('public.apply.openings');
 
 /*
 |--------------------------------------------------------------------------
@@ -822,20 +827,40 @@ Route::middleware([
             ->name('hiring.store');
     });
 
+    // Job Openings (staff scheduling & hiring Phase 5). Replaces the unused
+    // hiring.update / hiring.destroy routes, which had no spa check.
+    Route::middleware([
+        'branch.permission:view hiring',
+        'plan:manpower',
+    ])->group(function () {
+        Route::get('/job-openings', [JobOpeningController::class, 'index'])
+            ->name('job-openings.index');
+    });
+
+    Route::middleware([
+        'branch.permission:create hiring',
+        'plan:manpower',
+    ])->group(function () {
+        Route::post('/job-openings', [JobOpeningController::class, 'store'])
+            ->name('job-openings.store');
+    });
+
     Route::middleware([
         'branch.permission:edit hiring',
         'plan:manpower',
     ])->group(function () {
-        Route::put('/hiring/{posting}', [HiringController::class, 'update'])
-            ->name('hiring.update');
+        Route::put('/job-openings/{posting}', [JobOpeningController::class, 'update'])
+            ->name('job-openings.update');
+        Route::patch('/job-openings/{posting}/status', [JobOpeningController::class, 'updateStatus'])
+            ->name('job-openings.status');
     });
 
     Route::middleware([
         'branch.permission:delete hiring',
         'plan:manpower',
     ])->group(function () {
-        Route::delete('/hiring/{posting}', [HiringController::class, 'destroy'])
-            ->name('hiring.destroy');
+        Route::delete('/job-openings/{posting}', [JobOpeningController::class, 'destroy'])
+            ->name('job-openings.destroy');
     });
 
     Route::get(
