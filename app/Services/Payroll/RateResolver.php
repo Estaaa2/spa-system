@@ -6,6 +6,7 @@ namespace App\Services\Payroll;
 
 use App\Models\Staff;
 use App\Models\StaffPayProfile;
+use App\Services\Staff\WorkScheduleResolver;
 use App\Services\Payroll\Support\Decimal;
 use App\Services\Payroll\ValueObjects\PayProfileSnapshot;
 use App\Services\Payroll\ValueObjects\ProfileTimeline;
@@ -26,8 +27,10 @@ use InvalidArgumentException;
  */
 final class RateResolver
 {
-    public function __construct(private readonly StatutoryCalculator $calc)
-    {
+    public function __construct(
+        private readonly StatutoryCalculator $calc,
+        private readonly ?WorkScheduleResolver $schedules = null,
+    ) {
     }
 
     public function dailyRate(PayProfileSnapshot $p, string $date): string
@@ -57,6 +60,20 @@ final class RateResolver
             ->get()
             ->map(fn (StaffPayProfile $p) => PayProfileSnapshot::fromModel($p))
             ->all();
+
+        // Staff scheduling Phase 4 (D3 B): when a work schedule is in effect at the
+        // end of a profile's stretch, its weekly rest days replace the profile's.
+        // That count sets the daily-paid DOLE factor (1 → 313, 2 → 261) and is what
+        // the payslip snapshot stores. Day-by-day rest days (swaps, mid-cutoff
+        // pattern changes) come from CutoffContext::isRestDay(). No schedule → the
+        // pay profile's own rest days, exactly as before.
+        $schedules = $this->schedules ?? app(WorkScheduleResolver::class);
+        $profiles = array_map(function (PayProfileSnapshot $p) use ($staff, $upTo, $schedules) {
+            $at = $p->effectiveTo !== null && $p->effectiveTo < $upTo ? $p->effectiveTo : $upTo;
+            $rest = $schedules->patternRestDays($staff, $at);
+
+            return $rest === null ? $p : $p->withRestDays($rest);
+        }, $profiles);
 
         return new ProfileTimeline($profiles);
     }

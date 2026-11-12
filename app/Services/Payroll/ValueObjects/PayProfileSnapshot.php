@@ -38,6 +38,13 @@ final readonly class PayProfileSnapshot
         );
     }
 
+    /** Same profile with the work schedule's rest days (staff scheduling Phase 4, D3 B). */
+    public function withRestDays(array $restDays): self
+    {
+        return new self($this->id, $this->effectiveFrom, $this->effectiveTo, $this->payBasis,
+            $this->baseRate, $this->commissionEnabled, array_values($restDays));
+    }
+
     public function covers(string $ymd): bool
     {
         return $this->effectiveFrom <= $ymd && ($this->effectiveTo === null || $this->effectiveTo >= $ymd);

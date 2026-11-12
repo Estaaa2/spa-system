@@ -20,6 +20,7 @@ final readonly class CutoffContext
      * @param array<string, Holiday> $holidays       keyed by Y-m-d
      * @param list<string>           $closedWeekdays e.g. ['Monday']
      * @param array<int, list<string>> $closedWeekdaysByBranch branch id → day names
+     * @param array<string, bool>      $restDates              Y-m-d → scheduled rest day (only dates a schedule governs)
      */
     public function __construct(
         public int $staffId,
@@ -33,7 +34,18 @@ final readonly class CutoffContext
         public array $holidays,
         public array $closedWeekdays = [],
         public array $closedWeekdaysByBranch = [],
+        public array $restDates = [],
     ) {
+    }
+
+    /**
+     * Is $ymd a rest day for pay? The work schedule's answer for that date when
+     * one governs it ($restDates: weekly pattern + rest-day swaps, staff scheduling
+     * Phase 4, D3 B), otherwise the pay profile's rest days.
+     */
+    public function isRestDay(PayProfileSnapshot $p, string $ymd): bool
+    {
+        return array_key_exists($ymd, $this->restDates) ? $this->restDates[$ymd] : $p->isRestDay($ymd);
     }
 
     /**

@@ -34,6 +34,7 @@ class StaffAttendance extends Model
     }
 
     // Returns the number of hours worked, as a decimal (e.g. 7.5 for 7 hours 30 minutes).
+    /** @deprecated Staff scheduling Phase 4: use App\Services\Attendance\ClockInRules (shift-based). Kept for backward compatibility; nothing calls it. */
     public static function resolveStatusForClockIn(int $branchId, string $date, string $clockInTime, int $graceMinutes = 15): string
     {
         $dayOfWeek = Carbon::parse($date)->format('l');
@@ -70,6 +71,7 @@ class StaffAttendance extends Model
      *
      * @return array{allowed: bool, reason: ?string}
      */
+    /** @deprecated Staff scheduling Phase 4: use App\Services\Attendance\ClockInRules (shift-based). Kept for backward compatibility; nothing calls it. */
     public static function evaluateClockInWindow(int $branchId, string $date, string $clockInTime, int $graceMinutes = 15): array
     {
         $dayOfWeek = Carbon::parse($date)->format('l');
@@ -119,6 +121,7 @@ class StaffAttendance extends Model
 
     // Returns a human-readable string describing why a clock-out time is flagged as outside operating hours, or null if it's within hours. 
     // This is for display purposes only; the actual attendance record is still saved.
+    /** @deprecated Staff scheduling Phase 4: use App\Services\Attendance\ClockInRules (shift-based). Kept for backward compatibility; nothing calls it. */
     public static function flagIfOutsideOperatingHours(int $branchId, string $date, string $clockOutTime): ?string
     {
         $dayOfWeek = Carbon::parse($date)->format('l');

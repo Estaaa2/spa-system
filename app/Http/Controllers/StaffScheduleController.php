@@ -50,7 +50,7 @@ class StaffScheduleController extends Controller
         $this->assertManageable($staff);
         $this->assertCanEdit($staff);
 
-        $validated = $this->validatePattern($request);
+        $validated = $this->validatePattern($request, $staff);
         $days = $this->normalizeDays($validated['days']);
 
         $this->writer->savePattern($staff, $validated['effective_from'], $days, Auth::id());
@@ -75,6 +75,9 @@ class StaffScheduleController extends Controller
         $validated = $request->validate([
             'date'       => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$this->today(), 'before_or_equal:'.$this->maxDate()],
             'type'       => ['required', 'in:'.StaffScheduleOverride::DAY_OFF.','.StaffScheduleOverride::SHIFT],
+            // Day off: unpaid, or a rest-day swap (staff scheduling Phase 4, Q2 A).
+            'kind'           => ['nullable', 'in:'.StaffScheduleOverride::KIND_UNPAID.','.StaffScheduleOverride::KIND_SWAP],
+            'swap_work_date' => ['nullable', 'required_if:kind,'.StaffScheduleOverride::KIND_SWAP, 'date_format:Y-m-d', 'after_or_equal:'.$this->today(), 'before_or_equal:'.$this->maxDate()],
             'start_time' => ['required_if:type,'.StaffScheduleOverride::SHIFT, 'nullable', 'date_format:H:i'],
             'end_time'   => ['required_if:type,'.StaffScheduleOverride::SHIFT, 'nullable', 'date_format:H:i'],
             'reason'     => ['nullable', 'string', 'max:150'],
@@ -83,7 +86,13 @@ class StaffScheduleController extends Controller
             'date.before_or_equal'  => 'Pick a date within the next 12 months.',
             'start_time.required_if' => 'Enter the shift start time.',
             'end_time.required_if'   => 'Enter the shift end time.',
+            'swap_work_date.required_if'    => 'Pick the rest day they will work instead.',
+            'swap_work_date.after_or_equal' => 'The rest day they work instead must be today or later.',
         ]);
+
+        if ($validated['type'] === StaffScheduleOverride::DAY_OFF && ($validated['kind'] ?? null) === StaffScheduleOverride::KIND_SWAP) {
+            return $this->storeSwap($staff, $validated);
+        }
 
         $isShift = $validated['type'] === StaffScheduleOverride::SHIFT;
         $date = $validated['date'];
@@ -124,21 +133,81 @@ class StaffScheduleController extends Controller
         ]);
     }
 
+    /**
+     * Rest-day swap (Phase 4, Q2 A): a day off on a workday + work on that week's
+     * rest day, in the same Monday–Sunday week. For pay the day off becomes the
+     * week's rest day and the old rest day an ordinary workday (no premium).
+     */
+    private function storeSwap(Staff $staff, array $v): JsonResponse
+    {
+        $off = $v['date'];
+        $work = $v['swap_work_date'];
+        $name = $this->firstName($staff);
+        $start = $v['start_time'] ?? null;
+        $end = $v['end_time'] ?? null;
+
+        if (($start === null) !== ($end === null)) {
+            return $this->fieldError('end_time', 'Enter both times for the swapped day, or leave both empty to use branch hours.');
+        }
+        if ($start !== null && $end <= $start) {
+            return $this->fieldError('end_time', 'The end time must be after the start time.');
+        }
+        if ($off === $work) {
+            return $this->fieldError('swap_work_date', 'Pick a different day for the swap.');
+        }
+        $offC = Carbon::parse($off);
+        $workC = Carbon::parse($work);
+        if (! $offC->copy()->startOfWeek(Carbon::MONDAY)->equalTo($workC->copy()->startOfWeek(Carbon::MONDAY))) {
+            return $this->fieldError('swap_work_date', 'A rest-day swap must stay within the same Monday–Sunday week.');
+        }
+
+        // Judge both dates by the weekly pattern alone: the swap replaces any
+        // one-off change already on them.
+        $offDay = $this->resolver->forDate($staff, $off, (int) $staff->branch_id, ignoreOverrides: true);
+        $workDay = $this->resolver->forDate($staff, $work, (int) $staff->branch_id, ignoreOverrides: true);
+
+        if ($offDay->status !== ScheduledDay::WORKING) {
+            return $this->fieldError('date', "{$name} isn't scheduled to work on ".$offC->format('D, M j').' ('.strtolower($offDay->label()).'), so there is nothing to swap.');
+        }
+        if ($workDay->status !== ScheduledDay::REST_DAY) {
+            return $this->fieldError('swap_work_date', $workDay->status === ScheduledDay::CLOSED
+                ? 'The branch is closed on '.$workC->format('l').'s.'
+                : ($workDay->status === ScheduledDay::ON_LEAVE
+                    ? "{$name} has approved leave on ".$workC->format('M j').'.'
+                    : $workC->format('D, M j')." isn't one of {$name}'s rest days. A swap trades a workday for a rest day in the same week."));
+        }
+
+        $this->writer->saveSwap($staff, $off, $work, $start, $end, $v['reason'] ?? null, Auth::id());
+        [$flagNote, $flagList] = $this->flagBookings($staff);
+
+        return response()->json([
+            'message'  => "Rest-day swap saved: day off on {$offC->format('D, M j')}, works on {$workC->format('D, M j')}.".$flagNote,
+            'warnings' => $flagList,
+            'flagged'  => count($flagList),
+            'schedule' => $this->payload($staff),
+        ]);
+    }
+
     public function destroyOverride(Staff $staff, StaffScheduleOverride $override): JsonResponse
     {
         $this->assertManageable($staff);
         $this->assertCanEdit($staff);
         abort_unless((int) $override->staff_id === (int) $staff->id, 404);
 
-        if ($override->date->toDateString() < $this->today()) {
-            return response()->json(['message' => 'Past changes can\'t be removed.'], 422);
+        $pair = $override->paired;
+        if ($override->date->toDateString() < $this->today() || ($pair && $pair->date->toDateString() < $this->today())) {
+            return response()->json(['message' => $pair
+                ? 'Half of this rest-day swap is already in the past, so it can\'t be removed.'
+                : 'Past changes can\'t be removed.'], 422);
         }
 
         $this->writer->deleteOverride($override);
         [$flagNote, $flagList] = $this->flagBookings($staff);
 
         return response()->json([
-            'message'  => 'Change removed for '.$override->date->format('D, M j').'.'.$flagNote,
+            'message'  => ($pair
+                ? 'Rest-day swap removed ('.$override->date->format('D, M j').' and '.$pair->date->format('D, M j').').'
+                : 'Change removed for '.$override->date->format('D, M j').'.').$flagNote,
             'warnings' => $flagList,
             'flagged'  => count($flagList),
             'schedule' => $this->payload($staff),
@@ -180,7 +249,7 @@ class StaffScheduleController extends Controller
                 'rest_days'            => $s->restDays(),
             ])->values();
 
-        $overrides = StaffScheduleOverride::where('staff_id', $staff->id)
+        $overrides = StaffScheduleOverride::with('paired')->where('staff_id', $staff->id)
             ->whereDate('date', '>=', $today)
             ->orderBy('date')
             ->get()
@@ -189,9 +258,16 @@ class StaffScheduleController extends Controller
                 'date'       => $o->date->toDateString(),
                 'date_label' => $o->date->format('D, M j, Y'),
                 'type'       => $o->type,
+                'kind'       => $o->kind,
                 'start_time' => $o->start_time ? substr((string) $o->start_time, 0, 5) : null,
                 'end_time'   => $o->end_time ? substr((string) $o->end_time, 0, 5) : null,
-                'label'      => $o->isDayOff() ? 'Day off' : ScheduledDay::fmt($o->start_time).' – '.ScheduledDay::fmt($o->end_time),
+                'label'      => match (true) {
+                    $o->isSwap() && $o->isDayOff() => 'Day off (rest-day swap)',
+                    $o->isDayOff()                 => 'Day off (unpaid)',
+                    $o->start_time === null        => 'Works branch hours'.($o->isSwap() ? ' (rest-day swap)' : ''),
+                    default                        => ScheduledDay::fmt($o->start_time).' – '.ScheduledDay::fmt($o->end_time).($o->isSwap() ? ' (rest-day swap)' : ''),
+                },
+                'paired_date_label' => $o->paired?->date?->format('D, M j'),
                 'reason'     => $o->reason,
             ])->values();
 
@@ -252,7 +328,7 @@ class StaffScheduleController extends Controller
 
     // ── Validation ───────────────────────────────────────────────────────────
 
-    private function validatePattern(Request $request): array
+    private function validatePattern(Request $request, Staff $staff): array
     {
         $rules = [
             'effective_from' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$this->today(), 'before_or_equal:'.$this->maxDate()],
@@ -274,7 +350,18 @@ class StaffScheduleController extends Controller
         }
 
         return validator($request->all(), $rules, $messages)
-            ->after(function (Validator $v) use ($request) {
+            ->after(function (Validator $v) use ($request, $staff) {
+                // Daily-paid: 1 or 2 rest days, or payroll can't price them (DOLE factor
+                // 313 / 261; staff scheduling Phase 4, D3 B).
+                $from = $request->input('effective_from');
+                if (is_string($from) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
+                    $profile = StaffPayProfile::effectiveFor((int) $staff->id, $from);
+                    $rest = count(array_filter((array) $request->input('days', []), fn ($d) => ($d['mode'] ?? null) === 'rest'));
+                    if ($profile?->pay_basis === StaffPayProfile::BASIS_DAILY && ! in_array($rest, [1, 2], true)) {
+                        $v->errors()->add('days', "This staff member is daily-paid, so payroll needs 1 or 2 rest days a week (DOLE factor 313 or 261). This pattern has {$rest}.");
+                    }
+                }
+
                 foreach (StaffWorkSchedule::WEEKDAYS as $d) {
                     $day = $request->input("days.$d");
                     if (($day['mode'] ?? null) === 'custom'

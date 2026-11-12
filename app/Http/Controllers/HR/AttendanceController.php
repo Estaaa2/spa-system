@@ -54,6 +54,7 @@ class AttendanceController extends Controller
 
         // ── Team roster — only for roles with view attendance ──────────────
         $staffList = collect();
+        $scheduledByStaff = [];
         if ($canViewRoster) {
             $staffList = Staff::with(['user.roles', 'attendance' => function ($query) use ($date) {
                 $query->whereDate('date', $date)->with('markedBy:id,first_name,middle_name,last_name,suffix');
@@ -62,6 +63,15 @@ class AttendanceController extends Controller
                 ->where('branch_id', $branchId)
                 ->where('employment_status', 'active')
                 ->get();
+
+            // Scheduled vs actual (staff scheduling Phase 4): each person's
+            // schedule for the roster date at the branch of their record (or this one).
+            $resolver = app(\App\Services\Staff\WorkScheduleResolver::class);
+            $resolver->prime($staffList, $date->toDateString(), $date->toDateString());
+            foreach ($staffList as $member) {
+                $rowBranch = (int) ($member->attendance->first()?->branch_id ?? $branchId);
+                $scheduledByStaff[$member->id] = $resolver->forDate($member, $date->toDateString(), $rowBranch);
+            }
         }
 
         // ── My own attendance — every staff member, regardless of role ─────
@@ -70,6 +80,7 @@ class AttendanceController extends Controller
         $myHistory = collect();
         $myWeek    = [];   // staff scheduling Phase 2: my next 7 days (Q7 A)
         $myRestDays = null;
+        $myShiftToday = null;   // Phase 4: today's shift on the clock-in card
 
         if ($myStaff) {
             $myToday = StaffAttendance::where('staff_id', $myStaff->id)
@@ -84,6 +95,7 @@ class AttendanceController extends Controller
             $resolver = app(\App\Services\Staff\WorkScheduleResolver::class);
             $myWeek = $resolver->forRange($myStaff, today()->toDateString(), today()->addDays(6)->toDateString());
             $myRestDays = $resolver->scheduleOn($myStaff, today()->toDateString())?->restDays();
+            $myShiftToday = $myWeek[0] ?? null;
         }
 
         // ── My leave request history ────────────────────────────────────
@@ -94,7 +106,8 @@ class AttendanceController extends Controller
 
         return view('hr.attendance.index', compact(
             'staffList', 'date', 'canViewRoster', 'canEditRoster', 'canApproveLeave', 'canRequestLeave',
-            'myStaff', 'myToday', 'myHistory', 'myLeaveRequests', 'myWeek', 'myRestDays'
+            'myStaff', 'myToday', 'myHistory', 'myLeaveRequests', 'myWeek', 'myRestDays',
+            'scheduledByStaff', 'myShiftToday'
         ));
     }
 
@@ -121,12 +134,14 @@ class AttendanceController extends Controller
 
         $now = now()->format('H:i:s');
 
-        $window = StaffAttendance::evaluateClockInWindow($staff->branch_id, $today, $now);
+        // Shift-based rules (staff scheduling Phase 4): refused with no shift today;
+        // window = shift start − grace … shift end; late after start + grace.
+        $window = app(\App\Services\Attendance\ClockInRules::class)->clockIn($staff, $today, $now);
         if (!$window['allowed']) {
             return back()->with('error', $window['reason']);
         }
 
-        $status = StaffAttendance::resolveStatusForClockIn($staff->branch_id, $today, $now);
+        $status = $window['status'];
 
         StaffAttendance::updateOrCreate(
             ['staff_id' => $staff->id, 'date' => $today],
@@ -164,7 +179,7 @@ class AttendanceController extends Controller
         }
 
         $now  = now()->format('H:i:s');
-        $flag = StaffAttendance::flagIfOutsideOperatingHours($staff->branch_id, $today, $now);
+        $flag = app(\App\Services\Attendance\ClockInRules::class)->clockOutFlag($staff, $today, $now);
 
         $update = ['time_out' => $now];
         if ($flag) {

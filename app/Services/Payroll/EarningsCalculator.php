@@ -74,6 +74,20 @@ final class EarningsCalculator
                 $closedByBranch[(int) $h->branch_id][] = (string) $h->day_of_week;
             });
 
+        // Scheduled rest days for the cutoff and the holiday lookback (staff
+        // scheduling Phase 4, D3 B). Only dates a work schedule governs; the rest
+        // fall back to the pay profile inside CutoffContext::isRestDay().
+        $restDates = [];
+        $schedules = app(\App\Services\Staff\WorkScheduleResolver::class);
+        $lookbackFrom = (new \DateTimeImmutable($start))->modify('-'.AttendanceEarnings::LOOKBACK_DAYS.' days')->format('Y-m-d');
+        $schedules->prime([$staff], $lookbackFrom, $end);
+        foreach (CutoffContext::range($lookbackFrom, $end) as $ymd) {
+            $rest = $schedules->scheduledRestDay($staff, $ymd);
+            if ($rest !== null) {
+                $restDates[$ymd] = $rest;
+            }
+        }
+
         $ctx = new CutoffContext(
             staffId: (int) $staff->id,
             spaId: (int) $staff->spa_id,
@@ -91,6 +105,7 @@ final class EarningsCalculator
                 ->map(fn ($d) => (string) $d)
                 ->all(),
             closedWeekdaysByBranch: $closedByBranch,
+            restDates: $restDates,
         );
 
         $att = $this->attendance->forPeriod($staff, $ctx);

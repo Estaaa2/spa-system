@@ -1022,7 +1022,7 @@ final class PayrollRunService
                     $this->calc->eemrFactor($p->payBasis, count($p->restDays), $end);
                 } catch (InvalidArgumentException) {
                     return ['warning' => new RunWarning(RunWarning::MISSING_EEMR_FACTOR, sprintf(
-                        '%s: not paid — the daily-paid pay profile has %d rest day(s) a week, but daily-paid staff need 1 or 2. Fix it on Staff Pay. [ref: pay profile #%d]',
+                        '%s: not paid — daily-paid staff need 1 or 2 rest days a week, but they have %d. Fix it in their work schedule (Staff page), or on Staff Pay if they have no schedule. [ref: pay profile #%d]',
                         $who, count($p->restDays), $p->id,
                     ), $id)];
                 }

@@ -22,6 +22,7 @@ final class ScheduledDay
     public const SOURCE_OVERRIDE     = 'override';      // one-off change
     public const SOURCE_LEAVE        = 'leave';
     public const SOURCE_BRANCH       = 'branch';        // branch closed
+    public const SOURCE_PAY_PROFILE  = 'pay_profile';   // no schedule: rest day from the pay profile
 
     public function __construct(
         public readonly string $date,
@@ -32,6 +33,7 @@ final class ScheduledDay
         public readonly ?string $end = null,
         public readonly bool $hasSchedule = false, // false = D8 default (branch hours, no rest days)
         public readonly ?string $note = null,     // one-off change reason
+        public readonly ?string $kind = null,     // one-off kind: 'unpaid' | 'swap' (Phase 4)
     ) {
     }
 
@@ -51,7 +53,7 @@ final class ScheduledDay
         return match ($this->status) {
             self::WORKING  => self::fmt($this->start).' – '.self::fmt($this->end),
             self::REST_DAY => 'Rest day',
-            self::DAY_OFF  => 'Day off',
+            self::DAY_OFF  => $this->kind === 'swap' ? 'Day off (swap)' : 'Day off',
             self::ON_LEAVE => 'On leave',
             self::CLOSED   => 'Branch closed',
         };
@@ -76,6 +78,7 @@ final class ScheduledDay
             'label'        => $this->label(),
             'has_schedule' => $this->hasSchedule,
             'note'         => $this->note,
+            'kind'         => $this->kind,
         ];
     }
 }

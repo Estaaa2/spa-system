@@ -540,4 +540,36 @@ class PayrollSetupTest extends TestCase
         $this->actingAs($this->hr)->delete(route('payroll.staff.recurring.destroy', [$this->staff, $item]))->assertSessionHasNoErrors();
         $this->assertSame(0, StaffRecurringItem::count());
     }
+
+    // ── Staff scheduling Phase 4 (D3 B): rest days come from the work schedule ──
+
+    public function test_profile_rest_days_follow_the_work_schedule_when_one_exists(): void
+    {
+        $this->profile();
+        $days = [];
+        foreach (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as $d) {
+            $days[$d] = ['mode' => in_array($d, ['Tuesday', 'Wednesday'], true) ? 'rest' : 'branch'];
+        }
+        app(\App\Services\Staff\WorkScheduleWriter::class)->savePattern($this->staff, '2026-09-01', $days, null);
+
+        $this->actingAs($this->hr)->post(route('payroll.staff.profiles.store', $this->staff), [
+            'effective_from' => '2026-10-01', 'pay_basis' => 'daily', 'base_rate' => '650.00',
+            'commission_enabled' => '1', 'rest_days' => ['Monday'],   // ignored: the schedule decides
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(['Tuesday', 'Wednesday'], StaffPayProfile::whereDate('effective_from', '2026-10-01')->sole()->rest_days);
+        $this->actingAs($this->hr)->get(route('payroll.staff.show', $this->staff))->assertOk()
+            ->assertSee('From the work schedule: Tuesday, Wednesday');
+    }
+
+    public function test_daily_paid_profile_refused_when_the_schedule_has_no_rest_day(): void
+    {
+        $days = array_fill_keys(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], ['mode' => 'branch']);
+        app(\App\Services\Staff\WorkScheduleWriter::class)->savePattern($this->staff, '2026-09-01', $days, null);
+
+        $this->actingAs($this->hr)->post(route('payroll.staff.profiles.store', $this->staff), [
+            'effective_from' => '2026-10-01', 'pay_basis' => 'daily', 'base_rate' => '650.00', 'rest_days' => ['Sunday'],
+        ])->assertSessionHasErrorsIn('profileCreate', 'rest_days');
+        $this->assertStringContainsString('work schedule has 0', session('errors')->getBag('profileCreate')->first('rest_days'));
+    }
 }

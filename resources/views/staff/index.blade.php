@@ -1105,6 +1105,7 @@
                 <div class="text-sm">
                     <p class="font-medium text-gray-900 dark:text-white">${esc(o.date_label)}
                         <span class="ml-1">${chip(o.type === 'day_off' ? 'day_off' : 'working', o.label)}</span></p>
+                    ${o.paired_date_label ? `<p class="text-xs text-gray-500 dark:text-gray-400">${o.type === 'day_off' ? 'Works instead on' : 'In place of the day off on'} ${esc(o.paired_date_label)}. Removing one removes both.</p>` : ''}
                     ${o.reason ? `<p class="text-xs text-gray-500 dark:text-gray-400">${esc(o.reason)}</p>` : ''}
                 </div>
                 ${d.can_edit ? `<button type="button" data-remove-override="${o.id}" class="${esc(BTN.neutral)}" aria-label="Remove the change on ${esc(o.date_label)}">
@@ -1124,11 +1125,17 @@
                 <div>
                     <label for="ovType" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Change <x-required-mark /></label>
                     <select id="ovType" name="type" class="${esc(INPUT_CLASS)}">
-                        <option value="day_off">Day off</option>
+                        <option value="day_off">Day off (unpaid)</option>
+                        <option value="swap">Rest-day swap</option>
                         <option value="shift">Shift (changed or extra hours)</option>
                     </select>
                 </div>
+                <div id="ovSwap" class="hidden sm:col-span-2">
+                    <label for="ovSwapDate" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Works instead on (a rest day in the same week) <x-required-mark /></label>
+                    <input type="date" id="ovSwapDate" name="swap_work_date" min="${esc(d.today)}" max="${esc(d.max_date)}" class="${esc(INPUT_CLASS)}">
+                </div>
                 <div id="ovTimes" class="hidden sm:col-span-2">
+                    <p id="ovTimesHint" class="hidden mb-2 text-xs text-gray-500 dark:text-gray-400">Hours on the swapped day (leave empty to use branch hours).</p>
                     <div class="flex items-center gap-2">
                         <input type="time" name="start_time" aria-label="Shift start time" class="${esc(INPUT_CLASS)}">
                         <span class="text-sm text-gray-500 dark:text-gray-400">to</span>
@@ -1145,7 +1152,10 @@
                     </button>
                 </div>
             </form>
-            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">A change applies right away and replaces any other change on the same date. A day off doesn't use up leave.</p>` : '';
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">A change applies right away and replaces any other change on the same date.
+                <strong class="font-medium">Day off (unpaid):</strong> monthly-paid staff lose a day's pay; daily-paid aren't paid that day.
+                <strong class="font-medium">Rest-day swap:</strong> the day off becomes that week's rest day and they work their usual rest day instead, with no change in pay.
+                An extra shift on a rest day earns the rest-day premium.</p>` : '';
 
         return `<section>
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">One-off changes</h3>
@@ -1213,15 +1223,30 @@
 
         const of = document.getElementById('scheduleOverrideForm');
         const typeSel = document.getElementById('ovType');
-        typeSel.addEventListener('change', () => document.getElementById('ovTimes').classList.toggle('hidden', typeSel.value !== 'shift'));
+        typeSel.addEventListener('change', () => {
+            const t = typeSel.value;
+            document.getElementById('ovTimes').classList.toggle('hidden', t === 'day_off');
+            document.getElementById('ovSwap').classList.toggle('hidden', t !== 'swap');
+            document.getElementById('ovTimesHint').classList.toggle('hidden', t !== 'swap');
+        });
         of.addEventListener('submit', async e => {
             e.preventDefault();
             if (scheduleBusy) return;
             setBusy(of, true);
             flash(null, null);
             const fd = new FormData(of);
-            const body = { date: fd.get('date'), type: fd.get('type'), reason: fd.get('reason') || null };
-            if (body.type === 'shift') { body.start_time = fd.get('start_time') || null; body.end_time = fd.get('end_time') || null; }
+            const choice = fd.get('type');
+            const body = { date: fd.get('date'), reason: fd.get('reason') || null };
+            if (choice === 'shift') {
+                body.type = 'shift';
+                body.start_time = fd.get('start_time') || null; body.end_time = fd.get('end_time') || null;
+            } else if (choice === 'swap') {
+                body.type = 'day_off'; body.kind = 'swap';
+                body.swap_work_date = fd.get('swap_work_date') || null;
+                body.start_time = fd.get('start_time') || null; body.end_time = fd.get('end_time') || null;
+            } else {
+                body.type = 'day_off'; body.kind = 'unpaid';
+            }
             const r = await scheduleRequest('POST', routeFor(SCHEDULE_ROUTES.ovStore, scheduleStaffId), body);
             setBusy(of, false);
             handleResult(r);

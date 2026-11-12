@@ -106,12 +106,14 @@ class AttendanceController extends Controller
 
         $now = now()->format('H:i:s');
 
-        $window = StaffAttendance::evaluateClockInWindow($staff->branch_id, $today, $now);
+        // Shift-based rules (staff scheduling Phase 4): refused with no shift today;
+        // window = shift start − grace … shift end; late after start + grace.
+        $window = app(\App\Services\Attendance\ClockInRules::class)->clockIn($staff, $today, $now);
         if (! $window['allowed']) {
             return response()->json(['message' => $window['reason']], 422);
         }
 
-        $status = StaffAttendance::resolveStatusForClockIn($staff->branch_id, $today, $now);
+        $status = $window['status'];
 
         StaffAttendance::updateOrCreate(
             ['staff_id' => $staff->id, 'date' => $today],
@@ -153,7 +155,7 @@ class AttendanceController extends Controller
         }
 
         $now  = now()->format('H:i:s');
-        $flag = StaffAttendance::flagIfOutsideOperatingHours($staff->branch_id, $today, $now);
+        $flag = app(\App\Services\Attendance\ClockInRules::class)->clockOutFlag($staff, $today, $now);
 
         $update = ['time_out' => $now];
         if ($flag) {

@@ -99,6 +99,17 @@
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">My Attendance Today</p>
+                        @if($myShiftToday)
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                <i class="mr-1 fa-solid fa-user-clock" aria-hidden="true"></i>
+                                @if($myShiftToday->isWorking())
+                                    Your shift today: <span class="font-medium text-gray-900 dark:text-white">{{ $myShiftToday->label() }}</span>
+                                    · clock in from {{ \Carbon\Carbon::parse($myShiftToday->start)->subMinutes(\App\Services\Attendance\ClockInRules::graceMinutes())->format('g:i A') }}
+                                @else
+                                    Today: <span class="font-medium text-gray-900 dark:text-white">{{ $myShiftToday->label() }}</span> — you're not scheduled.
+                                @endif
+                            </p>
+                        @endif
                         @if(!$myToday || !$myToday->time_in)
                             <p class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">Not clocked in yet</p>
                         @else
@@ -253,6 +264,7 @@
                         <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
                             <tr role="row">
                                 <th role="columnheader" scope="col" class="{{ $th }}">Staff</th>
+                                <th role="columnheader" scope="col" class="{{ $th }}">Schedule</th>
                                 <th role="columnheader" scope="col" class="{{ $th }}">Status</th>
                                 <th role="columnheader" scope="col" class="{{ $th }}">Time In</th>
                                 <th role="columnheader" scope="col" class="{{ $th }}">Time Out</th>
@@ -281,6 +293,17 @@
                                         <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $staff->user->name ?? '—' }}</p>
                                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ \App\Services\Payroll\PayrollPermissions::roleLabel($roleName) }}</p>
                                     </td>
+                                    @php($sched = $scheduledByStaff[$staff->id] ?? null)
+                                    <td role="cell" data-label="Schedule" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                                        @if($sched)
+                                            {{ $sched->isWorking() ? $sched->label() : ($sched->status === 'day_off' && $sched->kind !== 'swap' ? 'Day off (unpaid)' : $sched->label()) }}
+                                            @if($sched->source === 'override')
+                                                <span class="block text-xs text-gray-500 dark:text-gray-400">One-off change</span>
+                                            @endif
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
                                     <td role="cell" data-label="Status" class="px-6 py-4">
                                         @if($record)
                                             <span class="{{ $badgeBase }} {{ $statusMeta[$record->status]['class'] ?? $fallbackBadge }}">
@@ -290,7 +313,7 @@
                                                 <p class="mt-1 text-xs text-amber-700 dark:text-amber-300"><i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>{{ $record->remarks }}</p>
                                             @endif
                                         @else
-                                            <span class="text-xs italic text-gray-500 dark:text-gray-400">No record</span>
+                                            <span class="text-xs italic text-gray-500 dark:text-gray-400">{{ $sched && ! $sched->isWorking() ? 'Not scheduled' : 'No record' }}</span>
                                         @endif
                                     </td>
                                     <td role="cell" data-label="Time In" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
@@ -316,7 +339,7 @@
                                 </tr>
                             @empty
                                 <tr role="row">
-                                    <td role="cell" colspan="{{ $canEditRoster ? 6 : 5 }}" class="px-6 py-12 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
+                                    <td role="cell" colspan="{{ $canEditRoster ? 7 : 6 }}" class="px-6 py-12 text-sm text-center text-gray-500 rt-empty dark:text-gray-400">
                                         <div class="flex flex-col items-center justify-center">
                                             <i class="mb-3 text-4xl text-gray-400 fa-solid fa-user-group" aria-hidden="true"></i>
                                             <p>No active staff found for this branch.</p>

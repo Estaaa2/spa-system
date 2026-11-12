@@ -15,7 +15,11 @@ class StaffScheduleOverride extends Model
     public const DAY_OFF = 'day_off';
     public const SHIFT = 'shift';
 
-    protected $fillable = ['staff_id', 'date', 'type', 'start_time', 'end_time', 'reason', 'created_by'];
+    /** How the change counts for pay (Phase 4, Q2 A). See the add_kind migration. */
+    public const KIND_UNPAID = 'unpaid';
+    public const KIND_SWAP = 'swap';
+
+    protected $fillable = ['staff_id', 'date', 'type', 'kind', 'paired_override_id', 'start_time', 'end_time', 'reason', 'created_by'];
 
     protected $casts = ['date' => 'date'];
 
@@ -32,5 +36,27 @@ class StaffScheduleOverride extends Model
     public function isDayOff(): bool
     {
         return $this->type === self::DAY_OFF;
+    }
+
+    public function isSwap(): bool
+    {
+        return $this->kind === self::KIND_SWAP;
+    }
+
+    /** The other half of a rest-day swap. */
+    public function paired(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'paired_override_id');
+    }
+
+    /** "Day off (unpaid)", "Rest-day swap: day off", "Rest-day swap: works", "Shift". */
+    public function kindLabel(): string
+    {
+        return match (true) {
+            $this->isSwap() && $this->isDayOff() => 'Rest-day swap: day off',
+            $this->isSwap()                      => 'Rest-day swap: works',
+            $this->isDayOff()                    => 'Day off (unpaid)',
+            default                              => 'Shift',
+        };
     }
 }

@@ -289,7 +289,7 @@ final class AttendanceEarnings
 
             $skipped = match (true) {
                 $ctx->nonWorkingHoliday($ymd) !== null => 'holiday',
-                $p->isRestDay($ymd)                    => 'rest day',
+                $ctx->isRestDay($p, $ymd)              => 'rest day',
                 $ctx->isBranchClosed($ymd, $row?->branchId) => 'branch closed',
                 default                                => null,
             };
@@ -350,7 +350,7 @@ final class AttendanceEarnings
             // "non-working day in the establishment", Sec. 6(c)). An absence or leave
             // row here is not deducted, and a missing row is not a missing workday.
             // The branch is the row's (deployments), or the home branch with no row.
-            if ($p->isRestDay($date)
+            if ($ctx->isRestDay($p, $date)
                 || $ctx->nonWorkingHoliday($date) !== null
                 || $ctx->isBranchClosed($date, $row?->branchId)) {
                 continue;
@@ -389,7 +389,7 @@ final class AttendanceEarnings
     /** @return array{0: ?string, 1: string, 2: ?string, 3: string} day key, OT key, premium code, label */
     private function classify(string $date, PayProfileSnapshot $p, CutoffContext $ctx): array
     {
-        $rest = $p->isRestDay($date);
+        $rest = $ctx->isRestDay($p, $date);
         $h = $ctx->nonWorkingHoliday($date);
 
         if ($h?->type === Holiday::REGULAR) {

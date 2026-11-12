@@ -173,7 +173,7 @@ class StaffScheduleControllerTest extends TestCase
 
         $this->actingAs($this->hr)->postJson(route('staff.schedule.overrides.store', $this->staff), [
             'date' => '2026-11-17', 'type' => 'day_off', 'reason' => 'Family event',
-        ])->assertOk()->assertJsonPath('schedule.overrides.0.label', 'Day off')
+        ])->assertOk()->assertJsonPath('schedule.overrides.0.label', 'Day off (unpaid)')
             ->assertJsonPath('schedule.week.5.status', 'day_off');
 
         $this->actingAs($this->hr)->postJson(route('staff.schedule.overrides.store', $this->staff), [

@@ -23,14 +23,22 @@ class FinalizeDailyAttendanceTest extends TestCase
     {
         parent::setUp();
         $this->makeWorld();
+        // Both branches open every day (Phase 4: no hours row = closed, as for
+        // clock-in and booking); closeOn() then marks single days closed.
+        foreach ([$this->branchA, $this->branchB] as $branch) {
+            foreach (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as $day) {
+                OperatingHours::create(['branch_id' => $branch->id, 'day_of_week' => $day,
+                    'opening_time' => '09:00:00', 'closing_time' => '18:00:00', 'is_closed' => false]);
+            }
+        }
     }
 
     private function closeOn(string $weekday, $branch = null): void
     {
-        OperatingHours::create([
-            'branch_id' => ($branch ?? $this->branchA)->id, 'day_of_week' => $weekday,
-            'opening_time' => '09:00:00', 'closing_time' => '18:00:00', 'is_closed' => true,
-        ]);
+        OperatingHours::updateOrCreate(
+            ['branch_id' => ($branch ?? $this->branchA)->id, 'day_of_week' => $weekday],
+            ['opening_time' => '09:00:00', 'closing_time' => '18:00:00', 'is_closed' => true]
+        );
     }
 
     private function finalizeOn(string $date): ?StaffAttendance

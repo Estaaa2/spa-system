@@ -170,6 +170,8 @@ class StaffPayProfileController extends Controller
             'minMonthly'     => $minMonthly,
             'lastFinalized'  => $this->setup->lastFinalizedPeriodEnd($staff),
             'today'          => now()->toDateString(),
+            // Staff scheduling Phase 4 (D3 B): with a work schedule, rest days come from it.
+            'scheduleRestDays' => app(\App\Services\Staff\WorkScheduleResolver::class)->patternRestDays($staff, now()->toDateString()),
         ]);
     }
 
@@ -179,6 +181,7 @@ class StaffPayProfileController extends Controller
     {
         $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
+        $this->useScheduleRestDays($request, $staff);
 
         return $this->handleForm($request, 'profileCreate', $this->profileRules($request), function (array $data) use ($staff) {
             $res = $this->setup->createProfile($staff, $data, Auth::user());
@@ -196,6 +199,7 @@ class StaffPayProfileController extends Controller
         $this->authorizePayroll(P::MANAGE_SETUP);
         $this->assertOwned($staff, $this->currentSpa());
         abort_unless((int) $profile->staff_id === (int) $staff->id, 404);
+        $this->useScheduleRestDays($request, $staff);
 
         return $this->handleForm($request, 'profileEdit', $this->profileRules($request, true), function (array $data) use ($staff, $profile) {
             $this->setup->updateProfile($profile, $data);
@@ -376,9 +380,27 @@ class StaffPayProfileController extends Controller
             // DECIMAL(12,2); 0 allowed (commission + minimum-wage top-up — locked model table 1).
             'base_rate'          => ['required', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'commission_enabled' => ['sometimes', 'boolean'],
-            'rest_days'          => ['required', 'array'],
+            // From the work schedule (Phase 4) an empty list is checked by restDayCheck(),
+            // whose message points at the schedule.
+            'rest_days'          => [$request->boolean('_rest_from_schedule') ? 'present' : 'required', 'array'],
             'rest_days.*'        => ['string', 'distinct', Rule::in(StaffPayProfile::DAY_NAMES)],
         ];
+    }
+
+    /**
+     * Staff scheduling Phase 4 (D3 B): when a work schedule is in effect on the
+     * profile's start date, its rest days are used whatever the form sent (the
+     * field is read-only there), so the profile stays the schedule's mirror and
+     * the daily-paid check below runs on the real count.
+     */
+    private function useScheduleRestDays(Request $request, Staff $staff): void
+    {
+        $from = $request->input('effective_from');
+        $date = is_string($from) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) ? $from : now()->toDateString();
+        $rest = app(\App\Services\Staff\WorkScheduleResolver::class)->patternRestDays($staff, $date);
+        if ($rest !== null) {
+            $request->merge(['rest_days' => $rest, '_rest_from_schedule' => true]);
+        }
     }
 
     /**
@@ -391,7 +413,9 @@ class StaffPayProfileController extends Controller
         return function ($v) use ($request) {
             $n = count(array_unique((array) $request->input('rest_days', [])));
             if ($request->input('pay_basis') === StaffPayProfile::BASIS_DAILY && ! in_array($n, [1, 2], true)) {
-                $v->errors()->add('rest_days', 'Daily-paid staff need 1 or 2 rest days a week.');
+                $v->errors()->add('rest_days', $request->boolean('_rest_from_schedule')
+                    ? "Daily-paid staff need 1 or 2 rest days a week, but their work schedule has {$n}. Change it on the Staff page first."
+                    : 'Daily-paid staff need 1 or 2 rest days a week.');
             }
             if ($request->input('pay_basis') === StaffPayProfile::BASIS_MONTHLY && ($n < 1 || $n > 6)) {
                 $v->errors()->add('rest_days', 'Choose at least one weekly rest day (Labor Code Art. 91).');

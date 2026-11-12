@@ -179,19 +179,22 @@
                 <p id="pc_rate_hint" class="text-xs text-gray-500 dark:text-gray-400" data-rate-hint
                    data-daily="{{ $minDaily !== null ? 'Branch minimum: ₱' . number_format((float) $minDaily, 2) . ' a day. A lower rate is allowed — payroll tops each worked day up to the minimum.' : 'The home branch has no minimum wage set yet.' }}"
                    data-monthly="{{ $minMonthly !== null ? 'Branch minimum is about ₱' . number_format((float) $minMonthly, 2) . ' a month (daily minimum × 365 ÷ 12). A lower rate is allowed — payroll tops each worked day up.' : 'The home branch has no minimum wage set yet.' }}"></p>
-                <fieldset data-rest-set>
+                <fieldset data-rest-set @class(['[&_label]:opacity-60 [&_label]:cursor-not-allowed' => $scheduleRestDays !== null])>
                     <legend class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Weekly rest days</legend>
                     <div class="flex flex-wrap gap-2">
-                        @php $oldRest = $oldModal ? ['Sunday'] : (array) old('rest_days', ['Sunday']); @endphp
+                        @php $oldRest = $scheduleRestDays ?? ($oldModal ? ['Sunday'] : (array) old('rest_days', ['Sunday'])); @endphp
                         @foreach($dayNames as $d)
                             <label class="inline-flex items-center gap-2 min-h-[44px] px-3 text-sm border border-gray-300 cursor-pointer rounded-xl dark:border-gray-600 dark:text-gray-300 has-[:checked]:border-[#8B7355] has-[:checked]:bg-[#8B7355]/10">
-                                <input type="checkbox" name="rest_days[]" value="{{ $d }}" @checked(in_array($d, $oldRest, true))
+                                <input type="checkbox" name="rest_days[]" value="{{ $d }}" @checked(in_array($d, $oldRest, true)) @disabled($scheduleRestDays !== null)
                                        class="w-4 h-4 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
                                 {{ substr($d, 0, 3) }}
                             </label>
                         @endforeach
                     </div>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" data-rest-hint aria-live="polite">Daily-paid staff need 1 or 2 rest days a week.</p>
+                    @if($scheduleRestDays !== null)
+                        <p class="mt-1 text-xs text-blue-700 dark:text-blue-300"><i class="mr-1 fa-solid fa-circle-info" aria-hidden="true"></i>From the work schedule: {{ $scheduleRestDays ? implode(', ', $scheduleRestDays) : 'none' }}. Change rest days on the Staff page (Schedule).</p>
+                    @endif
                     @if($eb->has('rest_days'))<p class="{{ $errText }}">{{ $eb->first('rest_days') }}</p>@endif
                 </fieldset>
                 @foreach(['pay_basis', 'commission_enabled', 'profile'] as $f)
@@ -564,17 +567,20 @@
                                class="w-5 h-5 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
                         Earns commission
                     </label>
-                    <fieldset data-rest-set>
+                    <fieldset data-rest-set @class(['[&_label]:opacity-60 [&_label]:cursor-not-allowed' => $scheduleRestDays !== null])>
                         <legend class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Weekly rest days</legend>
-                        <div class="flex flex-wrap gap-2" id="pe_rest" data-old='@json($isOld ? (array) old('rest_days', []) : null)'>
+                        <div class="flex flex-wrap gap-2" id="pe_rest" data-old='@json($isOld ? (array) old('rest_days', []) : null)' data-schedule='@json($scheduleRestDays)'>
                             @foreach($dayNames as $d)
                                 <label class="inline-flex items-center gap-2 min-h-[44px] px-3 text-sm border border-gray-300 cursor-pointer rounded-xl dark:border-gray-600 dark:text-gray-300 has-[:checked]:border-[#8B7355] has-[:checked]:bg-[#8B7355]/10">
-                                    <input type="checkbox" name="rest_days[]" value="{{ $d }}" class="w-4 h-4 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
+                                    <input type="checkbox" name="rest_days[]" value="{{ $d }}" @disabled($scheduleRestDays !== null) class="w-4 h-4 border-gray-300 rounded text-[#8B7355] focus:ring-[#8B7355] dark:border-gray-600 dark:bg-gray-700">
                                     {{ substr($d, 0, 3) }}
                                 </label>
                             @endforeach
                         </div>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" data-rest-hint aria-live="polite">Daily-paid staff need 1 or 2 rest days a week.</p>
+                        @if($scheduleRestDays !== null)
+                            <p class="mt-1 text-xs text-blue-700 dark:text-blue-300"><i class="mr-1 fa-solid fa-circle-info" aria-hidden="true"></i>From the work schedule: {{ $scheduleRestDays ? implode(', ', $scheduleRestDays) : 'none' }}. Change rest days on the Staff page (Schedule).</p>
+                        @endif
                     </fieldset>
                     @if($eb->any())
                         <ul class="space-y-1 text-xs text-red-600 dark:text-red-400">@foreach($eb->all() as $m)<li>{{ $m }}</li>@endforeach</ul>
@@ -719,6 +725,9 @@
 (function () {
     'use strict';
 
+    // Staff scheduling Phase 4 (D3 B): rest days from the work schedule, or null.
+    const SCHEDULE_REST = @json($scheduleRestDays);
+
     // ── Profile forms: rate label + minimum-wage hint follow the pay basis ──
     function wireProfileForm(form) {
         const basis = form.querySelector('[data-basis]');
@@ -732,6 +741,8 @@
         // once 2 are ticked. Monthly-paid only needs at least one.
         function syncRest() {
             if (!restSet || !basis) return;
+            // Rest days come from the work schedule: keep the boxes read-only (Phase 4).
+            if (SCHEDULE_REST !== null) return;
             const boxes = Array.from(restSet.querySelectorAll('input[type="checkbox"]'));
             const n = boxes.filter(b => b.checked).length;
             const daily = basis.value !== 'monthly';
@@ -908,7 +919,10 @@
             document.getElementById('pe_to').value = d.effective_to || '';
             document.getElementById('pe_rate').value = d.base_rate;
         }
-        const rest = restoring && Array.isArray(oldRest) ? oldRest : (d.rest_days || []);
+        // With a work schedule the rest days come from it (staff scheduling Phase 4).
+        const scheduleRest = JSON.parse(restBox.dataset.schedule || 'null');
+        const rest = Array.isArray(scheduleRest) ? scheduleRest
+            : (restoring && Array.isArray(oldRest) ? oldRest : (d.rest_days || []));
         restBox.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = rest.includes(cb.value); });
         form._syncBasis();
         openModal('profileEditModal', '#pe_from');

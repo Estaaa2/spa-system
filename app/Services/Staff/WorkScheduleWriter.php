@@ -73,30 +73,97 @@ final class WorkScheduleWriter
         return $schedule->load('days');
     }
 
-    /** Add or replace the one-off change on $date. */
+    /**
+     * Add or replace the one-off change on $date. A day off is an unpaid day off
+     * (Phase 4, Q2 A); a shift is changed or extra hours. Replacing one half of a
+     * rest-day swap removes the other half too.
+     */
     public function saveOverride(Staff $staff, string $date, string $type, ?string $start, ?string $end, ?string $reason, ?int $userId): StaffScheduleOverride
     {
-        $override = StaffScheduleOverride::query()
-            ->where('staff_id', $staff->id)
-            ->whereDate('date', $date)
-            ->first() ?? new StaffScheduleOverride(['staff_id' => $staff->id, 'date' => $date]);
+        $override = DB::transaction(function () use ($staff, $date, $type, $start, $end, $reason, $userId) {
+            $this->clearDate($staff, $date);
 
-        $override->fill([
+            return StaffScheduleOverride::create([
+                'staff_id'   => $staff->id,
+                'date'       => $date,
                 'type'       => $type,
+                'kind'       => $type === StaffScheduleOverride::DAY_OFF ? StaffScheduleOverride::KIND_UNPAID : null,
                 'start_time' => $type === StaffScheduleOverride::SHIFT ? $start : null,
                 'end_time'   => $type === StaffScheduleOverride::SHIFT ? $end : null,
-                'reason'     => $reason !== null && trim($reason) !== '' ? trim($reason) : null,
+                'reason'     => $this->cleanReason($reason),
                 'created_by' => $userId,
-        ])->save();
+            ]);
+        });
         $this->resolver->flush();
 
         return $override;
     }
 
+    /**
+     * Rest-day swap (Phase 4, Q2 A): a day off on $offDate (a workday) and a shift
+     * on $workDate (that week's rest day), saved together and linked. Null times on
+     * the work day = the branch's hours. Callers validate the dates.
+     *
+     * @return array{0: StaffScheduleOverride, 1: StaffScheduleOverride} [day off, shift]
+     */
+    public function saveSwap(Staff $staff, string $offDate, string $workDate, ?string $start, ?string $end, ?string $reason, ?int $userId): array
+    {
+        $pair = DB::transaction(function () use ($staff, $offDate, $workDate, $start, $end, $reason, $userId) {
+            $this->clearDate($staff, $offDate);
+            $this->clearDate($staff, $workDate);
+
+            $reason = $this->cleanReason($reason);
+            $off = StaffScheduleOverride::create([
+                'staff_id' => $staff->id, 'date' => $offDate, 'type' => StaffScheduleOverride::DAY_OFF,
+                'kind' => StaffScheduleOverride::KIND_SWAP, 'reason' => $reason, 'created_by' => $userId,
+            ]);
+            $work = StaffScheduleOverride::create([
+                'staff_id' => $staff->id, 'date' => $workDate, 'type' => StaffScheduleOverride::SHIFT,
+                'kind' => StaffScheduleOverride::KIND_SWAP, 'paired_override_id' => $off->id,
+                'start_time' => $start, 'end_time' => $end, 'reason' => $reason, 'created_by' => $userId,
+            ]);
+            $off->update(['paired_override_id' => $work->id]);
+
+            return [$off->fresh(), $work];
+        });
+        $this->resolver->flush();
+
+        return $pair;
+    }
+
+    /** Remove a one-off change; a swap is removed as a pair. */
     public function deleteOverride(StaffScheduleOverride $override): void
     {
-        $override->delete();
+        DB::transaction(function () use ($override) {
+            $pairId = $override->paired_override_id;
+            $override->delete();
+            if ($pairId) {
+                StaffScheduleOverride::whereKey($pairId)->delete();
+            }
+        });
         $this->resolver->flush();
+    }
+
+    /** Delete whatever change is on $date (and its swap partner). */
+    private function clearDate(Staff $staff, string $date): void
+    {
+        $existing = StaffScheduleOverride::query()
+            ->where('staff_id', $staff->id)
+            ->whereDate('date', $date)
+            ->first();
+        if ($existing === null) {
+            return;
+        }
+        $pairId = $existing->paired_override_id;
+        $existing->delete();
+        if ($pairId) {
+            StaffScheduleOverride::whereKey($pairId)->delete();
+        }
+    }
+
+    private function cleanReason(?string $reason): ?string
+    {
+        return $reason !== null && trim($reason) !== '' ? trim($reason) : null;
     }
 
     /** @param array<string, array{mode: string}> $days */

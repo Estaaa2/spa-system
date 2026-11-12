@@ -117,11 +117,15 @@ class BookingUsesScheduleTest extends TestCase
 
     // ── Slot grid and date list ──────────────────────────────────────────────
 
-    public function test_without_schedules_everyone_works_branch_hours(): void
+    public function test_without_schedules_branch_hours_and_pay_profile_rest_days_apply(): void
     {
-        $s = $this->slot($this->slots(), '10:00');
-        $this->assertTrue($s['available']);
-        $this->assertSame(2, $s['free']);
+        // Seeded pay profiles: Tess rests Sunday, Theo Saturday + Sunday (Phase 4 fallback).
+        $fri = $this->slot($this->slots('2026-11-13'), '10:00');
+        $this->assertTrue($fri['available']);
+        $this->assertSame(2, $fri['free']);
+
+        $this->assertSame(1, $this->slot($this->slots(), '10:00')['free']);   // Saturday: Theo rests
+        $this->assertSame('no_therapist_on_shift', $this->slot($this->slots('2026-11-15'), '10:00')['reason']); // Sunday
     }
 
     public function test_slots_follow_shifts_and_say_when_nobody_is_working(): void
@@ -183,6 +187,7 @@ class BookingUsesScheduleTest extends TestCase
     public function test_pick_never_chooses_someone_off_shift(): void
     {
         $this->pattern($this->tess, rest: ['Saturday']);
+        $this->pattern($this->theo, rest: ['Sunday']);   // overrides his pay-profile Saturday rest day
         $assigner = app(TherapistAssigner::class);
 
         $this->assertSame($this->theo->id, $assigner->pick($this->branch->spa_id, $this->branch->id, self::SAT, '10:00', '11:00')?->id);
@@ -233,7 +238,8 @@ class BookingUsesScheduleTest extends TestCase
         $booking = $this->booking($this->tess, self::SAT, '10:00:00', '11:00:00');
         $save = fn (array $sat) => $this->actingAs($this->manager)->putJson(route('staff.schedule.update', $this->staffOf($this->tess)), [
             'effective_from' => '2026-11-12',
-            'days' => array_merge(array_fill_keys(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sunday'], ['mode' => 'branch']), ['Saturday' => $sat]),
+            // Tess is daily-paid: keep Sunday as a rest day (1–2 rest days, Phase 4).
+            'days' => array_merge(array_fill_keys(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], ['mode' => 'branch']), ['Saturday' => $sat, 'Sunday' => ['mode' => 'rest']]),
         ]);
 
         $res = $save(['mode' => 'rest'])->assertOk()->assertJsonPath('flagged', 1);
