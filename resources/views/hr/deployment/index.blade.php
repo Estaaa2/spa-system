@@ -14,71 +14,94 @@
     $approvedCount  = $summaryCounts['approved']  ?? 0;
     $activeCount    = $summaryCounts['active']    ?? 0;
     $completedCount = $summaryCounts['completed'] ?? 0;
+
+    // Button / input tokens, same block as staff/index.blade.php and appointments.blade.php
+    // (design language §5). Shared with the JS-built detail panel through @json below.
+    // Reject / revoke / cancel are status changes, not deletions: amber, never solid red (§8).
+    $btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-4 py-2 text-sm '
+             . 'font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 '
+             . 'focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
+    $btn = [
+        'primary' => $btnBase . ' bg-[#8B7355] text-white hover:bg-[#7A6348]',
+        'edit'    => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
+                   . 'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        'neutral' => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
+                   . 'dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
+        'cancel'  => $btnBase . ' border border-amber-300 bg-white text-amber-800 hover:bg-amber-50 '
+                   . 'dark:border-amber-700 dark:bg-gray-800 dark:text-amber-300 dark:hover:bg-amber-900/20',
+        'process' => $btnBase . ' bg-amber-700 text-white hover:bg-amber-800',
+    ];
+    $inputClass = 'block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl '
+                . 'focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 '
+                . 'dark:placeholder-gray-400 dark:text-white';
+    $labelClass = 'block mb-2 text-sm font-medium text-gray-900 dark:text-white';
+    $closeBtn = 'inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 '
+              . 'hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200';
+
+    // Role badges: same map and labels as the Staff page (canon palette §6).
+    $roleColors = [
+        'manager'      => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+        'therapist'    => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+        'receptionist' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+        'hr'           => 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+        'finance'      => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+        'hr_head'      => 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+        'finance_head' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+    ];
+    $roleColorFallback = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    $roleLabels = [];
+    foreach (array_keys($roleColors) as $r) {
+        $roleLabels[$r] = \App\Services\Payroll\PayrollPermissions::roleLabel($r);
+    }
+
+    // Deployment status / staff response chips (canon palette §6).
+    $deployStatus = [
+        'pending'   => ['Pending',   'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'],
+        'approved'  => ['Approved',  'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'],
+        'active'    => ['Active',    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'],
+        'rejected'  => ['Rejected',  'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'],
+        'completed' => ['Completed', 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300'],
+        'cancelled' => ['Cancelled', 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'],
+    ];
+    $responseStatus = [
+        'pending'  => ['Awaiting Response', 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'],
+        'accepted' => ['Accepted', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'],
+        'declined' => ['Declined', 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'],
+    ];
 @endphp
 
-<div class="p-6 mx-auto space-y-6 max-w-7xl">
+<div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
 
     <x-page-header
         title="Branch Deployment"
         subtitle="Manage and track staff branch deployment requests."
     />
 
-    {{-- Flash Messages --}}
-    @if(session('success'))
-        <div class="flex items-center gap-3 p-4 text-green-800 border border-green-200 rounded-2xl bg-green-50 dark:bg-green-900/10 dark:border-green-800 dark:text-green-300">
-            <i class="fa-solid fa-circle-check shrink-0"></i>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="flex items-center gap-3 p-4 text-red-800 border border-red-200 rounded-2xl bg-red-50 dark:bg-red-900/10 dark:border-red-800 dark:text-red-300">
-            <i class="fa-solid fa-circle-xmark shrink-0"></i>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
-    {{-- Summary Cards --}}
-    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Pending</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-yellow-600 dark:text-yellow-400">{{ $pendingCount }}</h3>
-                <span class="text-sm text-gray-500 dark:text-gray-400">Awaiting review</span>
+    {{-- Summary cards (same recipe as the Staff page). Flash messages show as the layout's toast. --}}
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        @foreach ([
+            ['Pending', $pendingCount, 'Awaiting review', 'text-amber-700 dark:text-amber-300'],
+            ['Approved', $approvedCount, 'Scheduled', 'text-blue-700 dark:text-blue-300'],
+            ['Active', $activeCount, 'In progress', 'text-emerald-700 dark:text-emerald-300'],
+            ['Completed', $completedCount, 'Finished', 'text-gray-900 dark:text-white'],
+        ] as [$cardLabel, $cardValue, $cardHint, $cardColor])
+            <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">{{ $cardLabel }}</p>
+                <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
+                    <h3 class="text-2xl font-semibold sm:text-3xl {{ $cardColor }}">{{ $cardValue }}</h3>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">{{ $cardHint }}</span>
+                </div>
             </div>
-        </div>
-        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Approved</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-blue-600 dark:text-blue-400">{{ $approvedCount }}</h3>
-                <span class="text-sm text-gray-500 dark:text-gray-400">Scheduled</span>
-            </div>
-        </div>
-        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Active</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-green-600 dark:text-green-400">{{ $activeCount }}</h3>
-                <span class="text-sm text-gray-500 dark:text-gray-400">In progress</span>
-            </div>
-        </div>
-        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Completed</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-gray-600 dark:text-gray-400">{{ $completedCount }}</h3>
-                <span class="text-sm text-gray-500 dark:text-gray-400">Finished</span>
-            </div>
-        </div>
+        @endforeach
     </div>
 
-    {{-- Staff List --}}
+    {{-- Staff list --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <div class="flex flex-col gap-4 px-6 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between dark:border-gray-700">
+        <div class="flex flex-col gap-4 px-4 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between sm:px-6 dark:border-gray-700">
             <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Staff Members</h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Click a staff member to view or manage their deployment request.
-                </p>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Staff Members</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Open a staff member to view or manage their deployment.</p>
             </div>
-            {{-- Filters (table filters workstream; same bar as Pay Runs) --}}
             <x-table-filters :action="route('deployment.index')" :shown="$staff->count()" :total="$allStaffCount ?? $staff->count()"
                              :active="$activeFilters ?? 0" noun="staff member"
                              :search="$filters['q'] ?? ''" search-placeholder="Name or email">
@@ -86,127 +109,94 @@
                 <x-table-filters.select name="deployment" label="Latest deployment" all="Any" :options="$deploymentOptions ?? []" :value="$filters['deployment'] ?? null" width="sm:w-44" />
             </x-table-filters>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Staff Member</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Role</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Current Branch</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Latest Deployment</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Staff Response</th>
+        <div class="md:overflow-x-auto">
+            {{-- .rt collapses this table into stacked cards below md (design language §8). --}}
+            <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
+                <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
+                    <tr role="row">
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Staff Member</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Role</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Current Branch</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Latest Deployment</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Staff Response</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                <tbody role="rowgroup" class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($staff as $member)
                     @php
-                        $latestDeploy = $member->deployments->first();
-                        $latestStatus = $latestDeploy?->status;
-                        $statusBadge = match($latestStatus) {
-                            'pending'   => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-                            'approved'  => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-                            'active'    => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-                            'rejected'  => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-                            'completed' => 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-                            'cancelled' => 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
-                            default     => null,
-                        };
-                        $statusLabel = match($latestStatus) {
-                            'pending'   => 'Pending',
-                            'approved'  => 'Approved',
-                            'active'    => 'Active',
-                            'rejected'  => 'Rejected',
-                            'completed' => 'Completed',
-                            'cancelled' => 'Cancelled',
-                            default     => null,
-                        };
+                        $latestStatus = $member->deployments->first()?->status;
                         $role = $member->user?->getRoleNames()->first();
-                        $roleColors = [
-                            'manager'      => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-                            'therapist'    => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-                            'receptionist' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-                            'hr'           => 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-                            'finance'      => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-                        ];
-                        $roleColor = $roleColors[$role] ?? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-
-                        // ── Staff response for the latest OPEN deployment (pending/approved) ──
                         $openDeploy = $member->deployments->whereIn('status', ['pending', 'approved'])->first();
                         $staffResponse = $openDeploy?->staff_response;
-                        $responseBadge = match($staffResponse) {
-                            'pending'   => 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-                            'accepted'  => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-                            'declined'  => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-                            default     => null,
-                        };
-                        $responseLabel = match($staffResponse) {
-                            'pending'   => 'Awaiting Response',
-                            'accepted'  => 'Accepted',
-                            'declined'  => 'Declined',
-                            default     => null,
-                        };
                         $needsReview = $member->deployments
                             ->whereIn('status', ['pending', 'approved'])
                             ->where('staff_response', 'declined')
                             ->isNotEmpty();
+                        $memberName = trim(($member->user->first_name ?? '') . ' ' . ($member->user->middle_name ? $member->user->middle_name . ' ' : '') . ($member->user->last_name ?? ''));
                     @endphp
-                    <tr
-                        id="staff-row-{{ $member->id }}"
-                        class="transition-colors border-l-4 {{ $needsReview ? 'border-red-400' : 'border-transparent' }} cursor-pointer staff-row hover:bg-gray-50 dark:hover:bg-gray-900"
-                        onclick="selectStaff({{ $member->id }})"
-                    >
-                        <td class="px-6 py-4">
+                    <tr role="row" id="staff-row-{{ $member->id }}" data-staff-row
+                        class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
+                        <td role="cell" data-label="Staff Member" class="px-6 py-4">
                             <div class="flex items-center gap-3">
-                                <div class="flex items-center justify-center w-10 h-10 text-sm font-semibold text-white rounded-full bg-[#8B7355] shrink-0">
+                                <div class="flex items-center justify-center w-10 h-10 text-sm font-semibold text-white rounded-full bg-[#8B7355] shrink-0" aria-hidden="true">
                                     {{ strtoupper(substr($member->user->first_name ?? 'S', 0, 1)) }}
                                 </div>
-                                <div>
-                                    <p class="font-medium text-gray-900 dark:text-white flex items-center gap-1.5">
-                                        {{ trim($member->user->first_name . ' ' . ($member->user->middle_name ? $member->user->middle_name . ' ' : '') . $member->user->last_name) }}
+                                <div class="min-w-0">
+                                    <p class="flex items-center gap-1.5 font-medium text-gray-900 dark:text-white">
+                                        {{ $memberName }}
                                         @if($needsReview)
-                                            <i class="text-xs text-red-500 fa-solid fa-triangle-exclamation" title="Staff declined — needs review"></i>
+                                            <i class="text-xs text-red-600 fa-solid fa-triangle-exclamation dark:text-red-400" aria-hidden="true"></i>
+                                            <span class="sr-only">Staff declined, needs review</span>
                                         @endif
                                     </p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $member->user->email ?? 'No email' }}</p>
+                                    <p class="text-sm text-gray-500 break-all dark:text-gray-400">{{ $member->user->email ?? 'No email' }}</p>
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-4">
+                        <td role="cell" data-label="Role" class="px-6 py-4">
                             @if($role)
-                                <span class="px-3 py-1 text-xs font-medium rounded-full {{ $roleColor }}">{{ ucfirst($role) }}</span>
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $roleColors[$role] ?? $roleColorFallback }}">{{ $roleLabels[$role] ?? \App\Services\Payroll\PayrollPermissions::roleLabel($role) }}</span>
                             @else
-                                <span class="text-sm text-gray-400">—</span>
+                                <span class="text-sm text-gray-500 dark:text-gray-400">—</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4">
+                        <td role="cell" data-label="Current Branch" class="px-6 py-4">
                             @if($member->branch)
-                                <p class="text-sm text-gray-800 dark:text-white">{{ $member->branch->name }}</p>
+                                <p class="text-sm text-gray-900 dark:text-white">{{ $member->branch->name }}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ $member->branch->location }}</p>
                             @else
-                                <span class="text-sm text-gray-400 dark:text-gray-500">No branch</span>
+                                <span class="text-sm text-gray-500 dark:text-gray-400">No branch</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4">
-                            @if($statusBadge)
-                                <span class="px-3 py-1 text-xs font-medium rounded-full {{ $statusBadge }}">{{ $statusLabel }}</span>
+                        <td role="cell" data-label="Latest Deployment" class="px-6 py-4">
+                            @if(isset($deployStatus[$latestStatus]))
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $deployStatus[$latestStatus][1] }}">{{ $deployStatus[$latestStatus][0] }}</span>
                             @else
-                                <span class="text-sm text-gray-400 dark:text-gray-500">No records</span>
+                                <span class="text-sm text-gray-500 dark:text-gray-400">No records</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4">
-                            @if($responseBadge)
-                                <span class="px-3 py-1 text-xs font-medium rounded-full {{ $responseBadge }}">{{ $responseLabel }}</span>
+                        <td role="cell" data-label="Staff Response" class="px-6 py-4">
+                            @if(isset($responseStatus[$staffResponse]))
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $responseStatus[$staffResponse][1] }}">{{ $responseStatus[$staffResponse][0] }}</span>
                             @else
-                                <span class="text-sm text-gray-400 dark:text-gray-500">—</span>
+                                <span class="text-sm text-gray-500 dark:text-gray-400">—</span>
                             @endif
+                        </td>
+                        <td role="cell" class="px-6 py-4 rt-actions">
+                            <button type="button" class="{{ $btn['edit'] }}" onclick="selectStaff({{ $member->id }})"
+                                    aria-controls="detailPanel" aria-label="Manage deployment for {{ $memberName }}">
+                                <i class="text-xs fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i>
+                                Manage
+                            </button>
                         </td>
                     </tr>
                     @empty
-                    <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                    <tr role="row">
+                        <td role="cell" colspan="6" class="px-6 py-12 text-center text-gray-500 rt-empty dark:text-gray-400">
                             <div class="flex flex-col items-center justify-center">
-                                <i class="mb-3 text-4xl text-gray-300 fas fa-users"></i>
-                                <p>{{ ($activeFilters ?? 0) > 0 ? 'No staff member matches these filters.' : 'No staff members found in this branch.' }}</p>
+                                <i class="mb-3 text-4xl text-gray-400 fa-solid fa-users" aria-hidden="true"></i>
+                                <p class="font-medium">{{ ($activeFilters ?? 0) > 0 ? 'No staff member matches these filters.' : 'No staff members found in this branch.' }}</p>
                             </div>
                         </td>
                     </tr>
@@ -216,165 +206,127 @@
         </div>
     </div>
 
-    {{-- Default hint (shown before any staff is selected) --}}
-    <div id="detailHint" class="flex flex-col items-center justify-center gap-2 p-12 text-gray-400 bg-white border border-gray-200 border-dashed rounded-2xl dark:bg-gray-800 dark:border-gray-600">
-        <i class="text-4xl fas fa-hand-pointer"></i>
-        <p class="font-medium text-gray-500 dark:text-gray-400">Select a staff member above</p>
-        <p class="text-sm">Click any row to view deployment details and available actions.</p>
+    {{-- Shown before a staff member is selected --}}
+    <div id="detailHint" class="p-4 bg-white border border-gray-200 border-dashed sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-600">
+        <div class="flex flex-col items-center gap-2 py-8 text-center text-gray-500 dark:text-gray-400">
+            <i class="text-4xl text-gray-400 fa-solid fa-hand-pointer" aria-hidden="true"></i>
+            <p class="font-medium">Select a staff member above</p>
+            <p class="text-sm">Use Manage to see deployment details and actions.</p>
+        </div>
     </div>
 
-    {{-- Detail Panel — populated by JavaScript --}}
-    <div id="detailPanel" class="hidden space-y-4"></div>
-
+    {{-- Detail panel, filled by JavaScript --}}
+    <div id="detailPanel" class="hidden space-y-6" tabindex="-1" aria-live="polite"></div>
 </div>
 
-{{-- ═══════════════════════════════════════════════════════════
-     NEW DEPLOYMENT REQUEST MODAL (HR / Owner)
-════════════════════════════════════════════════════════════ --}}
 @if($canCreateDeployments)
-<div id="newRequestModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black bg-opacity-50">
-    <div class="flex items-center justify-center min-h-screen px-4 py-8">
-        <div class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-            <form id="newRequestForm" action="{{ route('branch-deployments.store') }}" method="POST">
+{{-- New deployment request --}}
+<div id="newRequestModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="newRequestTitle" aria-describedby="newRequestSubtitle"
+             class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <form id="newRequestForm" action="{{ route('branch-deployments.store') }}" method="POST" novalidate>
                 @csrf
                 <input type="hidden" name="staff_id" id="newRequestStaffId">
 
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">New Deployment Request</h3>
-                            <p id="newRequestSubtitle" class="mt-0.5 text-sm text-gray-500 dark:text-gray-400"></p>
-                        </div>
-                        <button type="button" onclick="closeNewRequestModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                            <i class="text-lg fas fa-times"></i>
-                        </button>
+                <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                    <div>
+                        <h2 id="newRequestTitle" class="text-lg font-semibold text-gray-900 dark:text-white">New Deployment Request</h2>
+                        <p id="newRequestSubtitle" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
                     </div>
+                    <button type="button" onclick="closeNewRequestModal()" aria-label="Close dialog" class="{{ $closeBtn }}">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
                 </div>
 
-                <div class="p-6 space-y-4">
-                    {{-- Target Branch --}}
+                <div class="px-4 py-6 space-y-4 sm:px-6">
                     <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                            Target Branch <x-required-mark />
-                        </label>
-                        <select name="to_branch_id" id="newRequestBranchSelect" required
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <label for="newRequestBranchSelect" class="{{ $labelClass }}">Target branch <x-required-mark /></label>
+                        <select name="to_branch_id" id="newRequestBranchSelect" required class="{{ $inputClass }}">
                             <option value="">Select target branch</option>
                             @foreach($branches as $branch)
                                 <option value="{{ $branch->id }}">{{ $branch->name }} — {{ $branch->location }}</option>
                             @endforeach
                         </select>
                         @if($branches->isEmpty())
-                            <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                <i class="mr-1 fa-solid fa-triangle-exclamation"></i>
+                            <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                                 No other branches found. Create another branch first.
                             </p>
                         @endif
                     </div>
 
-                    {{-- Start Date --}}
                     <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                            Start Date <x-required-mark />
-                        </label>
-                        <input type="date" name="start_date" id="newRequestStartDate" required
-                            min="{{ now()->toDateString() }}"
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <label for="newRequestStartDate" class="{{ $labelClass }}">Start date <x-required-mark /></label>
+                        <input type="date" name="start_date" id="newRequestStartDate" required min="{{ now()->toDateString() }}" class="{{ $inputClass }}">
                     </div>
 
-                    {{-- Permanent Toggle --}}
-                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl dark:bg-gray-700">
+                    <div class="flex items-start gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
                         <input type="checkbox" id="isPermanentToggle" name="is_permanent" value="1"
-                            class="w-4 h-4 text-[#8B7355] border-gray-300 rounded focus:ring-[#8B7355]"
-                            onchange="togglePermanent(this.checked)">
+                               class="w-4 h-4 mt-0.5 rounded accent-[#8B7355]" onchange="togglePermanent(this.checked)">
                         <div>
-                            <label for="isPermanentToggle" class="text-sm font-medium text-gray-900 cursor-pointer dark:text-white">
-                                Permanent transfer
-                            </label>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Staff stays indefinitely — no return to original branch.</p>
+                            <label for="isPermanentToggle" class="text-sm font-medium text-gray-900 cursor-pointer dark:text-white">Permanent transfer</label>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Staff stays indefinitely, with no return to the original branch.</p>
                         </div>
                     </div>
 
-                    {{-- End Date --}}
                     <div id="endDateWrapper">
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                            End Date
-                            <span class="font-normal text-gray-400">(optional)</span>
-                        </label>
-                        <input type="date" name="end_date" id="newRequestEndDate"
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                        <p class="mt-1 text-xs text-gray-400">
-                            If left blank, staff stays at the new branch until recalled or a new deployment request is submitted.
-                        </p>
+                        <label for="newRequestEndDate" class="{{ $labelClass }}">End date <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span></label>
+                        <input type="date" name="end_date" id="newRequestEndDate" class="{{ $inputClass }}">
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">If left blank, staff stays at the new branch until recalled or a new request is filed.</p>
                     </div>
 
-                    {{-- Notes --}}
                     <div>
-                        <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                            Notes
-                            <span class="font-normal text-gray-400">(optional)</span>
-                        </label>
-                        <textarea name="notes" rows="3" maxlength="1000"
-                            placeholder="Reason for deployment, special instructions, etc."
-                            class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"></textarea>
+                        <label for="newRequestNotes" class="{{ $labelClass }}">Notes <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span></label>
+                        <textarea name="notes" id="newRequestNotes" rows="3" maxlength="1000" placeholder="Reason for deployment, special instructions, etc." class="{{ $inputClass }}"></textarea>
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl dark:bg-gray-900 dark:border-gray-700">
-                    <button type="button" onclick="closeNewRequestModal()"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                        class="px-5 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348] focus:ring-4 focus:outline-none focus:ring-[#8B7355]/40">
-                        <i class="mr-1.5 fa-solid fa-paper-plane"></i>
-                        Submit Request
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@endif
-
-{{-- ═══════════════════════════════════════════════════════════
-     REJECT MODAL (Owner)
-════════════════════════════════════════════════════════════ --}}
-@if($canApproveDeployments)
-<div id="rejectModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black bg-opacity-50">
-    <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="w-full max-w-md bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-            <form id="rejectForm" method="POST">
-                @csrf
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Reject Deployment</h3>
-                            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Provide a reason so HR can address the concern.</p>
-                        </div>
-                        <button type="button" onclick="closeRejectModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                            <i class="text-lg fas fa-times"></i>
+                <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" onclick="closeNewRequestModal()" class="w-full {{ $btn['neutral'] }} sm:w-auto">Cancel</button>
+                        <button type="submit" class="w-full {{ $btn['primary'] }} sm:w-auto">
+                            <i class="text-xs fa-solid fa-paper-plane" aria-hidden="true"></i>
+                            Submit Request
                         </button>
                     </div>
                 </div>
-                <div class="p-6">
-                    <label class="block mb-1.5 text-sm font-medium text-gray-900 dark:text-white">
-                        Rejection Reason <x-required-mark />
-                    </label>
-                    <textarea name="rejection_reason" required rows="4" maxlength="1000"
-                        placeholder="Explain why this deployment is being rejected..."
-                        class="block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"></textarea>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+@if($canApproveDeployments)
+{{-- Reject / revoke deployment (status change) --}}
+<div id="rejectModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="rejectModalTitle"
+             class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <form id="rejectForm" method="POST" novalidate>
+                @csrf
+                <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                    <div>
+                        <h2 id="rejectModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Reject Deployment</h2>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Give a reason so HR can address the concern.</p>
+                    </div>
+                    <button type="button" onclick="closeRejectModal()" aria-label="Close dialog" class="{{ $closeBtn }}">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
                 </div>
-                <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl dark:bg-gray-900 dark:border-gray-700">
-                    <button type="button" onclick="closeRejectModal()"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                        class="px-5 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 focus:ring-4 focus:outline-none focus:ring-red-300">
-                        <i class="mr-1.5 fa-solid fa-ban"></i>
-                        Confirm Rejection
-                    </button>
+                <div class="px-4 py-6 sm:px-6">
+                    <label for="rejectReason" class="{{ $labelClass }}">Reason <x-required-mark /></label>
+                    <textarea name="rejection_reason" id="rejectReason" required rows="4" maxlength="1000"
+                              placeholder="Explain why this deployment is being rejected" class="{{ $inputClass }}"></textarea>
+                </div>
+                <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" onclick="closeRejectModal()" class="w-full {{ $btn['neutral'] }} sm:w-auto">Keep It</button>
+                        <button type="submit" class="w-full {{ $btn['process'] }} sm:w-auto">
+                            <i class="text-xs fa-solid fa-ban" aria-hidden="true"></i>
+                            Confirm Rejection
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -382,17 +334,22 @@
 </div>
 @endif
 
-{{-- Hidden action forms (approve & cancel use these to POST without AJAX) --}}
-<form id="approveForm" method="POST" class="hidden">
-    @csrf
-</form>
-<form id="cancelForm" method="POST" class="hidden">
-    @csrf
-</form>
+{{-- Confirm approve / cancel (replaces the browser's confirm() box) --}}
+<div id="confirmActionModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="alertdialog" aria-modal="true" aria-labelledby="confirmActionTitle" aria-describedby="confirmActionText"
+             class="w-full max-w-md p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <h2 id="confirmActionTitle" class="text-lg font-semibold text-gray-900 dark:text-white"></h2>
+            <p id="confirmActionText" class="mt-2 text-sm text-gray-500 dark:text-gray-400"></p>
+            <form id="confirmActionForm" method="POST" class="flex flex-col-reverse gap-2 mt-6 sm:flex-row sm:justify-end">
+                @csrf
+                <button type="button" id="confirmActionDismiss" onclick="closeConfirmAction()" class="w-full {{ $btn['neutral'] }} sm:w-auto"></button>
+                <button type="submit" id="confirmActionSubmit" class="w-full sm:w-auto"></button>
+            </form>
+        </div>
+    </div>
+</div>
 
-{{-- ═══════════════════════════════════════════════════════════
-     JAVASCRIPT
-════════════════════════════════════════════════════════════ --}}
 <script>
 // Data passed from PHP — all deployment info preloaded for this branch (≤10 staff on Basic plan)
 const staffData       = @json($staffDeploymentData);
@@ -412,22 +369,11 @@ const STATUS_LABELS = {
     cancelled: 'Cancelled',
 };
 
-const STATUS_COLORS = {
-    pending:   'bg-yellow-100 text-yellow-800',
-    approved:  'bg-blue-100   text-blue-800',
-    rejected:  'bg-red-100    text-red-800',
-    active:    'bg-green-100  text-green-800',
-    completed: 'bg-gray-200   text-gray-700',
-    cancelled: 'bg-gray-100   text-gray-500',
-};
-
-const ROLE_COLORS = {
-    manager:      'bg-blue-100   text-blue-800',
-    therapist:    'bg-green-100  text-green-800',
-    receptionist: 'bg-yellow-100 text-yellow-800',
-    hr:           'bg-purple-100 text-purple-800',
-    finance:      'bg-orange-100 text-orange-800',
-};
+// Chip colours and button tokens come from the @php block (one source with the table).
+const STATUS_COLORS = @json(collect($deployStatus)->map(fn ($v) => $v[1]));
+const ROLE_COLORS   = @json($roleColors);
+const ROLE_LABELS   = @json($roleLabels);
+const BTN           = @json($btn);
 
 // ── Staff response label / colour maps ─────────────────────────────────────────
 
@@ -437,25 +383,21 @@ const RESPONSE_LABELS = {
     declined: 'Declined',
 };
 
-const RESPONSE_COLORS = {
-    pending:  'bg-gray-100  text-gray-600',
-    accepted: 'bg-green-100 text-green-800',
-    declined: 'bg-red-100   text-red-800',
-};
+const RESPONSE_COLORS = @json(collect($responseStatus)->map(fn ($v) => $v[1]));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function statusBadge(status) {
-    const color = STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
+    const color = STATUS_COLORS[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
     const label = STATUS_LABELS[status] || status;
-    return `<span class="px-2.5 py-1 text-xs font-medium rounded-full ${color}">${label}</span>`;
+    return `<span class="px-2 py-1 text-xs font-semibold rounded-full ${color}">${esc(label)}</span>`;
 }
 
 function responseBadge(response) {
-    if (!response) return '<span class="text-xs text-gray-400">—</span>';
-    const color = RESPONSE_COLORS[response] || 'bg-gray-100 text-gray-600';
+    if (!response) return '<span class="text-sm text-gray-500 dark:text-gray-400">—</span>';
+    const color = RESPONSE_COLORS[response] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
     const label = RESPONSE_LABELS[response] || response;
-    return `<span class="px-2.5 py-1 text-xs font-medium rounded-full ${color}">${label}</span>`;
+    return `<span class="px-2 py-1 text-xs font-semibold rounded-full ${color}">${esc(label)}</span>`;
 }
 
 function esc(str) {
@@ -464,22 +406,16 @@ function esc(str) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // ── Staff row selection ───────────────────────────────────────────────────────
 
 function selectStaff(staffId) {
-    // Highlight selected row, clear others
-    document.querySelectorAll('.staff-row').forEach(r => {
-        r.classList.remove('bg-amber-50', 'dark:bg-amber-900/10', 'border-l-[#8B7355]');
-        r.style.borderLeftColor = '';
-    });
-    const row = document.getElementById('staff-row-' + staffId);
-    if (row) {
-        row.classList.add('bg-amber-50', 'dark:bg-amber-900/10');
-        row.style.borderLeftColor = '#8B7355';
-    }
+    // Mark the selected row (state on an attribute, design language §8).
+    document.querySelectorAll('[data-staff-row]').forEach(r => r.removeAttribute('aria-current'));
+    document.getElementById('staff-row-' + staffId)?.setAttribute('aria-current', 'true');
 
     // Hide hint, show panel
     document.getElementById('detailHint').classList.add('hidden');
@@ -493,15 +429,17 @@ function selectStaff(staffId) {
     }
 
     renderDetail(data, panel);
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    panel.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    panel.focus({ preventScroll: true });
 }
 
 // ── Main detail panel renderer ────────────────────────────────────────────────
 
 function renderDetail(data, panel) {
-    const roleColor = ROLE_COLORS[data.role] || 'bg-gray-100 text-gray-700';
+    const roleColor = ROLE_COLORS[data.role] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
     const initials  = data.name ? data.name.charAt(0).toUpperCase() : 'S';
-    const roleCap   = data.role ? data.role.charAt(0).toUpperCase() + data.role.slice(1) : '';
+    const roleCap   = data.role ? (ROLE_LABELS[data.role] || data.role) : '';
 
     // Find open/relevant deployments
     const pending  = data.deployments.find(d => d.status === 'pending');
@@ -512,9 +450,9 @@ function renderDetail(data, panel) {
     function staffResponseBlock(deploy) {
         if (deploy.staff_response === 'declined') {
             return `
-                <div class="p-3 mt-3 border border-red-300 rounded-xl bg-red-100/70 dark:bg-red-900/20 dark:border-red-800">
-                    <p class="flex items-center gap-1.5 text-xs font-semibold text-red-800 dark:text-red-300">
-                        <i class="fa-solid fa-user-xmark"></i> Staff Declined
+                <div class="p-4 mt-3 border border-red-200 rounded-2xl bg-red-50 dark:bg-red-900/10 dark:border-red-800">
+                    <p class="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-red-700 dark:text-red-300">
+                        <i class="fa-solid fa-user-xmark" aria-hidden="true"></i> Staff Declined
                         ${deploy.staff_responded_at_fmt ? `<span class="font-normal text-red-600 dark:text-red-400">&bull; ${esc(deploy.staff_responded_at_fmt)}</span>` : ''}
                     </p>
                     ${deploy.staff_decline_reason
@@ -527,15 +465,15 @@ function renderDetail(data, panel) {
         }
         if (deploy.staff_response === 'accepted') {
             return `
-                <div class="flex items-center gap-1.5 p-2.5 mt-3 text-xs font-medium text-green-800 border border-green-200 rounded-xl bg-green-100/70 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
-                    <i class="fa-solid fa-user-check"></i>
-                    Staff Accepted — this deployment can no longer be revoked
-                    ${deploy.staff_responded_at_fmt ? `<span class="font-normal text-green-600 dark:text-green-400">&bull; ${esc(deploy.staff_responded_at_fmt)}</span>` : ''}
+                <div class="flex flex-wrap items-center gap-1.5 p-3 mt-3 text-sm font-medium border rounded-2xl text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800 dark:text-emerald-300">
+                    <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+                    Staff accepted. This deployment can no longer be revoked.
+                    ${deploy.staff_responded_at_fmt ? `<span class="font-normal">&bull; ${esc(deploy.staff_responded_at_fmt)}</span>` : ''}
                 </div>`;
         }
         return `
-            <div class="flex items-center gap-1.5 p-2.5 mt-3 text-xs font-medium text-gray-600 border border-gray-200 rounded-xl bg-gray-100/70 dark:bg-gray-700/40 dark:border-gray-600 dark:text-gray-300">
-                <i class="fa-regular fa-clock"></i>
+            <div class="flex items-center gap-1.5 p-3 mt-3 text-sm font-medium text-gray-700 border border-gray-200 rounded-2xl bg-gray-50 dark:bg-gray-900/40 dark:border-gray-700 dark:text-gray-300">
+                <i class="fa-regular fa-clock" aria-hidden="true"></i>
                 Awaiting staff response
             </div>`;
     }
@@ -554,13 +492,11 @@ function renderDetail(data, panel) {
             if (canApprove) {
                 ownerBtns = `
                     <div class="flex flex-wrap gap-2 mt-4">
-                        <button onclick="doApprove(${pending.id})"
-                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700">
-                            <i class="mr-1.5 fa-solid fa-check"></i>Approve
+                        <button type="button" onclick="doApprove(${pending.id})" class="${BTN.primary}">
+                            <i class="text-xs fa-solid fa-check" aria-hidden="true"></i>Approve
                         </button>
-                        <button onclick="openRejectModal(${pending.id})"
-                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700">
-                            <i class="mr-1.5 fa-solid fa-xmark"></i>Reject
+                        <button type="button" onclick="openRejectModal(${pending.id}, 'reject')" class="${BTN.cancel}">
+                            <i class="text-xs fa-solid fa-ban" aria-hidden="true"></i>Reject
                         </button>
                     </div>`;
             }
@@ -570,29 +506,30 @@ function renderDetail(data, panel) {
             // waiting; once staff accepts, this option disappears.
             if (canDelete) {
                 cancelBtn = `
-                    <button onclick="doCancel(${pending.id})"
-                        class="inline-flex items-center px-4 py-2 mt-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
-                        <i class="mr-1.5 fa-solid fa-xmark"></i>Cancel Request
-                    </button>`;
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <button type="button" onclick="doCancel(${pending.id})" class="${BTN.cancel}">
+                            <i class="text-xs fa-solid fa-ban" aria-hidden="true"></i>Cancel Request
+                        </button>
+                    </div>`;
             }
         }
 
         const notesHtml = pending.notes
-            ? `<p class="mt-3 text-xs italic text-yellow-700 dark:text-yellow-400"><i class="mr-1 fa-solid fa-note-sticky"></i>${esc(pending.notes)}</p>`
+            ? `<p class="mt-3 text-sm text-amber-800 dark:text-amber-300"><i class="mr-1 fa-solid fa-note-sticky" aria-hidden="true"></i>${esc(pending.notes)}</p>`
             : '';
         actionCard = `
-            <div class="p-5 border border-yellow-200 rounded-2xl bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-800">
-                <p class="mb-3 text-xs font-semibold tracking-wide text-yellow-800 uppercase dark:text-yellow-300">
-                    <i class="mr-1 fa-solid fa-clock"></i>On Review — Pending Approval
+            <div class="p-4 border sm:p-5 border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+                <p class="mb-3 text-xs font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
+                    <i class="mr-1 fa-solid fa-clock" aria-hidden="true"></i>On Review — Pending Approval
                 </p>
-                <div class="grid grid-cols-2 text-sm text-yellow-900 gap-x-6 gap-y-2 dark:text-yellow-200">
+                <div class="grid grid-cols-1 text-sm sm:grid-cols-2 text-amber-900 gap-x-6 gap-y-2 dark:text-amber-200">
                     <div><span class="font-medium">From:</span> ${esc(pending.from_branch.name)}</div>
                     <div><span class="font-medium">To:</span> ${esc(pending.to_branch.name)}</div>
                     <div><span class="font-medium">Start:</span> ${esc(pending.start_date_fmt)}</div>
                     <div><span class="font-medium">End:</span> ${esc(pending.end_date_fmt)}</div>
                 </div>
                 ${notesHtml}
-                <p class="mt-3 text-xs text-yellow-700 dark:text-yellow-400">
+                <p class="mt-3 text-xs text-amber-800 dark:text-amber-300">
                     Requested by: <strong>${esc(pending.requested_by)}</strong> &bull; ${esc(pending.created_at_fmt)}
                 </p>
                 ${staffResponseBlock(pending)}
@@ -605,19 +542,18 @@ function renderDetail(data, panel) {
         let revokeBtns = '';
         if (canApprove && approved.staff_response !== 'accepted') {
             revokeBtns = `
-                <div class="flex gap-2 mt-4">
-                    <button onclick="openRejectModal(${approved.id})"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700">
-                        <i class="mr-1.5 fa-solid fa-rotate-left"></i>Revoke Approval
+                <div class="flex flex-wrap gap-2 mt-4">
+                    <button type="button" onclick="openRejectModal(${approved.id}, 'revoke')" class="${BTN.cancel}">
+                        <i class="text-xs fa-solid fa-rotate-left" aria-hidden="true"></i>Revoke Approval
                     </button>
                 </div>`;
         }
         actionCard = `
-            <div class="p-5 border border-blue-200 rounded-2xl bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800">
+            <div class="p-4 border border-blue-200 sm:p-5 rounded-2xl bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800">
                 <p class="mb-3 text-xs font-semibold tracking-wide text-blue-800 uppercase dark:text-blue-300">
-                    <i class="mr-1 fa-solid fa-calendar-check"></i>Approved — Activates on Start Date
+                    <i class="mr-1 fa-solid fa-calendar-check" aria-hidden="true"></i>Approved — Activates on Start Date
                 </p>
-                <div class="grid grid-cols-2 text-sm text-blue-900 gap-x-6 gap-y-2 dark:text-blue-200">
+                <div class="grid grid-cols-1 text-sm text-blue-900 sm:grid-cols-2 gap-x-6 gap-y-2 dark:text-blue-200">
                     <div><span class="font-medium">From:</span> ${esc(approved.from_branch.name)}</div>
                     <div><span class="font-medium">To:</span> ${esc(approved.to_branch.name)}</div>
                     <div><span class="font-medium">Start:</span> ${esc(approved.start_date_fmt)}</div>
@@ -627,13 +563,13 @@ function renderDetail(data, panel) {
                     Approved by: <strong>${esc(approved.reviewed_by || '—')}</strong>
                 </p>
                 ${approved.is_self_requested ? `
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 mt-2 text-[11px] font-semibold text-indigo-700 bg-indigo-100 rounded-full dark:bg-indigo-900/30 dark:text-indigo-300">
-                    <i class="fa-solid fa-user"></i> Requested by staff
+                <span class="inline-flex items-center gap-1 px-2 py-1 mt-2 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full dark:bg-blue-900/40 dark:text-blue-300">
+                    <i class="fa-solid fa-user" aria-hidden="true"></i> Requested by staff
                 </span>` : ''}
                 ${staffResponseBlock(approved)}
                 ${approved.staff_response !== 'accepted' ? `
-                    <p class="mt-2 text-xs text-blue-600 dark:text-blue-400">
-                        <i class="mr-1 fa-solid fa-circle-info"></i>Will not auto-activate on the start date until the staff member accepts.
+                    <p class="mt-2 text-xs text-blue-700 dark:text-blue-300">
+                        <i class="mr-1 fa-solid fa-circle-info" aria-hidden="true"></i>Will not auto-activate on the start date until the staff member accepts.
                     </p>` : ''}
                 ${revokeBtns}
             </div>`;
@@ -641,14 +577,14 @@ function renderDetail(data, panel) {
     } else if (active) {
         // ── ACTIVE: Currently deployed ────────────────────────────────────────
         const permanentNote = active.is_permanent
-            ? `<p class="mt-3 text-xs text-green-700 dark:text-green-400"><i class="mr-1 fa-solid fa-infinity"></i>Permanent transfer — will not revert automatically.</p>`
+            ? `<p class="mt-3 text-xs text-emerald-700 dark:text-emerald-300"><i class="mr-1 fa-solid fa-infinity" aria-hidden="true"></i>Permanent transfer — will not revert automatically.</p>`
             : '';
         actionCard = `
-            <div class="p-5 border border-green-200 rounded-2xl bg-green-50 dark:bg-green-900/10 dark:border-green-800">
-                <p class="mb-3 text-xs font-semibold tracking-wide text-green-800 uppercase dark:text-green-300">
-                    <i class="mr-1 fa-solid fa-location-dot"></i>Currently Deployed
+            <div class="p-4 border sm:p-5 border-emerald-200 rounded-2xl bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800">
+                <p class="mb-3 text-xs font-semibold tracking-wide uppercase text-emerald-800 dark:text-emerald-300">
+                    <i class="mr-1 fa-solid fa-location-dot" aria-hidden="true"></i>Currently Deployed
                 </p>
-                <div class="grid grid-cols-2 text-sm text-green-900 gap-x-6 gap-y-2 dark:text-green-200">
+                <div class="grid grid-cols-1 text-sm sm:grid-cols-2 text-emerald-900 gap-x-6 gap-y-2 dark:text-emerald-200">
                     <div><span class="font-medium">Original Branch:</span> ${esc(active.from_branch.name)}</div>
                     <div><span class="font-medium">Deployed To:</span> ${esc(active.to_branch.name)}</div>
                     <div><span class="font-medium">Since:</span> ${esc(active.start_date_fmt)}</div>
@@ -661,21 +597,22 @@ function renderDetail(data, panel) {
         // ── NO OPEN REQUEST: Show deploy button ───────────────────────────────
         const branchName = data.branch ? esc(data.branch.name) : 'no branch';
         actionCard = `
-            <div class="flex items-center justify-between gap-4 p-5 border border-gray-200 rounded-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
+            <div class="flex flex-col gap-4 p-4 border border-gray-200 sm:p-5 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-gray-50 dark:bg-gray-900/40 dark:border-gray-700">
                 <div>
-                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300">No active deployment</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Currently assigned to <strong>${branchName}</strong>.</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">No active deployment</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Currently assigned to <strong>${branchName}</strong>.</p>
                 </div>
-                <button onclick="openNewRequestModal(${data.id}, '${data.name.replace(/'/g, "&#39;")}')"
-                    class="shrink-0 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#8B7355] rounded-xl hover:bg-[#7A6348]">
-                    <i class="mr-1.5 fa-solid fa-paper-plane"></i>Deploy Staff
+                <button type="button" data-staff-id="${data.id}" data-staff-name="${esc(data.name)}"
+                        onclick="openNewRequestModal(this.dataset.staffId, this.dataset.staffName)"
+                        class="w-full sm:w-auto ${BTN.primary}">
+                    <i class="text-xs fa-solid fa-paper-plane" aria-hidden="true"></i>Deploy Staff
                 </button>
             </div>`;
     } else {
         // ── VIEW ONLY: No create permission ──────────────────────────────────
         const branchName = data.branch ? esc(data.branch.name) : 'no branch';
         actionCard = `
-            <div class="p-5 border border-gray-200 rounded-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
+            <div class="p-4 border border-gray-200 sm:p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 dark:border-gray-700">
                 <p class="text-sm text-gray-500 dark:text-gray-400">
                     No active deployment. Currently at <strong class="text-gray-700 dark:text-gray-200">${branchName}</strong>.
                 </p>
@@ -688,54 +625,48 @@ function renderDetail(data, panel) {
     if (data.deployments.length > 0) {
         const rows = data.deployments.map(d => {
             const rejectionNote = d.rejection_reason
-                ? `<span class="block text-xs text-red-500 mt-0.5 italic">${esc(d.rejection_reason)}</span>`
+                ? `<span class="block mt-1 text-xs text-red-700 dark:text-red-300">${esc(d.rejection_reason)}</span>`
                 : '';
             const declineNote = d.staff_response === 'declined' && d.staff_decline_reason
-                ? `<span class="block text-xs text-red-500 mt-0.5 italic">"${esc(d.staff_decline_reason)}"</span>`
+                ? `<span class="block mt-1 text-xs text-red-700 dark:text-red-300">"${esc(d.staff_decline_reason)}"</span>`
                 : '';
             return `
-                <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
-                    <td class="px-4 py-3 text-sm text-gray-800 dark:text-white">${esc(d.from_branch.name)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-800 dark:text-white">${esc(d.to_branch.name)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">${esc(d.start_date_fmt)}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">${esc(d.end_date_fmt)}</td>
-                    <td class="px-4 py-3">
+                <tr role="row" class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
+                    <td role="cell" data-label="From" class="px-6 py-4 text-sm text-gray-900 dark:text-white">${esc(d.from_branch.name)}</td>
+                    <td role="cell" data-label="To" class="px-6 py-4 text-sm text-gray-900 dark:text-white">${esc(d.to_branch.name)}</td>
+                    <td role="cell" data-label="Start" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">${esc(d.start_date_fmt)}</td>
+                    <td role="cell" data-label="End" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">${esc(d.end_date_fmt)}</td>
+                    <td role="cell" data-label="Status" class="px-6 py-4">
                         ${statusBadge(d.status)}
                         ${rejectionNote}
                     </td>
-                    <td class="px-4 py-3">
+                    <td role="cell" data-label="Staff Response" class="px-6 py-4">
                         ${responseBadge(d.staff_response)}
                         ${declineNote}
                     </td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                    <td role="cell" data-label="Requested By" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                         ${esc(d.requested_by)}
-                        ${d.is_self_requested ? '<span class="block text-[10px] text-indigo-500 dark:text-indigo-400">(self-requested)</span>' : ''}
+                        ${d.is_self_requested ? '<span class="block text-xs text-gray-500 dark:text-gray-400">(self-requested)</span>' : ''}
                     </td>
-                    <td class="px-4 py-3 text-sm text-gray-400 dark:text-gray-500">${esc(d.created_at_fmt)}</td>
+                    <td role="cell" data-label="Date Filed" class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">${esc(d.created_at_fmt)}</td>
                 </tr>`;
         }).join('');
 
         historySection = `
             <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <h4 class="text-base font-semibold text-gray-900 dark:text-white">Deployment History</h4>
-                    <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">All deployment records for this staff member.</p>
+                <div class="px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Deployment History</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">All deployment records for this staff member.</p>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-900">
-                            <tr>
-                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">From</th>
-                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">To</th>
-                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Start</th>
-                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">End</th>
-                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
-                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Staff Response</th>
-                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Requested By</th>
-                                <th class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase">Date Filed</th>
+                <div class="md:overflow-x-auto">
+                    <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
+                        <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
+                            <tr role="row">
+                                ${['From', 'To', 'Start', 'End', 'Status', 'Staff Response', 'Requested By', 'Date Filed'].map(h =>
+                                    `<th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">${h}</th>`).join('')}
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                        <tbody role="rowgroup" class="divide-y divide-gray-200 dark:divide-gray-700">
                             ${rows}
                         </tbody>
                     </table>
@@ -747,20 +678,22 @@ function renderDetail(data, panel) {
 
     panel.innerHTML = `
         <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="flex items-center gap-4 px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-                <div class="flex items-center justify-center w-14 h-14 text-xl font-bold text-white rounded-full bg-[#8B7355] shrink-0">
-                    ${initials}
+            <div class="flex flex-col gap-3 px-4 py-4 border-b border-gray-200 sm:flex-row sm:items-center sm:px-6 dark:border-gray-700">
+                <div class="flex items-center flex-1 min-w-0 gap-3">
+                    <div class="flex items-center justify-center w-12 h-12 text-lg font-semibold text-white rounded-full bg-[#8B7355] shrink-0" aria-hidden="true">
+                        ${esc(initials)}
+                    </div>
+                    <div class="min-w-0">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">${esc(data.name)}</h2>
+                        <p class="text-sm text-gray-500 break-all dark:text-gray-400">${esc(data.email)}</p>
+                    </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${esc(data.name)}</h3>
-                    <p class="text-sm text-gray-500 truncate dark:text-gray-400">${esc(data.email)}</p>
-                </div>
-                <div class="flex flex-col items-end gap-1.5 shrink-0">
-                    ${roleCap ? `<span class="px-3 py-1 text-xs font-medium rounded-full ${roleColor}">${roleCap}</span>` : ''}
-                    ${data.branch ? `<span class="text-xs text-gray-500 dark:text-gray-400"><i class="mr-1 fa-solid fa-location-dot"></i>${esc(data.branch.name)}</span>` : ''}
+                <div class="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+                    ${roleCap ? `<span class="px-2 py-1 text-xs font-semibold rounded-full ${roleColor}">${esc(roleCap)}</span>` : ''}
+                    ${data.branch ? `<span class="text-sm text-gray-500 dark:text-gray-400"><i class="mr-1 fa-solid fa-location-dot" aria-hidden="true"></i>${esc(data.branch.name)}</span>` : ''}
                 </div>
             </div>
-            <div class="p-6">
+            <div class="p-4 sm:p-5">
                 ${actionCard}
             </div>
         </div>
@@ -768,47 +701,100 @@ function renderDetail(data, panel) {
     `;
 }
 
-// ── Modal controllers ─────────────────────────────────────────────────────────
+// ── Shared modal behaviour (same as staff/index.blade.php) ───────────────────
+const MODAL_IDS = ['newRequestModal', 'rejectModal', 'confirmActionModal'];
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+let lastFocused = null;
+
+function topmostOpenModal() {
+    for (let i = MODAL_IDS.length - 1; i >= 0; i--) {
+        const el = document.getElementById(MODAL_IDS[i]);
+        if (el && !el.classList.contains('hidden')) return el;
+    }
+    return null;
+}
+function openModal(id, focusSelector) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    lastFocused = document.activeElement;
+    el.classList.remove('hidden');
+    const target = (focusSelector && el.querySelector(focusSelector)) || el.querySelector(FOCUSABLE);
+    if (target) target.focus();
+}
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('hidden');
+    if (lastFocused && document.contains(lastFocused)) lastFocused.focus();
+    lastFocused = null;
+}
+document.addEventListener('keydown', function (e) {
+    const modal = topmostOpenModal();
+    if (!modal) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(modal.id); return; }
+    if (e.key !== 'Tab') return;
+    const items = Array.from(modal.querySelectorAll(FOCUSABLE)).filter(el => el.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+// Backdrop click closes the confirm box only; the request and reject forms keep typed input (§8).
+document.getElementById('confirmActionModal')?.addEventListener('click', function (e) {
+    if (e.target === this || e.target === this.firstElementChild) closeModal(this.id);
+});
 
 function openNewRequestModal(staffId, staffName) {
+    const form = document.getElementById('newRequestForm');
+    form.reset();
     document.getElementById('newRequestStaffId').value = staffId;
     document.getElementById('newRequestSubtitle').textContent = 'For: ' + staffName;
-    // Reset form fields
-    document.getElementById('newRequestForm').reset();
-    document.getElementById('newRequestStaffId').value = staffId;  // re-set after reset()
-    document.getElementById('newRequestSubtitle').textContent = 'For: ' + staffName;
     document.getElementById('endDateWrapper').classList.remove('hidden');
-    document.getElementById('newRequestModal').classList.remove('hidden');
+    openModal('newRequestModal', '#newRequestBranchSelect');
 }
+function closeNewRequestModal() { closeModal('newRequestModal'); }
 
-function closeNewRequestModal() {
-    document.getElementById('newRequestModal').classList.add('hidden');
-}
-
-function openRejectModal(deploymentId) {
+function openRejectModal(deploymentId, mode) {
     document.getElementById('rejectForm').action = `${deployBaseUrl}/${deploymentId}/reject`;
-    document.querySelector('#rejectForm textarea').value = '';
-    document.getElementById('rejectModal').classList.remove('hidden');
+    document.getElementById('rejectReason').value = '';
+    document.getElementById('rejectModalTitle').textContent = mode === 'revoke' ? 'Revoke Approval' : 'Reject Deployment';
+    openModal('rejectModal', '#rejectReason');
 }
+function closeRejectModal() { closeModal('rejectModal'); }
 
-function closeRejectModal() {
-    document.getElementById('rejectModal').classList.add('hidden');
+// Approve / cancel go through an in-page confirmation (was the browser's confirm()).
+function openConfirmAction({ title, text, action, confirmLabel, confirmClass, dismissLabel }) {
+    document.getElementById('confirmActionTitle').textContent = title;
+    document.getElementById('confirmActionText').textContent = text;
+    document.getElementById('confirmActionForm').action = action;
+    const submit = document.getElementById('confirmActionSubmit');
+    submit.className = 'w-full sm:w-auto ' + confirmClass;
+    submit.textContent = confirmLabel;
+    document.getElementById('confirmActionDismiss').textContent = dismissLabel;
+    openModal('confirmActionModal', '#confirmActionDismiss');
 }
-
-// ── Action form submissions ───────────────────────────────────────────────────
+function closeConfirmAction() { closeModal('confirmActionModal'); }
 
 function doApprove(deploymentId) {
-    if (!confirm('Approve this deployment request?')) return;
-    const form = document.getElementById('approveForm');
-    form.action = `${deployBaseUrl}/${deploymentId}/approve`;
-    form.submit();
+    openConfirmAction({
+        title: 'Approve Deployment',
+        text: 'The staff member moves to the new branch on the start date.',
+        action: `${deployBaseUrl}/${deploymentId}/approve`,
+        confirmLabel: 'Yes, Approve',
+        confirmClass: BTN.primary,
+        dismissLabel: 'Not Yet',
+    });
 }
 
 function doCancel(deploymentId) {
-    if (!confirm('Cancel this deployment request? This cannot be undone.')) return;
-    const form = document.getElementById('cancelForm');
-    form.action = `${deployBaseUrl}/${deploymentId}/cancel`;
-    form.submit();
+    openConfirmAction({
+        title: 'Cancel Deployment Request',
+        text: 'This withdraws the request. It stays in the history as Cancelled and cannot be reopened.',
+        action: `${deployBaseUrl}/${deploymentId}/cancel`,
+        confirmLabel: 'Yes, Cancel Request',
+        confirmClass: BTN.process,
+        dismissLabel: 'Keep Request',
+    });
 }
 
 // ── Permanent toggle ──────────────────────────────────────────────────────────
@@ -834,4 +820,50 @@ if (preselectedId && staffData[preselectedId]) {
     document.addEventListener('DOMContentLoaded', () => selectStaff(preselectedId));
 }
 </script>
+
+<style>
+/* Selected staff row (state on aria-current, design language §8). */
+tr[data-staff-row][aria-current="true"] { background-color: rgb(255 251 235); box-shadow: inset 4px 0 0 #8B7355; }
+@media (prefers-color-scheme: dark) {
+    tr[data-staff-row][aria-current="true"] { background-color: rgb(120 53 15 / 0.1); }
+}
+
+@media (max-width: 767px) {
+    .rt,
+    .rt tbody,
+    .rt tr,
+    .rt td { display: block; width: 100%; }
+
+    .rt thead { display: none; }
+
+    .rt tr { padding: 0.75rem 1rem; }
+
+    .rt td {
+        padding: 0.375rem 0 !important;
+        text-align: left !important;
+    }
+
+    .rt td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.125rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .rt td.rt-actions { padding-top: 0.75rem !important; }
+
+    .rt td.rt-empty {
+        padding: 2rem 0 !important;
+        text-align: center !important;
+    }
+}
+
+@media (max-width: 767px) and (prefers-color-scheme: dark) {
+    .rt td[data-label]::before { color: #9ca3af; }
+}
+</style>
 @endsection

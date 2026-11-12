@@ -15,11 +15,38 @@
     $canReviewInterview = $canEditInterviews;
     $canCreateStaffFromInterview = $canEditInterviews && $canCreateStaff;
 
+    // Interview status → chip (canon palette §6).
     $statusClasses = [
-        'pending'  => 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
-        'approved' => 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+        'pending'  => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+        'approved' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
         'rejected' => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
     ];
+
+    // Button / input tokens, same block as staff/index.blade.php and appointments.blade.php
+    // (design language §5). Rejecting is a status change, not a deletion, so it uses the
+    // outlined-amber "cancel" style with fa-ban (§8), never solid red.
+    $btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-4 py-2 text-sm '
+             . 'font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 '
+             . 'focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
+    $btn = [
+        'primary' => $btnBase . ' bg-[#8B7355] text-white hover:bg-[#7A6348]',
+        'edit'    => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
+                   . 'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        'neutral' => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
+                   . 'dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
+        'cancel'  => $btnBase . ' border border-amber-300 bg-white text-amber-800 hover:bg-amber-50 '
+                   . 'dark:border-amber-700 dark:bg-gray-800 dark:text-amber-300 dark:hover:bg-amber-900/20',
+        'process' => $btnBase . ' bg-amber-700 text-white hover:bg-amber-800',
+    ];
+    $inputClass = 'block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl '
+                . 'focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 '
+                . 'dark:placeholder-gray-400 dark:text-white';
+    $labelClass = 'block mb-2 text-sm font-medium text-gray-900 dark:text-white';
+    $closeBtn = 'inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 '
+              . 'hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200';
+
+    $rejectErrors = $errors->getBag('rejectInterview');
+    $createErrors = $errors->getBag('createStaff');
 
     $positionLabel = function ($interview) {
         $applicant = $interview->applicant;
@@ -51,58 +78,51 @@
     ];
 @endphp
 
-<div class="p-6 mx-auto space-y-6 max-w-7xl">
+<div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
     <x-page-header
         title="Interviews"
         subtitle="Review scheduled interviews, record outcomes, and create staff accounts for approved applicants."
     />
 
-    {{-- Summary Cards --}}
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Interviews</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-gray-900 dark:text-white">{{ $summary['total'] }}</h3>
+    {{-- Summary cards (same recipe as the Staff page) --}}
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Total Interviews</p>
+            <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
+                <h3 class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">{{ $summary['total'] }}</h3>
                 <span class="text-sm text-gray-500 dark:text-gray-400">All records</span>
             </div>
         </div>
-
-        <div class="p-5 border shadow-sm bg-amber-50 border-amber-200 rounded-2xl dark:bg-amber-900/10 dark:border-amber-800">
+        <div class="p-4 border shadow-sm sm:p-5 bg-amber-50 border-amber-200 rounded-2xl dark:bg-amber-900/10 dark:border-amber-800">
             <p class="text-xs font-semibold tracking-wide uppercase text-amber-700 dark:text-amber-300">Pending Review</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-amber-900 dark:text-amber-200">{{ $summary['pending'] }}</h3>
+            <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
+                <h3 class="text-2xl font-semibold sm:text-3xl text-amber-900 dark:text-amber-200">{{ $summary['pending'] }}</h3>
                 <span class="text-sm text-amber-700 dark:text-amber-300">Awaiting decision</span>
             </div>
         </div>
-
-        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Approved</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-gray-900 dark:text-white">{{ $summary['approved'] }}</h3>
+        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Approved</p>
+            <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
+                <h3 class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">{{ $summary['approved'] }}</h3>
                 <span class="text-sm text-gray-500 dark:text-gray-400">Passed interview</span>
             </div>
         </div>
-
-        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Rejected</p>
-            <div class="flex items-end justify-between mt-3">
-                <h3 class="text-3xl font-semibold text-gray-900 dark:text-white">{{ $summary['rejected'] }}</h3>
+        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Rejected</p>
+            <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
+                <h3 class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">{{ $summary['rejected'] }}</h3>
                 <span class="text-sm text-gray-500 dark:text-gray-400">Not selected</span>
             </div>
         </div>
     </div>
 
-        {{-- Interviews Table --}}
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <div class="flex flex-col gap-4 px-6 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between dark:border-gray-700">
+        <div class="flex flex-col gap-4 px-4 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between sm:px-6 dark:border-gray-700">
             <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Interview Records</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Review applicant interviews, approve or reject them, and create staff accounts for approved candidates.
-                </p>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Interview Records</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Approve or reject interviews, then create staff accounts for approved applicants.</p>
             </div>
 
-            {{-- Filters (table filters workstream; same bar as Pay Runs) --}}
             <x-table-filters :action="route('interviews.index')" :shown="$interviews->count()" :total="$summary['total']"
                              :active="$activeFilters ?? 0" noun="interview"
                              :search="$filters['q'] ?? ''" search-placeholder="Applicant name or email">
@@ -113,145 +133,134 @@
             </x-table-filters>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applicant</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applied Position</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Schedule</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Actions</th>
+        <div class="md:overflow-x-auto">
+            {{-- .rt collapses this table into stacked cards below md (design language §8). --}}
+            <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
+                <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
+                    <tr role="row">
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Applicant</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Position</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Schedule</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Status</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Actions</th>
                     </tr>
                 </thead>
 
-                <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700" id="interviewsList">
+                <tbody role="rowgroup" class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($interviews as $interview)
                         @php
                             $dateLabel = $interview->interview_date
                                 ? \Carbon\Carbon::parse($interview->interview_date)->format('M d, Y')
                                 : 'N/A';
-
                             $timeLabel = $interview->interview_time
                                 ? \Carbon\Carbon::parse($interview->interview_time)->format('h:i A')
                                 : 'N/A';
                         @endphp
 
-                        <tr class="transition interview-row hover:bg-gray-50 dark:hover:bg-gray-900/40"
-                            data-status="{{ $interview->status }}">
-                            <td class="px-6 py-4">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-800 dark:text-white">
-                                        {{ $interview->applicant->full_name ?? 'Unknown Applicant' }}
-                                    </p>
-                                    <p class="text-xs text-gray-500">
-                                        {{ $interview->applicant->email ?? 'No email' }}
-                                    </p>
+                        <tr role="row" class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900" data-status="{{ $interview->status }}">
+                            <td role="cell" data-label="Applicant" class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex items-center justify-center w-10 h-10 text-sm font-semibold text-white rounded-full bg-[#8B7355] shrink-0" aria-hidden="true">
+                                        {{ strtoupper(substr($interview->applicant->full_name ?? '?', 0, 1)) }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-medium text-gray-900 dark:text-white">{{ $interview->applicant->full_name ?? 'Unknown Applicant' }}</p>
+                                        <p class="text-sm text-gray-500 break-all dark:text-gray-400">{{ $interview->applicant->email ?? 'No email' }}</p>
+                                    </div>
                                 </div>
                             </td>
 
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-[#F6EFE6] text-[#6F5430]">
+                            <td role="cell" data-label="Position" class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-[#8B7355]/10 text-[#6F5430] dark:bg-[#C4A97D]/15 dark:text-[#C4A97D]">
                                     {{ $positionLabel($interview) }}
                                 </span>
-                            </td>
-
-                            <td class="px-6 py-4">
-                                <p class="text-sm text-gray-800 dark:text-white">{{ $dateLabel }}</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ $timeLabel }}</p>
-                            </td>
-
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $statusClasses[$interview->status] ?? '' }}">
-                                    {{ ucfirst($interview->status) }}
-                                </span>
-
-                                @if($interview->status === 'rejected' && filled($interview->rejection_reason))
-                                    <p class="max-w-xs mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                                        {{ $interview->rejection_reason }}
-                                    </p>
+                                @if ($interview->applicant?->jobPosting)
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $interview->applicant->jobPosting->title }}</p>
                                 @endif
                             </td>
 
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @if($interview->status === 'pending')
-                                    @if($canReviewInterview)
-                                        <div class="flex flex-wrap gap-2">
+                            <td role="cell" data-label="Schedule" class="px-6 py-4 whitespace-nowrap">
+                                <p class="text-sm text-gray-900 dark:text-white">{{ $dateLabel }}</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $timeLabel }}</p>
+                            </td>
+
+                            <td role="cell" data-label="Status" class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $statusClasses[$interview->status] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' }}">
+                                    {{ ucfirst($interview->status) }}
+                                </span>
+                                @if($interview->status === 'rejected' && filled($interview->rejection_reason))
+                                    <p class="mt-2 text-xs leading-5 text-gray-500 md:max-w-xs dark:text-gray-400">{{ $interview->rejection_reason }}</p>
+                                @endif
+                            </td>
+
+                            <td role="cell" class="px-6 py-4 rt-actions">
+                                <div class="flex flex-wrap gap-2">
+                                    @if($interview->status === 'pending')
+                                        @if($canReviewInterview)
                                             <form action="{{ route('interviews.approve', $interview) }}" method="POST">
                                                 @csrf
-
-                                                <button
-                                                    type="submit"
-                                                    class="px-3 py-1.5 text-xs font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition">
+                                                <button type="submit" class="{{ $btn['primary'] }}">
+                                                    <i class="text-xs fa-solid fa-check" aria-hidden="true"></i>
                                                     Approve
                                                 </button>
                                             </form>
-
-                                            <button
-                                                type="button"
-                                                data-reject-url="{{ route('interviews.reject', $interview) }}"
-                                                data-applicant-name="{{ $interview->applicant?->full_name }}"
-                                                onclick="openInterviewRejectModal(this)"
-                                                class="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
+                                            <button type="button" class="{{ $btn['cancel'] }}"
+                                                    data-reject-url="{{ route('interviews.reject', $interview) }}"
+                                                    data-applicant-name="{{ $interview->applicant?->full_name }}"
+                                                    onclick="openInterviewRejectModal(this)">
+                                                <i class="text-xs fa-solid fa-ban" aria-hidden="true"></i>
                                                 Reject
                                             </button>
-                                        </div>
-                                    @else
-                                        <span class="text-xs text-gray-400">
-                                            Pending review
-                                        </span>
-                                    @endif
-
-                                @elseif($interview->status === 'approved' && !$interview->staff_account_created)
-                                    @if($canCreateStaffFromInterview)
-                                        @if(in_array(mb_strtolower((string) $interview->applicant?->email), $existingStaffEmails ?? [], true))
-                                            {{-- Account was already added on the Staff page: link it. --}}
-                                            <form action="{{ route('interviews.create-staff', $interview) }}" method="POST">
-                                                @csrf
-                                                <button
-                                                    type="submit"
-                                                    title="A staff account with this email already exists. Link it to this interview."
-                                                    class="px-3 py-1.5 text-xs font-semibold text-[#8B7355] bg-white border border-[#8B7355] rounded-lg hover:bg-[#F6EFE6] transition whitespace-nowrap">
-                                                    <i class="mr-1 fa-solid fa-link" aria-hidden="true"></i>
-                                                    Link Existing Account
-                                                </button>
-                                            </form>
                                         @else
-                                            <button
-                                                type="button"
-                                                data-create-url="{{ route('interviews.create-staff', $interview) }}"
-                                                data-applicant-name="{{ $interview->applicant?->full_name }}"
-                                                data-applicant-email="{{ $interview->applicant?->email }}"
-                                                data-applicant-position="{{ $positionLabel($interview) }}"
-                                                onclick="openCreateStaffModal(this)"
-                                                class="px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition whitespace-nowrap">
-                                                <i class="mr-1 fa-solid fa-user-plus" aria-hidden="true"></i>
-                                                Create Account
-                                            </button>
+                                            <span class="text-sm text-gray-500 dark:text-gray-400">Pending review</span>
                                         @endif
-                                    @else
-                                        <span class="text-xs text-gray-400">
-                                            No staff access
+                                    @elseif($interview->status === 'approved' && !$interview->staff_account_created)
+                                        @if($canCreateStaffFromInterview)
+                                            @if(in_array(mb_strtolower((string) $interview->applicant?->email), $existingStaffEmails ?? [], true))
+                                                {{-- Account was already added on the Staff page: link it. --}}
+                                                <form action="{{ route('interviews.create-staff', $interview) }}" method="POST">
+                                                    @csrf
+                                                    <button type="submit" class="{{ $btn['edit'] }}"
+                                                            title="A staff account with this email already exists. Link it to this interview.">
+                                                        <i class="text-xs fa-solid fa-link" aria-hidden="true"></i>
+                                                        Link Existing Account
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <button type="button" class="{{ $btn['primary'] }}"
+                                                        data-create-url="{{ route('interviews.create-staff', $interview) }}"
+                                                        data-applicant-name="{{ $interview->applicant?->full_name }}"
+                                                        data-applicant-email="{{ $interview->applicant?->email }}"
+                                                        data-applicant-position="{{ $positionLabel($interview) }}"
+                                                        onclick="openCreateStaffModal(this)">
+                                                    <i class="text-xs fa-solid fa-user-plus" aria-hidden="true"></i>
+                                                    Create Account
+                                                </button>
+                                            @endif
+                                        @else
+                                            <span class="text-sm text-gray-500 dark:text-gray-400">No staff access</span>
+                                        @endif
+                                    @elseif($interview->staff_account_created)
+                                        <span class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                                            <i class="fa-solid fa-check" aria-hidden="true"></i>
+                                            Account Created
                                         </span>
+                                    @else
+                                        <span class="text-sm text-gray-400" aria-label="No action">—</span>
                                     @endif
-
-                                @elseif($interview->staff_account_created)
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                                        <i class="fa-solid fa-check" aria-hidden="true"></i>
-                                        Account Created
-                                    </span>
-
-                                @elseif($interview->status === 'rejected')
-                                    <span class="text-xs text-gray-400">
-                                        —
-                                    </span>
-                                @endif
+                                </div>
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="5" class="px-6 py-10 text-sm text-center text-gray-400 dark:text-gray-500">
-                                {{ ($activeFilters ?? 0) > 0 ? 'No interviews match these filters.' : 'No interviews scheduled.' }}
+                        <tr role="row">
+                            <td role="cell" colspan="5" class="px-6 py-12 text-center text-gray-500 rt-empty dark:text-gray-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <i class="mb-3 text-4xl text-gray-400 fa-solid fa-calendar-check" aria-hidden="true"></i>
+                                    <p class="font-medium">{{ ($activeFilters ?? 0) > 0 ? 'No interviews match these filters.' : 'No interviews scheduled.' }}</p>
+                                    @if (($activeFilters ?? 0) === 0)
+                                        <p class="mt-1 text-sm">Schedule one from the Applicants page.</p>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -262,192 +271,143 @@
 </div>
 
 @if($canReviewInterview)
+{{-- Reject applicant (status change, so amber — not a deletion) --}}
 <div id="rejectInterviewModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
     <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
-        <div class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-
-            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div role="dialog" aria-modal="true" aria-labelledby="rejectModalTitle" aria-describedby="rejectApplicantName"
+             class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Reject Applicant
-                    </h2>
-
+                    <h2 id="rejectModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Reject Applicant</h2>
                     <p id="rejectApplicantName" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
                 </div>
-
-                <button
-                    type="button"
-                    onclick="closeInterviewRejectModal()"
-                    class="inline-flex items-center justify-center text-gray-500 transition w-11 h-11 rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-                    aria-label="Close reject applicant modal"
-                >
+                <button type="button" onclick="closeInterviewRejectModal()" aria-label="Close dialog" class="{{ $closeBtn }}">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
             </div>
 
-            <form
-                id="rejectInterviewForm"
-                method="POST"
-                class="p-6 space-y-4"
-            >
+            <form id="rejectInterviewForm" method="POST" action="{{ old('_reject_url') }}" novalidate>
                 @csrf
+                <input type="hidden" name="_reject_url" id="rejectUrl" value="{{ old('_reject_url') }}">
+                <input type="hidden" name="_applicant_name" id="rejectNameInput" value="{{ old('_applicant_name') }}">
 
-                <div class="p-4 border border-red-200 bg-red-50 rounded-xl dark:border-red-900 dark:bg-red-900/10">
-                    <div class="flex gap-3">
-                        <i class="mt-0.5 text-red-600 fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                <div class="px-4 py-6 space-y-4 sm:px-6">
+                    <div class="flex gap-3 p-4 border rounded-2xl border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                        <i class="mt-0.5 text-amber-700 fa-solid fa-circle-exclamation dark:text-amber-300" aria-hidden="true"></i>
+                        <p class="text-sm text-amber-800 dark:text-amber-300">This marks the applicant as rejected and emails them that they were not selected.</p>
+                    </div>
 
-                        <p class="text-sm text-red-700 dark:text-red-300">
-                            This will mark the applicant as rejected and email them that they were not selected.
-                        </p>
+                    @if ($rejectErrors->any())
+                        <div class="p-3 text-sm text-red-700 border border-red-200 bg-red-50 rounded-xl dark:bg-red-900/20 dark:border-red-800 dark:text-red-300" role="alert">
+                            <ul class="ml-4 list-disc">
+                                @foreach ($rejectErrors->all() as $message)<li>{{ $message }}</li>@endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <div>
+                        <label for="rejection_reason" class="{{ $labelClass }}">Internal reason <x-required-mark /></label>
+                        <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">For HR records only. This is not sent to the applicant.</p>
+                        <textarea id="rejection_reason" name="rejection_reason" rows="4" maxlength="2000" required
+                                  placeholder="Example: Does not meet the required experience for the position."
+                                  class="{{ $inputClass }}">{{ old('rejection_reason') }}</textarea>
+                    </div>
+
+                    <div>
+                        <label for="applicant_message" class="{{ $labelClass }}">Message to applicant <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span></label>
+                        <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">The applicant always gets a polite "not selected" email. Anything you write here is added to it.</p>
+                        <textarea id="applicant_message" name="applicant_message" rows="3" maxlength="2000"
+                                  placeholder="Example: We encourage you to apply again once you have more hands-on massage experience."
+                                  class="{{ $inputClass }}">{{ old('applicant_message') }}</textarea>
                     </div>
                 </div>
 
-                <div>
-                    <label
-                        for="rejection_reason"
-                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
-                    >
-                        Internal Reason
-                        <x-required-mark />
-                    </label>
-                    <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">For HR records only. This is not sent to the applicant.</p>
-
-                    <textarea
-                        id="rejection_reason"
-                        name="rejection_reason"
-                        rows="4"
-                        maxlength="2000"
-                        required
-                        placeholder="Example: Does not meet the required experience for the position."
-                        class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
-                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >{{ old('rejection_reason') }}</textarea>
-
-                    @error('rejection_reason', 'rejectInterview')
-                        <p class="mt-1 text-xs text-red-600">
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label
-                        for="applicant_message"
-                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
-                    >
-                        Message to Applicant
-                        <span class="font-normal text-gray-400">(optional)</span>
-                    </label>
-                    <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">The applicant always gets a polite "not selected" email. Anything you write here is added to it.</p>
-
-                    <textarea
-                        id="applicant_message"
-                        name="applicant_message"
-                        rows="3"
-                        maxlength="2000"
-                        placeholder="Example: We encourage you to apply again once you have more hands-on massage experience."
-                        class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
-                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >{{ old('applicant_message') }}</textarea>
-
-                    @error('applicant_message', 'rejectInterview')
-                        <p class="mt-1 text-xs text-red-600">
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
-
-                <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                        type="button"
-                        onclick="closeInterviewRejectModal()"
-                        class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        Cancel
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-white bg-red-700 rounded-xl hover:bg-red-800"
-                    >
-                        <i class="mr-2 fa-solid fa-ban" aria-hidden="true"></i>
-                        Reject Applicant
-                    </button>
+                <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" onclick="closeInterviewRejectModal()" class="w-full {{ $btn['neutral'] }} sm:w-auto">Keep Pending</button>
+                        <button type="submit" class="w-full {{ $btn['process'] }} sm:w-auto">
+                            <i class="text-xs fa-solid fa-ban" aria-hidden="true"></i>
+                            Reject Applicant
+                        </button>
+                    </div>
                 </div>
             </form>
-
         </div>
     </div>
 </div>
 @endif
 
-{{-- Create Staff Account Modal --}}
 @if($canCreateStaffFromInterview)
+{{-- Create staff account --}}
 <div id="createStaffModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
-    <div class="flex items-start justify-center min-h-full p-4 sm:items-center sm:p-6">
-        <div class="w-full max-w-md p-6 bg-white border border-gray-200 shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Create Staff Account</h2>
-                <button type="button" onclick="closeCreateStaffModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                    <i class="fa-solid fa-xmark"></i>
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="createStaffTitle"
+             class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                <div>
+                    <h2 id="createStaffTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Create Staff Account</h2>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Applied as <span id="csFullName" class="font-medium text-gray-900 dark:text-white"></span>.
+                        Confirm the legal name; it is used for identity verification and payroll.
+                    </p>
+                </div>
+                <button type="button" onclick="closeCreateStaffModal()" aria-label="Close dialog" class="{{ $closeBtn }}">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
             </div>
 
-            <form id="createStaffForm" method="POST" class="space-y-4">
+            <form id="createStaffForm" method="POST" action="{{ old('_create_url') }}" novalidate>
                 @csrf
+                <input type="hidden" name="_create_url" id="createUrl" value="{{ old('_create_url') }}">
+                <input type="hidden" name="_applicant_name" id="csNameInput" value="{{ old('_applicant_name') }}">
+                <input type="hidden" name="_applicant_email" id="csEmailInput" value="{{ old('_applicant_email') }}">
+                <input type="hidden" name="_applicant_position" id="csPositionInput" value="{{ old('_applicant_position') }}">
 
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Applied as <span id="csFullName" class="font-semibold text-gray-700 dark:text-gray-200"></span>.
-                    Confirm the legal name split below; it is used for identity verification and payroll.
-                </p>
+                <div class="px-4 py-6 space-y-4 sm:px-6">
+                    @if ($createErrors->any())
+                        <div class="p-3 text-sm text-red-700 border border-red-200 bg-red-50 rounded-xl dark:bg-red-900/20 dark:border-red-800 dark:text-red-300" role="alert">
+                            <ul class="ml-4 list-disc">
+                                @foreach ($createErrors->all() as $message)<li>{{ $message }}</li>@endforeach
+                            </ul>
+                        </div>
+                    @endif
 
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                        <label for="csFirstName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">First Name <x-required-mark /></label>
-                        <input type="text" name="first_name" id="csFirstName" required maxlength="255" value="{{ old('first_name') }}"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="csFirstName" class="{{ $labelClass }}">First name <x-required-mark /></label>
+                            <input type="text" name="first_name" id="csFirstName" required maxlength="255" value="{{ old('first_name') }}" class="{{ $inputClass }}">
+                        </div>
+                        <div>
+                            <label for="csLastName" class="{{ $labelClass }}">Last name <x-required-mark /></label>
+                            <input type="text" name="last_name" id="csLastName" required maxlength="255" value="{{ old('last_name') }}" class="{{ $inputClass }}">
+                        </div>
                     </div>
+
                     <div>
-                        <label for="csLastName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Last Name <x-required-mark /></label>
-                        <input type="text" name="last_name" id="csLastName" required maxlength="255" value="{{ old('last_name') }}"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
+                        <label for="csMiddleName" class="{{ $labelClass }}">Middle name</label>
+                        <input type="text" name="middle_name" id="csMiddleName" maxlength="255" value="{{ old('middle_name') }}" class="{{ $inputClass }}">
                     </div>
+
+                    <dl class="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 rounded-2xl bg-gray-50 dark:bg-gray-900/40">
+                        <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">Email</dt>
+                            <dd id="csEmail" class="text-sm text-gray-900 break-all dark:text-white"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">Role</dt>
+                            <dd id="csRole" class="text-sm text-gray-900 dark:text-white"></dd>
+                        </div>
+                    </dl>
                 </div>
 
-                <div>
-                    <label for="csMiddleName" class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Middle Name</label>
-                    <input type="text" name="middle_name" id="csMiddleName" maxlength="255" value="{{ old('middle_name') }}"
-                        class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-[#8B7355] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"/>
-                </div>
-
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                        <p class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Email</p>
-                        <p id="csEmail" class="px-3 py-2 text-sm text-gray-700 break-all bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"></p>
+                <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" onclick="closeCreateStaffModal()" class="w-full {{ $btn['neutral'] }} sm:w-auto">Cancel</button>
+                        <button type="submit" class="w-full {{ $btn['primary'] }} sm:w-auto">
+                            <i class="text-xs fa-solid fa-user-plus" aria-hidden="true"></i>
+                            Create Account
+                        </button>
                     </div>
-                    <div>
-                        <p class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">Role</p>
-                        <p id="csRole" class="px-3 py-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"></p>
-                    </div>
-                </div>
-
-                @foreach(['first_name', 'middle_name', 'last_name'] as $field)
-                    @error($field, 'createStaff')
-                        <p class="text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                @endforeach
-
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="closeCreateStaffModal()"
-                        class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                        class="px-4 py-2 text-sm font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348]">
-                        Create Account
-                    </button>
                 </div>
             </form>
         </div>
@@ -456,86 +416,145 @@
 @endif
 
 <script>
+(function () {
+    'use strict';
+
+    // ── Shared modal behaviour (same as staff/index.blade.php) ────────────────
+    const MODAL_IDS = ['rejectInterviewModal', 'createStaffModal'];
+    const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    let lastFocused = null;
+
+    function topmostOpenModal() {
+        for (let i = MODAL_IDS.length - 1; i >= 0; i--) {
+            const el = document.getElementById(MODAL_IDS[i]);
+            if (el && !el.classList.contains('hidden')) return el;
+        }
+        return null;
+    }
+    function openModal(id, focusSelector) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        lastFocused = document.activeElement;
+        el.classList.remove('hidden');
+        const target = (focusSelector && el.querySelector(focusSelector)) || el.querySelector(FOCUSABLE);
+        if (target) target.focus();
+    }
+    function closeModal(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.add('hidden');
+        if (lastFocused && document.contains(lastFocused)) lastFocused.focus();
+        lastFocused = null;
+    }
+    document.addEventListener('keydown', function (e) {
+        const modal = topmostOpenModal();
+        if (!modal) return;
+        if (e.key === 'Escape') { e.preventDefault(); closeModal(modal.id); return; }
+        if (e.key !== 'Tab') return;
+        const items = Array.from(modal.querySelectorAll(FOCUSABLE)).filter(el => el.offsetParent !== null);
+        if (!items.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    // Both modals are forms, so a backdrop click does not close them (design language §8).
+
+    document.querySelectorAll('#rejectInterviewForm, #createStaffForm').forEach(form => {
+        form.addEventListener('submit', function (e) { if (!this.getAttribute('action')) e.preventDefault(); });
+    });
+
 @if($canReviewInterview)
+    window.openInterviewRejectModal = function (button) {
+        const url = button?.dataset.rejectUrl;
+        if (!url) return;
+        const form = document.getElementById('rejectInterviewForm');
+        form.action = url;
+        document.getElementById('rejectUrl').value = url;
+        document.getElementById('rejectNameInput').value = button.dataset.applicantName || '';
+        document.getElementById('rejectApplicantName').textContent = 'Applicant: ' + (button.dataset.applicantName || '');
+        openModal('rejectInterviewModal', '#rejection_reason');
+    };
+    window.closeInterviewRejectModal = () => closeModal('rejectInterviewModal');
 
-function openInterviewRejectModal(button) {
-    const modal = document.getElementById('rejectInterviewModal');
-    const form = document.getElementById('rejectInterviewForm');
-    const applicantName = document.getElementById('rejectApplicantName');
-
-    if (!modal || !form || !button) {
-        return;
-    }
-
-    const actionUrl = button.dataset.rejectUrl;
-    const name = button.dataset.applicantName;
-
-    if (!actionUrl) {
-        return;
-    }
-
-    form.action = actionUrl;
-
-    if (applicantName) {
-        applicantName.textContent = 'Applicant: ' + name;
-    }
-
-    modal.classList.remove('hidden');
-}
-
-function closeInterviewRejectModal() {
-    const modal = document.getElementById('rejectInterviewModal');
-    const form = document.getElementById('rejectInterviewForm');
-
-    modal?.classList.add('hidden');
-
-    if (form) {
-        form.removeAttribute('action');
-    }
-}
-
-document.getElementById('rejectInterviewForm')?.addEventListener('submit', function (e) {
-    if (!this.getAttribute('action')) {
-        e.preventDefault();
-    }
-});
-
+    @if ($rejectErrors->any() && old('_reject_url'))
+        document.getElementById('rejectApplicantName').textContent = 'Applicant: ' + @json(old('_applicant_name', ''));
+        openModal('rejectInterviewModal', '#rejection_reason');
+    @endif
 @endif
 
 @if($canCreateStaffFromInterview)
-function openCreateStaffModal(button) {
-    const url = button?.dataset.createUrl;
+    window.openCreateStaffModal = function (button) {
+        const url = button?.dataset.createUrl;
+        if (!url) return;
 
-    if (!url) {
-        return;
-    }
+        // Best-guess split of the single "full name" from the application form:
+        // last word = last name, the rest = first name. HR confirms it in the modal.
+        const fullName = (button.dataset.applicantName || '').trim();
+        const parts = fullName.split(/\s+/).filter(Boolean);
+        const lastName = parts.length > 1 ? parts.pop() : '';
 
-    // Best-guess split of the single "full name" from the application form:
-    // last word = last name, the rest = first name. HR confirms it in the modal.
-    const fullName = (button.dataset.applicantName || '').trim();
-    const parts = fullName.split(/\s+/).filter(Boolean);
-    const lastName = parts.length > 1 ? parts.pop() : '';
+        document.getElementById('csFullName').textContent = fullName || 'Unknown applicant';
+        document.getElementById('csFirstName').value = parts.join(' ');
+        document.getElementById('csMiddleName').value = '';
+        document.getElementById('csLastName').value = lastName;
+        document.getElementById('csEmail').textContent = button.dataset.applicantEmail || '';
+        document.getElementById('csRole').textContent = button.dataset.applicantPosition || '';
+        document.getElementById('csNameInput').value = fullName;
+        document.getElementById('csEmailInput').value = button.dataset.applicantEmail || '';
+        document.getElementById('csPositionInput').value = button.dataset.applicantPosition || '';
+        document.getElementById('createUrl').value = url;
+        document.getElementById('createStaffForm').action = url;
+        openModal('createStaffModal', '#csFirstName');
+    };
+    window.closeCreateStaffModal = () => closeModal('createStaffModal');
 
-    document.getElementById('csFullName').textContent = fullName || 'Unknown applicant';
-    document.getElementById('csFirstName').value = parts.join(' ');
-    document.getElementById('csMiddleName').value = '';
-    document.getElementById('csLastName').value = lastName;
-    document.getElementById('csEmail').textContent = button.dataset.applicantEmail || '';
-    document.getElementById('csRole').textContent = button.dataset.applicantPosition || '';
-    document.getElementById('createStaffForm').action = url;
-    document.getElementById('createStaffModal').classList.remove('hidden');
-}
-
-function closeCreateStaffModal() {
-    document.getElementById('createStaffModal').classList.add('hidden');
-    document.getElementById('createStaffForm').removeAttribute('action');
-}
-
-document.getElementById('createStaffForm')?.addEventListener('submit', function (e) {
-    if (!this.getAttribute('action')) {
-        e.preventDefault();
-    }
-});
+    @if ($createErrors->any() && old('_create_url'))
+        document.getElementById('csFullName').textContent = @json(old('_applicant_name', ''));
+        document.getElementById('csEmail').textContent = @json(old('_applicant_email', ''));
+        document.getElementById('csRole').textContent = @json(old('_applicant_position', ''));
+        openModal('createStaffModal', '#csFirstName');
+    @endif
 @endif
+})();
 </script>
+
+<style>
+@media (max-width: 767px) {
+    .rt,
+    .rt tbody,
+    .rt tr,
+    .rt td { display: block; width: 100%; }
+
+    .rt thead { display: none; }
+
+    .rt tr { padding: 0.75rem 1rem; }
+
+    .rt td {
+        padding: 0.375rem 0 !important;
+        text-align: left !important;
+    }
+
+    .rt td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.125rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .rt td.rt-actions { padding-top: 0.75rem !important; }
+
+    .rt td.rt-empty {
+        padding: 2rem 0 !important;
+        text-align: center !important;
+    }
+}
+
+@media (max-width: 767px) and (prefers-color-scheme: dark) {
+    .rt td[data-label]::before { color: #9ca3af; }
+}
+</style>
 @endsection

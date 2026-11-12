@@ -25,13 +25,15 @@
                    . 'dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
         'remove'  => $btnBase . ' bg-red-700 text-white hover:bg-red-800',
     ];
+    $closeBtn = 'inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 '
+              . 'hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200';
     $inputClass = 'block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl '
                 . 'focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 '
                 . 'dark:placeholder-gray-400 dark:text-white';
     $labelClass = 'block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400';
 
     $statusChip = [
-        'open'    => ['Open', 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'],
+        'open'    => ['Open', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'],
         'filled'  => ['Filled', 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'],
         'closed'  => ['Closed', 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'],
         'expired' => ['Deadline passed', 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'],
@@ -41,7 +43,7 @@
     $errorsBag = $errors->getBag('posting');
 @endphp
 
-<div class="p-6 mx-auto max-w-7xl">
+<div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
 
     <x-page-header title="Job Openings" :subtitle="'Openings for this branch. Open ones show a “We’re Hiring” badge on the landing page.'">
         @if ($canCreate)
@@ -54,15 +56,13 @@
         @endif
     </x-page-header>
 
-    <div class="mt-6 overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
+    <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
-        <div class="flex flex-col gap-4 px-6 py-5 border-b border-gray-100 lg:flex-row lg:items-start lg:justify-between dark:border-gray-700">
-            <h2 class="flex items-center gap-2 text-lg font-semibold text-gray-800 shrink-0 whitespace-nowrap dark:text-white">
-                Job Openings
-                <span class="px-2 py-0.5 text-xs font-semibold text-gray-500 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
-                    {{ $total }}
-                </span>
-            </h2>
+        <div class="flex flex-col gap-4 px-4 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between sm:px-6 dark:border-gray-700">
+            <div class="shrink-0">
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Openings</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Close one when you stop hiring for it.</p>
+            </div>
 
             <x-table-filters :action="route('job-openings.index')" :shown="$postings->count()" :total="$total"
                              :active="$activeFilters" noun="job opening"
@@ -74,21 +74,22 @@
             </x-table-filters>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Position</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Hired</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Schedule</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Pay</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Deadline</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applicants</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase whitespace-nowrap">Action</th>
+        <div class="md:overflow-x-auto">
+            {{-- .rt collapses this table into stacked cards below md (design language §8). --}}
+            <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
+                <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
+                    <tr role="row">
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Position</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Hired</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Schedule</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Pay</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Deadline</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Applicants</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Status</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody role="rowgroup" class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse ($postings as $posting)
                         @php
                             $display = $posting->displayStatus();
@@ -112,46 +113,46 @@
                                 'update_url' => route('job-openings.update', $posting),
                             ];
                         @endphp
-                        <tr class="posting-row" data-status="{{ $display }}">
-                            <td class="px-6 py-4">
-                                <p class="text-sm font-semibold text-gray-800 dark:text-white">{{ $posting->title }}</p>
+                        <tr role="row" class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900" data-status="{{ $display }}">
+                            <td role="cell" data-label="Position" class="px-6 py-4">
+                                <p class="font-medium text-gray-900 dark:text-white">{{ $posting->title }}</p>
                                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                                     {{ $posting->roleLabel() }} · {{ $posting->employmentTypeLabel() }}
                                 </p>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                            <td role="cell" data-label="Hired" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                 {{ $posting->hired_count }} of {{ $posting->openings }}
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                            <td role="cell" data-label="Schedule" class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                                 @if ($restDays->isEmpty())
                                     <span class="text-gray-400">Not set</span>
                                 @else
                                     Rest: {{ $restDays->map(fn ($d) => substr($d, 0, 3))->implode(', ') }}
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                            <td role="cell" data-label="Pay" class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                                 {{ $posting->payLabel(false) ?? '—' }}
                                 @if ($posting->pay_basis)
                                     <p class="text-xs text-gray-400">{{ $posting->show_pay ? 'Shown publicly' : 'Hidden' }}</p>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            <td role="cell" data-label="Deadline" class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
                                 {{ $posting->deadline?->format('M j, Y') ?? 'None' }}
                             </td>
-                            <td class="px-6 py-4 text-sm whitespace-nowrap">
+                            <td role="cell" data-label="Applicants" class="px-6 py-4 text-sm whitespace-nowrap">
                                 @if ($canViewApplicants && $posting->applicants_count > 0)
                                     <a href="{{ route('applications.index', ['posting' => $posting->id]) }}"
-                                       class="font-medium text-[#8B7355] hover:underline dark:text-[#C4A97D]">
+                                       class="inline-flex items-center min-h-[44px] -my-3 font-medium text-[#8B7355] hover:underline dark:text-[#C4A97D]">
                                         {{ $posting->applicants_count }} {{ \Illuminate\Support\Str::plural('applicant', $posting->applicants_count) }}
                                     </a>
                                 @else
                                     <span class="text-gray-500 dark:text-gray-400">{{ $posting->applicants_count }}</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-4">
+                            <td role="cell" data-label="Status" class="px-6 py-4">
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap {{ $chipClass }}">{{ $chipLabel }}</span>
                             </td>
-                            <td class="px-6 py-4">
+                            <td role="cell" class="rt-actions px-6 py-4">
                                 <div class="flex flex-wrap items-center gap-2">
                                     @if ($canEdit)
                                         <button type="button" class="{{ $btn['edit'] }}"
@@ -183,25 +184,28 @@
                                         @endif
                                     @endif
                                     @if ($canDelete)
-                                        <button type="button" class="{{ $btn['neutral'] }} text-red-700 dark:text-red-300"
+                                        <button type="button" class="{{ $btn['remove'] }}"
                                                 aria-label="Delete {{ $posting->title }}"
                                                 data-url="{{ route('job-openings.destroy', $posting) }}"
                                                 data-title="{{ $posting->title }}"
                                                 onclick="openPostingDeleteModal(this)">
-                                            <i class="text-xs fa-solid fa-trash-can" aria-hidden="true"></i>
+                                            <i class="text-xs fa-solid fa-trash" aria-hidden="true"></i>
+                                            Delete
                                         </button>
                                     @endif
                                 </div>
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="8" class="px-6 py-16 text-center">
-                                <i class="block mb-3 text-4xl text-gray-200 fa-solid fa-bullhorn" aria-hidden="true"></i>
-                                <p class="text-sm text-gray-400">{{ $activeFilters > 0 ? 'No job openings match these filters.' : 'No job openings yet.' }}</p>
-                                @if ($canCreate && $activeFilters === 0)
-                                    <p class="mt-1 text-xs text-gray-400">Create one to show "We're Hiring" on the landing page.</p>
-                                @endif
+                        <tr role="row">
+                            <td role="cell" colspan="8" class="px-6 py-12 text-center text-gray-500 rt-empty dark:text-gray-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <i class="mb-3 text-4xl text-gray-400 fa-solid fa-bullhorn" aria-hidden="true"></i>
+                                    <p class="font-medium">{{ $activeFilters > 0 ? 'No job openings match these filters.' : 'No job openings yet.' }}</p>
+                                    @if ($canCreate && $activeFilters === 0)
+                                        <p class="mt-1 text-sm">Create one to show "We're Hiring" on the landing page.</p>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -379,10 +383,10 @@
 @if ($canDelete)
 <div id="postingDeleteModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
     <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
-        <div role="alertdialog" aria-modal="true" aria-labelledby="postingDeleteTitle"
+        <div role="alertdialog" aria-modal="true" aria-labelledby="postingDeleteTitle" aria-describedby="postingDeleteDesc"
              class="w-full max-w-md p-6 bg-white shadow-xl rounded-2xl dark:bg-gray-800">
             <h2 id="postingDeleteTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Delete Job Opening</h2>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            <p id="postingDeleteDesc" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 This removes <span id="postingDeleteName" class="font-medium text-gray-900 dark:text-white"></span>
                 from this page and the landing page. Its applicants stay on the Applicants page.
             </p>
@@ -446,6 +450,49 @@
         syncPay();
     }
 
+    // ── Shared modal behaviour (same as staff/index.blade.php) ────────────────
+    const MODAL_IDS = ['postingModal', 'postingDeleteModal'];
+    const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    let lastFocused = null;
+
+    function topmostOpenModal() {
+        for (let i = MODAL_IDS.length - 1; i >= 0; i--) {
+            const el = document.getElementById(MODAL_IDS[i]);
+            if (el && !el.classList.contains('hidden')) return el;
+        }
+        return null;
+    }
+    function openModal(id, focusSelector) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        lastFocused = document.activeElement;
+        el.classList.remove('hidden');
+        const target = (focusSelector && el.querySelector(focusSelector)) || el.querySelector(FOCUSABLE);
+        if (target) target.focus();
+    }
+    function closeModal(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.add('hidden');
+        if (lastFocused && document.contains(lastFocused)) lastFocused.focus();
+        lastFocused = null;
+    }
+    document.addEventListener('keydown', function (e) {
+        const modal = topmostOpenModal();
+        if (!modal) return;
+        if (e.key === 'Escape') { e.preventDefault(); closeModal(modal.id); return; }
+        if (e.key !== 'Tab') return;
+        const items = Array.from(modal.querySelectorAll(FOCUSABLE)).filter(el => el.offsetParent !== null);
+        if (!items.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    // Backdrop click closes the delete confirmation only; the posting form keeps typed input (§8).
+    document.getElementById('postingDeleteModal')?.addEventListener('click', function (e) {
+        if (e.target === this || e.target === this.firstElementChild) closeModal(this.id);
+    });
+
     window.openPostingModal = function (p) {
         if (!form) return;
         const editing = !!(p && (p.update_url || p.id));
@@ -456,41 +503,19 @@
         method.value = editing ? 'PUT' : 'POST';
         document.getElementById('postingId').value = editing ? (p.id || '') : '';
         fill(p || {});
-        document.getElementById('postingModal').classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
-        document.getElementById('p_title').focus();
+        openModal('postingModal', '#p_title');
     };
-
-    window.closePostingModal = function () {
-        document.getElementById('postingModal')?.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    };
+    window.closePostingModal = () => closeModal('postingModal');
 
     window.openPostingDeleteModal = function (btn) {
         document.getElementById('postingDeleteForm').action = btn.dataset.url;
         document.getElementById('postingDeleteName').textContent = btn.dataset.title;
-        document.getElementById('postingDeleteModal').classList.remove('hidden');
+        openModal('postingDeleteModal', '#postingDeleteModal button[type="button"]');
     };
-
-    window.closePostingDeleteModal = function () {
-        document.getElementById('postingDeleteModal')?.classList.add('hidden');
-    };
+    window.closePostingDeleteModal = () => closeModal('postingDeleteModal');
 
     form?.querySelectorAll('[data-day] .posting-mode').forEach(sel => sel.addEventListener('change', () => syncRow(sel.closest('[data-day]'))));
     form?.querySelector('[name="pay_basis"]')?.addEventListener('change', syncPay);
-
-    ['postingModal', 'postingDeleteModal'].forEach(id => {
-        document.getElementById(id)?.addEventListener('click', function (e) {
-            if (e.target === this || e.target === this.firstElementChild) {
-                id === 'postingModal' ? closePostingModal() : closePostingDeleteModal();
-            }
-        });
-    });
-    document.addEventListener('keydown', e => {
-        if (e.key !== 'Escape') return;
-        closePostingDeleteModal();
-        closePostingModal();
-    });
 
     // Reopen with what was typed when the server sent errors back.
     @if ($errorsBag->any())
@@ -510,4 +535,44 @@
     @endif
 })();
 </script>
+
+<style>
+@media (max-width: 767px) {
+    .rt,
+    .rt tbody,
+    .rt tr,
+    .rt td { display: block; width: 100%; }
+
+    .rt thead { display: none; }
+
+    .rt tr { padding: 0.75rem 1rem; }
+
+    .rt td {
+        padding: 0.375rem 0 !important;
+        text-align: left !important;
+    }
+
+    .rt td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.125rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .rt td.rt-actions { padding-top: 0.75rem !important; }
+
+    .rt td.rt-empty {
+        padding: 2rem 0 !important;
+        text-align: center !important;
+    }
+}
+
+@media (max-width: 767px) and (prefers-color-scheme: dark) {
+    .rt td[data-label]::before { color: #9ca3af; }
+}
+</style>
 @endsection

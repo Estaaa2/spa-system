@@ -15,23 +15,53 @@
     $formatLabel = function ($value) {
         return filled($value) ? ucwords(str_replace('_', ' ', $value)) : 'N/A';
     };
+
+    // Button / input tokens, same block as staff/index.blade.php and appointments.blade.php
+    // (levictas-design-language §5), so controls are identical across pages.
+    $btnBase = 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-4 py-2 text-sm '
+             . 'font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 '
+             . 'focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
+    $btn = [
+        'primary' => $btnBase . ' bg-[#8B7355] text-white hover:bg-[#7A6348]',
+        'edit'    => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
+                   . 'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700',
+        'neutral' => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
+                   . 'dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
+    ];
+    $inputClass = 'block w-full p-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-xl '
+                . 'focus:ring-[#8B7355] focus:border-[#8B7355] dark:bg-gray-700 dark:border-gray-600 '
+                . 'dark:placeholder-gray-400 dark:text-white';
+    $labelClass = 'block mb-2 text-sm font-medium text-gray-900 dark:text-white';
+
+    // Applicant status → chip (canon palette §6: amber / blue / emerald / teal / red).
+    $statusChip = [
+        'pending'   => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+        'interview' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+        'approved'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+        'hired'     => 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+        'rejected'  => 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    ];
+    $chipFallback = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+
+    $scheduleErrors = $errors->getBag('schedule');
+
+    // The Branch column only helps spa-wide users who see more than one branch.
+    $showBranch = $applicants->pluck('branch_id')->unique()->count() > 1;
+    $colCount = $showBranch ? 7 : 6;
 @endphp
 
-<div class="p-6 mx-auto max-w-7xl">
+<div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
 
-    <x-page-header title="Applications" subtitle="List of all applicants from hiring."/>
+    <x-page-header title="Applications" subtitle="List of all applicants from hiring." />
 
-    {{-- One white card holds the header row, filter tabs, and the table --}}
-    <div class="mt-6 overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
+    <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
 
-        {{-- Section header + filters (table filters workstream; same bar as Pay Runs) --}}
-        <div class="flex flex-col gap-4 px-6 py-5 border-b border-gray-100 lg:flex-row lg:items-start lg:justify-between dark:border-gray-700">
-            <h2 class="flex items-center gap-2 text-lg font-semibold text-gray-800 shrink-0 whitespace-nowrap dark:text-white">
-                Applicant List
-                <span class="px-2 py-0.5 text-xs font-semibold text-gray-500 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
-                    {{ $total }}
-                </span>
-            </h2>
+        {{-- Card header + filters --}}
+        <div class="flex flex-col gap-4 px-4 py-4 border-b border-gray-200 lg:flex-row lg:items-start lg:justify-between sm:px-6 dark:border-gray-700">
+            <div class="shrink-0">
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Applicant List</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Online applications and walk-ins.</p>
+            </div>
 
             <x-table-filters :action="route('applications.index')" :shown="$applicants->count()" :total="$total"
                              :active="$activeFilters" noun="applicant"
@@ -43,23 +73,24 @@
             </x-table-filters>
         </div>
 
-        {{-- Applicants Table --}}
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applicant</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applied Position</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Branch</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Contact</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Education</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Applied</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase">Status</th>
-                        <th class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase whitespace-nowrap">Action</th>
+        <div class="md:overflow-x-auto">
+            {{-- .rt collapses this table into stacked cards below md (design language §8). --}}
+            <table role="table" class="min-w-full divide-y divide-gray-200 rt dark:divide-gray-700">
+                <thead role="rowgroup" class="bg-gray-50 dark:bg-gray-900">
+                    <tr role="row">
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Applicant</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Position</th>
+                        @if ($showBranch)
+                            <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Branch</th>
+                        @endif
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Contact</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Applied</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Status</th>
+                        <th role="columnheader" class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400">Actions</th>
                     </tr>
                 </thead>
 
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700" id="applicantsList">
+                <tbody role="rowgroup" class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($applicants as $applicant)
                         @php
                             $applicantData = [
@@ -79,146 +110,110 @@
                                 'source' => match ($applicant->source) { 'website' => 'Online', 'manual' => 'Walk-in', default => $applicant->source },
                                 'education' => $applicant->education,
                                 'expected_start_date' => optional($applicant->expected_start_date)->format('M d, Y'),
-
                                 'resume_url' => filled($applicant->resume_path)
                                     ? route('applications.resume.view', $applicant->id)
                                     : null,
-
                                 'emergency_contact_name' => $applicant->emergency_contact_name,
                                 'emergency_contact_relation' => $applicant->emergency_contact_relation,
                                 'emergency_contact_phone' => $applicant->emergency_contact_phone,
                                 'notes' => $applicant->notes,
                                 'status' => $applicant->status,
                                 'applied_on' => optional($applicant->created_at)->format('M d, Y'),
-
                                 'interview_date' => $applicant->interview
                                     ? optional($applicant->interview->interview_date)->format('M d, Y')
                                     : null,
-
                                 'interview_time' => $applicant->interview->interview_time ?? null,
                                 'interview_status' => $applicant->interview->status ?? null,
                                 'rejection_reason' => $applicant->interview->rejection_reason ?? null,
                             ];
                         @endphp
 
-                        <tr class="transition cursor-pointer applicant-row hover:bg-gray-50 dark:hover:bg-gray-900"
-                            data-status="{{ $applicant->status }}"
-                            onclick="openApplicantDetailsModal(this)"
-                            data-applicant='@json($applicantData)'>
-
-                            {{-- Applicant --}}
-                            <td class="px-6 py-4">
+                        <tr role="row" class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900" data-status="{{ $applicant->status }}">
+                            <td role="cell" data-label="Applicant" class="px-6 py-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="flex items-center justify-center shrink-0 w-9 h-9 rounded-full bg-[#8B7355] text-white font-semibold text-sm">
+                                    <div class="flex items-center justify-center w-10 h-10 text-sm font-semibold text-white rounded-full bg-[#8B7355] shrink-0" aria-hidden="true">
                                         {{ strtoupper(substr($applicant->full_name, 0, 1)) }}
                                     </div>
-
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-800 dark:text-white">
-                                            {{ $applicant->full_name }}
-                                        </p>
-                                        <p class="text-xs text-gray-500">
-                                            {{ $applicant->email }}
-                                        </p>
+                                    <div class="min-w-0">
+                                        <p class="font-medium text-gray-900 dark:text-white">{{ $applicant->full_name }}</p>
+                                        <p class="text-sm text-gray-500 break-all md:break-normal dark:text-gray-400">{{ $applicant->email }}</p>
                                     </div>
                                 </div>
                             </td>
 
-                            {{-- Applied Position --}}
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-[#F6EFE6] text-[#6F5430]">
-                                    {{ $formatLabel($applicant->position_applied ?? $applicant->role) }}
-                                </span>
-                                @if ($applicant->source === 'website')
-                                    <span class="ml-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300">Online</span>
-                                @elseif ($applicant->source === 'manual')
-                                    <span class="ml-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">Walk-in</span>
-                                @endif
+                            <td role="cell" data-label="Position" class="px-6 py-4">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-[#8B7355]/10 text-[#6F5430] dark:bg-[#C4A97D]/15 dark:text-[#C4A97D]">
+                                        {{ $formatLabel($applicant->position_applied ?? $applicant->role) }}
+                                    </span>
+                                    @if ($applicant->source === 'website')
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300">Online</span>
+                                    @elseif ($applicant->source === 'manual')
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $chipFallback }}">Walk-in</span>
+                                    @endif
+                                </div>
                                 @if ($applicant->jobPosting)
-                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate max-w-[180px]">{{ $applicant->jobPosting->title }}</p>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $applicant->jobPosting->title }}</p>
                                 @endif
                             </td>
 
-                            <td class="px-6 py-4">
-                                <span class="text-sm text-gray-600 dark:text-gray-300">
+                            @if ($showBranch)
+                                <td role="cell" data-label="Branch" class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                                     {{ $applicant->branch?->name ?? 'N/A' }}
-                                </span>
-                            </td>
+                                </td>
+                            @endif
 
-                            {{-- Contact --}}
-                            <td class="px-6 py-4">
-                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                    {{ $applicant->phone ?? 'N/A' }}
-                                </p>
-
+                            <td role="cell" data-label="Contact" class="px-6 py-4">
+                                <p class="text-sm text-gray-700 dark:text-gray-300">{{ $applicant->phone ?? 'N/A' }}</p>
                                 @if($applicant->address)
-                                    <p class="text-xs text-gray-400 truncate max-w-[140px]">
-                                        {{ $applicant->address }}
-                                    </p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 md:truncate md:max-w-[160px]">{{ $applicant->address }}</p>
                                 @endif
                             </td>
 
-                            {{-- Education --}}
-                            <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                {{ $formatLabel($applicant->education) }}
-                            </td>
-
-                            {{-- Applied date --}}
-                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                            <td role="cell" data-label="Applied" class="px-6 py-4 text-sm text-gray-700 whitespace-nowrap dark:text-gray-300">
                                 {{ optional($applicant->created_at)->format('M d, Y') }}
                             </td>
 
-                            {{-- Status --}}
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full
-                                    {{ $applicant->status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                      ($applicant->status === 'interview' ? 'bg-blue-100 text-blue-700' :
-                                      ($applicant->status === 'approved' ? 'bg-green-100 text-green-700' :
-                                      ($applicant->status === 'hired' ? 'bg-teal-100 text-teal-700' :
-                                      'bg-red-100 text-red-700'))) }}">
+                            <td role="cell" data-label="Status" class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $statusChip[$applicant->status] ?? $chipFallback }}">
                                     {{ ucfirst($applicant->status) }}
                                 </span>
                             </td>
 
-                            {{-- Action --}}
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @if($applicant->status === 'pending' && $canScheduleInterview)
-                                    <button
-                                        type="button"
-                                        data-schedule-url="{{ route('applications.schedule-interview', $applicant) }}"
-                                        data-applicant-name="{{ $applicant->full_name }}"
-                                        onclick="event.stopPropagation(); openInterviewScheduleModal(this)"
-                                        class="inline-flex items-center justify-center gap-1.5 w-[92px] px-3 py-1.5 text-xs font-semibold text-white bg-[#8B7355] rounded-lg hover:bg-[#7A6348] transition whitespace-nowrap">
-                                        <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i>
-                                        Schedule
-                                    </button>
-                                @else
-                                    <button
-                                        type="button"
-                                        onclick="event.stopPropagation(); openApplicantDetailsModal(this.closest('tr'))"
-                                        class="inline-flex items-center justify-center gap-1.5 w-[92px] px-3 py-1.5 text-xs font-semibold text-[#8B7355] bg-white border border-[#8B7355]/40 rounded-lg hover:bg-[#8B7355]/5 transition whitespace-nowrap dark:text-[#C4A97D] dark:bg-gray-800 dark:border-[#C4A97D]/30">
-                                        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                            <td role="cell" class="px-6 py-4 rt-actions">
+                                <div class="flex flex-wrap gap-2 md:flex-nowrap">
+                                    <button type="button" class="{{ $btn['edit'] }}"
+                                            data-applicant='@json($applicantData)'
+                                            onclick="openApplicantDetailsModal(this)"
+                                            aria-label="View {{ $applicant->full_name }}">
+                                        <i class="text-xs fa-solid fa-eye" aria-hidden="true"></i>
                                         View
                                     </button>
-                                @endif
+                                    @if($applicant->status === 'pending' && $canScheduleInterview)
+                                        <button type="button" class="{{ $btn['primary'] }}"
+                                                data-schedule-url="{{ route('applications.schedule-interview', $applicant) }}"
+                                                data-applicant-name="{{ $applicant->full_name }}"
+                                                onclick="openInterviewScheduleModal(this)">
+                                            <i class="text-xs fa-solid fa-calendar-plus" aria-hidden="true"></i>
+                                            Schedule
+                                        </button>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="8" class="px-6 py-16 text-center">
-                                <i class="block mb-3 text-4xl text-gray-200 fa-solid fa-users"></i>
-
-                                <p class="text-sm text-gray-400">
-                                    {{ $activeFilters > 0 ? 'No applicants match these filters.' : 'No applicants yet.' }}
-                                </p>
-
-                                <p class="mt-1 text-xs text-gray-300">
-                                    Go to
-                                    <a href="{{ route('hiring.index') }}" class="text-[#8B7355] underline">
-                                        Hiring
-                                    </a>
-                                    to add applicants.
-                                </p>
+                        <tr role="row">
+                            <td role="cell" colspan="{{ $colCount }}" class="px-6 py-12 text-center text-gray-500 rt-empty dark:text-gray-400">
+                                <div class="flex flex-col items-center justify-center">
+                                    <i class="mb-3 text-4xl text-gray-400 fa-solid fa-users" aria-hidden="true"></i>
+                                    <p class="font-medium">{{ $activeFilters > 0 ? 'No applicants match these filters.' : 'No applicants yet.' }}</p>
+                                    @if ($activeFilters === 0)
+                                        <p class="mt-1 text-sm">
+                                            Online applications appear here. Record walk-ins on the
+                                            <a href="{{ route('hiring.index') }}" class="inline-flex items-center min-h-[44px] -my-3 px-1 font-medium text-[#8B7355] hover:underline dark:text-[#C4A97D]">Application Form</a>.
+                                        </p>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -226,541 +221,355 @@
             </table>
         </div>
     </div>
-
 </div>
 
+{{-- Applicant details --}}
+<div id="applicantDetailsModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="detailName"
+             class="w-full max-w-2xl bg-white shadow-xl rounded-2xl dark:bg-gray-800">
 
-{{-- Applicant Details Modal --}}
-<div id="applicantDetailsModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50">
-
-    <div class="w-full max-w-2xl p-6 mx-auto mt-16 overflow-y-auto bg-white shadow-xl rounded-xl dark:bg-gray-800 max-h-[85vh]">
-
-        <div class="flex items-center justify-between pb-4 mb-4 border-b border-gray-100 dark:border-gray-700">
-
-            <div class="flex items-center gap-3">
-                <div id="detailAvatar"
-                    class="flex items-center justify-center shrink-0 w-12 h-12 text-lg font-semibold text-white rounded-full bg-[#8B7355]">
-                </div>
-
-                <div>
-                    <h2 id="detailName" class="text-lg font-semibold text-gray-800 dark:text-white"></h2>
-                    <p id="detailEmail" class="text-xs text-gray-500"></p>
-                </div>
-            </div>
-
-            <button onclick="closeApplicantDetailsModal()"
-                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                <i class="text-xl fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-        <div class="space-y-5 text-sm">
-
-            {{-- Personal Information --}}
-            <div>
-                <h3 class="flex items-center gap-2 mb-2 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
-                    <i class="fa-solid fa-user"></i> Personal Information
-                </h3>
-
-                <div class="grid grid-cols-2 gap-3 text-gray-700 dark:text-gray-300">
-                    <div>
-                        <span class="text-xs text-gray-400">Phone</span>
-                        <p id="detailPhone"></p>
-                    </div>
-
-                    {{-- No longer collected (Phase 5, RA 10911 / RA 10173); shown only on older applications. --}}
-                    <div id="detailGenderWrap">
-                        <span class="text-xs text-gray-400">Gender</span>
-                        <p id="detailGender"></p>
-                    </div>
-
-                    <div id="detailDobWrap">
-                        <span class="text-xs text-gray-400">Date of Birth</span>
-                        <p id="detailDob"></p>
-                    </div>
-
-                    <div id="detailCivilStatusWrap">
-                        <span class="text-xs text-gray-400">Civil Status</span>
-                        <p id="detailCivilStatus"></p>
-                    </div>
-
-                    <div class="col-span-2">
-                        <span class="text-xs text-gray-400">Address</span>
-                        <p id="detailAddress"></p>
+            <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
+                <div class="flex items-center min-w-0 gap-3">
+                    <div id="detailAvatar" aria-hidden="true"
+                         class="flex items-center justify-center w-12 h-12 text-lg font-semibold text-white rounded-full shrink-0 bg-[#8B7355]"></div>
+                    <div class="min-w-0">
+                        <h2 id="detailName" class="text-lg font-semibold text-gray-900 dark:text-white"></h2>
+                        <p id="detailEmail" class="text-sm text-gray-500 break-all dark:text-gray-400"></p>
                     </div>
                 </div>
+                <button type="button" onclick="closeApplicantDetailsModal()" aria-label="Close applicant details"
+                        class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
             </div>
 
-            <hr class="border-gray-100 dark:border-gray-700">
+            <div class="px-4 py-6 space-y-6 text-sm sm:px-6">
+                <section>
+                    <h3 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">Personal information</h3>
+                    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Phone</dt><dd id="detailPhone" class="text-gray-900 dark:text-white"></dd></div>
+                        {{-- No longer collected (Phase 5, RA 10911 / RA 10173); shown only on older applications. --}}
+                        <div id="detailGenderWrap"><dt class="text-xs text-gray-500 dark:text-gray-400">Gender</dt><dd id="detailGender" class="text-gray-900 dark:text-white"></dd></div>
+                        <div id="detailDobWrap"><dt class="text-xs text-gray-500 dark:text-gray-400">Date of Birth</dt><dd id="detailDob" class="text-gray-900 dark:text-white"></dd></div>
+                        <div id="detailCivilStatusWrap"><dt class="text-xs text-gray-500 dark:text-gray-400">Civil Status</dt><dd id="detailCivilStatus" class="text-gray-900 dark:text-white"></dd></div>
+                        <div class="sm:col-span-2"><dt class="text-xs text-gray-500 dark:text-gray-400">Address</dt><dd id="detailAddress" class="text-gray-900 dark:text-white"></dd></div>
+                    </dl>
+                </section>
 
-            {{-- Position Details --}}
-            <div>
-                <h3 class="flex items-center gap-2 mb-2 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
-                    <i class="fa-solid fa-briefcase"></i> Position Details
-                </h3>
+                <section class="pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">Position</h3>
+                    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Applying For</dt><dd id="detailPosition" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Job Opening</dt><dd id="detailJobPosting" class="text-gray-900 dark:text-white"></dd></div>
+                        <div id="detailScheduleFitWrap"><dt class="text-xs text-gray-500 dark:text-gray-400">Can work the schedule</dt><dd id="detailScheduleFit" class="text-gray-900 dark:text-white"></dd></div>
+                        <div id="detailAvailabilityWrap"><dt class="text-xs text-gray-500 dark:text-gray-400">Availability</dt><dd id="detailAvailability" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Source</dt><dd id="detailSource" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Education</dt><dd id="detailEducation" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Expected Start</dt><dd id="detailStartDate" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Applied On</dt><dd id="detailAppliedOn" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Résumé / CV</dt><dd id="detailResume" class="text-gray-900 dark:text-white"></dd></div>
+                    </dl>
+                </section>
 
-                <div class="grid grid-cols-2 gap-3 text-gray-700 dark:text-gray-300">
-                    <div>
-                        <span class="text-xs text-gray-400">Applying For</span>
-                        <p id="detailPosition"></p>
+                <section id="detailInterviewWrapper" class="hidden pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">Interview</h3>
+                    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Date</dt><dd id="detailInterviewDate" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Time</dt><dd id="detailInterviewTime" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Status</dt><dd id="detailInterviewStatus" class="font-medium text-gray-900 dark:text-white"></dd></div>
+                    </dl>
+                    <a href="{{ route('interviews.index') }}"
+                       class="inline-flex items-center gap-1 min-h-[44px] -my-2 mt-1 text-sm font-medium text-[#8B7355] hover:underline dark:text-[#C4A97D]">
+                        View in Interviews <i class="text-xs fa-solid fa-arrow-right" aria-hidden="true"></i>
+                    </a>
+                </section>
+
+                <section id="detailRejectionWrapper" class="hidden">
+                    <div class="p-4 border border-red-200 bg-red-50 rounded-2xl dark:border-red-800 dark:bg-red-900/10">
+                        <h3 class="flex items-center gap-2 mb-2 text-sm font-semibold text-red-700 dark:text-red-300">
+                            <i class="fa-solid fa-ban" aria-hidden="true"></i> Rejection reason
+                        </h3>
+                        <p id="detailRejectionReason" class="text-sm leading-6 text-gray-700 whitespace-pre-line dark:text-gray-300"></p>
                     </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Job Opening</span>
-                        <p id="detailJobPosting"></p>
-                    </div>
-                    <div id="detailScheduleFitWrap">
-                        <span class="text-xs text-gray-400">Can work the schedule</span>
-                        <p id="detailScheduleFit"></p>
-                    </div>
-                    <div id="detailAvailabilityWrap">
-                        <span class="text-xs text-gray-400">Availability</span>
-                        <p id="detailAvailability"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Source</span>
-                        <p id="detailSource"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Education</span>
-                        <p id="detailEducation"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Expected Start</span>
-                        <p id="detailStartDate"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Applied On</span>
-                        <p id="detailAppliedOn"></p>
-                    </div>
-                    {{-- Resume now follows the same plain structure --}}
-                    <div>
-                        <span class="text-xs text-gray-400">Resume / CV</span>
-                        <p id="detailResume"></p>
-                    </div>
+                </section>
+
+                <section class="pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">Emergency contact</h3>
+                    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Name</dt><dd id="detailEmergencyName" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Relationship</dt><dd id="detailEmergencyRelation" class="text-gray-900 dark:text-white"></dd></div>
+                        <div><dt class="text-xs text-gray-500 dark:text-gray-400">Number</dt><dd id="detailEmergencyPhone" class="text-gray-900 dark:text-white"></dd></div>
+                    </dl>
+                </section>
+
+                <section id="detailNotesWrapper" class="hidden pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 class="mb-2 text-sm font-semibold text-gray-900 dark:text-white">Notes</h3>
+                    <p id="detailNotes" class="text-gray-700 whitespace-pre-line dark:text-gray-300"></p>
+                </section>
+            </div>
+
+            <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button type="button" onclick="closeApplicantDetailsModal()" class="w-full {{ $btn['neutral'] }} sm:w-auto">Close</button>
                 </div>
             </div>
-
-            {{-- Interview --}}
-            <div id="detailInterviewWrapper" class="hidden">
-
-                <hr class="mb-4 border-gray-100 dark:border-gray-700">
-
-                <h3 class="flex items-center gap-2 mb-2 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
-                    <i class="fa-solid fa-calendar-check"></i> Interview
-                </h3>
-                <div class="grid grid-cols-3 gap-3 text-gray-700 dark:text-gray-300">
-                    <div>
-                        <span class="text-xs text-gray-400">Date</span>
-                        <p id="detailInterviewDate"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Time</span>
-                        <p id="detailInterviewTime"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Status</span>
-                        <p id="detailInterviewStatus" class="font-semibold"></p>
-                    </div>
-                </div>
-
-                <a href="{{ route('interviews.index') }}"
-                    class="inline-block mt-2 text-xs text-[#8B7355] underline">
-                    View in Interviews →
-                </a>
-            </div>
-
-            <hr class="border-gray-100 dark:border-gray-700">
-
-            <div id="detailRejectionWrapper" class="hidden">
-                <hr class="mb-4 border-gray-100 dark:border-gray-700">
-
-                <div class="p-4 border border-red-200 bg-red-50 rounded-xl dark:border-red-900 dark:bg-red-900/10">
-                    <h3 class="flex items-center gap-2 mb-2 text-xs font-bold tracking-widest text-red-700 uppercase dark:text-red-300">
-                        <i class="fa-solid fa-ban" aria-hidden="true"></i>
-                        Rejection Reason
-                    </h3>
-
-                    <p
-                        id="detailRejectionReason"
-                        class="text-sm leading-6 text-gray-700 whitespace-pre-line dark:text-gray-300"
-                    ></p>
-                </div>
-            </div>
-
-            {{-- Emergency Contact --}}
-            <div>
-                <h3 class="flex items-center gap-2 mb-2 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
-                    <i class="fa-solid fa-phone-volume"></i> Emergency Contact
-                </h3>
-                <div class="grid grid-cols-3 gap-3 text-gray-700 dark:text-gray-300">
-                    <div>
-                        <span class="text-xs text-gray-400">Name</span>
-                        <p id="detailEmergencyName"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Relationship</span>
-                        <p id="detailEmergencyRelation"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-gray-400">Number</span>
-                        <p id="detailEmergencyPhone"></p>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Notes --}}
-            <div id="detailNotesWrapper" class="hidden">
-                <hr class="mb-4 border-gray-100 dark:border-gray-700">
-
-                <h3 class="flex items-center gap-2 mb-2 text-xs font-bold tracking-widest text-[#8B7355] uppercase">
-                    <i class="fa-solid fa-note-sticky"></i> Notes / Remarks
-                </h3>
-                <p id="detailNotes"
-                    class="text-gray-700 whitespace-pre-line dark:text-gray-300">
-                </p>
-            </div>
-        </div>
-
-        <div class="flex justify-end pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
-            <button onclick="closeApplicantDetailsModal()"
-                class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                Close
-            </button>
         </div>
     </div>
 </div>
 
-
-{{-- Schedule Interview Modal --}}
 @if($canScheduleInterview)
+{{-- Schedule interview --}}
 <div id="scheduleModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
     <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
-        <div class="w-full max-w-md bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-
-            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div role="dialog" aria-modal="true" aria-labelledby="scheduleModalTitle" aria-describedby="scheduleApplicantName"
+             class="w-full max-w-lg bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Schedule Interview
-                    </h2>
-
-                    <p
-                        id="scheduleApplicantName"
-                        class="mt-1 text-sm text-gray-500 dark:text-gray-400"
-                    ></p>
+                    <h2 id="scheduleModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Schedule Interview</h2>
+                    <p id="scheduleApplicantName" class="mt-1 text-sm text-gray-500 dark:text-gray-400"></p>
                 </div>
-
-                <button
-                    type="button"
-                    onclick="closeInterviewScheduleModal()"
-                    class="inline-flex items-center justify-center text-gray-500 transition w-11 h-11 rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-                    aria-label="Close schedule interview modal"
-                >
-                    <i class="fa-solid fa-xmark"></i>
+                <button type="button" onclick="closeInterviewScheduleModal()" aria-label="Close dialog"
+                        class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
             </div>
 
-            <form
-                id="scheduleForm"
-                method="POST"
-                class="p-6 space-y-4"
-            >
+            <form id="scheduleForm" method="POST" action="{{ old('_schedule_url') }}" novalidate>
                 @csrf
+                <input type="hidden" name="_schedule_url" id="scheduleUrl" value="{{ old('_schedule_url') }}">
+                <input type="hidden" name="_applicant_name" id="scheduleNameInput" value="{{ old('_applicant_name') }}">
 
-                <div>
-                    <label
-                        for="interview_date"
-                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
-                    >
-                        Interview Date <x-required-mark />
-                    </label>
+                <div class="px-4 py-6 space-y-4 sm:px-6">
+                    @if ($scheduleErrors->any())
+                        <div class="p-3 text-sm text-red-700 border border-red-200 bg-red-50 rounded-xl dark:bg-red-900/20 dark:border-red-800 dark:text-red-300" role="alert">
+                            <ul class="ml-4 list-disc">
+                                @foreach ($scheduleErrors->all() as $message)
+                                    <li>{{ $message }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
 
-                    <input
-                        type="date"
-                        id="interview_date"
-                        name="interview_date"
-                        value="{{ old('interview_date') }}"
-                        required
-                        class="w-full min-h-[44px] px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
-                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="interview_date" class="{{ $labelClass }}">Interview date <x-required-mark /></label>
+                            <input type="date" id="interview_date" name="interview_date" value="{{ old('interview_date') }}" required class="{{ $inputClass }}">
+                        </div>
+                        <div>
+                            <label for="interview_time" class="{{ $labelClass }}">Interview time <x-required-mark /></label>
+                            <input type="time" id="interview_time" name="interview_time" value="{{ old('interview_time') }}" required class="{{ $inputClass }}">
+                        </div>
+                    </div>
 
-                    @error('interview_date', 'schedule')
-                        <p class="mt-1 text-xs text-red-600">
-                            {{ $message }}
-                        </p>
-                    @enderror
+                    <div>
+                        <label for="interview_remarks" class="{{ $labelClass }}">Remarks</label>
+                        <textarea id="interview_remarks" name="remarks" rows="3" maxlength="5000" placeholder="Optional notes" class="{{ $inputClass }}">{{ old('remarks') }}</textarea>
+                    </div>
                 </div>
 
-                <div>
-                    <label
-                        for="interview_time"
-                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
-                    >
-                        Interview Time <x-required-mark />
-                    </label>
-
-                    <input
-                        type="time"
-                        id="interview_time"
-                        name="interview_time"
-                        value="{{ old('interview_time') }}"
-                        required
-                        class="w-full min-h-[44px] px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
-                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >
-
-                    @error('interview_time', 'schedule')
-                        <p class="mt-1 text-xs text-red-600">
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label
-                        for="interview_remarks"
-                        class="block mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300"
-                    >
-                        Remarks
-                    </label>
-
-                    <textarea
-                        id="interview_remarks"
-                        name="remarks"
-                        rows="3"
-                        maxlength="5000"
-                        placeholder="Optional notes..."
-                        class="w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-xl
-                               focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none
-                               dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >{{ old('remarks') }}</textarea>
-
-                    @error('remarks', 'schedule')
-                        <p class="mt-1 text-xs text-red-600">
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
-
-                <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                        type="button"
-                        onclick="closeInterviewScheduleModal()"
-                        class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        Cancel
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-white bg-[#7A6348] rounded-xl hover:bg-[#6F5430]"
-                    >
-                        <i class="mr-2 fa-solid fa-calendar-check"></i>
-                        Schedule Interview
-                    </button>
+                <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button type="button" onclick="closeInterviewScheduleModal()" class="w-full {{ $btn['neutral'] }} sm:w-auto">Cancel</button>
+                        <button type="submit" class="w-full {{ $btn['primary'] }} sm:w-auto">
+                            <i class="text-xs fa-solid fa-calendar-check" aria-hidden="true"></i>
+                            Schedule Interview
+                        </button>
+                    </div>
                 </div>
             </form>
-
         </div>
     </div>
 </div>
 @endif
 
-
 <script>
-    @if($canScheduleInterview)
-        function openInterviewScheduleModal(button) {
-            const modal = document.getElementById('scheduleModal');
-            const form = document.getElementById('scheduleForm');
-            const applicantName = document.getElementById('scheduleApplicantName');
+(function () {
+    'use strict';
 
-            if (!modal || !form || !button) {
-                return;
-            }
+    // ── Shared modal behaviour (same as staff/index.blade.php) ────────────────
+    const MODAL_IDS = ['applicantDetailsModal', 'scheduleModal'];
+    const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    let lastFocused = null;
 
-            const actionUrl = button.dataset.scheduleUrl;
-            const name = button.dataset.applicantName;
-
-            if (!actionUrl) {
-                return;
-            }
-
-            form.action = actionUrl;
-
-            if (applicantName) {
-                applicantName.textContent = 'Applicant: ' + name;
-            }
-
-            modal.classList.remove('hidden');
+    function topmostOpenModal() {
+        for (let i = MODAL_IDS.length - 1; i >= 0; i--) {
+            const el = document.getElementById(MODAL_IDS[i]);
+            if (el && !el.classList.contains('hidden')) return el;
         }
-
-        function closeInterviewScheduleModal() {
-            const modal = document.getElementById('scheduleModal');
-            const form = document.getElementById('scheduleForm');
-
-            modal?.classList.add('hidden');
-
-            if (form) {
-                form.removeAttribute('action');
-            }
-        }
-
-        document.getElementById('scheduleForm')?.addEventListener('submit', function (e) {
-            if (!this.getAttribute('action')) {
-                e.preventDefault();
-            }
-        });
-    @endif
-
-
-    function openApplicantDetailsModal(row) {
-        if (!row) return;
-
-        const data = JSON.parse(row.getAttribute('data-applicant'));
-
-        const fmt = (val) =>
-            val && val !== 'null'
-                ? (val.replace
-                        ? val.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-                        : val)
-                : 'N/A';
-
-        document.getElementById('detailAvatar').textContent =   (data.full_name || '?').charAt(0).toUpperCase();
-        document.getElementById('detailName').textContent =     data.full_name || 'Applicant';
-        document.getElementById('detailEmail').textContent =    data.email || 'N/A';
-        document.getElementById('detailPhone').textContent =    data.phone || 'N/A';
-        document.getElementById('detailGender').textContent =   fmt(data.gender);
-        document.getElementById('detailDob').textContent =      data.date_of_birth || 'N/A';
-        document.getElementById('detailCivilStatus').textContent =  fmt(data.civil_status);
-        document.getElementById('detailGenderWrap').classList.toggle('hidden', !data.gender);
-        document.getElementById('detailDobWrap').classList.toggle('hidden', !data.date_of_birth);
-        document.getElementById('detailCivilStatusWrap').classList.toggle('hidden', !data.civil_status);
-        document.getElementById('detailJobPosting').textContent = data.job_posting || 'No posting';
-        document.getElementById('detailScheduleFit').textContent =
-            (data.schedule_fit || 'N/A') + (data.schedule_fit_note ? ' — ' + data.schedule_fit_note : '');
-        document.getElementById('detailScheduleFitWrap').classList.toggle('hidden', !data.schedule_fit);
-        document.getElementById('detailAvailabilityWrap').classList.toggle('hidden', !data.availability);
-        document.getElementById('detailAddress').textContent =  data.address || 'N/A';
-        document.getElementById('detailPosition').textContent = fmt(data.position_applied);
-        document.getElementById('detailAvailability').textContent = fmt(data.availability);
-        document.getElementById('detailSource').textContent =   fmt(data.source);
-        document.getElementById('detailEducation').textContent =    fmt(data.education);
-        document.getElementById('detailStartDate').textContent =    data.expected_start_date || 'N/A';
-        document.getElementById('detailAppliedOn').textContent =    data.applied_on || 'N/A';
-
-        const rejectionWrapper = document.getElementById('detailRejectionWrapper');
-        const rejectionReason = document.getElementById('detailRejectionReason');
-
-        if (
-            data.status === 'rejected' &&
-            data.rejection_reason
-        ) {
-            rejectionWrapper.classList.remove('hidden');
-            rejectionReason.textContent = data.rejection_reason;
-        } else {
-            rejectionWrapper.classList.add('hidden');
-            rejectionReason.textContent = '';
-        }
-        
-        // Resume / CV
-        const resumeEl = document.getElementById('detailResume');
-
-        if (data.resume_url) {
-            resumeEl.innerHTML = `
-                <a href="${data.resume_url}"
-                    target="_blank"
-                    rel="noopener"
-                    onclick="event.stopPropagation()"
-                    class="font-medium text-[#8B7355] hover:text-[#6F5430] hover:underline dark:text-[#C4A97D]">
-                    View Resume
-                </a>
-            `;
-        } else {
-            resumeEl.textContent = 'No resume uploaded';
-        }
-
-
-        document.getElementById('detailEmergencyName').textContent =
-            data.emergency_contact_name || 'N/A';
-
-        document.getElementById('detailEmergencyRelation').textContent =
-            data.emergency_contact_relation || 'N/A';
-
-        document.getElementById('detailEmergencyPhone').textContent =
-            data.emergency_contact_phone || 'N/A';
-
-
-        // Notes
-        const notesWrapper = document.getElementById('detailNotesWrapper');
-
-        if (data.notes) {
-            notesWrapper.classList.remove('hidden');
-            document.getElementById('detailNotes').textContent = data.notes;
-        } else {
-            notesWrapper.classList.add('hidden');
-        }
-
-
-        // Interview
-        const interviewWrapper = document.getElementById('detailInterviewWrapper');
-
-        if (data.interview_date) {
-            interviewWrapper.classList.remove('hidden');
-
-            document.getElementById('detailInterviewDate').textContent =
-                data.interview_date;
-
-            document.getElementById('detailInterviewTime').textContent =
-                data.interview_time || 'N/A';
-
-            document.getElementById('detailInterviewStatus').textContent =
-                data.interview_status
-                    ? data.interview_status.charAt(0).toUpperCase() + data.interview_status.slice(1)
-                    : 'N/A';
-        } else {
-            interviewWrapper.classList.add('hidden');
-        }
-
-
-        document.getElementById('applicantDetailsModal').classList.remove('hidden');
+        return null;
     }
 
-
-    function closeApplicantDetailsModal() {
-        document.getElementById('applicantDetailsModal').classList.add('hidden');
+    function openModal(id, focusSelector) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        lastFocused = document.activeElement;
+        el.classList.remove('hidden');
+        const target = (focusSelector && el.querySelector(focusSelector)) || el.querySelector(FOCUSABLE);
+        if (target) target.focus();
     }
 
-
-
-
-    document.getElementById('applicantDetailsModal')?.addEventListener('click', function (e) {
-        if (e.target === this) {
-            closeApplicantDetailsModal();
-        }
-    });
-
+    function closeModal(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.add('hidden');
+        if (lastFocused && document.contains(lastFocused)) lastFocused.focus();
+        lastFocused = null;
+    }
 
     document.addEventListener('keydown', function (e) {
-        if (e.key !== 'Escape') return;
+        const modal = topmostOpenModal();
+        if (!modal) return;
+        if (e.key === 'Escape') { e.preventDefault(); closeModal(modal.id); return; }
+        if (e.key !== 'Tab') return;
+        const items = Array.from(modal.querySelectorAll(FOCUSABLE)).filter(el => el.offsetParent !== null);
+        if (!items.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
 
-        const detailsModal = document.getElementById('applicantDetailsModal');
+    // Backdrop click closes the read-only details view only; the schedule form keeps typed input.
+    document.getElementById('applicantDetailsModal')?.addEventListener('click', function (e) {
+        if (e.target === this || e.target === this.firstElementChild) closeModal(this.id);
+    });
 
-        if (detailsModal && !detailsModal.classList.contains('hidden')) {
-            closeApplicantDetailsModal();
-            return;
+    // ── Applicant details ────────────────────────────────────────────────────
+    const fmt = (val) => (val && val !== 'null')
+        ? String(val).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        : 'N/A';
+    const set = (id, text) => { document.getElementById(id).textContent = text; };
+    const toggle = (id, show) => document.getElementById(id).classList.toggle('hidden', !show);
+
+    window.openApplicantDetailsModal = function (button) {
+        if (!button) return;
+        const data = JSON.parse(button.dataset.applicant);
+
+        set('detailAvatar', (data.full_name || '?').charAt(0).toUpperCase());
+        set('detailName', data.full_name || 'Applicant');
+        set('detailEmail', data.email || 'N/A');
+        set('detailPhone', data.phone || 'N/A');
+        set('detailGender', fmt(data.gender));
+        set('detailDob', data.date_of_birth || 'N/A');
+        set('detailCivilStatus', fmt(data.civil_status));
+        toggle('detailGenderWrap', !!data.gender);
+        toggle('detailDobWrap', !!data.date_of_birth);
+        toggle('detailCivilStatusWrap', !!data.civil_status);
+        set('detailAddress', data.address || 'N/A');
+        set('detailPosition', fmt(data.position_applied));
+        set('detailJobPosting', data.job_posting || 'No posting');
+        set('detailScheduleFit', (data.schedule_fit || 'N/A') + (data.schedule_fit_note ? ' — ' + data.schedule_fit_note : ''));
+        toggle('detailScheduleFitWrap', !!data.schedule_fit);
+        set('detailAvailability', fmt(data.availability));
+        toggle('detailAvailabilityWrap', !!data.availability);
+        set('detailSource', data.source || 'N/A');
+        set('detailEducation', fmt(data.education));
+        set('detailStartDate', data.expected_start_date || 'N/A');
+        set('detailAppliedOn', data.applied_on || 'N/A');
+
+        const resume = document.getElementById('detailResume');
+        resume.textContent = '';
+        if (data.resume_url) {
+            const a = document.createElement('a');
+            a.href = data.resume_url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.className = 'inline-flex items-center gap-1 min-h-[44px] -my-3 font-medium text-[#8B7355] hover:underline dark:text-[#C4A97D]';
+            a.textContent = 'View résumé';
+            resume.appendChild(a);
+        } else {
+            resume.textContent = 'No résumé uploaded';
         }
 
-        @if($canScheduleInterview)
-            const scheduleModal = document.getElementById('scheduleModal');
+        const rejected = data.status === 'rejected' && data.rejection_reason;
+        toggle('detailRejectionWrapper', rejected);
+        set('detailRejectionReason', rejected ? data.rejection_reason : '');
 
-            if (scheduleModal && !scheduleModal.classList.contains('hidden')) {
-                closeInterviewScheduleModal();
-            }
-        @endif
+        set('detailEmergencyName', data.emergency_contact_name || 'N/A');
+        set('detailEmergencyRelation', data.emergency_contact_relation || 'N/A');
+        set('detailEmergencyPhone', data.emergency_contact_phone || 'N/A');
+
+        toggle('detailNotesWrapper', !!data.notes);
+        set('detailNotes', data.notes || '');
+
+        toggle('detailInterviewWrapper', !!data.interview_date);
+        if (data.interview_date) {
+            set('detailInterviewDate', data.interview_date);
+            set('detailInterviewTime', data.interview_time || 'N/A');
+            set('detailInterviewStatus', data.interview_status ? fmt(data.interview_status) : 'N/A');
+        }
+
+        openModal('applicantDetailsModal', 'button[aria-label="Close applicant details"]');
+    };
+
+    window.closeApplicantDetailsModal = () => closeModal('applicantDetailsModal');
+
+    @if($canScheduleInterview)
+    // ── Schedule interview ───────────────────────────────────────────────────
+    const scheduleForm = document.getElementById('scheduleForm');
+
+    window.openInterviewScheduleModal = function (button) {
+        const url = button?.dataset.scheduleUrl;
+        if (!url) return;
+        scheduleForm.action = url;
+        document.getElementById('scheduleUrl').value = url;
+        document.getElementById('scheduleNameInput').value = button.dataset.applicantName || '';
+        set('scheduleApplicantName', 'Applicant: ' + (button.dataset.applicantName || ''));
+        openModal('scheduleModal', '#interview_date');
+    };
+
+    window.closeInterviewScheduleModal = () => closeModal('scheduleModal');
+
+    scheduleForm?.addEventListener('submit', function (e) {
+        if (!this.getAttribute('action')) e.preventDefault();
     });
+
+    // Reopen with the typed values when the server sent errors back.
+    @if ($scheduleErrors->any() && old('_schedule_url'))
+        set('scheduleApplicantName', 'Applicant: ' + @json(old('_applicant_name', '')));
+        openModal('scheduleModal', '#interview_date');
+    @endif
+    @endif
+})();
 </script>
 
+<style>
+@media (max-width: 767px) {
+    .rt,
+    .rt tbody,
+    .rt tr,
+    .rt td { display: block; width: 100%; }
+
+    .rt thead { display: none; }
+
+    .rt tr { padding: 0.75rem 1rem; }
+
+    .rt td {
+        padding: 0.375rem 0 !important;
+        text-align: left !important;
+    }
+
+    .rt td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.125rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .rt td.rt-actions { padding-top: 0.75rem !important; }
+
+    .rt td.rt-empty {
+        padding: 2rem 0 !important;
+        text-align: center !important;
+    }
+}
+
+@media (max-width: 767px) and (prefers-color-scheme: dark) {
+    .rt td[data-label]::before { color: #9ca3af; }
+}
+</style>
 @endsection
