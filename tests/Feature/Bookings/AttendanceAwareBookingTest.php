@@ -177,15 +177,19 @@ class AttendanceAwareBookingTest extends TestCase
         ])->assertSessionHasNoErrors()->assertSessionHas('success');
         $this->attendance($this->theo, ['status' => 'absent', 'source' => 'manual']);
 
-        // 5:10 PM: the customer looks at 5:30 PM and tries to pay for it.
+        // 5:10 PM: the customer looks at 5:30 PM and tries to pay for it. Since
+        // Phase 3 the 30-minute online notice already refuses 5:30; the next
+        // slots are refused because nobody is here (Phase 1).
         Carbon::setTestNow('2026-11-12 17:10:00');
-        $slot = $this->slot('17:30');
+        $this->assertSame('too_soon', $this->slot('17:30')['reason']);
+        $slot = $this->slot('18:00');
         $this->assertFalse($slot['available']);
         $this->assertSame('no_therapist_on_shift', $slot['reason']);
         $this->assertSame(0, $slot['free']);
 
         $this->onlineCheckout('17:30')->assertStatus(422);
-        $this->assertNull($this->pick('17:30', '18:00'));   // webhook / Flutter fallback: nobody assigned
+        $this->onlineCheckout('18:00')->assertStatus(422);
+        $this->assertNull($this->pick('17:30', '18:00'));   // webhook / Flutter fallback / staff: nobody assigned
     }
 
     // ── Who is free ──────────────────────────────────────────────────────────
@@ -215,34 +219,34 @@ class AttendanceAwareBookingTest extends TestCase
 
     public function test_not_clocked_in_or_still_clocked_in_stays_bookable(): void
     {
-        $this->assertSame(2, $this->slot('17:30')['free']);
+        $this->assertSame(2, $this->slot('18:00')['free']);
 
         $this->attendance($this->tess, ['time_in' => '09:00:00', 'status' => 'late']);   // clocked in, no time out
-        $this->assertSame(2, $this->slot('17:30')['free']);
+        $this->assertSame(2, $this->slot('18:00')['free']);
     }
 
     public function test_one_gone_leaves_the_other_and_auto_assign_skips_them(): void
     {
         $this->clockOut($this->tess, '17:03:00');
 
-        $this->assertSame(1, $this->slot('17:30')['free']);
+        $this->assertSame(1, $this->slot('18:00')['free']);
         $this->assertSame($this->theo->id, $this->pick('17:30', '18:30')?->id);
 
         $this->booking($this->theo, self::TODAY, '17:30:00', '18:30:00');
-        $this->assertSame('fully_booked', $this->slot('17:30')['reason']);   // Theo on shift but busy
+        $this->assertSame('fully_booked', $this->slot('18:00')['reason']);   // Theo on shift but busy
         $this->assertSame($this->tess->id, $this->pick('17:30', '18:30', self::FRI)?->id);
     }
 
     public function test_manager_can_undo_a_time_out_with_the_manual_record(): void
     {
         $this->clockOut($this->tess, '17:03:00');
-        $this->assertSame(1, $this->slot('17:30')['free']);
+        $this->assertSame(1, $this->slot('18:00')['free']);
 
         $this->actingAs($this->manager)->post(route('attendance.record', $this->staffOf($this->tess)), [
             'date' => self::TODAY, 'status' => 'present', 'time_in' => '09:00', 'time_out' => '',
         ])->assertSessionHas('success');
 
-        $this->assertSame(2, $this->slot('17:30')['free']);
+        $this->assertSame(2, $this->slot('18:00')['free']);
     }
 
     public function test_mobile_slots_match_web(): void

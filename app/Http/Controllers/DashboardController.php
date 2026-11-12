@@ -211,6 +211,12 @@ class DashboardController extends Controller
                         ->whereIn('status', ['reserved', 'pending']),
                 ])
                 ->get();
+
+            // Attendance first, then bookings (attendance-aware booking Phase 3, D6).
+            $dayStatus = $currentBranchId
+                ? app(\App\Services\Attendance\TherapistDayStatus::class)->forTherapists($therapists, (int) $spaId, (int) $currentBranchId)
+                : [];
+            $therapists->each(fn ($t) => $t->day_status = $dayStatus[(int) $t->id] ?? null);
         }
 
         // ── Therapist personal view ("My Today") ──────────────────────────
@@ -432,7 +438,14 @@ class DashboardController extends Controller
                         ->where('spa_id', $spaId)->where('branch_id', $currentBranchId)
                         ->whereDate('appointment_date', $today)->whereIn('status', ['reserved', 'pending']),
                 ])
-                ->get()
+                ->get();
+
+            // Attendance first, then bookings (Phase 3, D6). Same rule as the first render.
+            $dayStatus = $currentBranchId
+                ? app(\App\Services\Attendance\TherapistDayStatus::class)->forTherapists($therapists, (int) $spaId, (int) $currentBranchId)
+                : [];
+
+            $therapists = $therapists
                 ->map(fn($t) => [
                     'id'              => $t->id,
                     'first_name'      => $t->first_name,
@@ -442,6 +455,11 @@ class DashboardController extends Controller
                     'ongoing_count'   => (int) $t->ongoing_count,
                     'completed_count' => (int) $t->completed_count,
                     'remaining_count' => (int) $t->remaining_count,
+                    // Phase 3 (additive): the badge, decided on the server.
+                    'status_key'      => $dayStatus[(int) $t->id]['key'] ?? null,
+                    'status_label'    => $dayStatus[(int) $t->id]['label'] ?? null,
+                    'status_note'     => $dayStatus[(int) $t->id]['note'] ?? null,
+                    'status_note_warn'=> $dayStatus[(int) $t->id]['note_warn'] ?? false,
                 ]);
 
             $payload['therapists'] = $therapists;

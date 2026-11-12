@@ -146,11 +146,15 @@ class OnlineBookingCheckoutController extends Controller
         }
 
         // A slot can go stale between viewing and paying: today's start must still
-        // be ahead (attendance-aware booking Phase 1, Q6 A; Phase 3 widens this
-        // to the online minimum notice). Same rule as the slot grid ("past").
+        // be ahead (attendance-aware booking Phase 1, Q6 A) and at least the
+        // online minimum notice away (Phase 3, D7). Same rule as the slot grid.
         $startAt = Carbon::parse($validated['appointment_date'] . ' ' . $start->format('H:i'));
         if ($startAt->lte(now())) {
             return $this->fail($request, 'That time has already passed. Please choose a later time.');
+        }
+        if ($startAt->lt(self::earliestOnlineStart())) {
+            return $this->fail($request, 'Online bookings need at least ' . self::minNoticeMinutes()
+                . " minutes' notice. Please choose a later time, or call the spa.");
         }
 
         $durationMinutes = $item->duration ?? ($item->total_duration ?? 60);
@@ -409,6 +413,7 @@ class OnlineBookingCheckoutController extends Controller
         $cursor  = $opening->copy();
         $now     = now();
         $isToday = Carbon::parse($validated['appointment_date'])->isToday();
+        $earliest = self::earliestOnlineStart();
 
         while ($cursor->lt($closing)) {
             $slotStart = $cursor->copy();
@@ -418,6 +423,9 @@ class OnlineBookingCheckoutController extends Controller
                 $slots[] = ['time' => $slotStart->format('H:i'), 'available' => false, 'reason' => 'past_closing'];
             } elseif ($isToday && $slotStart->lte($now)) {
                 $slots[] = ['time' => $slotStart->format('H:i'), 'available' => false, 'reason' => 'past'];
+            } elseif ($isToday && $slotStart->lt($earliest)) {
+                // Inside the online minimum notice (Phase 3, D7 / Q2 A).
+                $slots[] = ['time' => $slotStart->format('H:i'), 'available' => false, 'reason' => 'too_soon'];
             } else {
                 $from = $slotStart->format('H:i');
                 $to   = $slotEnd->format('H:i');
@@ -457,6 +465,8 @@ class OnlineBookingCheckoutController extends Controller
             'home_service_available' => $day->hasVerifiedMember(),
             'opening_time' => $hours->opening_time,
             'closing_time' => $hours->closing_time,
+            // Phase 3 (additive): the notice window behind reason "too_soon".
+            'min_notice_minutes' => self::minNoticeMinutes(),
             'slots'        => $slots,
         ]);
     }
@@ -514,6 +524,18 @@ class OnlineBookingCheckoutController extends Controller
      * Return a validation-style error response.
      * JSON (422) for AJAX/fetch requests, classic redirect-back for normal form posts.
      */
+    /** Online minimum notice in minutes (config/booking.php, Phase 3 D7). */
+    public static function minNoticeMinutes(): int
+    {
+        return max(0, (int) config('booking.online_min_notice_minutes', 30));
+    }
+
+    /** The earliest start time an online booking may have right now. */
+    public static function earliestOnlineStart(): Carbon
+    {
+        return now()->addMinutes(self::minNoticeMinutes());
+    }
+
     private function fail(Request $request, string $message, int $status = 422)
     {
         if ($request->expectsJson()) {

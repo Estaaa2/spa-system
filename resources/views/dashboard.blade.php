@@ -3,6 +3,20 @@
 @section('title', 'Dashboard')
 @section('content')
 @php
+    // Badge colours per TherapistDayStatus key (Phase 3, D6 / Q3 A). Kept
+    // here, not in PHP classes, because Tailwind only scans the views.
+    $therapistStatusClasses = [
+        'absent'         => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+        'on_leave'       => 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+        'clocked_out'    => 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+        'in_session'     => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+        'not_clocked_in' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+        'available'      => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+        'finished'       => 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+        'free'           => 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
+        'off_today'      => 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
+    ];
+
     $user = auth()->user();
     $now  = now();
 
@@ -849,18 +863,13 @@
                                 $loadPct >= 40  => 'bg-[#8B7355]',
                                 default          => 'bg-emerald-500',
                             };
-                            $statusLabel = match(true) {
-                                $ongoing > 0   => 'In Session',
-                                $remaining > 0 => 'Available',
-                                $done > 0      => 'Finished',
-                                default        => 'Free',
-                            };
-                            $statusBadge = match($statusLabel) {
-                                'In Session' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-                                'Available'  => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                                'Finished'   => 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-                                default      => 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
-                            };
+                            // Attendance first, then bookings (attendance-aware booking Phase 3,
+                            // D6): decided by TherapistDayStatus, same as the polling JSON.
+                            $dayStatus   = $therapist->day_status ?? null;
+                            $statusLabel = $dayStatus['label'] ?? 'Free';
+                            $statusBadge = $therapistStatusClasses[$dayStatus['key'] ?? 'free'] ?? $therapistStatusClasses['free'];
+                            $statusNote  = $dayStatus['note'] ?? null;
+                            $statusWarn  = $dayStatus['note_warn'] ?? false;
                         @endphp
                         <div class="px-4 py-4 sm:px-6">
                             <div class="flex items-center justify-between gap-3">
@@ -875,9 +884,14 @@
                                         <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ $therapist->email }}</p>
                                     </div>
                                 </div>
-                                <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full {{ $statusBadge }}">
-                                    {{ $statusLabel }}
-                                </span>
+                                <div class="flex flex-col items-end flex-shrink-0 gap-0.5">
+                                    <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full {{ $statusBadge }}">
+                                        {{ $statusLabel }}
+                                    </span>
+                                    @if($statusNote)
+                                        <span class="text-[11px] {{ $statusWarn ? 'font-medium text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400' }}">{{ $statusNote }}</span>
+                                    @endif
+                                </div>
                             </div>
                             <div class="mt-3">
                                 <div class="flex items-center justify-between mb-1">
@@ -1392,6 +1406,7 @@
             return;
         }
 
+        const THERAPIST_STATUS_CLASSES = @json($therapistStatusClasses);
         const capacity = 8;
         const rows = therapists.map(t => {
             const total     = t.total_today;
@@ -1405,17 +1420,12 @@
                             : loadPct >= 40  ? 'bg-[#8B7355]'
                             : 'bg-emerald-500';
 
-            const statusLabel = ongoing > 0   ? 'In Session'
-                              : remaining > 0 ? 'Available'
-                              : done > 0      ? 'Finished'
-                              : 'Free';
-
-            const statusBadge = {
-                'In Session': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-                'Available':  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                'Finished':   'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-                'Free':       'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
-            }[statusLabel] ?? 'bg-gray-100 text-gray-500';
+            // Decided on the server (TherapistDayStatus, Phase 3 D6): attendance first.
+            const statusLabel = t.status_label || 'Free';
+            const statusBadge = THERAPIST_STATUS_CLASSES[t.status_key] || THERAPIST_STATUS_CLASSES.free;
+            const statusNote  = t.status_note
+                ? `<span class="text-[11px] ${t.status_note_warn ? 'font-medium text-amber-700 dark:text-amber-300' : 'text-gray-500 dark:text-gray-400'}">${esc(t.status_note)}</span>`
+                : '';
 
             const initial  = (t.first_name ?? '?').charAt(0).toUpperCase();
             const fullName = ((t.first_name ?? '') + ' ' + (t.last_name ?? '')).trim();
@@ -1432,9 +1442,12 @@
                             <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate">${esc(t.email)}</p>
                         </div>
                     </div>
-                    <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${statusBadge}">
-                        ${statusLabel}
-                    </span>
+                    <div class="flex flex-col items-end flex-shrink-0 gap-0.5">
+                        <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${statusBadge}">
+                            ${esc(statusLabel)}
+                        </span>
+                        ${statusNote}
+                    </div>
                 </div>
                 <div class="mt-3">
                     <div class="flex items-center justify-between mb-1">

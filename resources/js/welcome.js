@@ -1418,6 +1418,7 @@ const SLOT_REASON_LABELS = {
     no_verified_therapist: 'Home service needs a verified therapist, and none is free at this time. Try another time, or choose In-Branch.',
     past_closing: 'This service would end after closing.',
     past: 'This time has already passed today.',
+    too_soon: 'Online bookings need at least 30 minutes\' notice. Call the spa for anything sooner.',
     already_booked: 'You already have an appointment at this time.',
     no_therapist_on_shift: 'No therapist is working at this time. Try another time or day.',
 };
@@ -1428,6 +1429,7 @@ const SLOT_NOTE_LABELS = {
     no_verified_therapist: 'No home-service therapist',
     past_closing: 'Too close to closing',
     past: 'Passed',
+    too_soon: 'Too soon',
     already_booked: 'Your appointment',
     no_therapist_on_shift: 'No therapist working',
 };
@@ -1510,7 +1512,10 @@ async function loadAvailableSlots() {
                 slotBtn.addEventListener('click', () => selectSlot(slot.time, slotBtn));
             } else {
                 slotBtn.disabled = true;
-                slotBtn.title = SLOT_REASON_LABELS[slot.reason] || 'Unavailable';
+                // too_soon names the server's notice window (config, Phase 3 D7).
+                slotBtn.title = slot.reason === 'too_soon' && data.min_notice_minutes
+                    ? `Online bookings need at least ${data.min_notice_minutes} minutes' notice. Call the spa for anything sooner.`
+                    : (SLOT_REASON_LABELS[slot.reason] || 'Unavailable');
                 if (slot.reason === 'past_closing') slotBtn.classList.add('is-past-closing');
             }
 
@@ -2328,7 +2333,9 @@ function isBookingHappeningNow(b) {
 
 /*
   What the customer sees for a status. 'pending' (start time passed, set by
-  the clock) and 'ongoing' (started by staff) both read "In progress". An
+  the clock, staff haven't pressed Start) reads "Waiting to start"; only
+  'ongoing' (started by staff) reads "In progress" (attendance-aware booking
+  Phase 3, D5 / Q1 B: true whoever is late, customer or spa). An
   active booking whose end time has passed is waiting for the spa to check it
   out (staff checkout is the only thing that completes a booking), so it
   reads "Ended" rather than claiming to be confirmed or completed.
@@ -2337,7 +2344,8 @@ function customerStatus(b) {
     const s = b.status;
     if (ACTIVE_BOOKING_STATUSES.includes(s) && isBookingPastNow(b)) return { key: 'ended',     label: 'Ended' };
     if (s === 'reserved')                          return { key: 'confirmed', label: 'Confirmed' };
-    if (s === 'pending' || s === 'ongoing')        return { key: 'progress',  label: 'In progress' };
+    if (s === 'pending')                           return { key: 'waiting',   label: 'Waiting to start' };
+    if (s === 'ongoing')                           return { key: 'progress',  label: 'In progress' };
     if (s === 'completed')                         return { key: 'completed', label: 'Completed' };
     if (s === 'cancelled')                         return { key: 'cancelled', label: 'Cancelled' };
     if (s === 'no_show')                           return { key: 'missed',    label: 'Missed' };

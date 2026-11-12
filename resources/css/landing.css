@@ -229,6 +229,8 @@ main.pt-20 {
 }
 .apt-pill--confirmed  { background: #dbeafe; color: #1d4ed8; }
 .apt-pill--progress   { background: #d1fae5; color: #047857; }
+/* Start time passed, not started yet (attendance-aware booking Phase 3, D5). */
+.apt-pill--waiting    { background: #fef3c7; color: #b45309; }
 .apt-pill--completed  { background: #f1f5f9; color: #334155; }
 .apt-pill--cancelled  { background: #fee2e2; color: #b91c1c; }
 .apt-pill--missed     { background: #ffedd5; color: #9a3412; }
@@ -295,6 +297,7 @@ main.pt-20 {
     .apt-chip--now  { background: rgba(16, 185, 129, .15); color: #6ee7b7; }
     .apt-pill--confirmed { background: rgba(30, 58, 138, .4); color: #93c5fd; }
     .apt-pill--progress  { background: rgba(6, 78, 59, .4); color: #6ee7b7; }
+    .apt-pill--waiting   { background: rgba(245, 158, 11, .15); color: #fcd34d; }
     .apt-pill--completed, .apt-pill--ended { background: rgba(15, 23, 42, .4); color: #cbd5e1; }
     .apt-pill--cancelled { background: rgba(127, 29, 29, .4); color: #fca5a5; }
     .apt-pill--missed    { background: rgba(124, 45, 18, .4); color: #fdba74; }
