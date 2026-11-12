@@ -146,8 +146,8 @@ class ScheduleSelfServiceAndBackfillTest extends TestCase
         \Spatie\Permission\Models\Role::findByName('manager')->revokePermissionTo('edit staff'); // owner limited it
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        (require database_path('migrations/2026_11_12_100100_staff_scheduling_phase2_schedule_permission.php'))->up();
-        (require database_path('migrations/2026_11_12_100100_staff_scheduling_phase2_schedule_permission.php'))->up(); // re-run safe
+        (require database_path('migrations/2026_11_12_021127_staff_scheduling_phase2_schedule_permission.php'))->up();
+        (require database_path('migrations/2026_11_12_021127_staff_scheduling_phase2_schedule_permission.php'))->up(); // re-run safe
 
         $this->assertTrue(\Spatie\Permission\Models\Role::findByName('hr')->hasPermissionTo('edit staff schedules'));
         $this->assertTrue(\Spatie\Permission\Models\Role::findByName('owner')->hasPermissionTo('edit staff schedules'));

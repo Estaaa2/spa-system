@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Staff;
 use App\Models\StaffPayProfile;
 use App\Models\StaffWorkSchedule;
+use App\Services\Bookings\ScheduleBookingFlags;
 use App\Services\Staff\WorkScheduleWriter;
 use Illuminate\Console\Command;
 
@@ -28,7 +29,7 @@ class BackfillWorkSchedules extends Command
 
     protected $description = 'Creates a weekly work schedule from pay-profile rest days for active staff who have none (dry run first).';
 
-    public function handle(WorkScheduleWriter $writer): int
+    public function handle(WorkScheduleWriter $writer, ScheduleBookingFlags $flags): int
     {
         $dry = (bool) $this->option('dry-run');
         $today = today()->toDateString();
@@ -78,15 +79,21 @@ class BackfillWorkSchedules extends Command
             return self::SUCCESS;
         }
 
+        $flagged = 0;
         foreach ($create as $c) {
             $days = [];
             foreach (StaffWorkSchedule::WEEKDAYS as $d) {
                 $days[$d] = ['mode' => in_array($d, $c['rest'], true) ? WorkScheduleWriter::MODE_REST : WorkScheduleWriter::MODE_BRANCH];
             }
             $writer->savePattern($c['staff'], $today, $days, null);
+            // Upcoming bookings on a new rest day go to Reassignment Requests (Phase 3, Q2 A).
+            $flagged += $flags->sync($c['staff'])->count();
         }
 
         $this->info('Created '.count($create)." work schedule(s), effective {$today}.");
+        if ($flagged > 0) {
+            $this->warn("{$flagged} upcoming booking(s) fall on a new rest day and were sent to Reassignment Requests.");
+        }
 
         return self::SUCCESS;
     }

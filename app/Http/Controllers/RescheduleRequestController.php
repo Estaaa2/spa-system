@@ -173,25 +173,24 @@ class RescheduleRequestController extends Controller
             ], 422);
         }
 
-        // Re-check therapist availability at approval time — the slot may
-        // have filled in the gap between submission and review. Same pattern
-        // used in ReassignmentRequestController::approve().
-        $conflict = Booking::query()
-            ->where('id', '!=', $booking->id)
-            ->where('branch_id', $booking->branch_id)
-            ->where('appointment_date', $rescheduleRequest->requested_date)
-            ->where('therapist_id', $booking->therapist_id)
-            ->whereIn('status', ['reserved', 'pending', 'ongoing'])
-            ->where(function ($q) use ($newStart, $newEnd) {
-                $q->where('start_time', '<', $newEnd->format('H:i:s'))
-                  ->where('end_time', '>', $newStart->format('H:i:s'));
-            })
-            ->exists();
+        // Re-check the assigned therapist at approval time with the shared rule
+        // (TherapistAssigner): on shift for the whole new time, not on leave, no
+        // other booking. Off shift or on leave → refuse; staff reassign first
+        // (staff scheduling Phase 3, Q4 A). Unassigned bookings skip this.
+        if ($booking->therapist_id) {
+            $problem = app(\App\Services\Bookings\TherapistAssigner::class)->rejectionFor(
+                (int) $booking->therapist_id,
+                $booking,
+                $rescheduleRequest->requested_date->toDateString(),
+                $newStart->format('H:i'),
+                $newEnd->format('H:i')
+            );
 
-        if ($conflict) {
-            return response()->json([
-                'message' => 'The assigned therapist already has another appointment at the requested time. Please reject and ask the customer to pick a different time, or reassign the therapist first.',
-            ], 422);
+            if ($problem) {
+                return response()->json([
+                    'message' => $problem.' Reassign the booking to another therapist first, or reject and ask the customer to pick a different time.',
+                ], 422);
+            }
         }
 
         // Update the booking — appointment_date, start_time, AND end_time

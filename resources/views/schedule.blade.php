@@ -174,7 +174,16 @@
                     </a>
                 </div>
 
-                <div class="flex flex-1"></div>
+                {{-- Shifts roster (staff scheduling Phase 3, Q5 B): opens a modal so the
+                     height-locked calendar below keeps its layout. --}}
+                <div class="flex justify-end flex-1">
+                    <button type="button" id="shiftRosterTrigger" onclick="openShiftRoster()"
+                            aria-haspopup="dialog" aria-label="Therapist shifts this week"
+                            class="inline-flex items-center justify-center gap-1.5 w-11 h-11 sm:w-auto sm:px-4 text-sm font-medium text-[#8B7355] border border-[#8B7355]/40 rounded-xl hover:bg-[#8B7355]/5 transition dark:text-[#C4A97D] dark:border-[#C4A97D]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800">
+                        <i class="text-sm fa-solid fa-user-clock" aria-hidden="true"></i>
+                        <span class="hidden sm:inline">Shifts</span>
+                    </button>
+                </div>
             </div>
 
             {{-- ── Day selector (for mobile / tablet only) ──────────────────────── --}}
@@ -480,6 +489,87 @@
                             {{ $meta['label'] }}
                         </span>
                     @endforeach
+                </div>
+            </div>
+        </div>
+
+        {{-- ══════════════════════════════════════════════════════════════════
+             SHIFTS ROSTER MODAL (staff scheduling Phase 3, Q5 B) — read-only.
+             Same shell as the appointment modal. Schedules are set on Staff.
+        ═══════════════════════════════════════════════════════════════════ --}}
+        @php
+            $shiftChip = [
+                'working'  => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+                'rest_day' => 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+                'day_off'  => 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+                'on_leave' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+                'closed'   => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
+            ];
+        @endphp
+        <div id="shiftRosterModal"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="shiftRosterTitle"
+             class="fixed inset-0 z-[100] hidden overflow-y-auto overscroll-contain bg-black/60">
+            <div id="shiftRosterScroll" class="flex items-start justify-center min-h-full p-4 sm:items-center">
+                <div class="w-full max-w-5xl overflow-hidden bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+                    <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <div class="min-w-0">
+                            <h3 id="shiftRosterTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Therapist Shifts</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                {{ $startOfWeek->format('M j') }} – {{ $endOfWeek->format('M j, Y') }}. Bookings can only go to a therapist on shift. Schedules are set on the Staff page.
+                            </p>
+                        </div>
+                        <button type="button" id="shiftRosterClose" onclick="closeShiftRoster()"
+                            aria-label="Close therapist shifts"
+                            class="flex items-center justify-center w-10 h-10 -mr-2 text-gray-400 transition shrink-0 rounded-xl hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300">
+                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-5 py-4">
+                        @if (empty($shiftRoster))
+                            <p class="py-6 text-sm text-center text-gray-500 dark:text-gray-400">No therapists at this branch yet.</p>
+                        @else
+                            <p class="mb-2 text-xs text-gray-500 sm:hidden dark:text-gray-400">
+                                <i class="mr-1 fa-solid fa-arrows-left-right" aria-hidden="true"></i>Swipe the table sideways to see the whole week.
+                            </p>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm min-w-[640px]">
+                                    <thead>
+                                        <tr class="border-b border-gray-200 dark:border-gray-700">
+                                            <th scope="col" class="sticky left-0 px-2 py-2 text-xs font-medium text-left text-gray-500 bg-white dark:bg-gray-800 dark:text-gray-400">Therapist</th>
+                                            @foreach ($dayDates as $date)
+                                                <th scope="col" class="px-2 py-2 text-xs font-medium text-left text-gray-500 dark:text-gray-400">
+                                                    {{ $date->format('D') }} <span class="font-normal">{{ $date->format('M j') }}</span>
+                                                </th>
+                                            @endforeach
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                        @foreach ($shiftRoster as $row)
+                                            <tr>
+                                                <th scope="row" class="sticky left-0 px-2 py-2 font-medium text-left text-gray-900 bg-white dark:bg-gray-800 dark:text-white whitespace-nowrap">{{ $row['name'] }}</th>
+                                                @foreach ($row['days'] as $day)
+                                                    <td class="px-2 py-2 align-top">
+                                                        @if ($day->isWorking())
+                                                            <span class="text-xs font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ \App\Services\Staff\ScheduledDay::fmt($day->start) }}</span>
+                                                            <span class="block text-xs text-gray-600 whitespace-nowrap dark:text-gray-300">– {{ \App\Services\Staff\ScheduledDay::fmt($day->end) }}</span>
+                                                            @if ($day->source === \App\Services\Staff\ScheduledDay::SOURCE_OVERRIDE)
+                                                                <span class="block text-[11px] text-gray-500 dark:text-gray-400">One-off</span>
+                                                            @endif
+                                                        @else
+                                                            <span class="inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full whitespace-nowrap {{ $shiftChip[$day->status] ?? $shiftChip['closed'] }}">{{ $day->label() }}</span>
+                                                        @endif
+                                                    </td>
+                                                @endforeach
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -949,7 +1039,41 @@
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape' && modalIsOpen()) closeAppointmentModal();
             });
+
+            // Shifts roster: read-only, so a backdrop click may close it.
+            const roster = document.getElementById('shiftRosterModal');
+            if (roster && roster.parentElement !== document.body) {
+                document.body.appendChild(roster);
+            }
+            document.getElementById('shiftRosterScroll')?.addEventListener('click', function (e) {
+                if (e.target === this) closeShiftRoster();
+            });
+            roster?.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') { closeShiftRoster(); return; }
+                if (e.key !== 'Tab') return;
+                const nodes = Array.from(roster.querySelectorAll(
+                    'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                )).filter(n => n.offsetParent !== null);
+                if (!nodes.length) return;
+                const first = nodes[0], last = nodes[nodes.length - 1];
+                if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            });
         });
+
+        function openShiftRoster() {
+            const m = document.getElementById('shiftRosterModal');
+            m.classList.remove('hidden');
+            m.scrollTop = 0;
+            document.getElementById('shiftRosterClose')?.focus();
+        }
+
+        function closeShiftRoster() {
+            const m = document.getElementById('shiftRosterModal');
+            if (!m || m.classList.contains('hidden')) return;
+            m.classList.add('hidden');
+            document.getElementById('shiftRosterTrigger')?.focus();
+        }
         </script>
 
     </div>

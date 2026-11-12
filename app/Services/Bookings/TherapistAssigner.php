@@ -4,8 +4,10 @@ namespace App\Services\Bookings;
 
 use App\Models\Booking;
 use App\Models\LeaveRequest;
-use App\Models\StaffAvailability;
+use App\Models\Staff;
 use App\Models\User;
+use App\Services\Staff\ScheduledDay;
+use App\Services\Staff\WorkScheduleResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -17,8 +19,10 @@ use Illuminate\Support\Facades\DB;
  *
  * Pool (Q1): users with the therapist role, or staff marked "Performs
  * treatments", with an active staff record at the branch.
- * Free: no overlapping reserved/pending/ongoing booking, no approved leave that
- * day, and not marked unavailable for that time (Schedule availability).
+ * Free: on shift for the whole booking (work schedule via WorkScheduleResolver,
+ * staff scheduling Phase 3: rest days, one-off days off, closed days and leave
+ * all mean "not working"; no schedule = branch hours, D8), no approved leave
+ * that day, and no overlapping reserved/pending/ongoing booking.
  * Verified (D2): required only for ONLINE bookings that are HOME SERVICE.
  * Pick: least jobs that day, then earliest last end time, then first name
  * (Q8b — the rule the staff booking page already used).
@@ -60,14 +64,17 @@ class TherapistAssigner
             ->exists();
     }
 
+    public function __construct(private readonly WorkScheduleResolver $schedules)
+    {
+    }
+
     /**
      * Everything needed to answer "who is free" for one branch and date, loaded
-     * once (4 queries) so the slot grid can test every slot in memory.
+     * once so the slot grid can test every slot in memory.
      */
     public function day(int $spaId, int $branchId, string $date, ?int $excludeBookingId = null): DayAvailability
     {
         $pool = $this->pool($spaId, $branchId);
-        $ids = $pool->pluck('id');
 
         $bookings = Booking::query()
             ->where('spa_id', $spaId)
@@ -79,14 +86,66 @@ class TherapistAssigner
 
         $onLeave = LeaveRequest::approvedUserIdsOnDate($spaId, $branchId, $date);
 
-        $availability = StaffAvailability::query()
+        return new DayAvailability($pool, $bookings, $onLeave, $this->shiftsFor($pool, $spaId, $branchId, $date));
+    }
+
+    /**
+     * Each pool member's schedule for $date at $branchId, keyed by user id.
+     *
+     * @return array<int, ScheduledDay>
+     */
+    public function shiftsFor(Collection $pool, int $spaId, int $branchId, string $date): array
+    {
+        $staff = $this->staffFor($pool, $spaId, $branchId);
+        $this->schedules->prime($staff, $date, $date);
+
+        $out = [];
+        foreach ($staff as $userId => $s) {
+            $out[$userId] = $this->schedules->forDate($s, $date, $branchId);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Dates in [$from, $to] on which at least one pool member (verified only, when
+     * asked) is working at this branch. Used for the online date picker.
+     *
+     * @param  list<string>  $dates  Y-m-d, already limited to open days
+     * @return list<string>
+     */
+    public function datesWithSomeoneWorking(int $spaId, int $branchId, array $dates, bool $requireVerified = false): array
+    {
+        if ($dates === []) {
+            return [];
+        }
+        $pool = $this->pool($spaId, $branchId)
+            ->filter(fn (User $u) => ! $requireVerified || $u->isIdentityVerified());
+        $staff = $this->staffFor($pool, $spaId, $branchId);
+        if ($staff->isEmpty()) {
+            return [];
+        }
+        $this->schedules->prime($staff, min($dates), max($dates));
+
+        return array_values(array_filter($dates, fn (string $date) => $staff->contains(
+            fn (Staff $s) => $this->schedules->forDate($s, $date, $branchId)->isWorking()
+        )));
+    }
+
+    /** @return Collection<int, Staff> keyed by user id */
+    private function staffFor(Collection $pool, int $spaId, int $branchId): Collection
+    {
+        if ($pool->isEmpty()) {
+            return collect();
+        }
+
+        return Staff::query()
+            ->whereIn('user_id', $pool->pluck('id'))
+            ->where('spa_id', $spaId)
             ->where('branch_id', $branchId)
-            ->whereDate('date', $date)
-            ->whereIn('user_id', $ids)
+            ->where('employment_status', 'active')
             ->get()
             ->keyBy('user_id');
-
-        return new DayAvailability($pool, $bookings, $onLeave, $availability);
     }
 
     /** Free pool members for one time range, first name order. */
@@ -181,10 +240,32 @@ class TherapistAssigner
             return 'Online home-service bookings need an identity-verified therapist.';
         }
 
-        if (! $day->freeBetween($start, $end)->contains('id', $therapistId)) {
-            return 'This therapist is not free at that time (another booking, approved leave, or marked unavailable).';
+        $reason = $day->reasonNotFree($therapistId, substr($start, 0, 5), substr($end, 0, 5));
+        if ($reason !== null) {
+            return self::rejectionMessage($therapist, $reason, $day->shiftFor($therapistId));
         }
 
         return null;
+    }
+
+    /** Staff-facing reason, e.g. "Outside Ana's shift (1:00 PM – 9:00 PM)." */
+    public static function rejectionMessage(User $therapist, string $reason, ?ScheduledDay $shift): string
+    {
+        $name = trim((string) $therapist->first_name) ?: 'This therapist';
+
+        if ($reason === DayAvailability::BUSY) {
+            return "{$name} already has another booking at that time.";
+        }
+        if ($reason === DayAvailability::ON_LEAVE) {
+            return "{$name} is on approved leave that day.";
+        }
+
+        return match ($shift?->status) {
+            ScheduledDay::REST_DAY => "It's {$name}'s rest day. To book anyway, add a one-off shift on the Staff page first.",
+            ScheduledDay::DAY_OFF  => "{$name} has a day off that date. To book anyway, remove or change it on the Staff page first.",
+            ScheduledDay::CLOSED   => 'The branch is closed that day.',
+            ScheduledDay::WORKING  => "Outside {$name}'s shift ({$shift->label()}). To book anyway, add a one-off shift on the Staff page first.",
+            default                => "{$name} is not working at that time.",
+        };
     }
 }

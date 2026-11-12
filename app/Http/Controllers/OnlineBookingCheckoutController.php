@@ -421,10 +421,14 @@ class OnlineBookingCheckoutController extends Controller
 
                 // Home service with nobody verified free, while someone unverified
                 // is: say why, instead of a plain "fully booked" (Q35).
+                // Nobody's shift covers the slot (rest days, days off, leave, short
+                // shifts): say so instead of "fully booked" (staff scheduling
+                // Phase 3, Q3 A).
                 $reason = match (true) {
                     $customerBusy => 'already_booked',
                     $free > 0     => null,
                     $isHome && $day->capacityBetween($from, $to) > 0 => 'no_verified_therapist',
+                    $day->onShiftBetween($from, $to)->isEmpty() => 'no_therapist_on_shift',
                     default       => 'fully_booked',
                 };
 
@@ -454,7 +458,8 @@ class OnlineBookingCheckoutController extends Controller
      * Query: branch_id
      *
      * Returns every date a customer may book: from today up to the 30-day
-     * limit, leaving out the days the branch is closed. The booking form's
+     * limit, leaving out the days the branch is closed and the days no
+     * therapist is working (staff scheduling Phase 3). The booking form's
      * calendar greys out any date that is not in this list.
      */
     public function availableDays(Request $request)
@@ -481,6 +486,10 @@ class OnlineBookingCheckoutController extends Controller
                 $dates[] = $date->toDateString();
             }
         }
+
+        // Staff scheduling Phase 3 (Q3 A): leave out open days on which no
+        // therapist is working (rest days, days off, leave). Same list shape.
+        $dates = $this->assigner->datesWithSomeoneWorking((int) $branch->spa_id, (int) $branch->id, $dates);
 
         return response()->json([
             'dates' => $dates,

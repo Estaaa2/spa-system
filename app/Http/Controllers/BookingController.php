@@ -225,13 +225,24 @@ class BookingController extends Controller
 
         if ($availableTherapists->isEmpty()) {
             return back()->withErrors([
-                'start_time' => 'No therapist is available for the selected time.'
+                'start_time' => 'No therapist is on shift and free for the selected time.'
             ])->withInput();
         }
 
+        // Blocked outside the therapist's shift, with the reason (staff
+        // scheduling Phase 3, Q1 A); same check as appointment edit.
         if (!$availableTherapists->pluck('id')->contains((int) $validated['therapist_id'])) {
+            $problem = $this->assigner->rejectionFor(
+                (int) $validated['therapist_id'],
+                (new Booking())->forceFill(['spa_id' => $spaId, 'branch_id' => $branchId, 'booking_source' => 'walk_in']),
+                $validated['appointment_date'],
+                Carbon::parse($startTime)->format('H:i'),
+                $endTime,
+                $validated['service_type'] ?? null
+            );
+
             return back()->withErrors([
-                'therapist_id' => 'Selected therapist is not available for this time range.'
+                'therapist_id' => $problem ?? 'Selected therapist is not available for this time range.'
             ])->withInput();
         }
 

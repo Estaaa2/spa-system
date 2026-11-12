@@ -147,6 +147,61 @@ final class WorkScheduleResolver
             ->all();
     }
 
+    /**
+     * Preload schedules, one-off changes and approved leave for several staff over
+     * a date range in 3 queries, so forDate() over that range runs in memory
+     * (the booking date list checks 30 days × every therapist).
+     *
+     * @param iterable<Staff> $staff
+     */
+    public function prime(iterable $staff, string $from, string $to): void
+    {
+        $byId = [];
+        foreach ($staff as $s) {
+            $byId[(int) $s->id] = $s;
+        }
+        if ($byId === []) {
+            return;
+        }
+        $ids = array_keys($byId);
+
+        $schedules = StaffWorkSchedule::query()->with('days')->whereIn('staff_id', $ids)
+            ->orderByDesc('effective_from')->get()->groupBy('staff_id');
+        foreach ($ids as $id) {
+            $this->schedules[$id] = ($schedules[$id] ?? collect())->all();
+        }
+
+        $overrides = StaffScheduleOverride::query()->whereIn('staff_id', $ids)
+            ->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get()
+            ->keyBy(fn (StaffScheduleOverride $o) => $o->staff_id.'|'.$o->date->toDateString());
+
+        $userIds = [];
+        foreach ($byId as $s) {
+            if ($s->user_id) {
+                $userIds[(int) $s->user_id] = (int) $s->spa_id;
+            }
+        }
+        $leave = LeaveRequest::query()
+            ->whereIn('user_id', array_keys($userIds))
+            ->where('status', 'approved')
+            ->whereDate('start_date', '<=', $to)
+            ->whereDate('end_date', '>=', $from)
+            ->get(['user_id', 'spa_id', 'start_date', 'end_date']);
+
+        for ($d = new \DateTimeImmutable($from), $end = new \DateTimeImmutable($to); $d <= $end; $d = $d->modify('+1 day')) {
+            $date = $d->format('Y-m-d');
+            foreach ($byId as $id => $s) {
+                $this->overrides[$id.'|'.$date] = $overrides[$id.'|'.$date] ?? null;
+                if ($s->user_id) {
+                    $this->leave[$s->user_id.'|'.$date] = $leave->contains(fn ($l) => (int) $l->user_id === (int) $s->user_id
+                        && (int) $l->spa_id === (int) $s->spa_id
+                        && \Illuminate\Support\Carbon::parse($l->start_date)->toDateString() <= $date
+                        && \Illuminate\Support\Carbon::parse($l->end_date)->toDateString() >= $date);
+                }
+            }
+        }
+    }
+
     public function flush(): void
     {
         $this->hours = $this->schedules = $this->overrides = $this->leave = [];

@@ -7,6 +7,7 @@ use App\Models\Staff;
 use App\Models\StaffPayProfile;
 use App\Models\StaffScheduleOverride;
 use App\Models\StaffWorkSchedule;
+use App\Services\Bookings\ScheduleBookingFlags;
 use App\Services\Payroll\PayrollPermissions;
 use App\Services\Staff\ScheduledDay;
 use App\Services\Staff\WorkScheduleResolver;
@@ -33,6 +34,7 @@ class StaffScheduleController extends Controller
     public function __construct(
         private readonly WorkScheduleResolver $resolver,
         private readonly WorkScheduleWriter $writer,
+        private readonly ScheduleBookingFlags $flags,
     ) {
     }
 
@@ -55,9 +57,12 @@ class StaffScheduleController extends Controller
 
         $from = Carbon::parse($validated['effective_from']);
 
+        [$flagNote, $flagList] = $this->flagBookings($staff);
+
         return response()->json([
-            'message'  => 'Work schedule saved. It applies from '.$from->format('M j, Y').'.',
-            'warnings' => $this->patternWarnings($staff, $days),
+            'message'  => 'Work schedule saved. It applies from '.$from->format('M j, Y').'.'.$flagNote,
+            'warnings' => [...$flagList, ...$this->patternWarnings($staff, $days)],
+            'flagged'  => count($flagList),
             'schedule' => $this->payload($staff),
         ]);
     }
@@ -109,9 +114,12 @@ class StaffScheduleController extends Controller
 
         $label = Carbon::parse($date)->format('D, M j');
 
+        [$flagNote, $flagList] = $this->flagBookings($staff);
+
         return response()->json([
-            'message'  => ($existing ? 'Change replaced for ' : 'Change added for ').$label.'.',
-            'warnings' => $isShift ? $this->outsideHoursNote($validated['start_time'], $validated['end_time'], $hours, $label) : [],
+            'message'  => ($existing ? 'Change replaced for ' : 'Change added for ').$label.'.'.$flagNote,
+            'warnings' => [...$flagList, ...($isShift ? $this->outsideHoursNote($validated['start_time'], $validated['end_time'], $hours, $label) : [])],
+            'flagged'  => count($flagList),
             'schedule' => $this->payload($staff),
         ]);
     }
@@ -127,10 +135,12 @@ class StaffScheduleController extends Controller
         }
 
         $this->writer->deleteOverride($override);
+        [$flagNote, $flagList] = $this->flagBookings($staff);
 
         return response()->json([
-            'message'  => 'Change removed for '.$override->date->format('D, M j').'.',
-            'warnings' => [],
+            'message'  => 'Change removed for '.$override->date->format('D, M j').'.'.$flagNote,
+            'warnings' => $flagList,
+            'flagged'  => count($flagList),
             'schedule' => $this->payload($staff),
         ]);
     }
@@ -337,6 +347,27 @@ class StaffScheduleController extends Controller
         return ($start < $open || $end > $close)
             ? ["{$when}: the shift runs outside branch hours (".ScheduledDay::fmt($open).' – '.ScheduledDay::fmt($close).'), e.g. for opening or closing duties.']
             : [];
+    }
+
+    /**
+     * Upcoming bookings that no longer fit go to Reassignment Requests (Phase 3, Q2 A).
+     *
+     * @return array{0: string, 1: list<string>} message suffix, one line per booking
+     */
+    private function flagBookings(Staff $staff): array
+    {
+        $flagged = $this->flags->sync($staff);
+        if ($flagged->isEmpty()) {
+            return ['', []];
+        }
+
+        $lines = $flagged->map(fn ($f) => 'Sent to Reassignment Requests: '
+            .$f['booking']->appointment_date->format('D, M j').' · '
+            .ScheduledDay::fmt(substr((string) $f['booking']->start_time, 0, 5)).' · '
+            .($f['booking']->customer_name ?: 'Booking #'.$f['booking']->id)
+            .' (now '.$f['label'].')')->values()->all();
+
+        return [' '.count($lines).' upcoming booking(s) no longer fit and were sent to Reassignment Requests.', $lines];
     }
 
     // ── Access ───────────────────────────────────────────────────────────────

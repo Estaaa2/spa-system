@@ -237,7 +237,36 @@ class ScheduleController extends Controller
         $prevWeek = $startOfWeek->copy()->subWeek()->toDateString();
         $nextWeek = $startOfWeek->copy()->addWeek()->toDateString();
 
+        // ── Shifts roster (staff scheduling Phase 3, Q5 B) ───────────────────
+        // Every treatment provider at this branch × the visible week, from the
+        // work-schedule resolver: shift hours, rest day, day off, leave, closed.
+        $shiftRoster = [];
+        $pool = app(\App\Services\Bookings\TherapistAssigner::class)->pool((int) $user->spa_id, (int) $currentBranchId);
+        if ($pool->isNotEmpty()) {
+            $rosterStaff = \App\Models\Staff::query()
+                ->whereIn('user_id', $pool->pluck('id'))
+                ->where('spa_id', $user->spa_id)
+                ->where('branch_id', $currentBranchId)
+                ->where('employment_status', 'active')
+                ->get()
+                ->keyBy('user_id');
+            $resolver = app(\App\Services\Staff\WorkScheduleResolver::class);
+            $resolver->prime($rosterStaff, $startOfWeek->toDateString(), $endOfWeek->toDateString());
+
+            foreach ($pool as $therapist) {
+                $staffRow = $rosterStaff->get($therapist->id);
+                if (! $staffRow) {
+                    continue;
+                }
+                $shiftRoster[] = [
+                    'name' => trim($therapist->first_name.' '.$therapist->last_name),
+                    'days' => collect($dayDates)->map(fn ($d) => $resolver->forDate($staffRow, $d->toDateString(), (int) $currentBranchId))->all(),
+                ];
+            }
+        }
+
         return view('schedule', compact(
+            'shiftRoster',
             'startOfWeek',
             'endOfWeek',
             'prevWeek',

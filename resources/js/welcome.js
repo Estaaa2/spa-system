@@ -1418,6 +1418,7 @@ const SLOT_REASON_LABELS = {
     past_closing: 'This service would end after closing.',
     past: 'This time has already passed today.',
     already_booked: 'You already have an appointment at this time.',
+    no_therapist_on_shift: 'No therapist is working at this time. Try another time or day.',
 };
 
 // Short status shown on each unavailable time row.
@@ -1427,6 +1428,7 @@ const SLOT_NOTE_LABELS = {
     past_closing: 'Too close to closing',
     past: 'Passed',
     already_booked: 'Your appointment',
+    no_therapist_on_shift: 'No therapist working',
 };
 
 function selectSlot(time, btn) {

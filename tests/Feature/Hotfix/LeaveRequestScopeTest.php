@@ -53,6 +53,14 @@ class LeaveRequestScopeTest extends TestCase
         ]);
         $a = BranchFactory::new()->create(['spa_id' => $spa->id, 'is_main' => true, 'verification_status' => 'verified']);
         $b = BranchFactory::new()->create(['spa_id' => $spa->id, 'verification_status' => 'verified']);
+        // Open every day: since staff scheduling Phase 3, a therapist is only free
+        // inside their shift, and with no schedule that is the branch's hours.
+        foreach ([$a, $b] as $branch) {
+            foreach (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as $day) {
+                \App\Models\OperatingHours::create(['branch_id' => $branch->id, 'day_of_week' => $day,
+                    'opening_time' => '09:00:00', 'closing_time' => '18:00:00', 'is_closed' => false]);
+            }
+        }
         $owner->forceFill(['spa_id' => $spa->id, 'branch_id' => $a->id])->save();
 
         return [$spa, $a, $b];
