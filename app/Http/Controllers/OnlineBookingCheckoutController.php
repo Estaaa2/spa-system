@@ -145,6 +145,14 @@ class OnlineBookingCheckoutController extends Controller
             return $this->fail($request, "Please select a time within spa operating hours: {$hours->opening_time} - {$hours->closing_time}");
         }
 
+        // A slot can go stale between viewing and paying: today's start must still
+        // be ahead (attendance-aware booking Phase 1, Q6 A; Phase 3 widens this
+        // to the online minimum notice). Same rule as the slot grid ("past").
+        $startAt = Carbon::parse($validated['appointment_date'] . ' ' . $start->format('H:i'));
+        if ($startAt->lte(now())) {
+            return $this->fail($request, 'That time has already passed. Please choose a later time.');
+        }
+
         $durationMinutes = $item->duration ?? ($item->total_duration ?? 60);
         $endTime         = $start->copy()->addMinutes($durationMinutes)->format('H:i');
 

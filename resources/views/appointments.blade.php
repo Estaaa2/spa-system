@@ -189,6 +189,8 @@
                                             data-due="{{ $booking->resolved_balance_amount }}"
                                             data-status="{{ $booking->status }}"
                                             data-checkout-block="{{ $booking->checkout_block }}"
+                                            data-start-block="{{ $booking->start_block }}"
+                                            data-clockout-warning="{{ $booking->clockout_warning }}"
                                             class="{{ $btn['process'] }}">
                                         <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
                                     </button>
@@ -304,6 +306,8 @@
                                     data-due="{{ $booking->resolved_balance_amount }}"
                                     data-status="{{ $booking->status }}"
                                     data-checkout-block="{{ $booking->checkout_block }}"
+                                    data-start-block="{{ $booking->start_block }}"
+                                    data-clockout-warning="{{ $booking->clockout_warning }}"
                                     class="{{ $btn['process'] }}">
                                 <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
                             </button>
@@ -356,6 +360,8 @@
                                 data-start-time="{{ $booking->start_time }}"
                                 data-status="{{ $booking->status }}"
                                             data-checkout-block="{{ $booking->checkout_block }}"
+                                            data-start-block="{{ $booking->start_block }}"
+                                            data-clockout-warning="{{ $booking->clockout_warning }}"
                                 class="{{ $btn['process'] }}">
                             <i class="fa-solid fa-user-plus" aria-hidden="true"></i>Assign therapist
                         </button>
@@ -404,6 +410,8 @@
                             data-booking-id="{{ $booking->id }}"
                             data-status="{{ $booking->status }}"
                                             data-checkout-block="{{ $booking->checkout_block }}"
+                                            data-start-block="{{ $booking->start_block }}"
+                                            data-clockout-warning="{{ $booking->clockout_warning }}"
                             class="hover:bg-gray-50 dark:hover:bg-gray-900/40
                                    {{ $booking->status === 'pending' ? 'bg-amber-50/50 dark:bg-amber-900/10' : '' }}">
                             <td role="cell" data-label="Customer" class="px-6 py-4">
@@ -460,6 +468,8 @@
                                                         data-due="{{ $booking->resolved_balance_amount }}"
                                                         data-status="{{ $booking->status }}"
                                             data-checkout-block="{{ $booking->checkout_block }}"
+                                            data-start-block="{{ $booking->start_block }}"
+                                            data-clockout-warning="{{ $booking->clockout_warning }}"
                                                         class="{{ $btn['process'] }}">
                                                     <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
                                                 </button>
@@ -476,6 +486,8 @@
                                                         data-due="{{ $booking->resolved_balance_amount }}"
                                                         data-status="{{ $booking->status }}"
                                             data-checkout-block="{{ $booking->checkout_block }}"
+                                            data-start-block="{{ $booking->start_block }}"
+                                            data-clockout-warning="{{ $booking->clockout_warning }}"
                                                         class="{{ $btn['process'] }}">
                                                     <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>{{ $btnLabel['process'] }}
                                                 </button>
@@ -496,6 +508,8 @@
                                                     data-start-time="{{ $booking->start_time }}"
                                                     data-status="{{ $booking->status }}"
                                             data-checkout-block="{{ $booking->checkout_block }}"
+                                            data-start-block="{{ $booking->start_block }}"
+                                            data-clockout-warning="{{ $booking->clockout_warning }}"
                                                     class="{{ $btn['edit'] }}">
                                                 <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ $btnLabel['edit'] }}
                                             </button>
@@ -555,6 +569,8 @@
                             data-booking-id="{{ $booking->id }}"
                             data-status="{{ $booking->status }}"
                                             data-checkout-block="{{ $booking->checkout_block }}"
+                                            data-start-block="{{ $booking->start_block }}"
+                                            data-clockout-warning="{{ $booking->clockout_warning }}"
                             class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
                             <td role="cell" data-label="Customer" class="px-6 py-4 text-sm text-gray-900 dark:text-white">
                                 {{ $booking->customer_name ?? 'Walk-in Customer' }}
@@ -598,6 +614,8 @@
                                                     data-start-time="{{ $booking->start_time }}"
                                                     data-status="{{ $booking->status }}"
                                             data-checkout-block="{{ $booking->checkout_block }}"
+                                            data-start-block="{{ $booking->start_block }}"
+                                            data-clockout-warning="{{ $booking->clockout_warning }}"
                                                     class="{{ $btn['edit'] }}">
                                                 <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ $btnLabel['edit'] }}
                                             </button>
@@ -770,6 +788,24 @@
                     <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                     <span id="process_block_text"></span> Check out appears here once that's done.
                 </p>
+                {{-- Why Start isn't offered (attendance-aware booking, Phase 1, D3). --}}
+                <p id="process_start_block_note" role="status" class="hidden p-3 text-sm rounded-xl text-amber-800 bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:ring-amber-800">
+                    <i class="mr-1 fa-solid fa-user-clock" aria-hidden="true"></i>
+                    <span id="process_start_block_text"></span>
+                </p>
+                {{-- Checkout after the therapist left before the start (Phase 1, D3 / Q4 B):
+                     staff must confirm; the server re-checks confirm_clocked_out. --}}
+                <div id="process_clockout_wrapper" class="hidden p-3 space-y-2 text-sm rounded-xl text-amber-800 bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:ring-amber-800">
+                    <p role="status">
+                        <i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                        <span id="process_clockout_text"></span>
+                    </p>
+                    <label for="process_confirm_clocked_out" class="flex items-start gap-2 font-medium cursor-pointer min-h-[44px]">
+                        <input type="checkbox" id="process_confirm_clocked_out" name="confirm_clocked_out" value="1"
+                               class="mt-0.5 w-4 h-4 rounded border-amber-400 text-[#8B7355] focus:ring-[#8B7355]">
+                        <span>I confirm this therapist did the session.</span>
+                    </label>
+                </div>
                 <p id="process_end_note" class="hidden p-3 text-sm text-gray-700 rounded-xl bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-700/40 dark:text-gray-200 dark:ring-gray-700">
                     <i class="mr-1 fa-solid fa-circle-info text-gray-500 dark:text-gray-400" aria-hidden="true"></i>
                     No payment is collected. Anything already paid stays recorded as it is.
@@ -1185,6 +1221,15 @@
         amountWrapper.classList.toggle('hidden', endsBooking);
         document.getElementById('process_end_note')?.classList.toggle('hidden', !endsBooking);
 
+        // Therapist left before the start: confirmation box, Check out only (D3 / Q4 B).
+        const warning   = form.dataset.clockoutWarning || '';
+        const confirmBx = document.getElementById('process_confirm_clocked_out');
+        const showWarn  = isCheckout && warning !== '';
+        document.getElementById('process_clockout_wrapper').classList.toggle('hidden', !showWarn);
+        confirmBx.required = showWarn;
+        confirmBx.disabled = !showWarn;
+        if (!showWarn) confirmBx.checked = false;
+
         form.action = routeFor(isCheckout ? ROUTE_CHECKOUT : ROUTE_STATUS, form.dataset.id);
 
         if (isCheckout) {
@@ -1216,6 +1261,9 @@
         form.dataset.id     = d.id;
         form.dataset.due    = d.due || 0;
         form.dataset.source = d.source || '';
+        form.dataset.clockoutWarning = d.clockoutWarning || '';
+        document.getElementById('process_clockout_text').textContent = d.clockoutWarning || '';
+        document.getElementById('process_confirm_clocked_out').checked = false;
 
         const statusSelect  = document.getElementById('process_status');
         const currentStatus = d.status || 'pending';
@@ -1230,6 +1278,11 @@
         if (block) opts = opts.filter(o => o.value !== 'checkout');
         document.getElementById('process_block_text').textContent = block;
         document.getElementById('process_block_note').classList.toggle('hidden', !block);
+        // Therapist clocked out / marked absent today: leave Start out and say why (D3).
+        const startBlock = d.startBlock || '';
+        if (startBlock) opts = opts.filter(o => o.value !== 'ongoing');
+        document.getElementById('process_start_block_text').textContent = startBlock;
+        document.getElementById('process_start_block_note').classList.toggle('hidden', !startBlock);
 
         statusSelect.innerHTML = '';
         opts.forEach(o => {
@@ -1589,6 +1642,8 @@
                 data-total="${b.resolved_total_amount}" data-paid="${b.resolved_amount_paid}"
                 data-due="${b.resolved_balance_amount}" data-status="${b.status}"
                 data-checkout-block="${esc(b.checkout_block || '')}"
+                data-start-block="${esc(b.start_block || '')}"
+                data-clockout-warning="${esc(b.clockout_warning || '')}"
                 class="${BTN.process}">
                 <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>${BTN_LABEL.process}
             </button>`;
@@ -1600,6 +1655,8 @@
                 data-total="${b.resolved_total_amount}" data-paid="${b.resolved_amount_paid}"
                 data-due="${b.resolved_balance_amount}" data-status="${b.status}"
                 data-checkout-block="${esc(b.checkout_block || '')}"
+                data-start-block="${esc(b.start_block || '')}"
+                data-clockout-warning="${esc(b.clockout_warning || '')}"
                 class="${BTN.process}">
                 <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>${BTN_LABEL.process}
             </button>`;

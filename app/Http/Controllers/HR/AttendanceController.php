@@ -224,6 +224,23 @@ class AttendanceController extends Controller
             $validated['time_out'] = null;
         }
 
+        // Today: no time later than now (attendance-aware booking Phase 1, F5).
+        // A future time out would hide the person from bookings before they leave.
+        // Minute precision, so typing the current minute is accepted.
+        if (\Carbon\Carbon::parse($validated['date'])->isToday()) {
+            $nowMinute = now()->format('H:i');
+            $future = array_filter([
+                'time_in'  => 'Time in',
+                'time_out' => 'Time out',
+            ], fn ($label, $field) => ! empty($validated[$field]) && $validated[$field] > $nowMinute, ARRAY_FILTER_USE_BOTH);
+
+            if ($future) {
+                // A toast: this page shows flash messages, not field errors.
+                return back()->with('error', implode(' and ', $future)
+                    . " can't be later than the current time (" . now()->format('g:i A') . ').');
+            }
+        }
+
         StaffAttendance::updateOrCreate(
             ['staff_id' => $staff->id, 'date' => $validated['date']],
             [

@@ -5,9 +5,11 @@ namespace App\Services\Bookings;
 use App\Models\Booking;
 use App\Models\LeaveRequest;
 use App\Models\Staff;
+use App\Models\StaffAttendance;
 use App\Models\User;
 use App\Services\Staff\ScheduledDay;
 use App\Services\Staff\WorkScheduleResolver;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +24,9 @@ use Illuminate\Support\Facades\DB;
  * Free: on shift for the whole booking (work schedule via WorkScheduleResolver,
  * staff scheduling Phase 3: rest days, one-off days off, closed days and leave
  * all mean "not working"; no schedule = branch hours, D8), no approved leave
- * that day, and no overlapping reserved/pending/ongoing booking.
+ * that day, not gone according to TODAY's attendance (clocked out / marked
+ * absent or on leave; attendance-aware booking Phase 1, TherapistAttendance),
+ * and no overlapping reserved/pending/ongoing booking.
  * Verified (D2): required only for ONLINE bookings that are HOME SERVICE.
  * Pick: least jobs that day, then earliest last end time, then first name
  * (Q8b — the rule the staff booking page already used).
@@ -64,8 +68,10 @@ class TherapistAssigner
             ->exists();
     }
 
-    public function __construct(private readonly WorkScheduleResolver $schedules)
-    {
+    public function __construct(
+        private readonly WorkScheduleResolver $schedules,
+        private readonly TherapistAttendance $attendance,
+    ) {
     }
 
     /**
@@ -86,7 +92,12 @@ class TherapistAssigner
 
         $onLeave = LeaveRequest::approvedUserIdsOnDate($spaId, $branchId, $date);
 
-        return new DayAvailability($pool, $bookings, $onLeave, $this->shiftsFor($pool, $spaId, $branchId, $date));
+        // Attendance only says something about today (D1): never read for other dates.
+        $gone = Carbon::parse($date)->isToday()
+            ? $this->attendance->goneOn($pool->pluck('id'), $spaId, $date)
+            : [];
+
+        return new DayAvailability($pool, $bookings, $onLeave, $this->shiftsFor($pool, $spaId, $branchId, $date), $gone);
     }
 
     /**
@@ -127,8 +138,16 @@ class TherapistAssigner
         }
         $this->schedules->prime($staff, min($dates), max($dates));
 
+        // Today: someone who already clocked out or is marked absent / on leave
+        // can't take anything more, so they don't keep today open (Phase 1).
+        $today = now()->toDateString();
+        $goneToday = in_array($today, $dates, true)
+            ? $this->attendance->goneOn($staff->keys(), $spaId, $today)
+            : [];
+
         return array_values(array_filter($dates, fn (string $date) => $staff->contains(
-            fn (Staff $s) => $this->schedules->forDate($s, $date, $branchId)->isWorking()
+            fn (Staff $s, $userId) => $this->schedules->forDate($s, $date, $branchId)->isWorking()
+                && ! ($date === $today && isset($goneToday[(int) $userId]))
         )));
     }
 
@@ -242,16 +261,20 @@ class TherapistAssigner
 
         $reason = $day->reasonNotFree($therapistId, substr($start, 0, 5), substr($end, 0, 5));
         if ($reason !== null) {
-            return self::rejectionMessage($therapist, $reason, $day->shiftFor($therapistId));
+            return self::rejectionMessage($therapist, $reason, $day->shiftFor($therapistId), $day->attendanceFor($therapistId));
         }
 
         return null;
     }
 
-    /** Staff-facing reason, e.g. "Outside Ana's shift (1:00 PM – 9:00 PM)." */
-    public static function rejectionMessage(User $therapist, string $reason, ?ScheduledDay $shift): string
+    /** Staff-facing reason, e.g. "Outside Ana's shift (1:00 PM – 9:00 PM)." / "Ana clocked out today at 5:03 PM." */
+    public static function rejectionMessage(User $therapist, string $reason, ?ScheduledDay $shift, ?StaffAttendance $attendance = null): string
     {
         $name = trim((string) $therapist->first_name) ?: 'This therapist';
+
+        if (in_array($reason, [DayAvailability::CLOCKED_OUT, DayAvailability::ABSENT], true) && $attendance) {
+            return TherapistAttendance::message($therapist, $attendance);
+        }
 
         if ($reason === DayAvailability::BUSY) {
             return "{$name} already has another booking at that time.";

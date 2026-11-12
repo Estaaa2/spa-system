@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Bookings\BookingStatusSync;
 use App\Services\Bookings\ServicePriceResolver;
 use App\Services\Bookings\TherapistAssigner;
+use App\Services\Bookings\TherapistAttendance;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,6 +24,12 @@ class BookingController extends Controller
 {
     public function __construct(private TherapistAssigner $assigner)
     {
+    }
+
+    /** Fresh per call: controllers can be reused between requests (tests, Octane). */
+    private function attendance(): TherapistAttendance
+    {
+        return app(TherapistAttendance::class);
     }
 
     public function create()
@@ -643,6 +650,12 @@ class BookingController extends Controller
                     'status' => 'Cannot start an appointment that is scheduled for a future date.'
                 ])->withInput();
             }
+
+            // D3: the assigned therapist clocked out or is marked absent / on leave
+            // today — reassign first (attendance-aware booking, Phase 1).
+            if ($blocker = $this->attendance()->startBlocker($booking)) {
+                return back()->with('error', $blocker);
+            }
         }
 
         // Cancelled and no-show end the booking without the service: payments
@@ -682,6 +695,7 @@ class BookingController extends Controller
 
         $validated = $request->validate([
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
+            'confirm_clocked_out' => ['nullable', 'boolean'],
         ]);
 
         if (in_array($booking->status, Booking::FINISHED_STATUSES, true)) {
@@ -696,6 +710,13 @@ class BookingController extends Controller
         // needs its arrival confirmed first. The Needs checkout list shows the step.
         if ($blocker = $booking->checkoutBlocker()) {
             return back()->with('error', $blocker);
+        }
+
+        // D3 / Q4 B: the therapist left before this session's start (or was marked
+        // absent / on leave). Allowed, but staff must confirm who did it, because
+        // checkout credits their commission. Re-checked here, not only in the modal.
+        if (($warning = $this->attendance()->checkoutWarning($booking)) && ! $request->boolean('confirm_clocked_out')) {
+            return back()->with('error', $warning . ' Tick the confirmation box to check out.');
         }
 
         $payment = $this->paymentAfter($booking, (float) ($validated['amount_paid'] ?? 0));
@@ -929,6 +950,14 @@ class BookingController extends Controller
         // Why Check out isn't offered yet (Phase 2: therapist / arrival), or null.
         $booking->checkout_block = $booking->checkoutBlocker();
 
+        // Attendance-aware booking, Phase 1 (D3): why Start is refused, and what
+        // Checkout must confirm. Open bookings only (finished ones have no actions).
+        $actions = in_array($booking->status, Booking::ACTIVE_STATUSES, true)
+            ? $this->attendance()->actionsFor($booking)
+            : ['start_block' => null, 'clockout_warning' => null];
+        $booking->start_block = $actions['start_block'];
+        $booking->clockout_warning = $actions['clockout_warning'];
+
         return $booking;
     }
 
@@ -1071,6 +1100,8 @@ class BookingController extends Controller
             'resolved_amount_paid'    => $b->resolved_amount_paid    ?? 0,
             'resolved_balance_amount' => $b->resolved_balance_amount ?? 0,
             'checkout_block'          => $b->checkout_block,
+            'start_block'             => $b->start_block,
+            'clockout_warning'        => $b->clockout_warning,
             'has_pending_reassignment' => $b->has_pending_reassignment ?? false,
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Bookings;
 
+use App\Models\StaffAttendance;
 use App\Models\User;
 use App\Services\Staff\ScheduledDay;
 use Carbon\Carbon;
@@ -15,14 +16,21 @@ use Illuminate\Support\Collection;
  * more queries.
  *
  * Free = on shift for the WHOLE range (WorkScheduleResolver: closed day, day
- * off, leave and rest day all mean "not working"), not on leave, and no
- * overlapping booking.
+ * off, leave and rest day all mean "not working"), not on leave, not gone
+ * according to today's attendance, and no overlapping booking.
+ *
+ * Attendance (attendance-aware booking, Phase 1): only today, only explicit
+ * records (D1/D2, Q2 A). A time out blocks ranges that end after it (Q1 B);
+ * Absent / On leave blocks the whole day. Someone who is gone also no longer
+ * counts as "on shift", so the slot grid says no_therapist_on_shift (Q3 A).
  */
 class DayAvailability
 {
     public const NOT_ON_SHIFT = 'not_on_shift';
     public const ON_LEAVE = 'on_leave';
     public const BUSY = 'busy';
+    public const CLOCKED_OUT = 'clocked_out';
+    public const ABSENT = 'absent';
 
     /** @var array<int, list<array{0: Carbon, 1: Carbon}>> therapist id => busy windows */
     private array $busy = [];
@@ -38,12 +46,15 @@ class DayAvailability
      * @param  list<int>  $onLeave
      * @param  array<int, ScheduledDay>  $shifts  user id => that day's schedule; a pool
      *                                            member missing here is treated as on shift
+     * @param  array<int, StaffAttendance>  $attendance  user id => today's "gone" record
+     *                                                   (TherapistAttendance::goneOn)
      */
     public function __construct(
         public readonly Collection $pool,
         Collection $bookings,
         array $onLeave,
         private readonly array $shifts = [],
+        private readonly array $attendance = [],
     ) {
         $this->onLeave = array_map('intval', $onLeave);
         foreach ($bookings as $booking) {
@@ -89,14 +100,22 @@ class DayAvailability
         return $this->pool
             ->filter(fn (User $u) => ! $requireVerified || $u->isIdentityVerified())
             ->filter(fn (User $u) => $this->covers((int) $u->id, $start, $end))
+            ->filter(fn (User $u) => $this->attendanceReason((int) $u->id, $endTime) === null)
             ->values();
     }
 
-    /** Is anyone in the pool working at all this day? */
+    /** Is anyone in the pool working at all this day (and not gone for the day)? */
     public function anyoneWorking(bool $requireVerified = false): bool
     {
         return $this->pool->contains(fn (User $u) => (! $requireVerified || $u->isIdentityVerified())
-            && ($this->shifts[(int) $u->id] ?? null)?->isWorking() !== false);
+            && ($this->shifts[(int) $u->id] ?? null)?->isWorking() !== false
+            && ! isset($this->attendance[(int) $u->id]));
+    }
+
+    /** Today's "gone" record for this person, or null. */
+    public function attendanceFor(int $userId): ?StaffAttendance
+    {
+        return $this->attendance[$userId] ?? null;
     }
 
     public function shiftFor(int $userId): ?ScheduledDay
@@ -104,7 +123,7 @@ class DayAvailability
         return $this->shifts[$userId] ?? null;
     }
 
-    /** self::NOT_ON_SHIFT | self::ON_LEAVE | self::BUSY, or null when free. */
+    /** self::NOT_ON_SHIFT | ON_LEAVE | CLOCKED_OUT | ABSENT | BUSY, or null when free. */
     public function reasonNotFree(int $userId, string $startTime, string $endTime): ?string
     {
         $start = Carbon::parse($startTime);
@@ -116,6 +135,9 @@ class DayAvailability
         if (in_array($userId, $this->onLeave, true)) {
             return self::ON_LEAVE;
         }
+        if ($reason = $this->attendanceReason($userId, $endTime)) {
+            return $reason;
+        }
         if ($this->overlapsAny($this->busy[$userId] ?? [], $start, $end)) {
             return self::BUSY;
         }
@@ -126,6 +148,17 @@ class DayAvailability
     public function hasVerifiedMember(): bool
     {
         return $this->pool->contains(fn (User $u) => $u->isIdentityVerified());
+    }
+
+    /** self::CLOCKED_OUT / self::ABSENT when today's attendance rules out a range ending at $endTime. */
+    private function attendanceReason(int $userId, string $endTime): ?string
+    {
+        $record = $this->attendance[$userId] ?? null;
+        if ($record === null || ! TherapistAttendance::blocksRangeEnding($record, $endTime)) {
+            return null;
+        }
+
+        return in_array($record->status, TherapistAttendance::GONE_STATUSES, true) ? self::ABSENT : self::CLOCKED_OUT;
     }
 
     /** The whole range sits inside the person's shift for the day. */
