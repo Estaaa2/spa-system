@@ -99,6 +99,8 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
     Route::get('/therapist/attendance', [AttendanceController::class, 'myAttendance']);
     Route::post('/therapist/attendance/clock-in',  [AttendanceController::class, 'clockIn']);
     Route::post('/therapist/attendance/clock-out', [AttendanceController::class, 'clockOut']);
+    // Attendance-aware booking Phase 2 (additive): what clocking in / out now would record.
+    Route::get('/therapist/attendance/clock-preview', [AttendanceController::class, 'clockPreview']);
 
     // Leave requests and "can't make it" through the web's own controllers,
     // behind the same route checks as the web (Phase 6.1): filing leave needs

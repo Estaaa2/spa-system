@@ -161,10 +161,11 @@
                             <p class="mt-1 font-medium text-gray-900 dark:text-white">${esc(r.appointment_date)} · ${esc(r.start_time_fmt)}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">${r.source === 'unverified' || r.source === 'schedule' ? 'Therapist' : 'Requested by'}</p>
+                            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">${['unverified', 'schedule', 'clocked_out'].includes(r.source) ? 'Therapist' : 'Requested by'}</p>
                             <p class="mt-1 font-medium text-gray-900 dark:text-white">${esc(r.old_therapist)}</p>
                             ${r.source === 'unverified' ? '<p class="mt-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">Not identity-verified anymore (flagged automatically)</p>' : ''}
                             ${r.source === 'schedule' ? '<p class="mt-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">Outside their work schedule (flagged automatically)</p>' : ''}
+                            ${r.source === 'clocked_out' ? '<p class="mt-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">Clocked out (flagged automatically)</p>' : ''}
                         </div>
                     </div>
                     <button type="button" onclick="openReassignReviewModal(this)"

@@ -975,9 +975,12 @@ Route::middleware([
     // Self-service clock in/out identity-based, not permission-gated.
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clock-out');
+    // What clocking in / out now would record (attendance-aware booking Phase 2, D9).
+    Route::get('/attendance/clock-preview', [AttendanceController::class, 'clockPreview'])->name('attendance.clock-preview');
 
     Route::middleware('branch.permission:edit attendance')->group(function () {
         Route::post('/attendance/{staff}/record', [AttendanceController::class, 'recordFor'])->name('attendance.record');
+        Route::get('/attendance/{staff}/record-preview', [AttendanceController::class, 'recordPreview'])->name('attendance.record-preview');
     });
 
     // Leave Requests

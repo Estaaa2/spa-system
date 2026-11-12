@@ -178,17 +178,89 @@ class AttendanceController extends Controller
             return back()->with('error', 'You are already clocked out for today.');
         }
 
-        $now  = now()->format('H:i:s');
-        $flag = app(\App\Services\Attendance\ClockInRules::class)->clockOutFlag($staff, $today, $now);
+        $now   = now()->format('H:i:s');
+        $rules = app(\App\Services\Attendance\ClockInRules::class);
 
-        $update = ['time_out' => $now];
-        if ($flag) {
-            $update['remarks'] = trim(($record->remarks ? $record->remarks . ' | ' : '') . $flag);
+        // Phase 2, Q2 A: leaving more than the grace before the shift ends needs a
+        // reason (re-checked here; the modal asks first).
+        $reason = trim((string) $request->input('reason', ''));
+        if ($rules->clockOutTiming($staff, $today, $now)['kind'] === 'early' && $reason === '') {
+            return back()->with('error', 'Please give a reason for clocking out early.');
+        }
+        if (mb_strlen($reason) > 255) {
+            return back()->with('error', 'Keep the reason under 255 characters.');
         }
 
-        $record->update($update);
+        $remarks = array_filter([
+            $record->remarks,
+            $rules->clockOutFlag($staff, $today, $now),
+            $rules->earlyClockOutRemark($staff, $today, $now, $reason),
+        ]);
 
-        return back()->with('success', 'Clocked out. See you next shift!');
+        $record->update(['time_out' => $now, 'remarks' => $remarks ? mb_substr(implode(' | ', $remarks), 0, 500) : null]);
+
+        // D4: open bookings left today go to Reassignment Requests.
+        $flagged = app(\App\Services\Bookings\AttendanceBookingFlags::class)->sync($staff, $today);
+
+        return back()->with('success', 'Clocked out. ' . self::flaggedSentence($flagged) . 'See you next shift!');
+    }
+
+    /** "2 bookings were sent to the front desk for reassignment. " or "". */
+    public static function flaggedSentence(int $flagged): string
+    {
+        return $flagged > 0
+            ? $flagged . ' ' . ($flagged === 1 ? 'booking was' : 'bookings were') . ' sent to the front desk for reassignment. '
+            : '';
+    }
+
+    /**
+     * GET /attendance/clock-preview?action=in|out — what clocking in / out now
+     * would record (Phase 2, D9). Display only; the submit re-checks.
+     */
+    public function clockPreview(Request $request)
+    {
+        $request->validate(['action' => ['required', Rule::in(['in', 'out'])]]);
+        $staff = $this->myStaffRecord();
+
+        if (!$staff) {
+            return response()->json(['message' => 'No active staff profile is linked to your account.'], 422);
+        }
+
+        return response()->json(app(\App\Services\Attendance\ClockPreview::class)->self($staff, $request->string('action')->toString()));
+    }
+
+    /**
+     * GET /attendance/{staff}/record-preview — the manual record's warnings for
+     * the entered values (Phase 2, D9): shift, early/late, bookings handed off.
+     */
+    public function recordPreview(Request $request, Staff $staff)
+    {
+        $this->authorizeRecord($staff);
+
+        $v = $request->validate([
+            'date'     => ['required', 'date', 'before_or_equal:today'],
+            'status'   => ['required', Rule::in(['present', 'late', 'absent', 'on_leave'])],
+            'time_in'  => ['nullable', 'date_format:H:i'],
+            'time_out' => ['nullable', 'date_format:H:i'],
+        ]);
+
+        return response()->json(app(\App\Services\Attendance\ClockPreview::class)->manual(
+            $staff,
+            Carbon::parse($v['date'])->toDateString(),
+            $v['status'],
+            $v['time_in'] ?? null,
+            $v['time_out'] ?? null,
+        ));
+    }
+
+    private function authorizeRecord(Staff $staff): void
+    {
+        $user = Auth::user();
+        abort_unless($user->hasBranchPermission('edit attendance'), 403);
+        abort_unless(
+            $staff->spa_id === $user->spa_id && $staff->branch_id === ($user->currentBranchId() ?? $user->branch_id),
+            403
+        );
     }
 
     // =====================================================
@@ -201,13 +273,11 @@ class AttendanceController extends Controller
     public function recordFor(Request $request, Staff $staff)
     {
         $user = Auth::user();
-        abort_unless($user->hasBranchPermission('edit attendance'), 403);
-        abort_unless(
-            $staff->spa_id === $user->spa_id && $staff->branch_id === ($user->currentBranchId() ?? $user->branch_id),
-            403
-        );
+        $this->authorizeRecord($staff);
 
-        $validated = $request->validate([
+        // Shown as a toast: this page displays flash messages, not field errors
+        // (Phase 1 report, proposed item 1).
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'date'     => ['required', 'date', 'before_or_equal:today'],
             'status'   => ['required', Rule::in(['present', 'late', 'absent', 'on_leave'])],
             'time_in'  => ['nullable', 'date_format:H:i'],
@@ -217,6 +287,10 @@ class AttendanceController extends Controller
             'date.before_or_equal' => 'Attendance can only be recorded for today or an earlier day.',
             'time_out.after'       => 'Time out must be later than time in.',
         ]);
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput()->with('error', $validator->errors()->first());
+        }
+        $validated = $validator->validated();
 
         // Absent and on-leave days have no clock times; drop any that were sent.
         if (in_array($validated['status'], ['absent', 'on_leave'], true)) {
@@ -256,6 +330,13 @@ class AttendanceController extends Controller
             ]
         );
 
-        return back()->with('success', 'Attendance record saved for ' . ($staff->user->name ?? 'staff member') . '.');
+        // D4: today's open bookings go to Reassignment Requests when this record
+        // says the person left (time out) or isn't here (absent / on leave); a
+        // correction that makes them available again closes those requests.
+        $date = Carbon::parse($validated['date'])->toDateString();
+        $flagged = app(\App\Services\Bookings\AttendanceBookingFlags::class)->sync($staff, $date);
+
+        return back()->with('success', trim('Attendance record saved for ' . ($staff->user->name ?? 'staff member') . '. '
+            . self::flaggedSentence($flagged)));
     }
 }

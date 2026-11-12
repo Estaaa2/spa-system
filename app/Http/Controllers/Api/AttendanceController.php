@@ -154,19 +154,44 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'You are already clocked out for today.'], 422);
         }
 
-        $now  = now()->format('H:i:s');
-        $flag = app(\App\Services\Attendance\ClockInRules::class)->clockOutFlag($staff, $today, $now);
+        $now   = now()->format('H:i:s');
+        $rules = app(\App\Services\Attendance\ClockInRules::class);
 
-        $update = ['time_out' => $now];
-        if ($flag) {
-            $update['remarks'] = trim(($record->remarks ? $record->remarks . ' | ' : '') . $flag);
-        }
+        // Phase 2, Q3 A: `reason` is optional on the API (older app versions don't
+        // send it); an early clock-out without one is remarked "no reason given, mobile".
+        $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
 
-        $record->update($update);
+        $remarks = array_filter([
+            $record->remarks,
+            $rules->clockOutFlag($staff, $today, $now),
+            $rules->earlyClockOutRemark($staff, $today, $now, $request->input('reason'), true),
+        ]);
+
+        $record->update(['time_out' => $now, 'remarks' => $remarks ? mb_substr(implode(' | ', $remarks), 0, 500) : null]);
+
+        // D4: open bookings left today go to Reassignment Requests.
+        $flagged = app(\App\Services\Bookings\AttendanceBookingFlags::class)->sync($staff, $today);
 
         return response()->json([
-            'message' => 'Clocked out. See you next shift!',
+            'message' => 'Clocked out. ' . \App\Http\Controllers\HR\AttendanceController::flaggedSentence($flagged) . 'See you next shift!',
             'today'   => $this->formatRecord($record->fresh()),
+            'flagged' => $flagged,
         ]);
+    }
+
+    /**
+     * GET /api/therapist/attendance/clock-preview?action=in|out
+     * Same data as the web confirmation modals (Phase 2, D9). Display only.
+     */
+    public function clockPreview(Request $request)
+    {
+        $request->validate(['action' => ['required', 'in:in,out']]);
+        $staff = $this->myStaffRecord($request);
+
+        if (! $staff) {
+            return response()->json(['message' => 'No active staff profile is linked to your account.'], 422);
+        }
+
+        return response()->json(app(\App\Services\Attendance\ClockPreview::class)->self($staff, $request->input('action')));
     }
 }

@@ -28,7 +28,7 @@ class ReassignmentRequest extends Model
         'reviewed_by',
         'reviewed_at',
         'leave_request_id',
-        'source',   // null (therapist / leave), 'unverified' (VerificationBookingFlags) or 'schedule' (ScheduleBookingFlags)
+        'source',   // null (therapist / leave), 'unverified' (VerificationBookingFlags), 'schedule' (ScheduleBookingFlags) or 'clocked_out' (AttendanceBookingFlags)
     ];
 
     protected $casts = [

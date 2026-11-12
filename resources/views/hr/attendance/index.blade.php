@@ -128,12 +128,10 @@
 
                     <div class="flex gap-2">
                         @if(!$myToday || !$myToday->time_in)
-                            <form method="POST" action="{{ route('attendance.clock-in') }}">
-                                @csrf
-                                <button type="submit" class="w-full {{ $btn['primary'] }} sm:w-auto">
-                                    <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Clock In
-                                </button>
-                            </form>
+                            {{-- Confirm first, every time (attendance-aware booking Phase 2, Q6 A). --}}
+                            <button type="button" class="w-full {{ $btn['primary'] }} sm:w-auto" onclick="openClockInModal()">
+                                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Clock In
+                            </button>
                         @elseif(!$myToday->time_out)
                             {{-- Clocking out ends the day; only an attendance editor can undo it, so confirm first. --}}
                             <button type="button" class="w-full {{ $btn['remove'] }} sm:w-auto" onclick="openClockOutModal()">
@@ -412,6 +410,46 @@
 </div>
 
 {{-- ═══════════════════════════════════════════════════
+     CLOCK IN CONFIRMATION (attendance-aware booking Phase 2, D9 / Q6 A)
+     Filled from attendance.clock-preview when opened; the submit re-checks.
+     ═══════════════════════════════════════════════════ --}}
+@if($myStaff && (!$myToday || !$myToday->time_in))
+<div id="clockInModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
+    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="clockInTitle" class="w-full max-w-md bg-white shadow-xl rounded-2xl dark:bg-gray-800">
+            <form method="POST" action="{{ route('attendance.clock-in') }}">
+                @csrf
+                <div class="flex items-start justify-between gap-3 {{ $cardHead }}">
+                    <h2 id="clockInTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Clock in now?</h2>
+                    <button type="button" onclick="closeModal('clockInModal')" aria-label="Close dialog" class="{{ $closeBtn }}">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="px-4 py-6 space-y-3 text-sm text-gray-700 sm:px-6 dark:text-gray-300" aria-live="polite">
+                    <p id="clockIn_loading" class="text-gray-500 dark:text-gray-400">Checking your shift…</p>
+                    <p id="clockIn_refusal" class="hidden p-3 text-sm rounded-xl text-amber-800 bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:ring-amber-800"></p>
+                    <div id="clockIn_body" class="hidden space-y-3">
+                        <p>Your time in will be recorded as <strong id="clockIn_time"></strong>.</p>
+                        <p id="clockIn_shift" class="text-gray-500 dark:text-gray-400"></p>
+                        <p id="clockIn_timing" class="hidden"></p>
+                        <div>
+                            <p class="font-medium text-gray-900 dark:text-white">Your bookings today</p>
+                            <ul id="clockIn_bookings" class="mt-1 space-y-1"></ul>
+                        </div>
+                        <p class="text-gray-500 dark:text-gray-400">Only a manager or HR can change your time in afterwards.</p>
+                    </div>
+                </div>
+                <div class="flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:justify-end sm:px-6 dark:border-gray-700">
+                    <button type="button" class="{{ $btn['neutral'] }}" onclick="closeModal('clockInModal')">Cancel</button>
+                    <button type="submit" id="clockIn_submit" class="{{ $btn['primary'] }}" disabled><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Clock In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- ═══════════════════════════════════════════════════
      CLOCK OUT CONFIRMATION
      ═══════════════════════════════════════════════════ --}}
 @if($myStaff && $myToday && $myToday->time_in && !$myToday->time_out)
@@ -426,13 +464,30 @@
                         <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div class="px-4 py-6 space-y-2 text-sm text-gray-700 sm:px-6 dark:text-gray-300">
+                <div class="px-4 py-6 space-y-3 text-sm text-gray-700 sm:px-6 dark:text-gray-300" aria-live="polite">
                     <p>Your time out will be recorded as <strong id="clockOutTime"></strong>.</p>
+                    {{-- Phase 2 (D9): filled from attendance.clock-preview when opened. --}}
+                    <p id="clockOut_refusal" class="hidden p-3 text-sm rounded-xl text-amber-800 bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:ring-amber-800"></p>
+                    <p id="clockOut_shift" class="hidden text-gray-500 dark:text-gray-400"></p>
+                    <p id="clockOut_timing" class="hidden"></p>
+                    <div id="clockOut_reasonWrap" class="hidden">
+                        <label for="clockOut_reason" class="{{ $labelClass }}">Why are you leaving early? <span class="text-red-600" aria-hidden="true">*</span></label>
+                        <textarea id="clockOut_reason" name="reason" rows="2" maxlength="255" disabled class="{{ $inputClass }}"></textarea>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Saved in your attendance remarks.</p>
+                    </div>
+                    <div id="clockOut_flagWrap" class="hidden p-3 text-sm rounded-xl text-amber-800 bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:ring-amber-800">
+                        <p class="font-medium"><i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span id="clockOut_flagTitle"></span></p>
+                        <ul id="clockOut_flag" class="mt-1 space-y-1"></ul>
+                    </div>
+                    <div id="clockOut_openWrap" class="hidden p-3 text-sm text-gray-700 rounded-xl bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-700/40 dark:text-gray-200 dark:ring-gray-700">
+                        <p class="font-medium"><i class="mr-1 fa-solid fa-circle-info" aria-hidden="true"></i><span id="clockOut_openTitle"></span></p>
+                        <ul id="clockOut_open" class="mt-1 space-y-1"></ul>
+                    </div>
                     <p class="text-gray-500 dark:text-gray-400">This ends your day. Only a manager or HR can change it afterwards.</p>
                 </div>
                 <div class="flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:justify-end sm:px-6 dark:border-gray-700">
                     <button type="button" class="{{ $btn['neutral'] }}" onclick="closeModal('clockOutModal')">Cancel</button>
-                    <button type="submit" class="{{ $btn['remove'] }}"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Clock Out</button>
+                    <button type="submit" id="clockOut_submit" class="{{ $btn['remove'] }}"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> <span id="clockOut_submitLabel">Clock Out</span></button>
                 </div>
             </form>
         </div>
@@ -479,6 +534,21 @@
                         </div>
                     </div>
                     <p id="record_times_note" class="hidden text-xs text-gray-500 dark:text-gray-400">No clock times for an absent or on-leave day.</p>
+                    {{-- What this record means (Phase 2, D9): shift, early / late, bookings
+                         handed off. Refreshed from attendance.record-preview as you type. --}}
+                    <div id="record_preview" class="hidden space-y-2 text-sm" aria-live="polite">
+                        <p id="record_pv_shift" class="text-gray-500 dark:text-gray-400"></p>
+                        <p id="record_pv_in" class="hidden"></p>
+                        <p id="record_pv_out" class="hidden"></p>
+                        <div id="record_pv_flagWrap" class="hidden p-3 text-sm rounded-xl text-amber-800 bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:ring-amber-800">
+                            <p class="font-medium"><i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span id="record_pv_flagTitle"></span></p>
+                            <ul id="record_pv_flag" class="mt-1 space-y-1"></ul>
+                        </div>
+                        <div id="record_pv_openWrap" class="hidden p-3 text-sm text-gray-700 rounded-xl bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-700/40 dark:text-gray-200 dark:ring-gray-700">
+                            <p class="font-medium"><i class="mr-1 fa-solid fa-circle-info" aria-hidden="true"></i><span id="record_pv_openTitle"></span></p>
+                            <ul id="record_pv_open" class="mt-1 space-y-1"></ul>
+                        </div>
+                    </div>
                     <div>
                         <label for="record_remarks" class="{{ $labelClass }}">Remarks <span class="font-normal text-gray-500">(optional)</span></label>
                         <input type="text" name="remarks" id="record_remarks" maxlength="500" class="{{ $inputClass }}">
@@ -486,7 +556,7 @@
                 </div>
                 <div class="flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:justify-end sm:px-6 dark:border-gray-700">
                     <button type="button" class="{{ $btn['neutral'] }}" onclick="closeModal('recordAttendanceModal')">Cancel</button>
-                    <button type="submit" class="{{ $btn['primary'] }}"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save</button>
+                    <button type="submit" class="{{ $btn['primary'] }}"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> <span id="record_submitLabel">Save</span></button>
                 </div>
             </form>
         </div>
@@ -667,7 +737,7 @@ function attendancePage(initial) {
     const FALLBACK     = @json($fallbackBadge);
 
     // ── Shared modal behaviour (same contract as the payroll pages) ──────
-    const MODAL_IDS = ['clockOutModal', 'recordAttendanceModal', 'requestLeaveModal', 'leaveReviewModal', 'leaveRejectReasonModal'];
+    const MODAL_IDS = ['clockInModal', 'clockOutModal', 'recordAttendanceModal', 'requestLeaveModal', 'leaveReviewModal', 'leaveRejectReasonModal'];
     const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
     const returnFocus = {};
     let currentLeaveReview = null;
@@ -714,11 +784,131 @@ function attendancePage(initial) {
         if (m) m.addEventListener('click', e => { if (e.target === m) closeModal(id); });
     });
 
+    // ── Clock-in / clock-out previews (attendance-aware booking Phase 2, D9) ──
+    // Display only: the server re-checks everything on submit. If the preview
+    // can't load, the person can still go ahead.
+    const TIMING_CLASS = {
+        on_time: 'text-emerald-700 dark:text-emerald-400',
+        late: 'text-amber-700 dark:text-amber-300 font-medium',
+        early: 'text-amber-700 dark:text-amber-300 font-medium',
+        after_shift: 'text-gray-700 dark:text-gray-300',
+    };
+    const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+    function show(id, on) { el(id)?.classList.toggle('hidden', !on); }
+    function setTiming(id, timing, prefix) {
+        const p = el(id);
+        if (!p) return;
+        p.className = timing ? (TIMING_CLASS[timing.kind] || '') : 'hidden';
+        p.textContent = timing ? (prefix || '') + timing.label : '';
+    }
+    function fillBookings(listId, rows, opts = {}) {
+        const ul = el(listId);
+        if (!ul) return;
+        ul.replaceChildren();
+        if (!rows.length && opts.empty) {
+            const li = document.createElement('li');
+            li.className = 'text-gray-500 dark:text-gray-400';
+            li.textContent = opts.empty;
+            ul.appendChild(li);
+            return;
+        }
+        rows.slice(0, 5).forEach(b => {
+            const li = document.createElement('li');
+            li.textContent = b.time_label + ' · ' + b.treatment + ' · ' + b.customer
+                + (b.service_type === 'in_home' ? ' (Home service)' : '');
+            if (opts.markWaiting && b.waiting) {
+                li.className = 'text-amber-700 dark:text-amber-300';
+                li.textContent += ' — already waiting';
+            }
+            ul.appendChild(li);
+        });
+        if (rows.length > 5) {
+            const li = document.createElement('li');
+            li.className = 'text-gray-500 dark:text-gray-400';
+            li.textContent = '+' + (rows.length - 5) + ' more';
+            ul.appendChild(li);
+        }
+    }
+    async function getJson(url) {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error('preview ' + res.status);
+        return res.json();
+    }
+    const PREVIEW_URL = @json(route('attendance.clock-preview'));
+    const PREVIEW_FAILED = "Couldn't load the details. You can still continue; the system checks again when you confirm.";
+
+    // ── Clock in ─────────────────────────────────────────────────────────
+    window.openClockInModal = async function () {
+        show('clockIn_loading', true); show('clockIn_body', false); show('clockIn_refusal', false);
+        el('clockIn_submit').disabled = true;
+        openModal('clockInModal', 'button[type="button"]');
+        try {
+            const p = await getJson(PREVIEW_URL + '?action=in');
+            show('clockIn_loading', false);
+            if (!p.allowed) {
+                el('clockIn_refusal').textContent = p.refusal;
+                show('clockIn_refusal', true);
+                return;   // Clock In stays disabled: the server would refuse it too.
+            }
+            el('clockIn_time').textContent = p.time_label;
+            el('clockIn_shift').textContent = p.shift.working ? "Today's shift: " + p.shift.label + '.' : '';
+            setTiming('clockIn_timing', p.timing && p.timing.kind === 'late'
+                ? { kind: 'late', label: "You'll be marked late: " + p.timing.label.charAt(0).toLowerCase() + p.timing.label.slice(1) + '.' }
+                : p.timing);
+            fillBookings('clockIn_bookings', p.bookings_today, { empty: 'No bookings assigned to you today.', markWaiting: true });
+            show('clockIn_body', true);
+            el('clockIn_submit').disabled = false;
+            el('clockIn_submit').focus();
+        } catch (e) {
+            show('clockIn_loading', false);
+            el('clockIn_refusal').textContent = PREVIEW_FAILED;
+            show('clockIn_refusal', true);
+            el('clockIn_submit').disabled = false;
+        }
+    };
+
     // ── Clock out ────────────────────────────────────────────────────────
-    window.openClockOutModal = function () {
+    window.openClockOutModal = async function () {
         const t = el('clockOutTime');
         if (t) t.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        ['clockOut_refusal', 'clockOut_shift', 'clockOut_timing', 'clockOut_reasonWrap', 'clockOut_flagWrap', 'clockOut_openWrap'].forEach(id => show(id, false));
+        const reason = el('clockOut_reason');
+        reason.value = ''; reason.required = false; reason.disabled = true;
+        el('clockOut_submitLabel').textContent = 'Clock Out';
         openModal('clockOutModal', 'button[type="submit"]');
+        try {
+            const p = await getJson(PREVIEW_URL + '?action=out');
+            if (!p.allowed) {
+                el('clockOut_refusal').textContent = p.refusal;
+                show('clockOut_refusal', true);
+                return;
+            }
+            if (t) t.textContent = p.time_label;
+            if (p.shift.working) { el('clockOut_shift').textContent = "Today's shift: " + p.shift.label + '.'; show('clockOut_shift', true); }
+            setTiming('clockOut_timing', p.timing);
+            if (p.reason_required) {
+                show('clockOut_reasonWrap', true);
+                reason.disabled = false; reason.required = true;
+                reason.focus();
+            }
+            if (p.to_flag.length) {
+                el('clockOut_flagTitle').textContent = plural(p.to_flag.length, 'booking', 'bookings') + ' left today will be sent to the front desk for reassignment:';
+                fillBookings('clockOut_flag', p.to_flag);
+                show('clockOut_flagWrap', true);
+                el('clockOut_submitLabel').textContent = 'Clock Out & hand off ' + plural(p.to_flag.length, 'booking', 'bookings');
+            }
+            if (p.still_open.length) {
+                el('clockOut_openTitle').textContent = 'Still open (' + p.still_open.length + '): ask the front desk to check ' + (p.still_open.length === 1 ? 'it' : 'them') + ' out.';
+                fillBookings('clockOut_open', p.still_open);
+                show('clockOut_openWrap', true);
+            }
+        } catch (e) {
+            el('clockOut_refusal').textContent = PREVIEW_FAILED;
+            show('clockOut_refusal', true);
+            // The server still asks for a reason if it's an early clock-out.
+            show('clockOut_reasonWrap', true);
+            reason.disabled = false;
+        }
     };
 
     // ── Record / correct attendance ──────────────────────────────────────
@@ -730,7 +920,44 @@ function attendancePage(initial) {
         el('record_times_note').classList.toggle('hidden', !noTimes);
         el('record_time_in').disabled = noTimes;
         el('record_time_out').disabled = noTimes;
+        window.refreshRecordPreview();
     };
+
+    // Live warnings for the manual record (Phase 2, D9). Debounced; the latest
+    // request wins so a slow answer can't overwrite a newer one.
+    let recordPreviewTimer = null, recordPreviewSeq = 0, recordStaffId = null;
+    window.refreshRecordPreview = function () {
+        clearTimeout(recordPreviewTimer);
+        recordPreviewTimer = setTimeout(loadRecordPreview, 250);
+    };
+    async function loadRecordPreview() {
+        if (!recordStaffId) return;
+        const seq = ++recordPreviewSeq;
+        const status = el('record_status').value;
+        const noTimes = ['absent', 'on_leave'].includes(status);
+        const q = new URLSearchParams({ date: el('record_date').value, status });
+        if (!noTimes && el('record_time_in').value) q.set('time_in', el('record_time_in').value);
+        if (!noTimes && el('record_time_out').value) q.set('time_out', el('record_time_out').value);
+        try {
+            const p = await getJson(@json(url('/attendance')) + '/' + encodeURIComponent(recordStaffId) + '/record-preview?' + q);
+            if (seq !== recordPreviewSeq) return;
+            el('record_pv_shift').textContent = p.shift.working ? 'Shift that day: ' + p.shift.label + '.' : 'That day: ' + p.shift.label + ' (not scheduled).';
+            setTiming('record_pv_in', p.time_in, 'Time in: ');
+            setTiming('record_pv_out', p.time_out, 'Time out: ');
+            const name = el('record_staff_name').textContent || 'This person';
+            el('record_pv_flagTitle').textContent = name + "'s " + plural(p.to_flag.length, 'booking', 'bookings') + ' left today will be sent for reassignment:';
+            fillBookings('record_pv_flag', p.to_flag);
+            show('record_pv_flagWrap', p.to_flag.length > 0);
+            el('record_pv_openTitle').textContent = 'Still open (' + p.still_open.length + '): check ' + (p.still_open.length === 1 ? 'it' : 'them') + ' out on Appointments.';
+            fillBookings('record_pv_open', p.still_open);
+            show('record_pv_openWrap', p.still_open.length > 0);
+            el('record_submitLabel').textContent = p.to_flag.length ? 'Save & flag ' + plural(p.to_flag.length, 'booking', 'bookings') : 'Save';
+            show('record_preview', true);
+        } catch (e) {
+            if (seq === recordPreviewSeq) show('record_preview', false);   // the save still re-checks everything
+        }
+    }
+    ['record_time_in', 'record_time_out'].forEach(id => el(id)?.addEventListener('change', () => window.refreshRecordPreview()));
     window.openRecordModal = function (btn) {
         const d = JSON.parse(btn.getAttribute('data-record') || '{}');
         el('record_staff_name').textContent = d.name || '';
@@ -741,6 +968,9 @@ function attendancePage(initial) {
         el('record_time_out').value = d.time_out || '';
         el('record_remarks').value = d.remarks || '';
         el('recordAttendanceForm').action = @json(url('/attendance')) + '/' + encodeURIComponent(d.staff_id) + '/record';
+        recordStaffId = d.staff_id;
+        el('record_submitLabel').textContent = 'Save';
+        show('record_preview', false);
         window.syncRecordTimes();
         openModal('recordAttendanceModal', '#record_status');
     };
