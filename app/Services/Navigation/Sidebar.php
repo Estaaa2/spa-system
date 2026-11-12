@@ -70,14 +70,62 @@ final class Sidebar
         return (new self($user, $user->spa, $currentBranch, $branchLocked, $request ?? request()))->assemble();
     }
 
+    /**
+     * build(), memoized on the request (help guides Phase 1). The layout, the
+     * page header's Help button and the Help page all need the sidebar; a page's
+     * content renders before the layout's navigation, so whichever asks first
+     * builds it and the others reuse it. Keyed by user, branch and lock state,
+     * so a different context never gets a stale copy.
+     */
+    public static function cached(User $user, ?Branch $currentBranch, bool $branchLocked, ?Request $request = null): array
+    {
+        $request ??= request();
+        $key = 'levictas.sidebar.'.$user->id.'.'.($currentBranch?->id ?? 0).'.'.(int) $branchLocked;
+
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, self::build($user, $currentBranch, $branchLocked, $request));
+        }
+
+        return $request->attributes->get($key);
+    }
+
+    /** The sidebar for this request, with the branch resolved the way login and the layout do. */
+    public static function forCurrentRequest(User $user): array
+    {
+        [$branch, $locked] = self::branchContext($user);
+
+        return self::cached($user, $branch, $locked);
+    }
+
     /** First page a staff member should land on after login (answer P4). */
     public static function landingUrl(User $user): string
+    {
+        [$branch, $locked] = self::branchContext($user);
+
+        return self::build($user, $branch, $locked)['landingUrl'] ?? route('profile.edit');
+    }
+
+    /** @return list<array> every link in a built sidebar (top, then each zone), groups flattened */
+    public static function links(array $nav): array
+    {
+        $out = $nav['top'] ?? [];
+        foreach ($nav['zones'] ?? [] as $zone) {
+            foreach ($zone['items'] as $item) {
+                array_push($out, ...($item['type'] === 'link' ? [$item] : $item['links']));
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return array{0: ?Branch, 1: bool} the current branch and whether it is locked */
+    private static function branchContext(User $user): array
     {
         $branchId = $user->currentBranchId();
         $branch = $branchId ? Branch::query()->find($branchId) : null;
         $locked = $branch && $user->spa?->hasAccess() ? $branch->lockReason() !== null : false;
 
-        return self::build($user, $branch, $locked)['landingUrl'] ?? route('profile.edit');
+        return [$branch, $locked];
     }
 
     // ── Assembly ────────────────────────────────────────────────────────────

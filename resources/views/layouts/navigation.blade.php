@@ -130,8 +130,9 @@
     // ── Sidebar structure (sidebar & RBAC rework Phase 2) ───────────────────
     // Built once in App\Services\Navigation\Sidebar: zones, groups, pinned links,
     // one-link groups flattened, empty groups dropped. This file only renders it.
+    // cached(): the page header's Help button may already have built it this request.
     $nav = $user
-        ? \App\Services\Navigation\Sidebar::build($user, $currentBranch, $branchLocked)
+        ? \App\Services\Navigation\Sidebar::cached($user, $currentBranch, $branchLocked)
         : ['top' => [], 'zones' => [], 'activeGroup' => null, 'landingUrl' => null];
 
     // Which group owns the current page. Consumed by the collapsed-group dot and,
@@ -150,6 +151,9 @@
     $brandHref = $nav['landingUrl'] ?? route('profile.edit');
 
     $mobileContextLabel = $currentBranch?->name ?? $spa?->name ?? 'Levictas';
+
+    // Help & Guides (help guides Phase 1): business users only, never admin or customers (D8).
+    $showHelpLink = \App\Support\Guides\GuideCatalog::isBusinessUser($user);
 @endphp
 
 <style>
@@ -537,6 +541,17 @@
 
             <!-- ACCOUNT & LOGOUT -->
             <div class="flex-shrink-0 p-3 border-t dark:border-gray-700">
+                {{-- Help & Guides (help guides Phase 1, Q1 → C): in the fixed footer, so it stays
+                     visible however long the menu is, and doesn't push the pinned links down. --}}
+                @if ($showHelpLink)
+                    @php $helpActive = request()->routeIs('help.*'); @endphp
+                    <a href="{{ route('help.index') }}"
+                       @if ($helpActive) aria-current="page" @endif
+                       class="flex items-center w-full min-h-[44px] gap-2 px-3 py-2 mb-2 font-medium transition-colors rounded-lg {{ $helpActive ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
+                        <i class="fa-solid fa-circle-question w-4 shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                        <span class="min-w-0">Help &amp; Guides</span>
+                    </a>
+                @endif
                 @auth
                     <div class="flex items-center justify-between gap-1">
                         {{-- Account. The identity block itself is the link to the profile page. --}}
@@ -635,6 +650,8 @@
     <!-- MAIN CONTENT -->
     <main id="main-content" tabindex="-1" class="relative flex-1 h-screen overflow-y-auto md:ml-64">
         <div class="pt-14 md:pt-0">
+            {{-- First-login banner (help guides Phase 1, D4): business users, until dismissed or Help is opened. --}}
+            @include('layouts.partials.guides-banner')
             @yield('content')
         </div>
     </main>

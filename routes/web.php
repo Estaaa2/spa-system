@@ -1379,6 +1379,29 @@ Route::get('/verification-documents/{document}', [VerificationDocumentController
 
 /*
 |--------------------------------------------------------------------------
+| Help & Guides (help guides Phase 1)
+|--------------------------------------------------------------------------
+| Business users only (D8). No EnsureBranchOperational: Help stays open on a
+| locked branch; it then lists only the guides the sidebar still shows.
+*/
+
+Route::middleware([
+    'auth',
+    'verified',
+    'force.password.change',
+    'owner.onboarding',
+    'spa.access',
+    'role:owner|manager|therapist|receptionist|hr|finance|hr_head|finance_head',
+])->group(function () {
+    Route::get('/help', [\App\Http\Controllers\HelpController::class, 'index'])
+        ->name('help.index');
+
+    Route::post('/help/banner/dismiss', [\App\Http\Controllers\HelpController::class, 'dismissBanner'])
+        ->name('help.banner.dismiss');
+});
+
+/*
+|--------------------------------------------------------------------------
 | User Profile
 |--------------------------------------------------------------------------
 */

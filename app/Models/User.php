@@ -55,6 +55,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'remember_token',
         'email_verification_otp_hash',
         'profile_photo_path',   // private-disk path; use profilePhotoUrl()
+        'guides_dismissed_at',  // web-only Help banner state (help guides Phase 1); keeps API payloads unchanged
     ];
 
     /** Fields that make up the legal name an admin verified against the ID. */
@@ -88,6 +89,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'profile_photo_updated_at' => 'datetime',
             'identity_verified_at' => 'datetime',
             'name_changed_at' => 'datetime',
+            'guides_dismissed_at' => 'datetime',
         ];
     }
 
