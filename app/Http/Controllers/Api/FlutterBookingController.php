@@ -12,10 +12,10 @@ use App\Models\Treatment;
 use App\Models\User;
 use App\Models\Spa;
 use Carbon\Carbon;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class FlutterBookingController extends Controller
@@ -49,12 +49,21 @@ class FlutterBookingController extends Controller
 
             // Verify with PayMongo
             if ($reservation->paymongo_checkout_session_id) {
-                $secretKey      = \App\Services\PayMongo::secretKey();
-                $verifyResponse = Http::withBasicAuth($secretKey, '')
-                    ->acceptJson()
-                    ->get('https://api.paymongo.com/v1/checkout_sessions/' . $reservation->paymongo_checkout_session_id);
+                // A connection failure here must not 500: send the app to the
+                // same page as an unverified payment. The webhook still
+                // finalizes the booking (demo safety Phase 1, Q5 A).
+                try {
+                    $verifyResponse = \App\Services\PayMongo::http()
+                        ->get(\App\Services\PayMongo::API_BASE . '/checkout_sessions/' . $reservation->paymongo_checkout_session_id);
+                } catch (ConnectionException $e) {
+                    Log::warning('PayMongo verify in Flutter paymentSuccess: connection failed', [
+                        'reservation_id' => $reservation->id,
+                        'message'        => $e->getMessage(),
+                    ]);
+                    $verifyResponse = null;
+                }
 
-                if ($verifyResponse->successful()) {
+                if ($verifyResponse?->successful()) {
                     $sessionStatus = data_get($verifyResponse->json(), 'data.attributes.status');
                     $paymentIntent = data_get($verifyResponse->json(), 'data.attributes.payment_intent');
                     $paymentStatus = data_get($paymentIntent, 'attributes.status');

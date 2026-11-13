@@ -10,7 +10,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -121,10 +120,8 @@ class SubscriptionController extends Controller
         };
 
         try {
-            $response = Http::withBasicAuth(PayMongo::secretKey(), '')
-                ->timeout(15)
-                ->acceptJson()
-                ->post('https://api.paymongo.com/v1/checkout_sessions', [
+            $response = PayMongo::http()
+                ->post(PayMongo::API_BASE . '/checkout_sessions', [
                     'data' => [
                         'attributes' => [
                             'send_email_receipt' => true,

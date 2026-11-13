@@ -16,7 +16,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class OnlineBookingCheckoutController extends Controller
@@ -234,14 +234,10 @@ class OnlineBookingCheckoutController extends Controller
             ]);
         });
 
-        $secretKey = \App\Services\PayMongo::secretKey();
-
-        //PAYMONGO API CALL
+        //PAYMONGO API CALL (shared client: connect/total timeouts, one safe retry)
         try {
-            $response = Http::withBasicAuth($secretKey, '')
-                ->timeout(15) // fail fast instead of hanging for 30s
-                ->acceptJson()
-                ->post('https://api.paymongo.com/v1/checkout_sessions', [
+            $response = \App\Services\PayMongo::http()
+                ->post(\App\Services\PayMongo::API_BASE . '/checkout_sessions', [
                     'data' => [
                         'attributes' => [
                             'send_email_receipt' => true,
@@ -282,6 +278,11 @@ class OnlineBookingCheckoutController extends Controller
 
         } catch (ConnectionException $e) {
             // DNS timeout or network failure reaching PayMongo
+            Log::error('PayMongo booking checkout: connection failed', [
+                'reservation_id' => $pending->id,
+                'message'        => $e->getMessage(),
+            ]);
+
             $pending->update([
                 'payment_status'     => 'failed',
                 'reservation_status' => 'failed',

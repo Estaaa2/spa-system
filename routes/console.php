@@ -19,3 +19,7 @@ Schedule::command('identity:purge')->dailyAt('03:10');
 // Decision Support: this morning's staffing / hiring / promo / expansion recommendations
 // (DSS revamp, Q5 B). After deployments:process (00:05) so the day's staff changes count.
 Schedule::command('dss:generate')->dailyAt('00:30');
+// Every minute: proves to `php artisan demo:check` that the cron runs (demo safety Phase 1).
+Schedule::call([\App\Services\Diagnostics\SchedulerHeartbeat::class, 'beat'])
+    ->everyMinute()
+    ->name('scheduler-heartbeat');

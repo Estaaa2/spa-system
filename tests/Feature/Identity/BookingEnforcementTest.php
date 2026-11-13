@@ -374,13 +374,14 @@ class BookingEnforcementTest extends TestCase
 
     public function test_unused_booking_routes_are_gone(): void
     {
-        // 405, not 404: the CORS catch-all OPTIONS /{any} route matches every path.
+        // 404: the CORS catch-all OPTIONS /{any} route used to turn these into 405;
+        // bootstrap/app.php now maps that case to 404 (demo safety Phase 1).
         $this->assertFalse(\Illuminate\Support\Facades\Route::has('bookings.online.store'));
         $this->assertFalse(\Illuminate\Support\Facades\Route::has('appointments.reserve'));
-        $this->actingAs($this->customer)->post('/bookings/online', [])->assertStatus(405);
+        $this->actingAs($this->customer)->post('/bookings/online', [])->assertStatus(404);
 
         $booking = $this->busy($this->user('idv.vera@levictas.test'));
-        $this->actingAs($this->user('manager.a@levictas.test'))->post('/appointments/'.$booking->id.'/reserve', ['therapist_id' => 1])->assertStatus(405);
+        $this->actingAs($this->user('manager.a@levictas.test'))->post('/appointments/'.$booking->id.'/reserve', ['therapist_id' => 1])->assertStatus(404);
         $this->assertSame($this->user('idv.vera@levictas.test')->id, $booking->fresh()->therapist_id);
     }
 }

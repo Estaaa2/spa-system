@@ -154,38 +154,6 @@
             </div>
         </div>
     </div>
-    {{-- Staff Plan Limit Notice --}}
-    @if($staffLimit > 0)
-        <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h2 class="text-sm font-semibold tracking-wide uppercase text-amber-800 dark:text-amber-300">
-                        {{ ucfirst($spa?->currentPlan() ?? 'Current') }} Plan Staff Limit
-                    </h2>
-
-                    <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                        Your plan allows up to
-                        <span class="font-semibold">{{ $staffLimit }}</span>
-                        active staff members across all branches.
-
-                        @if($hasReachedStaffLimit)
-                            You have already reached the limit.
-                        @else
-                            You have
-                            <span class="font-semibold">{{ $remainingStaffSlots }}</span>
-                            staff slot(s) remaining.
-                        @endif
-                    </p>
-                </div>
-
-                <a href="{{ route('owner.subscription.index') }}"
-                class="w-full {{ $btn['upgrade'] }} sm:w-auto">
-                    <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                    View Plans
-                </a>
-            </div>
-        </div>
-    @endif
     {{-- Staff paused by the plan limit --}}
     @if($pausedStaffCount > 0)
         <div class="p-4 border border-amber-200 rounded-2xl bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800" role="status">
@@ -226,15 +194,21 @@
                             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
                                 Your {{ ucfirst($spa?->currentPlan() ?? 'current') }} plan allows
                                 {{ $staffLimit }} active staff members across all branches.
-                                Upgrade your plan to add more staff.
+                                @if($isOwner)
+                                    Upgrade your plan to add more staff.
+                                @else
+                                    Ask the spa owner to upgrade the plan to add more staff.
+                                @endif
                             </p>
                         </div>
 
-                        <a href="{{ route('owner.subscription.index') }}"
-                        class="w-full {{ $btn['upgrade'] }} sm:w-auto">
-                            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                            View Plans
-                        </a>
+                        @if($isOwner)
+                            <a href="{{ route('owner.subscription.index') }}"
+                            class="w-full {{ $btn['upgrade'] }} sm:w-auto">
+                                <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                                View Plans
+                            </a>
+                        @endif
                     </div>
                 </div>
             </div>

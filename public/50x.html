@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+    Static error page for nginx (demo safety Phase 1, Q2 A). Shown only when
+    PHP-FPM is down or overloaded (502/504), so Laravel can't render anything.
+    Same look as resources/views/errors/layout.blade.php; plain HTML, no PHP.
+    nginx: error_page 502 504 /50x.html;  (see the Phase 1 report)
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Temporarily unavailable | Levictas</title>
+    <link rel="icon" href="/images/1.png">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            background: #F6EFE6;
+            color: #374151;
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .card {
+            width: 100%;
+            max-width: 480px;
+            padding: 40px 32px;
+            text-align: center;
+            background: rgba(255, 255, 255, .7);
+            border-radius: 24px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 0 0 1px rgba(0, 0, 0, .05);
+        }
+        .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
+        .brand img { width: 40px; height: 40px; border-radius: 6px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); }
+        .brand span {
+            font-family: "Playfair Display", Georgia, serif;
+            font-size: 22px; font-weight: 600; letter-spacing: .02em; color: #2D3748;
+        }
+        .code {
+            margin: 28px 0 0;
+            font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+            color: #8B7355;
+        }
+        h1 {
+            margin: 8px 0 0;
+            font-family: "Playfair Display", Georgia, serif;
+            font-size: 28px; font-weight: 600; line-height: 1.25; color: #3C2F23;
+        }
+        p.message { margin: 12px 0 0; font-size: 15px; line-height: 1.6; color: #4B5563; }
+        p.hint { margin: 8px 0 0; font-size: 13px; line-height: 1.6; color: #6B7280; }
+        .actions { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-height: 44px; padding: 10px 20px;
+            border-radius: 9999px; border: 0;
+            font: inherit; font-size: 14px; font-weight: 600;
+            text-decoration: none; cursor: pointer;
+            transition: transform .15s ease, background-color .15s ease;
+        }
+        .btn:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(139, 115, 85, .30); }
+        .btn-primary { color: #fff; background: linear-gradient(135deg, #6F5430 0%, #8B7355 55%, #D2A85B 140%); }
+        .btn-primary:hover { transform: translateY(-1px); }
+        .btn-secondary { color: #6F5430; background: transparent; box-shadow: inset 0 0 0 1px rgba(111, 84, 48, .35); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, .6); }
+
+        @media (prefers-color-scheme: dark) {
+            body { background: #111827; color: #F3F4F6; }
+            .card { background: rgba(31, 41, 55, .6); box-shadow: 0 0 0 1px rgba(255, 255, 255, .10); }
+            .brand span { color: #fff; }
+            .code { color: #C4A97D; }
+            h1 { color: #fff; }
+            p.message { color: #D1D5DB; }
+            p.hint { color: #9CA3AF; }
+            .btn-primary { background: linear-gradient(135deg, #5A4526 0%, #8B7355 55%, #C4A97D 140%); }
+            .btn-secondary { color: #C4A97D; box-shadow: inset 0 0 0 1px rgba(196, 169, 125, .4); }
+            .btn-secondary:hover { background: rgba(31, 41, 55, .8); }
+        }
+    </style>
+</head>
+<body>
+    <main class="card" role="main">
+        <a href="/" class="brand" aria-label="Levictas home">
+            <img src="/images/1.png" alt="">
+            <span>Levictas</span>
+        </a>
+
+        <p class="code">Temporarily unavailable</p>
+        <h1>We'll be right back</h1>
+        <p class="message">Levictas is not responding right now. Please wait a moment and try again.</p>
+
+        <div class="actions">
+            <button type="button" class="btn btn-primary" onclick="location.reload()">Try again</button>
+        </div>
+    </main>
+</body>
+</html>
