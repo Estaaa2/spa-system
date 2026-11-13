@@ -59,19 +59,47 @@ function submitCustomerPhoto(input) {
 // =====================================================
 // SPA MODAL
 // =====================================================
+/*
+  Spa modal rework (Nov 2026): sheet on phones, dialog from sm, same contract as
+  bookingDetailsModal — focus goes to the title on open and back to the trigger
+  on close, Tab stays inside, Escape is in the shared top-most-wins handler.
+  Every class toggled here is written out in welcome.blade.php so Tailwind
+  generates it (welcome.js is not in Tailwind's content globs).
+*/
 const spaModal     = document.getElementById('spaModal');
 const closeSpaBtns = document.querySelectorAll('[data-close-spa-modal]');
-let photos     = [];
-let photoIndex = 0;
+let photos         = [];
+let photoIndex     = 0;
+let spaReturnFocus = null;
 
-// D11: "Business verified" badge and "Owned by …" under the spa name. Toggles
-// classes that exist in welcome.blade.php (hidden / flex / inline-flex).
+// Labels and icons for the default amenities. The keys and labels mirror the
+// $defaultAmenities list in branches/edit.blade.php; keep the two in sync.
+// Custom amenities (typed by the spa) fall back to a prettified key and a
+// generic icon.
+const AMENITY_META = {
+    aircon:        ['Air Conditioning', 'fa-snowflake'],
+    private_rooms: ['Private Rooms',    'fa-door-closed'],
+    shower:        ['Shower',           'fa-shower'],
+    parking:       ['Parking',          'fa-square-parking'],
+    wifi:          ['WiFi',             'fa-wifi'],
+    locker:        ['Locker',           'fa-lock'],
+    pet_friendly:  ['Pet Friendly',     'fa-paw'],
+    sauna:         ['Sauna',            'fa-hot-tub-person'],
+};
+
+function amenityMeta(key) {
+    const raw = String(key ?? '');
+    if (AMENITY_META[raw]) return AMENITY_META[raw];
+    const label = raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return [label, 'fa-circle-check'];
+}
+
+// D11: "Business verified" badge and "Owned by …" under the photos.
 function renderSpaOwner(spaData) {
-    const row      = document.getElementById('spaModalOwnerRow');
-    const badge    = document.getElementById('spaModalBusinessVerified');
-    const owner    = document.getElementById('spaModalOwner');
-    const nameEl   = document.getElementById('spaModalOwnerName');
-    if (!row || !badge || !owner || !nameEl) return;
+    const badge  = document.getElementById('spaModalBusinessVerified');
+    const owner  = document.getElementById('spaModalOwner');
+    const nameEl = document.getElementById('spaModalOwnerName');
+    if (!badge || !owner || !nameEl) return;
 
     const verified = spaData.business_verified === true;
     const name     = (spaData.owner_name || '').trim();
@@ -80,107 +108,172 @@ function renderSpaOwner(spaData) {
     badge.classList.toggle('inline-flex', verified);
     nameEl.textContent = name;
     owner.classList.toggle('hidden', name === '');
-    row.classList.toggle('hidden', !verified && name === '');
-    row.classList.toggle('flex', verified || name !== '');
+}
+
+function getAddressSummary(fullAddress) {
+    if (!fullAddress) return 'Location unavailable';
+    const parts = fullAddress.split(',').map(p => p.trim());
+    if (parts.length < 3) return fullAddress;
+    const withoutZipCountry = parts.slice(0, parts.length - 2);
+    return withoutZipCountry.slice(-3).join(', ');
+}
+
+function spaHasCoords(spaData) {
+    return Number.isFinite(Number(spaData?.lat)) && Number.isFinite(Number(spaData?.lng))
+        && spaData.lat !== null && spaData.lng !== null && spaData.lat !== '' && spaData.lng !== '';
+}
+
+// Google Maps URLs API: opens directions in the app on phones, the site elsewhere.
+function spaDirectionsUrl(spaData) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${spaData.lat},${spaData.lng}`)}`;
+}
+
+// Popup text through a text node: Leaflet treats a string popup as HTML, and
+// the spa name is typed by the business.
+function spaMapPopup(name) {
+    const el = document.createElement('span');
+    el.textContent = name || 'Spa';
+    return el;
+}
+
+function renderSpaAmenities(spaData) {
+    const container = document.getElementById('spaModalAmenities');
+    if (!container) return;
+
+    const amenities = Array.isArray(spaData.amenities) ? spaData.amenities.filter(Boolean) : [];
+    if (!amenities.length) {
+        container.innerHTML = `<p class="text-sm text-gray-500 dark:text-gray-400">No amenities listed yet.</p>`;
+        return;
+    }
+
+    // Custom amenities are free text from the spa, so the label is escaped.
+    container.innerHTML = `
+        <ul class="grid grid-cols-2 gap-2">
+            ${amenities.map(a => {
+                const [label, icon] = amenityMeta(a);
+                return `
+                    <li class="amenity-chip">
+                        <span class="amenity-chip-icon"><i class="fa-solid ${icon}" aria-hidden="true"></i></span>
+                        <span class="amenity-chip-label">${escapeHtml(label)}</span>
+                    </li>`;
+            }).join('')}
+        </ul>`;
+}
+
+function renderSpaMapPreview(spaData) {
+    const wrap  = document.getElementById('spaModalMapWrap');
+    const elMap = document.getElementById('spaModalMap');
+    const dir   = document.getElementById('spaModalDirections');
+
+    if (spaMap) { spaMap.remove(); spaMap = null; }
+
+    const hasCoords = spaHasCoords(spaData);
+    wrap?.classList.toggle('hidden', !hasCoords);
+    if (!hasCoords || !elMap) return;
+
+    if (dir) dir.href = spaDirectionsUrl(spaData);
+
+    // Wait for the sheet's open animation so Leaflet measures the real size.
+    setTimeout(() => {
+        if (spaModal.classList.contains('hidden') || selectedSpa !== spaData) return;
+        const latLng = [Number(spaData.lat), Number(spaData.lng)];
+        // Static preview: it lives inside a scrolling sheet, so dragging, wheel
+        // and tap zoom are off and the Expand button covers it.
+        spaMap = L.map(elMap, {
+            dragging: false,
+            touchZoom: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false,
+            zoomControl: false,
+        }).setView(latLng, 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '&copy; OpenStreetMap'
+        }).addTo(spaMap);
+        L.marker(latLng).addTo(spaMap);
+        spaMap.invalidateSize();
+    }, 300);
 }
 
 function openSpaModal(spaData) {
     selectedSpa = spaData;
+    if (spaModal.classList.contains('hidden')) spaReturnFocus = document.activeElement;
 
     document.getElementById('spaModalName').textContent    = spaData.name    ?? 'Spa';
+    document.getElementById('spaModalName').title          = spaData.name    ?? '';
     document.getElementById('spaModalTag').textContent     = spaData.tag     ?? 'Featured Spa';
     renderSpaOwner(spaData);
-    document.getElementById('spaModalDesc').textContent    = spaData.desc    ?? '';
-    document.getElementById('spaModalPhone').textContent   = spaData.phone   ?? 'No contact info';
-    document.getElementById('spaModalAddress').textContent = spaData.address ?? 'Address unavailable';
-    document.getElementById('spaModalPrice').textContent   = spaData.price_note
-    ? (spaData.has_promo ? `Starts at ₱${spaData.price_note} — ${spaData.promo_label} running` : `Starts at ₱${spaData.price_note}`)
-    : 'Prices vary per treatment';
+    document.getElementById('spaModalDesc').textContent    = spaData.desc    || 'This spa hasn\'t added a description yet.';
+    document.getElementById('spaModalPhone').textContent   = spaData.phone   || 'No contact info';
+    document.getElementById('spaModalAddress').textContent = spaData.address || 'Address unavailable';
+    document.getElementById('spaModalAddressSummary').textContent = getAddressSummary(spaData.address);
 
-    // Online reservation gate. The server sends can_book_online per spa;
-    // a missing flag counts as allowed so older payloads keep working.
-    const reserveBtn  = document.getElementById('openBookingModalBtn');
-    const noBookNote  = document.getElementById('spaModalNoBookingNote');
+    const priceText = spaData.price_note
+        ? (spaData.has_promo ? `Starts at ₱${spaData.price_note} — ${spaData.promo_label} running` : `Starts at ₱${spaData.price_note}`)
+        : 'Prices vary per treatment';
+    document.getElementById('spaModalPrice').textContent = priceText;
+    const footerPrice = document.getElementById('spaModalFooterPrice');
+    if (footerPrice) {
+        footerPrice.textContent = spaData.price_note ? `From ₱${spaData.price_note}` : 'Varies per treatment';
+        footerPrice.title = priceText;
+    }
+
+    // Online reservation gate. The server sends can_book_online per spa; a
+    // missing flag counts as allowed so older payloads keep working. One
+    // attribute drives the Reserve button, the Call button and the note (landing.css).
     const canBookOnline = spaData.can_book_online !== false;
-    reserveBtn?.classList.toggle('hidden', !canBookOnline);
-    noBookNote?.classList.toggle('hidden', canBookOnline);
+    spaModal.dataset.canBook = canBookOnline ? 'true' : 'false';
 
-    const hiringBlock = document.getElementById('spaModalHiring');
-    const hiringNote   = document.getElementById('spaModalHiringNote');
+    // "Call spa" stands in for Reserve in the phone footer when online booking
+    // is off, but only when there's a number to call.
+    const callBtn = document.getElementById('spaModalCallBtn');
+    if (callBtn) {
+        const tel = String(spaData.phone ?? '').replace(/[^\d+]/g, '');
+        const callable = tel.replace(/\D/g, '').length >= 7;
+        callBtn.href = callable ? `tel:${tel}` : '#';
+        callBtn.classList.toggle('hidden', !callable);
+        callBtn.classList.toggle('inline-flex', callable);
+    }
+
     const ratingBlock = document.getElementById('spaModalRating');
     const ratingValue = document.getElementById('spaModalRatingValue');
     const ratingCount = document.getElementById('spaModalRatingCount');
     if (ratingBlock && ratingValue && ratingCount) {
-        if (spaData.rating_avg) {
+        const hasRating = !!spaData.rating_avg;
+        if (hasRating) {
+            const n = Number(spaData.rating_count) || 0;
             ratingValue.textContent = spaData.rating_avg;
-            ratingCount.textContent = `(${spaData.rating_count})`;
-            ratingBlock.classList.remove('hidden');
-            ratingBlock.classList.add('flex');
-        } else {
-            ratingBlock.classList.add('hidden');
-            ratingBlock.classList.remove('flex');
+            ratingCount.textContent = `· ${n} ${n === 1 ? 'review' : 'reviews'}`;
+            ratingBlock.setAttribute('aria-label', `Rated ${spaData.rating_avg} out of 5 from ${n} ${n === 1 ? 'review' : 'reviews'}. See reviews`);
         }
+        ratingBlock.classList.toggle('hidden', !hasRating);
+        ratingBlock.classList.toggle('inline-flex', hasRating);
     }
+
+    const hiringBlock = document.getElementById('spaModalHiring');
+    const hiringNote  = document.getElementById('spaModalHiringNote');
     if (hiringBlock) {
-        if (spaData.is_hiring) {
-            hiringBlock.classList.remove('hidden');
-            if (hiringNote) hiringNote.textContent = spaData.hiring_note || 'This branch is currently accepting applications.';
-        } else {
-            hiringBlock.classList.add('hidden');
+        hiringBlock.classList.toggle('hidden', !spaData.is_hiring);
+        if (spaData.is_hiring && hiringNote) {
+            hiringNote.textContent = spaData.hiring_note || 'This branch is currently accepting applications.';
         }
         renderSpaModalOpenings(spaData);
     }
 
-    function getAddressSummary(fullAddress) {
-        if (!fullAddress) return 'Location unavailable';
-        const parts = fullAddress.split(',').map(p => p.trim());
-        if (parts.length < 3) return fullAddress;
-        const withoutZipCountry = parts.slice(0, parts.length - 2);
-        return withoutZipCountry.slice(-3).join(', ');
-    }
-    document.getElementById('spaModalAddressSummary').textContent = getAddressSummary(spaData.address);
-
-    const amenitiesContainer = document.getElementById('spaModalAmenities');
-    if (amenitiesContainer) {
-        const amenities = spaData.amenities ?? [];
-        if (amenities.length) {
-            amenitiesContainer.innerHTML = `
-                <div class="grid grid-cols-2 gap-2">
-                    ${amenities.map(a => {
-                        const label = a.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                        return `
-                            <div class="amenity-chip">
-                                <div class="amenity-chip-icon">
-                                    <i class="fa-solid fa-spa"></i>
-                                </div>
-                                <span class="amenity-chip-label">${label}</span>
-                            </div>`;
-                    }).join('')}
-                </div>`;
-        } else {
-            amenitiesContainer.innerHTML = `<p class="text-sm italic text-gray-400 dark:text-gray-500">No amenities listed yet.</p>`;
-        }
-    }
+    renderSpaAmenities(spaData);
 
     photos = normalizeSpaPhotos(spaData.photos);
     renderSpaPhotoGrid(photos, spaData.name ?? 'Spa');
 
+    const body = document.getElementById('spaBody');
+    if (body) body.scrollTop = 0;
+
     spaModal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
+    requestAnimationFrame(() => document.getElementById('spaModalName')?.focus());
 
-    const elMap = document.getElementById('spaModalMap');
-    if (spaMap) { spaMap.remove(); spaMap = null; }
-    if (elMap && spaData.lat && spaData.lng) {
-        setTimeout(() => {
-            spaMap = L.map(elMap).setView([spaData.lat, spaData.lng], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19, attribution: '&copy; OpenStreetMap'
-            }).addTo(spaMap);
-            L.marker([spaData.lat, spaData.lng])
-                .addTo(spaMap).bindPopup(spaData.name).openPopup();
-            spaMap.invalidateSize();
-        }, 300);
-    }
+    renderSpaMapPreview(spaData);
     photoIndex = 0;
 }
 
@@ -235,7 +328,7 @@ function openReviewsModal(spaId, branchId, spaName) {
 function closeReviewsModal() {
     const modal = document.getElementById('reviewsModal');
     if (modal) modal.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+    releaseBodyUnlessSpaOpen();
 }
 
 function renderReviewFilterTabs() {
@@ -343,10 +436,97 @@ function openReviewPhoto(url) {
 }
 
 function closeSpaModal() {
+    closeSpaMapFull(false);
     closeLightbox();
     spaModal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+    if (spaMap) { spaMap.remove(); spaMap = null; }
+    if (spaReturnFocus && document.contains(spaReturnFocus)) spaReturnFocus.focus();
+    spaReturnFocus = null;
 }
+
+function isSpaModalOpen() {
+    return !!spaModal && !spaModal.classList.contains('hidden');
+}
+
+// Overlays that open on top of the spa modal (reviews, booking, job
+// application) keep the page locked while it is still open underneath.
+function releaseBodyUnlessSpaOpen() {
+    if (!isSpaModalOpen()) document.body.classList.remove('overflow-hidden');
+}
+
+// Tab stays inside whichever spa layer is on top. Leaflet's own controls are
+// skipped, same as the profile modal's trap.
+function trapTab(e, container) {
+    if (e.key !== 'Tab' || !container) return;
+    const focusable = [...container.querySelectorAll(
+        'a[href]:not([href="#"]), button:not([disabled]), [tabindex="0"]'
+    )].filter(el => el.offsetParent !== null && !el.closest('.leaflet-control-container'));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && (document.activeElement === first || !container.contains(document.activeElement))) {
+        e.preventDefault(); last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+    }
+}
+
+spaModal?.addEventListener('keydown', (e) => {
+    if (isLightboxOpen() || isSpaMapFullOpen()) return; // they trap their own Tab
+    trapTab(e, document.getElementById('spaPanel'));
+});
+
+// =====================================================
+// SPA MODAL: FULLSCREEN MAP
+// =====================================================
+const spaMapFullEl     = document.getElementById('spaMapFull');
+let spaFullMap         = null;
+let spaMapFullReturnFocus = null;
+
+function isSpaMapFullOpen() {
+    return !!spaMapFullEl && !spaMapFullEl.classList.contains('hidden');
+}
+
+function openSpaMapFull() {
+    if (!spaMapFullEl || !selectedSpa || !spaHasCoords(selectedSpa)) return;
+
+    spaMapFullReturnFocus = document.activeElement;
+    document.getElementById('spaMapFullTitle').textContent   = selectedSpa.name ?? 'Map';
+    document.getElementById('spaMapFullAddress').textContent = selectedSpa.address ?? '';
+    document.getElementById('spaMapFullDirections').href     = spaDirectionsUrl(selectedSpa);
+
+    spaMapFullEl.classList.remove('hidden');
+    requestAnimationFrame(() => document.getElementById('spaMapFullTitle')?.focus());
+
+    // Built after the overlay is visible, so Leaflet measures the full size.
+    // Body scroll is already locked by the spa modal underneath.
+    requestAnimationFrame(() => {
+        if (spaFullMap) { spaFullMap.remove(); spaFullMap = null; }
+        const latLng = [Number(selectedSpa.lat), Number(selectedSpa.lng)];
+        spaFullMap = L.map('spaMapFullCanvas').setView(latLng, 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '&copy; OpenStreetMap'
+        }).addTo(spaFullMap);
+        L.marker(latLng).addTo(spaFullMap).bindPopup(spaMapPopup(selectedSpa.name)).openPopup();
+        spaFullMap.invalidateSize();
+    });
+}
+
+function closeSpaMapFull(restoreFocus = true) {
+    if (!isSpaMapFullOpen()) return;
+    spaMapFullEl.classList.add('hidden');
+    if (spaFullMap) { spaFullMap.remove(); spaFullMap = null; }
+    if (restoreFocus && spaMapFullReturnFocus && document.contains(spaMapFullReturnFocus)) {
+        spaMapFullReturnFocus.focus();
+    }
+    spaMapFullReturnFocus = null;
+}
+
+document.getElementById('spaModalMapExpand')?.addEventListener('click', openSpaMapFull);
+document.getElementById('spaMapFullClose')?.addEventListener('click', () => closeSpaMapFull());
+spaMapFullEl?.addEventListener('keydown', (e) => trapTab(e, spaMapFullEl));
+window.addEventListener('resize', () => spaFullMap?.invalidateSize());
 
 // =====================================================
 // RATING PHOTOS (spa section)
@@ -972,7 +1152,8 @@ spaSearchForm?.addEventListener('submit', function (e) {
 // BOOKING MODAL
 // =====================================================
 const bookingModal         = document.getElementById('bookingModal');
-const openBookingBtn       = document.getElementById('openBookingModalBtn');
+// Reserve buttons (the spa modal's footer bar); a list so more can be added.
+const openBookingBtns      = document.querySelectorAll('[data-open-booking-modal]');
 const closeBookingBtns     = document.querySelectorAll('[data-close-booking-modal]');
 const bookingSpaMeta       = document.getElementById('bookingSpaMeta');
 const bookingSpaIdInput    = document.getElementById('bookingSpaIdInput');
@@ -1873,10 +2054,10 @@ async function renderSpaModalOpenings(spaData) {
     }
 
     list.innerHTML = openings.map(o => `
-        <li class="flex flex-wrap items-center justify-between gap-3 p-3 bg-white/70 dark:bg-gray-900/30 rounded-xl ring-1 ring-green-200/70 dark:ring-green-800/60">
+        <li class="spa-opening">
             <div class="min-w-0">
-                <p class="text-sm font-semibold text-[#3C2F23] dark:text-white">${escapeHtml(o.title)}</p>
-                <p class="text-xs text-gray-600 dark:text-gray-300">${escapeHtml(openingMetaText(o))}</p>
+                <p class="spa-opening-title">${escapeHtml(o.title)}</p>
+                <p class="spa-opening-meta">${escapeHtml(openingMetaText(o))}</p>
             </div>
             <button type="button" data-posting-id="${escapeHtml(String(o.id))}"
                 class="spa-modal-apply-btn inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2 text-xs font-semibold text-white rounded-xl booking-btn shadow-sm">
@@ -1917,7 +2098,7 @@ function closeApplicationModal() {
     const modal = document.getElementById('applicationModal');
     if (!modal) return;
     modal.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+    releaseBodyUnlessSpaOpen();
 }
 
 // =====================================================
@@ -2176,16 +2357,16 @@ document.addEventListener('DOMContentLoaded', function() {
 function closeBookingModal() {
     if (!bookingModal) return;
     bookingModal.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+    releaseBodyUnlessSpaOpen();
 }
 
-openBookingBtn?.addEventListener('click', () => {
+openBookingBtns.forEach(btn => btn.addEventListener('click', () => {
     try {
         openBookingModal();
     } catch (e) {
         console.error('openBookingModal failed to open:', e);
     }
-});
+}));
 closeBookingBtns.forEach(btn => btn.addEventListener('click', closeBookingModal));
 
 serviceListContainer?.addEventListener('change', function (e) {
@@ -4120,6 +4301,7 @@ document.getElementById('profileModal')?.addEventListener('keydown', (e) => {
 */
 const escapeCloseOrder = [
     ['photoLightbox',       () => closeLightbox()],          // z-[155]
+    ['spaMapFull',          () => closeSpaMapFull()],        // z-[150]
     // logoutModal (z-[145]) is handled in landing-nav.js.
     ['reviewsModal',        () => closeReviewsModal()],      // z-[145]
     ['profileModal',        () => pfEscape()],               // z-[130]; an editor goes back first
