@@ -178,16 +178,25 @@ final class DemoHistory
             return;
         }
 
+        // The coming weekend (Fri–Sun, when every therapist works): one Bacoor therapist is off.
+        $weekend = Carbon::today()->addDays(2);
+        while (! in_array($weekend->dayOfWeek, [5, 6, 0], true)) {
+            $weekend->addDay();
+        }
+        $bacoor = $therapists[4] ?? $therapists[1];
+
         $rows = [
             [$therapists[0], 'sick', $from->copy()->addDays(30), 1, 'approved', 'Fever and flu. Medical certificate attached at the front desk.'],
-            [$therapists[2], 'vacation', $from->copy()->addDays(58), 2, 'approved', 'Family reunion in Batangas.'],
-            [$therapists[3], 'personal', $from->copy()->addDays(70), 1, 'rejected', 'Personal errand.'],
+            [$therapists[2], 'vacation', $from->copy()->addDays(95), 2, 'approved', 'Family reunion in Batangas.'],
+            [$therapists[3], 'personal', $from->copy()->addDays(150), 1, 'rejected', 'Personal errand.'],
+            [$therapists[min(7, count($therapists) - 1)], 'sick', $from->copy()->addDays(160), 1, 'approved', 'Sprained wrist, doctor advised one day of rest.'],
+            [$bacoor, 'emergency', $weekend->copy(), 1, 'approved', 'Sister\'s wedding in Lipa.'],
             [$therapists[1], 'vacation', Carbon::today()->addDays(9), 2, 'pending', 'Kids\' school program and a short trip.'],
         ];
 
         foreach ($rows as [[$user, $branch, $manager], $type, $start, $days, $status, $reason]) {
             $end = $start->copy()->addDays($days - 1);
-            $filed = $start->copy()->subDays(5);
+            $filed = $start->copy()->subDays(5)->min(Carbon::today()->subDay());
             DB::table('leave_requests')->insert([
                 'user_id' => $user->id, 'spa_id' => $spa->id, 'branch_id' => $branch->id,
                 'leave_type' => $type, 'start_date' => $start->toDateString(), 'end_date' => $end->toDateString(),
@@ -269,9 +278,18 @@ final class DemoHistory
         $therapists = array_values(array_filter($plan['therapists'], fn (User $u) => isset($present[$u->id])));
         $busy = [];
         $services = $this->serviceWeights($plan['services']);
+        // A service that fell out of favour lately (e.g. its equipment was under repair).
+        foreach ($plan['demand'] ?? [] as $key => [$since, $factor]) {
+            foreach ($services as &$row) {
+                if ($row[6] === $key && $day->gte($since)) {
+                    $row[5] = max(1, (int) round($row[5] * $factor));
+                }
+            }
+            unset($row);
+        }
 
         for ($n = 0; $n < $count; $n++) {
-            [$code, $label, $minutes, $price, $homeOk] = $this->pick($services);
+            [$code, $label, $minutes, $price, $homeOk] = $this->pickSmooth($plan['branch']->id, $services);
             $start = $this->startMinute($plan, $day->dayOfWeek, $minutes);
             if ($start === null) {
                 continue;
@@ -306,17 +324,77 @@ final class DemoHistory
             $customer = $online ? $this->customer($regular, $branch) : null;
             $this->insertBooking($spa, $plan, $day, $start, $end, $code, $price, $online, $inHome, $therapist, $customer);
         }
+
+        if (isset($plan['fill']) && $day->gte($plan['fill']['from']) && $day->lt(Carbon::today())) {
+            $this->fillDay($spa, $plan, $day, $present, $therapists, $busy);
+        }
+    }
+
+    /**
+     * A branch that is fully booked most of the day: walk-ins take every gap
+     * until each therapist is booked for about $plan['fill']['ratio'] of the shift.
+     */
+    private function fillDay(Spa $spa, array $plan, Carbon $day, array $present, array $therapists, array $busy): void
+    {
+        // Short services fill the gaps an hour-long one can't: 60, then 45, then 30 minutes.
+        $byLength = [];
+        foreach ($this->serviceWeights($plan['services']) as $row) {
+            if (in_array($row[2], [30, 45, 60], true)) {
+                $byLength[$row[2]][] = $row;
+            }
+        }
+        krsort($byLength);
+        if ($byLength === []) {
+            return;
+        }
+
+        foreach ($therapists as $therapist) {
+            [$in, $out] = $present[$therapist->id];
+            $mine = $busy[$therapist->id] ?? [];
+            $booked = array_sum(array_map(fn ($w) => $w[1] - $w[0], $mine));
+            $target = ($out - $in) * $plan['fill']['ratio'];
+
+            for ($t = (int) (ceil($in / 15) * 15); $t + 30 <= $out && $booked < $target; $t += 15) {
+                // Free minutes from $t until the next booking (or the end of the shift).
+                $gapEnd = $out;
+                $inside = false;
+                foreach ($mine as [$s, $e]) {
+                    if ($t >= $s && $t < $e) {
+                        $inside = true;
+                        break;
+                    }
+                    if ($s >= $t) {
+                        $gapEnd = min($gapEnd, $s);
+                    }
+                }
+                if ($inside) {
+                    continue;
+                }
+                foreach ($byLength as $minutes => $rows) {
+                    if ($t + $minutes <= $gapEnd) {
+                        [$code, , , $price] = $this->pickSmooth(-$plan['branch']->id * 100 - $minutes, $rows);
+                        $mine[] = [$t, $t + $minutes];
+                        $booked += $minutes;
+                        $this->insertBooking($spa, $plan, $day, $t, $t + $minutes, $code, $price, false, false, $therapist, null, true);
+                        $t += $minutes - 15;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private function insertBooking(Spa $spa, array $plan, Carbon $day, int $start, int $end, string $code, float $price,
-        bool $online, bool $inHome, ?User $therapist, ?User $customer): void
+        bool $online, bool $inHome, ?User $therapist, ?User $customer, bool $mustComplete = false): void
     {
         $startsAt = $day->copy()->setTime(intdiv($start, 60), $start % 60);
         $endsAt = $day->copy()->setTime(intdiv($end, 60), $end % 60);
         $now = now();
         $roll = mt_rand(1, 100);
 
-        if ($endsAt->lte($now)) {
+        if ($endsAt->lte($now) && $mustComplete) {
+            $status = 'completed';
+        } elseif ($endsAt->lte($now)) {
             $status = match (true) {
                 $online && $roll <= 7 => 'cancelled',
                 $online && $roll <= 11 => Booking::NO_SHOW,
@@ -412,13 +490,36 @@ final class DemoHistory
     {
         $out = [];
         foreach ($services['treatments'] as $key => $t) {
-            $out[] = ['treatment_'.$t->id, $t->name, (int) $t->duration, (float) $t->price, $t->service_type === 'in_branch_and_home', DemoCatalog::TREATMENTS[$key][4]];
+            $out[] = ['treatment_'.$t->id, $t->name, (int) $t->duration, (float) $t->price, $t->service_type === 'in_branch_and_home', DemoCatalog::TREATMENTS[$key][4], $key];
         }
         foreach ($services['packages'] as $key => $p) {
-            $out[] = ['package_'.$p->id, $p->name, (int) $p->total_duration, (float) $p->price, false, DemoCatalog::PACKAGES[$key][3]];
+            $out[] = ['package_'.$p->id, $p->name, (int) $p->total_duration, (float) $p->price, false, DemoCatalog::PACKAGES[$key][3], $key];
         }
 
         return $out;
+    }
+
+    /** stream key => code => owed share (keeps each service's count close to its weight) */
+    private array $credit = [];
+
+    /**
+     * Pick a service so the mix follows the weights closely week after week
+     * (a running "owed" share per service), instead of a dice roll whose noise
+     * would look like sudden drops in demand.
+     */
+    private function pickSmooth(int $stream, array $weighted): array
+    {
+        $total = array_sum(array_column($weighted, 5));
+        $best = null;
+        foreach ($weighted as $row) {
+            $this->credit[$stream][$row[0]] = ($this->credit[$stream][$row[0]] ?? mt_rand(0, 100) / 100) + $row[5] / $total;
+            if ($best === null || $this->credit[$stream][$row[0]] > $this->credit[$stream][$best[0]]) {
+                $best = $row;
+            }
+        }
+        $this->credit[$stream][$best[0]] -= 1;
+
+        return $best;
     }
 
     private function pick(array $weighted): array

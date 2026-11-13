@@ -40,33 +40,30 @@ final class DemoBuilder
 
     // ── People ─────────────────────────────────────────────────────────────
 
-    /** The next invented [first, last] name (deterministic, never repeats a pair). */
-    public function nextName(): array
+    /** The next staff name, with an email at the spa's domain: [first, last, email]. */
+    public function nextStaff(string $domain): array
     {
-        $i = $this->nameIndex++;
-        $firsts = DemoCatalog::FIRST_NAMES;
-        $lasts = DemoCatalog::LAST_NAMES;
+        [$first, $last] = DemoCatalog::STAFF_NAMES[$this->nameIndex++ % count(DemoCatalog::STAFF_NAMES)];
 
-        // Step through first names 13 at a time (mixes women's and men's names) and
-        // shift the last name each lap, so no first+last pair repeats.
-        return [$firsts[($i * 13) % count($firsts)], $lasts[($i * 7 + intdiv($i, count($firsts))) % count($lasts)]];
+        return [$first, $last, DemoCatalog::email($first, $last, $domain)];
     }
 
-    public function user(string $local, string $role, ?Spa $spa = null, ?Branch $branch = null, array $attributes = [], ?Carbon $createdAt = null): User
+    /** @param array{0: string, 1: string, 2: string} $person first, last, email */
+    public function user(array $person, string $role, ?Spa $spa = null, ?Branch $branch = null, array $attributes = [], ?Carbon $createdAt = null): User
     {
-        [$first, $last] = isset($attributes['first_name']) ? [$attributes['first_name'], $attributes['last_name']] : $this->nextName();
+        [$first, $last, $email] = $person;
         $createdAt ??= now();
 
         $user = new User();
         $user->forceFill([
-            'first_name' => $first, 'last_name' => $last, 'email' => DemoCatalog::email($local),
+            'first_name' => $first, 'last_name' => $last, 'email' => $email,
             'password' => $this->passwordHash, 'status' => 'active',
             'email_verified_at' => $createdAt, 'is_owner' => $role === 'owner',
             'spa_id' => $spa?->id, 'branch_id' => $branch?->id,
-            'phone' => '0917'.str_pad((string) (1000000 + crc32($local) % 8999999), 7, '0', STR_PAD_LEFT),
+            'phone' => '09'.(17 + crc32($email) % 82).str_pad((string) (crc32(strrev($email)) % 10000000), 7, '0', STR_PAD_LEFT),
             'terms_version' => $this->termsVersion(), 'terms_accepted_at' => $createdAt,
             'created_at' => $createdAt, 'updated_at' => $createdAt,
-        ] + array_diff_key($attributes, ['first_name' => 1, 'last_name' => 1]))->saveQuietly();
+        ] + $attributes)->saveQuietly();
 
         $user->syncRoles([$role]);
 
@@ -137,7 +134,7 @@ final class DemoBuilder
         $profile = new BranchProfile();
         $profile->forceFill([
             'branch_id' => $branch->id, 'is_listed' => $listed,
-            'description' => "{$spa->name} — {$name} branch. A calm, air-conditioned space for massage and wellness in {$city}. This is demo data for the Levictas thesis presentation; bookings here are not real.",
+            'description' => "{$spa->name} — {$name} branch. A calm, air-conditioned space for massage and wellness in {$city}. Demo spa for the Levictas presentation: bookings here are not real.",
             'phone' => '0917'.str_pad((string) (2000000 + $branch->id), 7, '0', STR_PAD_LEFT),
             'address' => "{$street}, {$city}, Cavite", 'city' => $city,
             'latitude' => $lat, 'longitude' => $lng,

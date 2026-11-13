@@ -2,11 +2,15 @@
 
 namespace Database\Seeders;
 
+use App\Http\Controllers\Insights\DecisionSupportController;
 use App\Models\Branch;
 use App\Models\CommissionRule;
+use App\Models\DssRecommendation;
 use App\Models\Spa;
+use App\Models\Staff;
 use App\Models\StaffPayProfile;
 use App\Models\User;
+use App\Services\DecisionSupport\RecommendationEngine;
 use App\Services\Navigation\NavBadges;
 use Database\Seeders\Demo\DemoBuilder;
 use Database\Seeders\Demo\DemoCatalog;
@@ -15,6 +19,7 @@ use Database\Seeders\Demo\DemoHistory;
 use Database\Seeders\Demo\DemoOperations;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -23,9 +28,8 @@ use Spatie\Permission\PermissionRegistrar;
 use Throwable;
 
 /**
- * DEMO DATA — 12 fake spas that together show every situation a spa can be in,
- * plus demo customers. Made for the thesis defense and for showing the platform
- * to others; it may run on the production server (see below).
+ * DEMO DATA — four demo spas and their customers, for the thesis defense and
+ * for showing the platform. It may run on the production server (see below).
  *
  *   php artisan db:seed --class=DemoDataSeeder --force          (once)
  *   php artisan db:seed --class=DemoDataResetSeeder --force     (fresh copy: remove, then seed again)
@@ -35,19 +39,21 @@ use Throwable;
  *   DEMO_SEED_PASSWORD=...           shared password of every demo account (never commit it)
  *   DEMO_SEED_ALLOW_PRODUCTION=true  only on the production server, only while seeding
  *
- * Two showcase spas have about 3 months of history (bookings, ratings and, on
- * Premium, attendance, leave, payroll, inventory, procurement, hiring and
- * expenses). The other ten each show one situation: on a free trial, trial
- * ended, grace period, plan expired, never started a trial, verification
- * pending / rejected, just registered, no verified therapists, Basic at its
- * limit. See DemoCatalog::SPAS.
+ *   Serenity Wellness Spa  Premium, 3 branches, ~6½ months of tidy day-to-day data:
+ *                          bookings, ratings, attendance, leave, payroll, inventory,
+ *                          purchasing, hiring, expenses, promos. Shaped so every
+ *                          Decision Support rule shows on its own: Bacoor has been
+ *                          fully booked for 3 months (hire, staffing, open another
+ *                          branch), Dasmariñas has light days, Imus's Hot Stone
+ *                          bookings dropped (promo).
+ *   Hilot Haven Spa        Basic, 2 branches, 3 months of bookings and ratings.
+ *   Ginhawa Body & Soul    Premium ended 20 days ago, never renewed: locked, data kept.
+ *   Kalinaw Wellness Spa   Documents sent, waiting for admin review.
  *
- * Dates are relative to the day it runs (the trial "ends in 18 days" from the
- * day it was seeded). Re-run the Reset seeder shortly before a presentation.
- *
- * Every demo email ends in @levictas-demo.test, every demo spa name ends in
- * "(Demo)", and every demo file is under storage/.../demo-data/. Nothing else is
- * touched. Payments are fake (method "test", not live, no PayMongo).
+ * Dates are counted from the day it runs. Names look real but are invented;
+ * every email domain ends in ".test" (never delivers), every spa name ends in
+ * "(Demo)", every demo image is under storage/.../demo-data/. Plan payments are
+ * fake (method "test", not live, no PayMongo).
  */
 class DemoDataSeeder extends Seeder
 {
@@ -55,7 +61,7 @@ class DemoDataSeeder extends Seeder
 
     private ?User $admin;
 
-    /** @var list<User> */
+    /** @var list<User> customers who book online (not the brand-new one) */
     private array $customers = [];
 
     private User $regular;
@@ -71,8 +77,14 @@ class DemoDataSeeder extends Seeder
             return;
         }
 
+        $staffEmail = fn ($q) => $q->where(function ($q) {
+            foreach (DemoCatalog::staffEmailPatterns() as $pattern) {
+                $q->orWhere('email', 'like', $pattern);
+            }
+        });
         if (Spa::withoutGlobalScopes()->withTrashed()->whereIn('name', DemoCatalog::spaNames())->exists()
-            || User::withTrashed()->where('email', 'like', DemoCatalog::emailPattern())->exists()) {
+            || User::withTrashed()->where($staffEmail)->exists()
+            || User::withTrashed()->whereIn('email', DemoCatalog::customerEmails())->exists()) {
             $this->command?->warn('Demo data already exists. For a fresh copy run: php artisan db:seed --class=DemoDataResetSeeder --force');
 
             return;
@@ -93,18 +105,10 @@ class DemoDataSeeder extends Seeder
         try {
             DB::transaction(function () use (&$messages) {
                 $this->makeCustomers();
-                $messages = array_merge($messages, $this->serenity());
+                $messages = $this->serenity();
                 $this->hilot();
-                $this->lakbay();
-                $this->tahimik();
-                $this->banayad();
                 $this->ginhawa();
-                $this->bagong();
                 $this->kalinaw();
-                $this->payapa();
-                $this->unang();
-                $this->luntian();
-                $this->kalma();
             });
         } catch (Throwable $e) {
             Carbon::setTestNow();
@@ -118,8 +122,11 @@ class DemoDataSeeder extends Seeder
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        foreach (Spa::withoutGlobalScopes()->whereIn('name', DemoCatalog::spaNames())->pluck('id') as $spaId) {
-            NavBadges::bump((int) $spaId);
+        foreach (Spa::withoutGlobalScopes()->whereIn('name', DemoCatalog::spaNames())->get() as $spa) {
+            NavBadges::bump((int) $spa->id);
+            if ($spa->hasAccess()) {
+                $this->syncDecisionSupport($spa);
+            }
         }
         if (class_exists(\App\Services\Hiring\HiringStatus::class)) {
             app(\App\Services\Hiring\HiringStatus::class)->flush();
@@ -132,42 +139,53 @@ class DemoDataSeeder extends Seeder
         $this->command?->table(['Spa / group', 'Role', 'Email', 'Note'], $this->b->accounts());
     }
 
+    /** Store today's Decision Support recommendations, as the nightly job would. */
+    private function syncDecisionSupport(Spa $spa): void
+    {
+        $open = app(RecommendationEngine::class)->sync($spa);
+        Cache::forever(DecisionSupportController::syncKey((int) $spa->id), now()->toIso8601String());
+
+        $rules = DssRecommendation::where('spa_id', $spa->id)->open()->pluck('rule_key')->countBy()->map(fn ($n, $r) => "{$r}×{$n}")->implode(', ');
+        $this->command?->line("  Decision Support, {$spa->name}: {$open} open ({$rules})");
+    }
+
     // ── Customers ──────────────────────────────────────────────────────────
 
     private function makeCustomers(): void
     {
         $cities = ['Imus', 'Bacoor', 'Dasmariñas', 'General Trias', 'Kawit', 'Tagaytay', 'Silang', 'Tanza'];
+        $people = DemoCatalog::customers();
 
-        $this->regular = $this->b->user('maria.customer', 'customer', null, null, [
-            'first_name' => 'Maria', 'last_name' => 'Dizon', 'address' => 'Blk 4 Lot 12, Anabu II-D, Imus, Cavite',
-        ], $this->today->copy()->subDays(120));
+        $this->regular = $this->b->user($people[0], 'customer', null, null,
+            ['address' => 'Blk 4 Lot 12, Anabu II-D, Imus, Cavite'], $this->today->copy()->subDays(230));
         $this->b->account('Customers', 'Customer (regular)', $this->regular, 'Many past visits at Serenity, ratings, an upcoming booking with a reschedule request');
 
-        $new = $this->b->user('new.customer', 'customer', null, null, [
-            'first_name' => 'Paolo', 'last_name' => 'Lim', 'address' => 'Salitran II, Dasmariñas, Cavite',
-        ], $this->today->copy()->subDay());
+        $new = $this->b->user($people[1], 'customer', null, null,
+            ['address' => 'Salitran II, Dasmariñas, Cavite'], $this->today->copy()->subDay());
         $this->b->account('Customers', 'Customer (brand new)', $new, 'Registered yesterday, no bookings yet');
 
-        for ($i = 1; $i <= 40; $i++) {
-            $local = 'guest'.str_pad((string) $i, 2, '0', STR_PAD_LEFT);
-            $this->customers[] = $this->b->user($local, 'customer', null, null, [
+        foreach (array_slice($people, 2) as $i => $person) {
+            $this->customers[] = $this->b->user($person, 'customer', null, null, [
                 'address' => 'Sample St., '.$cities[$i % count($cities)].', Cavite',
-            ], $this->today->copy()->subDays(100 + $i));
+            ], $this->today->copy()->subDays(210 - $i));
         }
-        $this->b->account('Customers', 'Customer (×40)', $this->customers[0], 'guest01 … guest40 — the online customers in the booking history');
+        $this->b->account('Customers', 'Customer (×'.count($this->customers).')', $this->customers[0], 'The other online customers in the booking history (all @mail.test)');
     }
 
-    // ── Showcase 1: Premium, 3 branches, full history ──────────────────────
+    // ── Serenity: Premium, 3 branches, clean data, every DSS rule ──────────
 
     private function serenity(): array
     {
         $key = 'serenity';
-        $from = $this->today->copy()->subDays(90);
+        $domain = DemoCatalog::domain($key);
+        // Six complete months before last month: what the "open another branch" rule needs.
+        $from = $this->today->copy()->startOfMonth()->subMonths(6);
+        $busySince = $this->today->copy()->startOfMonth()->subMonths(3);
         $registered = $from->copy()->subDays(20);
-        [$name, , $defs] = DemoCatalog::SPAS[$key];
-        $group = 'Serenity (Premium showcase)';
+        [, , , $defs] = DemoCatalog::SPAS[$key];
+        $group = 'Serenity (Premium)';
 
-        $owner = $this->b->user("{$key}.owner", 'owner', null, null, ['first_name' => 'Celeste', 'last_name' => 'Aguinaldo'], $registered);
+        $owner = $this->b->user($this->b->nextStaff($domain), 'owner', null, null, [], $registered);
         $spa = $this->b->spa($owner, DemoCatalog::spaName($key), [
             'business_tier' => 'premium', 'verification_status' => 'verified',
             'verified_at' => $registered->copy()->addDays(2), 'verified_by' => $this->admin?->id,
@@ -177,22 +195,19 @@ class DemoDataSeeder extends Seeder
             'created_at' => $registered, 'updated_at' => $registered,
         ]);
         $this->b->paidMonths($spa, 'premium', $registered->copy()->addDays(3)->addMonth(), $this->today->copy()->addDays(5));
-        $this->b->account($group, 'Owner', $owner, 'Sees all 3 branches, Insights/DSS, payroll, inventory, billing');
+        $this->b->account($group, 'Owner', $owner, 'All 3 branches, Decision Support, Reports, payroll, inventory, billing');
 
         $hours = [[10, 21], [10, 21], [11, 22]];
         $branches = [];
-        foreach (array_slice($defs, 0, 3) as $i => $def) {
-            $branches[] = $this->b->branch($spa, $key, $def, $i === 0, 'verified', true, sprintf('%02d:00', $hours[$i][0]), sprintf('%02d:00', $hours[$i][1]),
-                [], $registered, true);
+        foreach ($defs as $i => $def) {
+            $branches[] = $this->b->branch($spa, $key, $def, $i === 0, 'verified', true, sprintf('%02d:00', $hours[$i][0]),
+                sprintf('%02d:00', $hours[$i][1]), [], $registered, true);
         }
         foreach ($branches as $branch) {
             $branch->forceFill(['min_daily_wage' => '600.00', 'wage_order_ref' => 'Sample amount for the demo — not a wage order',
                 'min_wage_effective_from' => $this->today->copy()->startOfYear()->toDateString()])->save();
         }
-        $silang = $this->b->branch($spa, $key, $defs[3], false, 'pending', false, '10:00', '20:00', [], $this->today->copy()->subDays(4), true);
         $this->b->documents($spa, $branches, 'verified', $registered->copy()->addDay());
-        $this->b->documents($spa, [$silang], 'pending', $this->today->copy()->subDays(3), [], false);
-        $this->b->services($spa, $silang, ['swedish', 'hilot', 'foot', 'back']);
 
         $services = [
             $this->b->services($spa, $branches[0], array_keys(DemoCatalog::TREATMENTS), ['renew', 'heritage', 'pamper']),
@@ -201,48 +216,40 @@ class DemoDataSeeder extends Seeder
         ];
 
         $hired = $registered->copy()->subMonths(8);
-        $hrHead = $this->member($spa, $branches[0], "{$key}.hrhead", 'hr_head', $hired, $group, 'HR Head (all branches): attendance, leave, hiring, payroll preparation');
-        $finHead = $this->member($spa, $branches[0], "{$key}.financehead", 'finance_head', $hired, $group, 'Finance Head (all branches): approves payroll, vendor bills, expenses');
+        $hrHead = $this->member($spa, $branches[0], $domain, 'hr_head', $hired, $group, 'HR Head (all branches): attendance, leave, hiring, prepares payroll');
+        $finHead = $this->member($spa, $branches[0], $domain, 'finance_head', $hired, $group, 'Finance Head (all branches): approves payroll, bills, expenses');
 
         $plans = [];
         $managers = $receptions = [];
-        $volumes = [7.0, 5.5, 5.0];
-        $branchLabels = ['imus', 'bacoor', 'dasma'];
+        $volumes = [7.0, 6.0, 3.5];
         $therapistCount = [4, 3, 3];
         $hiredStaffUser = null;
-        $pendingTherapist = null;
         $staffRows = [$hrHead, $finHead];
 
         foreach ($branches as $i => $branch) {
-            $tag = $branchLabels[$i];
             $staff = [];
-            $manager = $this->member($spa, $branch, "{$key}.manager.{$tag}", 'manager', $hired, $group, "Branch manager, {$branch->name}");
-            $reception = $this->member($spa, $branch, "{$key}.reception.{$tag}", 'receptionist', $hired, $group,
-                $i === 2 ? "Receptionist who also does treatments, {$branch->name}" : "Receptionist, {$branch->name}", $i === 2);
+            $manager = $this->member($spa, $branch, $domain, 'manager', $hired, $group, "Branch manager, {$branch->name}");
+            $reception = $this->member($spa, $branch, $domain, 'receptionist', $hired, $group,
+                $i === 2 ? "Receptionist who also does treatments, {$branch->name}" : "Receptionist, {$branch->name}", $i === 2, $i === 2 ? 'approved' : 'none');
             $staff[] = $manager;
             $staff[] = $reception;
             if ($i === 0) {
-                $staff[] = $this->member($spa, $branch, "{$key}.hr.imus", 'hr', $hired, $group, 'Branch HR, Imus');
-                $staff[] = $this->member($spa, $branch, "{$key}.finance.imus", 'finance', $hired, $group, 'Branch Finance, Imus');
+                $staff[] = $this->member($spa, $branch, $domain, 'hr', $hired, $group, 'Branch HR, Imus');
+                $staff[] = $this->member($spa, $branch, $domain, 'finance', $hired, $group, 'Branch Finance, Imus');
             }
 
             $therapists = $i === 2 ? [$reception['user']] : [];
-            $quality = [];
+            $quality = $i === 2 ? [$reception['user']->id => 4.3] : [];
             for ($t = 1; $t <= $therapistCount[$i]; $t++) {
-                $isPending = $i === 1 && $t === 3;
-                $hiredOn = ($i === 0 && $t === 4) ? $this->today->copy()->subDays(95) : $hired;
-                $note = $isPending ? "Therapist, {$branch->name} — ID waiting for admin review (can't do home service yet)" : "Therapist, {$branch->name}";
-                $m = $this->member($spa, $branch, "{$key}.therapist.{$tag}{$t}", 'therapist', $hiredOn, $group, $note, true, $isPending ? 'pending' : 'approved');
+                $hiredOn = ($i === 0 && $t === 4) ? $this->today->copy()->subDays(150) : $hired;
+                $m = $this->member($spa, $branch, $domain, 'therapist', $hiredOn, $group,
+                    "Therapist, {$branch->name}".($i === 0 && $t === 4 ? ' (hired through Job Openings)' : ''), true, 'approved');
                 $staff[] = $m;
                 $therapists[] = $m['user'];
-                $quality[$m['user']->id] = [4.7, 4.4, 4.8, 3.9][($t + $i) % 4];
+                $quality[$m['user']->id] = [4.7, 4.4, 4.8, 4.1][($t + $i) % 4];
                 if ($i === 0 && $t === 4) {
                     $hiredStaffUser = $m['user'];
                 }
-            }
-            if ($i === 2) {
-                $this->b->identity($reception['user'], $spa, 'approved', $hired->copy()->addDays(2));
-                $quality[$reception['user']->id] = 4.3;
             }
 
             $managers[$branch->id] = $manager['user'];
@@ -256,7 +263,13 @@ class DemoDataSeeder extends Seeder
             ];
         }
 
+        // Decision Support shape: Bacoor fully booked for the last 3 months; Imus's
+        // Hot Stone bookings fell over the last 4 weeks (the stone heater was out).
+        $plans[1]['fill'] = ['from' => $busySince, 'ratio' => 1.0];
+        $plans[0]['demand'] = ['hotstone' => [$this->today->copy()->subDays(28), 0.2]];
+
         $this->payProfiles($spa, $staffRows, $from, $owner);
+        $this->statutoryIds($staffRows);
 
         $history = new DemoHistory($this->b, $this->customers, 2026);
         $bookings = $history->run($spa, $plans, $from, ['attendance' => true, 'schedules' => true, 'leave' => true, 'regular' => $this->regular]);
@@ -271,26 +284,26 @@ class DemoDataSeeder extends Seeder
         $ops->expenses($spa, $branches, $managers, $finHead['user']);
         $ops->promos($spa, $branches[0], $services[0]['treatments']);
 
-        $count = count($bookings);
-        array_unshift($messages, "Serenity: {$count} bookings over 90 days + 7 days ahead");
+        array_unshift($messages, sprintf('Serenity: %d bookings since %s', count($bookings), $from->toFormattedDateString()));
 
         return $messages;
     }
 
-    // ── Showcase 2: Basic, 2 branches ──────────────────────────────────────
+    // ── Hilot Haven: Basic, 2 branches ─────────────────────────────────────
 
     private function hilot(): void
     {
         $key = 'hilot';
+        $domain = DemoCatalog::domain($key);
         $from = $this->today->copy()->subDays(90);
         $registered = $from->copy()->subDays(10);
-        $group = 'Hilot Haven (Basic showcase)';
-        [, , $defs] = DemoCatalog::SPAS[$key];
+        $group = 'Hilot Haven (Basic)';
+        [, , , $defs] = DemoCatalog::SPAS[$key];
 
-        $owner = $this->b->user("{$key}.owner", 'owner', null, null, ['first_name' => 'Rodel', 'last_name' => 'Mercado'], $registered);
+        $owner = $this->b->user($this->b->nextStaff($domain), 'owner', null, null, [], $registered);
         $spa = $this->b->spa($owner, DemoCatalog::spaName($key), $this->verifiedSpa($registered, 'basic'));
         $this->b->paidMonths($spa, 'basic', $registered->copy()->addDays(2)->addMonth(), $this->today->copy()->addDays(9));
-        $this->b->account($group, 'Owner', $owner, 'Basic plan: bookings, schedule, Insights/DSS — no HR, payroll or inventory');
+        $this->b->account($group, 'Owner', $owner, 'Basic plan: bookings, schedule, Reports, Decision Support — no HR, payroll or inventory');
 
         $branches = [];
         foreach ($defs as $i => $def) {
@@ -301,16 +314,15 @@ class DemoDataSeeder extends Seeder
         $hired = $registered->copy()->subMonths(6);
         $plans = [];
         foreach ($branches as $i => $branch) {
-            $tag = $i === 0 ? 'gentri' : 'kawit';
             $services = $this->b->services($spa, $branch, ['swedish', 'hilot', 'ventosa', 'foot', 'back', 'prenatal'], ['heritage'], 0.9);
-            $manager = $this->member($spa, $branch, "{$key}.manager.{$tag}", 'manager', $hired, $group, "Branch manager, {$branch->name}");
-            $reception = $this->member($spa, $branch, "{$key}.reception.{$tag}", 'receptionist', $hired, $group,
+            $manager = $this->member($spa, $branch, $domain, 'manager', $hired, $group, "Branch manager, {$branch->name}");
+            $reception = $this->member($spa, $branch, $domain, 'receptionist', $hired, $group,
                 $i === 1 ? "Receptionist who also does treatments, {$branch->name}" : "Receptionist, {$branch->name}", $i === 1, $i === 1 ? 'approved' : 'none');
             $staff = [$manager, $reception];
             $therapists = $i === 1 ? [$reception['user']] : [];
             $quality = $i === 1 ? [$reception['user']->id => 4.2] : [];
             for ($t = 1; $t <= 2; $t++) {
-                $m = $this->member($spa, $branch, "{$key}.therapist.{$tag}{$t}", 'therapist', $hired, $group, "Therapist, {$branch->name}", true, 'approved');
+                $m = $this->member($spa, $branch, $domain, 'therapist', $hired, $group, "Therapist, {$branch->name}", true, 'approved');
                 $staff[] = $m;
                 $therapists[] = $m['user'];
                 $quality[$m['user']->id] = $t === 1 ? 4.8 : 4.1;
@@ -323,153 +335,73 @@ class DemoDataSeeder extends Seeder
         (new DemoHistory($this->b, $this->customers, 4242))->run($spa, $plans, $from);
     }
 
-    // ── The ten situations ─────────────────────────────────────────────────
+    // ── Ginhawa: Premium ended 20 days ago → locked ────────────────────────
 
-    /** On the free trial (full Premium access), 12 days in, 18 days left. */
-    private function lakbay(): void
-    {
-        $start = $this->today->copy()->subDays(12)->setTime(10, 0);
-        $spa = $this->smallSpa('lakbay', 'On free trial', $start->copy()->subDay(), [
-            'trial_used' => true, 'trial_plan' => 'premium', 'trial_started_at' => $start, 'trial_ends_at' => $start->copy()->addMonth(),
-        ], 'Free trial with 18 days left: everything unlocked; the billing page invites them to pick a plan');
-        $this->smallTeam($spa, 'lakbay', ['manager', 'receptionist', 'therapist', 'therapist'], 'On free trial', $start, $start, null, 2.5);
-    }
-
-    /** Trial ended 8 days ago and nobody paid: the spa is locked (billing page only), data kept. */
-    private function tahimik(): void
-    {
-        $start = $this->today->copy()->subDays(38)->setTime(9, 0);
-        $end = $start->copy()->addMonth();
-        $spa = $this->smallSpa('tahimik', 'Trial ended, not paid', $start->copy()->subDay(), [
-            'trial_used' => true, 'trial_plan' => 'premium', 'trial_started_at' => $start, 'trial_ends_at' => $end,
-            'trial_reminder_sent_at' => $end->copy()->subDays(3),
-        ], 'LOCKED: trial ended 8 days ago. Only the billing page opens; staff are blocked; the spa is off the public list');
-        $this->smallTeam($spa, 'tahimik', ['receptionist', 'therapist', 'therapist'], 'Trial ended, not paid', $start, $start, $end, 2.0);
-    }
-
-    /** Basic period ended 6 hours ago: still working for about 2½ more days (3-day grace). */
-    private function banayad(): void
-    {
-        $registered = $this->today->copy()->subDays(80);
-        $trialStart = $registered->copy()->addDays(2);
-        $spa = $this->smallSpa('banayad', 'Grace period', $registered, [
-            'business_tier' => 'basic', 'trial_used' => true, 'trial_plan' => 'premium',
-            'trial_started_at' => $trialStart, 'trial_ends_at' => $trialStart->copy()->addMonth(),
-        ], 'Plan ended a few hours ago; 3-day grace period — still works, with a "renew now" warning. After the grace days it locks');
-        $lapsedAt = now()->subHours(6);
-        $this->b->paidPeriod($spa, 'basic', $lapsedAt->copy()->subMonthNoOverflow(), $lapsedAt->copy(), 'new');
-        $this->smallTeam($spa, 'banayad', ['receptionist', 'therapist', 'therapist'], 'Grace period', $registered, $this->today->copy()->subDays(30), null, 2.5);
-    }
-
-    /** Premium ended 20 days ago (grace over): locked, data kept, can renew anytime. */
     private function ginhawa(): void
     {
+        $key = 'ginhawa';
+        $domain = DemoCatalog::domain($key);
         $registered = $this->today->copy()->subDays(112);
         $trialStart = $registered->copy()->addDays(2);
-        $spa = $this->smallSpa('ginhawa', 'Plan expired', $registered, [
+        $group = 'Ginhawa (plan expired)';
+        [, , , $defs] = DemoCatalog::SPAS[$key];
+
+        $owner = $this->b->user($this->b->nextStaff($domain), 'owner', null, null, [], $registered);
+        $spa = $this->b->spa($owner, DemoCatalog::spaName($key), [
+            'business_tier' => 'premium', 'verification_status' => 'verified',
+            'verified_at' => $registered->copy()->addDays(2), 'verified_by' => $this->admin?->id,
             'trial_used' => true, 'trial_plan' => 'premium', 'trial_started_at' => $trialStart, 'trial_ends_at' => $trialStart->copy()->addMonth(),
-        ], 'LOCKED: Premium ended 20 days ago (grace over). All data is kept; paying again unlocks everything');
+            'created_at' => $registered, 'updated_at' => $registered,
+        ]);
         $paidFrom = $trialStart->copy()->addMonth();
         $this->b->paidPeriod($spa, 'premium', $paidFrom->copy(), $paidFrom->copy()->addMonth(), 'new');
         $this->b->paidPeriod($spa, 'premium', $paidFrom->copy()->addMonth(), $this->today->copy()->subDays(20)->setTime(14, 0), 'renewal');
-        $this->smallTeam($spa, 'ginhawa', ['manager', 'receptionist', 'therapist', 'therapist'], 'Plan expired', $registered,
-            $this->today->copy()->subDays(75), $this->today->copy()->subDays(21), 3.0);
+        $this->b->account($group, 'Owner', $owner, 'LOCKED: Premium ended 20 days ago and was not renewed. Only billing opens; data is kept');
+
+        $branch = $this->b->branch($spa, $key, $defs[0], true, 'verified', true, '10:00', '20:00', [], $registered);
+        $this->b->documents($spa, [$branch], 'verified', $registered->copy()->addDay());
+
+        $services = $this->b->services($spa, $branch, ['swedish', 'hilot', 'foot', 'back', 'ventosa']);
+        $staff = [];
+        $therapists = [];
+        foreach (['manager', 'receptionist', 'therapist', 'therapist'] as $role) {
+            $isTx = $role === 'therapist';
+            $m = $this->member($spa, $branch, $domain, $role, $registered->copy()->subMonths(3), $group,
+                $this->roleLabel($role).($isTx ? ' (sees the "spa is locked" page)' : ''), $isTx, $isTx ? 'approved' : 'none');
+            $staff[] = $m;
+            if ($isTx) {
+                $therapists[] = $m['user'];
+            }
+        }
+        (new DemoHistory($this->b, $this->customers, 9191))->run($spa, [[
+            'branch' => $branch, 'services' => $services, 'therapists' => $therapists, 'staff' => $staff,
+            'reception' => $staff[1]['user'], 'manager' => $staff[0]['user'], 'volume' => 3.0, 'open' => 10, 'close' => 20, 'quality' => [],
+        ]], $this->today->copy()->subDays(75), ['until' => $this->today->copy()->subDays(21)]);
     }
 
-    /** Verified 2 days ago, never started the free trial. */
-    private function bagong(): void
-    {
-        $registered = $this->today->copy()->subDays(4)->setTime(15, 0);
-        $spa = $this->smallSpa('bagong', 'Verified, no trial yet', $registered, [],
-            'Approved by admin but has not started the free trial: sees the "Start your free trial" screen', false);
-        $this->b->services($spa, $spa->branches()->first(), ['swedish', 'hilot', 'foot', 'back']);
-    }
+    // ── Kalinaw: documents sent yesterday, waiting for the admin ───────────
 
-    /** Uploaded documents yesterday; waiting for the admin. */
     private function kalinaw(): void
     {
+        $key = 'kalinaw';
+        [, , , $defs] = DemoCatalog::SPAS[$key];
         $at = $this->today->copy()->subDay()->setTime(16, 20);
-        $this->unverifiedSpa('kalinaw', 'pending', $at, null,
-            'Documents sent yesterday, waiting for admin review. Admin can approve or reject it under Registered Spas');
-    }
+        $registered = $at->copy()->subHours(2);
 
-    /** Admin rejected the documents 5 days ago. */
-    private function payapa(): void
-    {
-        $at = $this->today->copy()->subDays(6)->setTime(11, 0);
-        $this->unverifiedSpa('payapa', 'rejected', $at,
-            'The Government ID is blurry and the name cannot be read. Please upload a clear photo of the ID and submit again.',
-            'Rejected by admin (blurry ID). Sees the reason and can upload a new ID and resubmit');
-    }
-
-    /** Finished sign-up and setup, has not uploaded any document. */
-    private function unang(): void
-    {
-        $this->unverifiedSpa('unang', 'unverified', now()->subHours(3), null,
-            'Just signed up today: spa and branch set up, no documents uploaded yet');
-    }
-
-    /** Basic, active, but no therapist has a verified ID: no home service. */
-    private function luntian(): void
-    {
-        $registered = $this->today->copy()->subDays(50);
-        $trialStart = $registered->copy()->addDays(2);
-        $spa = $this->smallSpa('luntian', 'No verified therapists', $registered, [
-            'business_tier' => 'basic', 'trial_used' => true, 'trial_plan' => 'premium',
-            'trial_started_at' => $trialStart, 'trial_ends_at' => $trialStart->copy()->addMonth(),
-        ], 'Open for in-branch bookings, but no therapist has a verified ID, so customers cannot book home service');
-        $this->b->paidPeriod($spa, 'basic', $trialStart->copy()->addMonth(), $trialStart->copy()->addMonths(2), 'new');
-        $this->smallTeam($spa, 'luntian', ['receptionist', 'therapist', 'therapist', 'therapist'], 'No verified therapists',
-            $registered, $this->today->copy()->subDays(18), null, 2.0, ['pending', 'rejected', 'none']);
-    }
-
-    /** Basic with 3 branches and 10 staff: cannot add more. */
-    private function kalma(): void
-    {
-        $key = 'kalma';
-        $registered = $this->today->copy()->subDays(60);
-        $trialStart = $registered->copy()->addDays(2);
-        $group = 'Kalma (Basic at limit)';
-        [, , $defs] = DemoCatalog::SPAS[$key];
-
-        $owner = $this->b->user("{$key}.owner", 'owner', null, null, [], $registered);
-        $spa = $this->b->spa($owner, DemoCatalog::spaName($key), $this->verifiedSpa($registered, 'basic'));
-        $this->b->paidMonths($spa, 'basic', $trialStart->copy()->addMonth(), $this->today->copy()->addDays(10));
-        $this->b->account($group, 'Owner', $owner, 'Basic limit reached (3 of 3 branches, 10 of 10 staff): adding another shows the upgrade prompt');
-
-        $plans = [];
-        $hired = $registered->copy()->subMonths(2);
-        foreach ($defs as $i => $def) {
-            $branch = $this->b->branch($spa, $key, $def, $i === 0, 'verified', true, '10:00', '20:00', [], $registered);
-            if ($i === 0) {
-                $this->b->documents($spa, [$branch], 'verified', $registered->copy()->addDay());
-            } else {
-                $this->b->documents($spa, [$branch], 'verified', $registered->copy()->addDays(3), [], false);
-            }
-            $tag = ['cavite', 'amadeo', 'alfonso'][$i];
-            $roles = $i === 0 ? ['manager', 'receptionist', 'therapist', 'therapist'] : ['manager', 'receptionist', 'therapist'];
-            $staff = [];
-            $therapists = [];
-            $tx = 0;
-            foreach ($roles as $role) {
-                $isTx = $role === 'therapist';
-                $m = $this->member($spa, $branch, "{$key}.{$role}.{$tag}".($isTx ? ++$tx : ''), $role, $hired, $group,
-                    $this->roleLabel($role).', '.$branch->name, $isTx, $isTx ? 'approved' : 'none');
-                $staff[] = $m;
-                if ($isTx) {
-                    $therapists[] = $m['user'];
-                }
-            }
-            $plans[] = ['branch' => $branch, 'services' => $this->b->services($spa, $branch, ['swedish', 'foot', 'back', 'hilot']),
-                'therapists' => $therapists, 'staff' => $staff, 'reception' => $staff[1]['user'], 'manager' => $staff[0]['user'],
-                'volume' => 1.6, 'open' => 10, 'close' => 20, 'quality' => []];
-        }
-        (new DemoHistory($this->b, $this->customers, 7007))->run($spa, $plans, $this->today->copy()->subDays(25));
+        $owner = $this->b->user($this->b->nextStaff(DemoCatalog::domain($key)), 'owner', null, null, [], $registered);
+        $spa = $this->b->spa($owner, DemoCatalog::spaName($key), [
+            'business_tier' => 'basic', 'verification_status' => 'pending',
+            'created_at' => $registered, 'updated_at' => $at,
+        ]);
+        $branch = $this->b->branch($spa, $key, $defs[0], true, 'unverified', false, '10:00', '20:00', [], $registered);
+        $this->b->documents($spa, [$branch], 'pending', $at);
+        $this->b->account('Kalinaw (waiting for review)', 'Owner', $owner,
+            'Documents sent yesterday. Cannot log in until approved; show it from the admin side (Registered Spas)');
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    /** Attributes of a verified spa that went through the free trial (3 days after sign-up). */
+    /** Attributes of a verified spa that went through the free trial (2 days after sign-up). */
     private function verifiedSpa(Carbon $registered, string $tier): array
     {
         $trialStart = $registered->copy()->addDays(2);
@@ -483,102 +415,20 @@ class DemoDataSeeder extends Seeder
         ];
     }
 
-    /** A verified one-branch spa with its owner and documents. */
-    private function smallSpa(string $key, string $group, Carbon $registered, array $attributes, string $ownerNote, bool $listed = true): Spa
-    {
-        [, , $defs] = DemoCatalog::SPAS[$key];
-
-        $owner = $this->b->user("{$key}.owner", 'owner', null, null, [], $registered);
-        $spa = $this->b->spa($owner, DemoCatalog::spaName($key), $attributes + [
-            'business_tier' => 'basic', 'verification_status' => 'verified',
-            'verified_at' => $registered->copy()->addDays(2), 'verified_by' => $this->admin?->id,
-            'created_at' => $registered, 'updated_at' => $registered,
-        ]);
-        $branch = $this->b->branch($spa, $key, $defs[0], true, 'verified', $listed, '10:00', '20:00', [], $registered);
-        $this->b->documents($spa, [$branch], 'verified', $registered->copy()->addDay());
-        $this->b->account($group, 'Owner', $owner, $ownerNote);
-
-        return $spa;
-    }
-
     /**
-     * Staff and (optionally) a short booking history for a one-branch spa.
-     *
-     * @param list<string> $roles
-     * @param list<string> $therapistIds identity state per therapist, in order (default: all approved)
-     */
-    private function smallTeam(Spa $spa, string $key, array $roles, string $group, Carbon $hired, Carbon $from, ?Carbon $until, float $volume, array $therapistIds = []): void
-    {
-        $branch = $spa->branches()->first();
-        $services = $this->b->services($spa, $branch, ['swedish', 'hilot', 'foot', 'back', 'ventosa']);
-        $staff = [];
-        $therapists = [];
-        $n = 0;
-        foreach ($roles as $role) {
-            $isTx = $role === 'therapist';
-            $idState = $isTx ? ($therapistIds[$n] ?? 'approved') : 'none';
-            $suffix = $isTx ? ++$n : '';
-            $note = ucfirst($role).($isTx ? match ($idState) {
-                'pending' => ' — ID waiting for admin review', 'rejected' => ' — ID rejected (blurry), must resubmit',
-                'none' => ' — never submitted an ID (no photo)', default => '',
-            } : '');
-            $m = $this->member($spa, $branch, "{$key}.{$role}{$suffix}", $role, $hired->copy()->subMonths(3), $group, $note, $isTx, $idState);
-            $staff[] = $m;
-            if ($isTx) {
-                $therapists[] = $m['user'];
-            }
-        }
-
-        if ($volume > 0) {
-            $reception = collect($staff)->firstWhere('role', 'receptionist')['user'] ?? null;
-            $manager = collect($staff)->firstWhere('role', 'manager')['user'] ?? null;
-            (new DemoHistory($this->b, $this->customers, crc32($key)))->run($spa, [[
-                'branch' => $branch, 'services' => $services, 'therapists' => $therapists, 'staff' => $staff,
-                'reception' => $reception, 'manager' => $manager, 'volume' => $volume, 'open' => 10, 'close' => 20, 'quality' => [],
-            ]], $from, $until ? ['until' => $until] : []);
-        }
-    }
-
-    /** A spa whose documents are pending / rejected, or that has none yet. */
-    private function unverifiedSpa(string $key, string $state, Carbon $at, ?string $remarks, string $note): void
-    {
-        [, , $defs] = DemoCatalog::SPAS[$key];
-        $registered = $at->copy()->subHours(2);
-        $owner = $this->b->user("{$key}.owner", 'owner', null, null, [], $registered);
-        $spa = $this->b->spa($owner, DemoCatalog::spaName($key), [
-            'business_tier' => 'basic', 'verification_status' => $state, 'verification_remarks' => $remarks,
-            'created_at' => $registered, 'updated_at' => $at,
-        ]);
-        $branch = $this->b->branch($spa, $key, $defs[0], true, $state === 'rejected' ? 'rejected' : 'unverified', false, '10:00', '20:00', [], $registered);
-        if ($state === 'rejected') {
-            $branch->forceFill(['verification_remarks' => $remarks])->save();
-        }
-        $owner->forceFill(['branch_id' => $branch->id])->saveQuietly();
-        if ($state !== 'unverified') {
-            $this->b->documents($spa, [$branch], $state, $at, $state === 'rejected'
-                ? ['government_id' => 'Blurry photo: the name and ID number cannot be read.'] : []);
-        }
-        $this->b->account(DemoCatalog::SPAS[$key][0], 'Owner', $owner, $note);
-    }
-
-    /**
-     * One staff member: account, role, staff row, optional photo + identity check.
+     * One staff member: account (next real-sounding name at the spa's domain),
+     * role, staff row, optional photo + identity check.
      *
      * @param 'approved'|'pending'|'rejected'|'none' $identity
-     * @return array{user: User, staff: \App\Models\Staff, role: string}
+     * @return array{user: User, staff: Staff, role: string}
      */
-    private function member(Spa $spa, Branch $branch, string $local, string $role, Carbon $hired, string $group, string $note,
+    private function member(Spa $spa, Branch $branch, string $domain, string $role, Carbon $hired, string $group, string $note,
         bool $treats = false, string $identity = 'none'): array
     {
-        $user = $this->b->user($local, $role, $spa, $branch, [], $hired);
+        $user = $this->b->user($this->b->nextStaff($domain), $role, $spa, $branch, [], $hired);
         $staff = $this->b->staff($user, $spa, $branch, $treats && $role !== 'therapist', $hired);
         if ($identity !== 'none') {
-            $this->b->identity($user, $spa, $identity, $hired->copy()->addDays(3)->max($this->today->copy()->subDays(160)));
-            if ($identity === 'pending') {
-                DB::table('identity_verifications')->where('user_id', $user->id)->update([
-                    'submitted_at' => now()->subHours(20), 'consent_given_at' => now()->subHours(20), 'created_at' => now()->subHours(20),
-                ]);
-            }
+            $this->b->identity($user, $spa, $identity, $hired->copy()->addDays(3)->max($this->today->copy()->subDays(220)));
         }
         $this->b->account($group, $this->roleLabel($role), $user, $note);
 
@@ -627,7 +477,24 @@ class DemoDataSeeder extends Seeder
         }
     }
 
-    /** Maria's next visit (in 3 days) and her request to move it. */
+    /**
+     * Government numbers on file, so payroll runs are clean. Every number starts
+     * with "00", a prefix that is never issued, so none can belong to a real person.
+     */
+    private function statutoryIds(array $members): void
+    {
+        foreach ($members as $n => $m) {
+            $seq = str_pad((string) ($n + 1), 4, '0', STR_PAD_LEFT);
+            $m['staff']->forceFill([
+                'tin' => '00012'.$seq,                // 9 digits
+                'sss_no' => '000012'.$seq,            // 10 digits
+                'philhealth_no' => '00000012'.$seq,   // 12 digits
+                'pagibig_no' => '00000034'.$seq,      // 12 digits
+            ])->save();
+        }
+    }
+
+    /** The regular customer's next visit (in 3 days) and her request to move it. */
     private function regularCustomerExtras(Spa $spa, array $plan): void
     {
         $treatment = $plan['services']['treatments']['aroma'];
@@ -645,7 +512,8 @@ class DemoDataSeeder extends Seeder
             'booking_source' => 'online', 'status' => 'reserved', 'payment_status' => 'partially_paid',
             'amount_paid' => round($price * 0.2, 2), 'total_amount' => $price, 'balance_amount' => round($price * 0.8, 2),
             'service_type' => 'in_branch', 'treatment' => 'treatment_'.$treatment->id,
-            'customer_name' => 'Maria Dizon', 'customer_email' => $this->regular->email, 'customer_phone' => $this->regular->phone,
+            'customer_name' => $this->regular->first_name.' '.$this->regular->last_name,
+            'customer_email' => $this->regular->email, 'customer_phone' => $this->regular->phone,
             'appointment_date' => $date->toDateString(), 'start_time' => '10:00:00', 'end_time' => '11:30:00',
             'therapist_id' => $therapist?->id, 'created_at' => $created, 'updated_at' => $created,
         ]);

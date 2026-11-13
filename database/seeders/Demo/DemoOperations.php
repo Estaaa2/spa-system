@@ -51,6 +51,13 @@ final class DemoOperations
         'liniment' => ['Hilot Herbal Liniment 60 ml', 'Retail', 'retail', 'pcs', 'box (12 pcs)', 12, 1200, 180],
     ];
 
+    /** product key => [SKU, brand] */
+    private const SKUS = [
+        'oil' => ['MO-1L-01', 'Healing Touch'], 'coconut' => ['VCO-1L-02', 'CocoPure'], 'lavender' => ['EO-LAV-30', 'Aroma Botanica'],
+        'scrub' => ['SCR-SALT-1K', 'Glow Naturals'], 'cream' => ['CRM-FT-500', 'Healing Touch'], 'alcohol' => ['ALC-70-500', 'Green Cross'],
+        'covers' => ['DSP-FC-100', 'SpaCare'], 'liniment' => ['RT-HLT-60', 'Lola Remedios'],
+    ];
+
     /** treatment key => [product key => quantity per service] */
     private const RECIPES = [
         'swedish'  => ['oil' => 30, 'covers' => 1],
@@ -90,13 +97,21 @@ final class DemoOperations
         ];
 
         $historyDays = max(1, (int) $from->diffInDays(Carbon::today()));
-        $receiptDay = $from->copy()->addDays(45);
-        $usage = $this->plannedUsage($plans, $bookings, $receiptDay);
+        $nearExpiry = Carbon::today()->addDays(20);   // before the clock is moved back below
+
+        // Monthly restock: each branch receives a delivery every 30 days (branches a day apart).
+        $receipts = [];
+        foreach ($plans as $p => $plan) {
+            for ($at = $from->copy()->addDays(30 + $p)->setTime(10, 30); $at->lt(Carbon::today()->subDays(3)); $at->addDays(30)) {
+                $receipts[$plan['branch']->id][] = $at->copy();
+            }
+        }
+        $usage = $this->plannedUsage($plans, $bookings, $receipts);
 
         Carbon::setTestNow($from->copy()->subDay()->setTime(9, 0));
         foreach (self::PRODUCTS as $key => [$name, $category, $type, $unit, $buyUnit, $factor, $cost, $retail]) {
             $this->products[$key] = Product::create([
-                'spa_id' => $spa->id, 'sku' => 'DEMO-'.strtoupper($key), 'name' => $name, 'brand' => 'Demo Brand',
+                'spa_id' => $spa->id, 'sku' => self::SKUS[$key][0], 'name' => $name, 'brand' => self::SKUS[$key][1],
                 'category' => $category, 'inventory_type' => $type, 'stock_quantity' => 0, 'unit_value' => 0,
                 'unit' => $unit, 'purchase_unit' => $buyUnit, 'usage_unit' => $unit, 'conversion_factor' => $factor,
                 'retail_price' => $retail, 'acquisition_cost' => $cost, 'is_active' => true,
@@ -125,39 +140,44 @@ final class DemoOperations
             }
         }
 
-        // Opening stock: enough for the first half plus a cushion.
+        // Opening stock: enough for the first month plus a cushion.
         foreach ($plans as $p => $plan) {
             $branch = $plan['branch'];
             foreach ($this->products as $key => $product) {
-                [$before, $after] = $usage[$branch->id][$key] ?? [0, 0];
-                $daily = ($before + $after) / $historyDays;
-                $opening = $key === 'liniment' ? 36 : min(19000, $this->roundUp($before * 1.12 + $daily * 6, $product));
+                $periods = $usage[$branch->id][$key] ?? [0];
+                $daily = max(array_sum($periods) / $historyDays, max($periods) / 30);   // the busiest month sets the reorder level
+                $opening = $key === 'liniment' ? 36 : min(19000, $this->roundUp(($periods[0] ?? 0) * 1.12 + $daily * 6, $product));
                 $reorder = $key === 'liniment' ? 12 : $this->roundUp($daily * 10, $product);
-                $expiry = $key === 'lavender' && $p === 2 ? $from->copy()->addDays(110) : null;   // expires ~20 days from today
+                $expiry = $key === 'lavender' && $p === 2 ? $nearExpiry : null;   // near-expiry alert
 
                 $this->openingStock($spa, $branch, $product, $opening, $reorder, $expiry, $owner);
             }
         }
         Carbon::setTestNow();
 
-        // Mid-period restock through the full procurement flow, per branch.
+        // Each delivery covers the month after it, through the full procurement flow.
         $deliveries = [];
         foreach ($plans as $p => $plan) {
             $branch = $plan['branch'];
-            $items = [];
-            foreach ($this->products as $key => $product) {
-                if ($key === 'liniment') {
-                    continue;
+            $last = count($receipts[$branch->id] ?? []) - 1;
+            foreach ($receipts[$branch->id] ?? [] as $k => $at) {
+                $items = [];
+                foreach ($this->products as $key => $product) {
+                    if ($key === 'liniment') {
+                        continue;
+                    }
+                    $need = $usage[$branch->id][$key][$k + 1] ?? 0;
+                    // Left off the latest order, so they are below the reorder level today:
+                    // oil and covers at busy Bacoor (a request for them is waiting), lavender
+                    // at Imus (an order for it is on the way).
+                    $skipped = $k === $last && (($p === 1 && in_array($key, ['oil', 'covers'], true)) || ($p === 0 && $key === 'lavender'));
+                    $factor = 1.05;
+                    if ($need > 0 && ! $skipped) {
+                        $items[$key] = max(1, (int) ceil($need * $factor / (float) $product->conversion_factor));
+                    }
                 }
-                [, $after] = $usage[$branch->id][$key] ?? [0, 0];
-                // Bacoor under-orders oil and covers, so it ends below the reorder level today.
-                $factor = ($p === 1 && in_array($key, ['oil', 'covers'], true)) ? 0.78 : 1.2;
-                $need = $after * $factor;
-                if ($need > 0) {
-                    $items[$key] = max(1, (int) ceil($need / (float) $product->conversion_factor));
-                }
+                $deliveries[] = [$plan, $items, $at, $suppliers[($p + $k) % 2]];
             }
-            $deliveries[] = [$plan, $items, $receiptDay->copy()->addDays($p)->setTime(10, 30), $suppliers[$p % 2]];
         }
 
         $this->consumeTimeline($bookings, $deliveries, $people, $plans);
@@ -166,7 +186,8 @@ final class DemoOperations
         $this->openProcurement($spa, $plans, $suppliers, $people);
     }
 
-    private function plannedUsage(array $plans, array $bookings, Carbon $split): array
+    /** Usage per branch, product and period (period k = after the k-th delivery). */
+    private function plannedUsage(array $plans, array $bookings, array $receipts): array
     {
         $byTreatment = [];
         $packages = [];
@@ -186,17 +207,12 @@ final class DemoOperations
             }
             [$type, $id] = explode('_', $booking['treatment'], 2);
             $treatmentIds = $type === 'treatment' ? [(int) $id] : ($packages[(int) $id] ?? []);
-            $half = Carbon::parse($booking['end'])->lt($split) ? 0 : 1;
+            $end = Carbon::parse($booking['end']);
+            $half = count(array_filter($receipts[$booking['branch_id']] ?? [], fn (Carbon $r) => $r->lte($end)));
             foreach ($treatmentIds as $tid) {
                 foreach ($byTreatment[$tid] ?? [] as $productKey => $qty) {
                     $usage[$booking['branch_id']][$productKey][$half] = ($usage[$booking['branch_id']][$productKey][$half] ?? 0) + $qty;
                 }
-            }
-        }
-
-        foreach ($usage as &$products) {
-            foreach ($products as &$halves) {
-                $halves = [$halves[0] ?? 0, $halves[1] ?? 0];
             }
         }
 
@@ -314,7 +330,7 @@ final class DemoOperations
             'invoice_number' => 'SI-'.$receivedAt->format('ymd').'-'.str_pad((string) $order->id, 4, '0', STR_PAD_LEFT),
             'invoice_date' => $receivedAt->toDateString(), 'due_date' => $receivedAt->copy()->addDays(30)->toDateString(),
             'subtotal' => round($subtotal, 2), 'total_amount' => round($subtotal, 2),
-            'status' => VendorBill::STATUS_PENDING_MATCH, 'notes' => 'Demo invoice.',
+            'status' => VendorBill::STATUS_PENDING_MATCH, 'notes' => null,
         ]);
         $bill->items()->createMany($billItems);
         session(['current_branch_id' => $branch->id]);   // the matcher works on the user's current branch
@@ -375,8 +391,8 @@ final class DemoOperations
     private function supplier(Spa $spa, string $name, string $contact, string $address): Supplier
     {
         return Supplier::create([
-            'spa_id' => $spa->id, 'name' => $name.' (Demo)', 'contact_person' => $contact,
-            'email' => DemoCatalog::email('supplier.'.strtolower(strtok($name, ' '))), 'phone' => '0917'.mt_rand(1000000, 9999999),
+            'spa_id' => $spa->id, 'name' => $name, 'contact_person' => $contact,
+            'email' => 'sales@'.strtolower(preg_replace('/[^A-Za-z]/', '', strtok($name, ' '))).'.test', 'phone' => '0917'.mt_rand(1000000, 9999999),
             'address' => $address, 'status' => 'active',
         ]);
     }
@@ -494,10 +510,10 @@ final class DemoOperations
             $applicant = Applicant::create([
                 'spa_id' => $spa->id, 'branch_id' => $posting->branch_id, 'job_posting_id' => $posting->id,
                 'position_applied' => $posting->role, 'full_name' => $name,
-                'email' => DemoCatalog::email('applicant'.($i + 1)), 'phone' => '0918000000'.($i + 1),
+                'email' => DemoCatalog::email(...explode(' ', $name, 2), domain: DemoCatalog::CUSTOMER_DOMAIN), 'phone' => '0918000000'.($i + 1),
                 'address' => 'Bacoor, Cavite', 'education' => 'vocational', 'schedule_fit' => $i !== 1,
                 'schedule_fit_note' => $i === 1 ? 'Can only work weekends.' : null,
-                'work_experience' => '2 years as a massage therapist in a Cavite spa (demo applicant).',
+                'work_experience' => '2 years as a massage therapist in a Cavite spa.',
                 'source' => 'website', 'status' => $status,
                 'privacy_consent_version' => '2026-11-06', 'privacy_consent_at' => now(),
             ]);

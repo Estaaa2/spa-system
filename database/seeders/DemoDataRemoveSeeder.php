@@ -18,11 +18,13 @@ use Spatie\Permission\PermissionRegistrar;
  *   php artisan db:seed --class=DemoDataResetSeeder --force    (remove, then seed again)
  *
  * What counts as demo data:
- *   - the spas named in DemoCatalog::SPAS (names ending in "(Demo)") and every row
+ *   - the spas named in DemoCatalog (names ending in "(Demo)", including the 12 of
+ *     the first version and the old DSS scenario bookings inside them) and every row
  *     inside them — branches, staff, bookings, ratings, attendance, payroll,
  *     inventory, procurement, hiring … including rows you added while demoing,
  *     and bookings real customers may have made at a demo spa;
- *   - every account whose email ends in @levictas-demo.test (the demo customers);
+ *   - every account at a demo staff domain (serenityspa.test …, and the old
+ *     levictas-demo.test) and the exact demo customer emails at mail.test;
  *   - the images under storage/app/private|public/demo-data.
  * Real spas, real users, admin accounts, roles and permissions are not touched.
  *
@@ -39,7 +41,7 @@ class DemoDataRemoveSeeder extends Seeder
         }
 
         $spaIds = DB::table('spas')->whereIn('name', DemoCatalog::spaNames())->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $customerIds = DB::table('users')->where('email', 'like', DemoCatalog::emailPattern())->pluck('id')->all();
+        $customerIds = DemoCatalog::whereDemoEmail(DB::table('users'))->pluck('id')->all();
 
         if ($spaIds === [] && $customerIds === []) {
             $this->command?->info('No demo data found — nothing to remove.');
@@ -58,7 +60,7 @@ class DemoDataRemoveSeeder extends Seeder
                 }
 
                 // Demo customers and any other demo account left (not tied to a spa).
-                $left = DB::table('users')->where('email', 'like', DemoCatalog::emailPattern())->pluck('id')->all();
+                $left = DemoCatalog::whereDemoEmail(DB::table('users'))->pluck('id')->all();
                 if ($left !== []) {
                     DB::table('reschedule_requests')->whereIn('requested_by', $left)->delete();
                     foreach (['model_has_roles', 'model_has_permissions'] as $pivot) {
@@ -73,7 +75,7 @@ class DemoDataRemoveSeeder extends Seeder
                     DB::table('users')->whereIn('id', $left)->delete();
                     $users += count($left);
                 }
-                DB::table('password_reset_tokens')->where('email', 'like', DemoCatalog::emailPattern())->delete();
+                DemoCatalog::whereDemoEmail(DB::table('password_reset_tokens'))->delete();
 
                 return $users;
             });
@@ -88,6 +90,7 @@ class DemoDataRemoveSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         foreach ($spaIds as $spaId) {
             \App\Services\Navigation\NavBadges::bump($spaId);
+            \Illuminate\Support\Facades\Cache::forget(\App\Http\Controllers\Insights\DecisionSupportController::syncKey($spaId));
         }
         if (class_exists(\App\Services\Hiring\HiringStatus::class)) {
             app(\App\Services\Hiring\HiringStatus::class)->flush();

@@ -31,7 +31,7 @@ class DemoDataResetSeeder extends Seeder
         $this->call(DemoDataRemoveSeeder::class);
 
         if (DB::table('spas')->whereIn('name', DemoCatalog::spaNames())->exists()
-            || DB::table('users')->where('email', 'like', DemoCatalog::emailPattern())->exists()) {
+            || DemoCatalog::whereDemoEmail(DB::table('users'))->exists()) {
             $this->command?->error('The old demo data is still there (see above), so it was not seeded again.');
 
             return;
