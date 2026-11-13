@@ -152,8 +152,17 @@ final class GuideCatalog
             return null;
         }
 
+        // D5: a screenshot belongs to one task (its numbers are that task's steps) and
+        // shows only when that task does and the file exists; a missing file hides its slot.
+        $images = [];
+        foreach ($guide['images'] ?? [] as $img) {
+            if (is_file(public_path($img['src']))) {
+                $images[$img['task'] ?? 0][] = ['src' => $img['src'], 'alt' => $img['alt']];
+            }
+        }
+
         $tasks = [];
-        foreach ($guide['tasks'] ?? [] as $task) {
+        foreach ($guide['tasks'] ?? [] as $i => $task) {
             if (! $ctx->passes($task['when'] ?? null)) {
                 continue;
             }
@@ -170,14 +179,16 @@ final class GuideCatalog
             }
 
             if ($steps !== []) {
-                $tasks[] = ['title' => $task['title'], 'steps' => $steps];
+                $tasks[] = ['title' => $task['title'], 'steps' => $steps, 'images' => $images[$i] ?? []];
             }
         }
 
         $tips = $guide['tips'] ?? [];
 
-        if ($tasks === [] && $tips === []) {
-            return null;
+        // D1: the sidebar shows this page, so Help shows its guide too, even when every
+        // task needs a permission this user lacks (e.g. an owner viewing Payroll Setup).
+        if ($tasks === []) {
+            array_unshift($tips, Guides::VIEW_ONLY_TIP);
         }
 
         $search = mb_strtolower(implode(' ', [
@@ -195,10 +206,6 @@ final class GuideCatalog
             'url' => $url,
             'tasks' => $tasks,
             'tips' => $tips,
-            'images' => array_values(array_filter(
-                $guide['images'] ?? [],
-                fn ($img) => is_file(public_path($img['src'])),   // D5: a missing screenshot hides its slot
-            )),
             'tour' => $guide['tour'] ?? null,
             'search' => $search,
         ];

@@ -178,12 +178,7 @@ class HelpCenterPhase1Test extends TestCase
 
     public function test_no_help_button_on_pages_without_a_guide_or_for_admins(): void
     {
-        // Revenue has no guide yet (Phase 2).
-        $this->actingAs($this->account('finance.a@levictas.test'))->get(route('revenue.index'))
-            ->assertOk()
-            ->assertDontSee(route('help.index').'#', false);
-
-        // The Help page itself.
+        // Phase 2 gave every sidebar page a guide; the Help page itself still has no button.
         $this->actingAs($this->account('owner@levictas.test'))->get(route('help.index'))
             ->assertDontSee('href="'.route('help.index').'#', false);
 

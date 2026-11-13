@@ -79,14 +79,17 @@
                                     </summary>
 
                                     <div class="px-4 pb-5 space-y-5 sm:px-6">
-                                        @foreach ($guide['images'] as $image)
-                                            <img src="{{ asset($image['src']) }}" alt="{{ $image['alt'] }}" loading="lazy"
-                                                 class="w-full max-w-3xl border border-gray-200 rounded-xl dark:border-gray-700">
-                                        @endforeach
-
                                         @foreach ($guide['tasks'] as $task)
                                             <div class="max-w-3xl">
                                                 <h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ $task['title'] }}</h4>
+                                                @foreach ($task['images'] as $image)
+                                                    {{-- Numbered marks on the screenshot match the steps below it. --}}
+                                                    <figure class="mt-2">
+                                                        <img src="{{ asset($image['src']) }}" alt="{{ $image['alt'] }}" loading="lazy"
+                                                             class="max-w-full h-auto bg-white border border-gray-200 rounded-xl dark:border-gray-700">
+                                                        <figcaption class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">The numbers match the steps below.</figcaption>
+                                                    </figure>
+                                                @endforeach
                                                 <ol class="mt-2 space-y-1.5 text-sm leading-6 text-gray-600 list-decimal pl-5 dark:text-gray-300">
                                                     @foreach ($task['steps'] as $step)
                                                         <li>{{ $step }}</li>

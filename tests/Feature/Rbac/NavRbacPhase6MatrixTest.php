@@ -281,8 +281,9 @@ class NavRbacPhase6MatrixTest extends TestCase
             } elseif ($this->pageStatus('/attendance', $session) !== 200) {
                 $fail('Attendance & Leave does not open for an active staff member');
             }
-            if ($landingPath === '/dashboard' && ! str_contains($html, route('attendance.clock-in'))
-                && ! str_contains($html, route('attendance.clock-out')) && ! str_contains($html, "Today's attendance is complete")) {
+            // Help guides Phase 2: the card's buttons open the Attendance page's confirmation (?clock=in|out).
+            if ($landingPath === '/dashboard' && ! str_contains($html, route('attendance.index', ['clock' => 'in']))
+                && ! str_contains($html, route('attendance.index', ['clock' => 'out'])) && ! str_contains($html, "Today's attendance is complete")) {
                 $fail('dashboard has no clock-in card for an active staff member');
             }
         }

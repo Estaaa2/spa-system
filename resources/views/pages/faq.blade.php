@@ -26,6 +26,23 @@
 
     $faqGroups = [
         'For customers' => [
+            // Help guides Phase 2 (D7): the booking flow step by step, with the labels on the
+            // spa page and the booking window (welcome.blade.php). Rules come from Terms.
+            [
+                'id' => 'how-to-book',
+                'q' => 'How do I book an appointment?',
+                'a' => ['Booking needs a free account, so log in or sign up first. Then:'],
+                'steps' => [
+                    'On the home page, find a spa: search by place, or look under Spas near you. Open the spa.',
+                    'Click Reserve an appointment.',
+                    'Service: choose a treatment or package, and how you want it: at the branch, or home service at your address. Click Continue.',
+                    'Date & Time: pick a day on the calendar, then one of the available times. Click Continue.',
+                    'Confirm: check your phone number and the booking summary, choose how much to pay now, and agree to the terms.',
+                    'Click Reserve An Appointment, then pay on the PayMongo page.',
+                    'Your booking is under My Appointments. To change the date or time, open it and choose Request reschedule before it starts.',
+                ],
+                'after' => [$rule('payments', 1)],
+            ],
             [
                 'q' => 'Do I need an account to book?',
                 'a' => ['Yes. You can browse spas without one, but booking needs a free account. Sign up with your name and email address, and we send a code to verify your email.'],
@@ -110,7 +127,7 @@
                         <h2 id="faq-group-{{ $loop->index }}" class="mb-3 text-[11px] font-semibold tracking-wider uppercase text-[#8B7355] dark:text-[#C4A97D]">{{ $group }}</h2>
                         <div class="overflow-hidden divide-y shadow-sm bg-white/70 dark:bg-gray-900/40 rounded-3xl ring-1 ring-black/5 dark:ring-white/10 divide-black/5 dark:divide-white/10">
                             @foreach ($items as $item)
-                                <details class="group">
+                                <details class="group"@isset($item['id']) id="{{ $item['id'] }}"@endisset>
                                     <summary
                                         class="flex items-center justify-between gap-4 px-6 py-4 cursor-pointer list-none text-[15px] font-medium text-[#3C2F23] dark:text-white hover:bg-white/60 dark:hover:bg-gray-800/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B7355] [&::-webkit-details-marker]:hidden">
                                         <span>{{ $item['q'] }}</span>
@@ -119,6 +136,16 @@
                                     </summary>
                                     <div class="px-6 pb-5 space-y-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
                                         @foreach ($item['a'] as $paragraph)
+                                            <p>{!! $paragraph !!}</p>
+                                        @endforeach
+                                        @if (! empty($item['steps']))
+                                            <ol class="pl-5 space-y-1.5 list-decimal">
+                                                @foreach ($item['steps'] as $step)
+                                                    <li>{{ $step }}</li>
+                                                @endforeach
+                                            </ol>
+                                        @endif
+                                        @foreach ($item['after'] ?? [] as $paragraph)
                                             <p>{!! $paragraph !!}</p>
                                         @endforeach
                                     </div>

@@ -1240,6 +1240,19 @@ function attendancePage(initial) {
 
     loadMyLeaveRequests();
     setInterval(loadMyLeaveRequests, 30000);
+
+    // The Dashboard's Clock In / Clock Out buttons land here with ?clock=in|out
+    // (help guides Phase 2), so the same confirmation runs everywhere. Opens only
+    // when this page shows that button (not already clocked in / out).
+    (function () {
+        const want = new URLSearchParams(location.search).get('clock');
+        if (want !== 'in' && want !== 'out') return;
+        history.replaceState(null, '', location.pathname + location.hash);
+        const fn = want === 'in' ? 'openClockInModal' : 'openClockOutModal';
+        if (document.querySelector('[onclick="' + fn + '()"]') && typeof window[fn] === 'function') {
+            window[fn]();
+        }
+    })();
 })();
 </script>
 @endsection
