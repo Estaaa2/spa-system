@@ -7,7 +7,7 @@ use App\Models\Supplier;
 use App\Models\SupplierProduct;
 use App\Models\Treatment;
 use App\Models\User;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;

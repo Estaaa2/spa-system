@@ -11,7 +11,7 @@ use App\Models\StaffAttendance;
 use App\Models\Treatment;
 use App\Models\User;
 use App\Services\Bookings\AttendanceBookingFlags;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

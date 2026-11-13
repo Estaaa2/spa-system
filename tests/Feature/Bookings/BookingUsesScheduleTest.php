@@ -14,7 +14,7 @@ use App\Models\User;
 use App\Services\Bookings\TherapistAssigner;
 use App\Services\Staff\WorkScheduleWriter;
 use Database\Factories\PayrollUserFactory;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;

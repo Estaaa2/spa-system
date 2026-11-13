@@ -13,7 +13,7 @@ use App\Models\User;
 use App\Services\Hiring\HiringStatus;
 use App\Services\Navigation\Sidebar;
 use App\Support\Legal\PrivacyPolicy;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -417,15 +417,15 @@ class JobOpeningsTest extends TestCase
 
     public function test_test_seeders_seed_remove_and_reset(): void
     {
-        $this->seed(\Database\Seeders\JobOpeningsTestSeeder::class);
+        $this->seed(\Tests\Fixtures\JobOpeningsTestSeeder::class);
         $this->assertSame(3, JobPosting::count());
         $this->assertSame(2, Applicant::count());
         $this->assertTrue(app(HiringStatus::class)->isHiring($this->branchA->id));
 
-        $this->seed(\Database\Seeders\JobOpeningsTestResetSeeder::class);
+        $this->seed(\Tests\Fixtures\JobOpeningsTestResetSeeder::class);
         $this->assertSame(3, JobPosting::count());
 
-        $this->seed(\Database\Seeders\JobOpeningsTestRemoveSeeder::class);
+        $this->seed(\Tests\Fixtures\JobOpeningsTestRemoveSeeder::class);
         $this->assertSame(0, JobPosting::withTrashed()->count());
         $this->assertSame(0, Applicant::withTrashed()->count());
     }

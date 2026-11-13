@@ -9,7 +9,7 @@ use App\Models\LeaveRequest;
 use App\Models\ReassignmentRequest;
 use App\Models\Spa;
 use App\Models\User;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;

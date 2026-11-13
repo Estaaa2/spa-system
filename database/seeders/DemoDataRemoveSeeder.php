@@ -48,15 +48,13 @@ class DemoDataRemoveSeeder extends Seeder
             return;
         }
 
-        $remover = new PayrollTestAccountsRemoveSeeder();
-
         try {
-            $users = DB::transaction(function () use ($spaIds, $remover) {
+            $users = DB::transaction(function () use ($spaIds) {
                 $users = 0;
                 foreach ($spaIds as $spaId) {
                     $this->removeInventory($spaId);
                     DB::table('subscriptions')->where('spa_id', $spaId)->delete();
-                    $users += $remover->removeSpa($spaId)['users'];
+                    $users += $this->removeSpa($spaId);
                 }
 
                 // Demo customers and any other demo account left (not tied to a spa).
@@ -99,8 +97,69 @@ class DemoDataRemoveSeeder extends Seeder
     }
 
     /**
+     * The spa and everything inside it. Rows whose foreign keys would BLOCK the
+     * delete (no cascade in the schema) go first; the spa delete then cascades
+     * branches, users, staff, attendance, bookings, leave and the rest.
+     *
+     * @return int number of users removed
+     */
+    private function removeSpa(int $spaId): int
+    {
+        $userIds = DB::table('users')->where('spa_id', $spaId)
+            ->orWhereIn('id', DB::table('spas')->where('id', $spaId)->select('owner_id'))
+            ->pluck('id')->all();
+        $staffIds = DB::table('staff')->where('spa_id', $spaId)->pluck('id')->all();
+        $bookingIds = DB::table('bookings')->where('spa_id', $spaId)->pluck('id')->all();
+        $emails = DB::table('users')->whereIn('id', $userIds)->pluck('email')->all();
+
+        $this->deleteWhereIn('reassignment_requests', 'booking_id', $bookingIds);
+        $this->deleteWhereIn('reassignment_requests', 'requested_by', $userIds);
+        $this->deleteBySpa('expenses', $spaId);
+        $this->deleteWhereIn('payslips', 'staff_id', $staffIds);   // payslip lines cascade
+        $this->deleteBySpa('payroll_runs', $spaId);
+        $this->deleteBySpa('commission_rules', $spaId);
+        $this->deleteWhereIn('staff_recurring_items', 'staff_id', $staffIds);
+        $this->deleteWhereIn('staff_pay_profiles', 'staff_id', $staffIds);
+
+        // Hard delete (past the soft-delete column); the schema cascades the rest.
+        DB::table('spas')->where('id', $spaId)->delete();
+        // Any user the cascade did not reach (e.g. spa_id cleared while demoing).
+        DB::table('users')->whereIn('id', $userIds)->delete();
+
+        if ($userIds !== []) {
+            foreach (['model_has_roles', 'model_has_permissions'] as $pivot) {
+                DB::table($pivot)->where('model_type', \App\Models\User::class)->whereIn('model_id', $userIds)->delete();
+            }
+            $this->deleteWhereIn('sessions', 'user_id', $userIds);
+            if (Schema::hasTable('personal_access_tokens')) {
+                DB::table('personal_access_tokens')->where('tokenable_type', \App\Models\User::class)->whereIn('tokenable_id', $userIds)->delete();
+            }
+        }
+        $this->deleteWhereIn('password_reset_tokens', 'email', $emails);
+
+        return count($userIds);
+    }
+
+    private function deleteBySpa(string $table, int $spaId): void
+    {
+        if (Schema::hasTable($table) && Schema::hasColumn($table, 'spa_id')) {
+            DB::table($table)->where('spa_id', $spaId)->delete();
+        }
+    }
+
+    /** @param list<int|string> $values */
+    private function deleteWhereIn(string $table, string $column, array $values): void
+    {
+        foreach (array_chunk($values, 1000) as $chunk) {
+            if (Schema::hasTable($table) && Schema::hasColumn($table, $column)) {
+                DB::table($table)->whereIn($column, $chunk)->delete();
+            }
+        }
+    }
+
+    /**
      * Stock rows point at products with RESTRICT, so they go first, children
-     * before parents. (The payroll remover handles the rest of the spa.)
+     * before parents.
      */
     private function removeInventory(int $spaId): void
     {

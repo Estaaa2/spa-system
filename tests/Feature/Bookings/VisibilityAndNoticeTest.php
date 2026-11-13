@@ -12,7 +12,7 @@ use App\Models\User;
 use App\Services\Attendance\TherapistDayStatus;
 use App\Services\Staff\ScheduledDay;
 use Database\Factories\PayrollUserFactory;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

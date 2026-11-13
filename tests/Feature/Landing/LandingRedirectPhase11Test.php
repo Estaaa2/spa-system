@@ -4,9 +4,9 @@ namespace Tests\Feature\Landing;
 
 use App\Models\User;
 use App\Services\Navigation\Sidebar;
-use Database\Seeders\HomeVisitTestSeeder;
-use Database\Seeders\IdentityVerificationTestSeeder;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\HomeVisitTestSeeder;
+use Tests\Fixtures\IdentityVerificationTestSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

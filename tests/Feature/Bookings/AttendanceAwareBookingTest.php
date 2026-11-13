@@ -13,7 +13,7 @@ use App\Models\Treatment;
 use App\Models\User;
 use App\Services\Bookings\TherapistAssigner;
 use Database\Factories\PayrollUserFactory;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

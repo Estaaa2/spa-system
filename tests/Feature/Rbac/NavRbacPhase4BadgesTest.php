@@ -15,7 +15,7 @@ use App\Models\RescheduleRequest;
 use App\Models\Spa;
 use App\Models\User;
 use App\Services\Navigation\NavBadges;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;

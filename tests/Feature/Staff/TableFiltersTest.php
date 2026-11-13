@@ -9,7 +9,7 @@ use App\Models\JobPosting;
 use App\Models\Spa;
 use App\Models\User;
 use App\Support\TableFilters;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;

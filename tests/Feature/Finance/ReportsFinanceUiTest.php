@@ -6,7 +6,7 @@ use App\Models\Branch;
 use App\Models\Expense;
 use App\Models\Spa;
 use App\Models\User;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Spatie\Permission\Models\Role;

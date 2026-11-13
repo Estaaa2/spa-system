@@ -5,9 +5,9 @@ namespace Tests\Feature\Identity;
 use App\Mail\BookingTherapistMail;
 use App\Models\Booking;
 use App\Models\User;
-use Database\Seeders\HomeVisitTestSeeder;
-use Database\Seeders\IdentityVerificationTestSeeder;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\HomeVisitTestSeeder;
+use Tests\Fixtures\IdentityVerificationTestSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
@@ -287,7 +287,7 @@ class ArrivalAndCustomerViewTest extends TestCase
         app(\App\Services\Bookings\VerificationBookingFlags::class)->flagAfterVerificationLost($this->vera, 'test');
         $otherBookings = Booking::where('customer_user_id', '!=', $this->customer->id)->orWhereNull('customer_user_id')->count();
 
-        $this->seed(\Database\Seeders\HomeVisitTestResetSeeder::class);
+        $this->seed(\Tests\Fixtures\HomeVisitTestResetSeeder::class);
 
         $fresh = User::where('email', HomeVisitTestSeeder::CUSTOMER_EMAIL)->firstOrFail();
         $rows = Booking::where('customer_user_id', $fresh->id)->get();
@@ -311,7 +311,7 @@ class ArrivalAndCustomerViewTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        $this->seed(\Database\Seeders\HomeVisitTestRemoveSeeder::class);
+        $this->seed(\Tests\Fixtures\HomeVisitTestRemoveSeeder::class);
 
         $this->assertNotNull(User::where('email', HomeVisitTestSeeder::CUSTOMER_EMAIL)->first());
         $this->assertSame(3, Booking::where('customer_user_id', $this->customer->id)->count());
@@ -322,7 +322,7 @@ class ArrivalAndCustomerViewTest extends TestCase
         // A reassignment request pointing at Vera used to block the identity reset.
         app(\App\Services\Bookings\VerificationBookingFlags::class)->flagAfterVerificationLost($this->vera, 'test');
 
-        $this->seed(\Database\Seeders\IdentityVerificationTestResetSeeder::class);
+        $this->seed(\Tests\Fixtures\IdentityVerificationTestResetSeeder::class);
 
         $vera = User::where('email', 'idv.vera@levictas.test')->firstOrFail();
         $this->assertNotSame($this->vera->id, $vera->id);

@@ -7,9 +7,9 @@ use App\Models\Booking;
 use App\Models\OnlineReservationPayment;
 use App\Models\Spa;
 use App\Models\User;
-use Database\Seeders\HomeVisitTestSeeder;
-use Database\Seeders\IdentityVerificationTestSeeder;
-use Database\Seeders\PayrollTestAccountsSeeder;
+use Tests\Fixtures\HomeVisitTestSeeder;
+use Tests\Fixtures\IdentityVerificationTestSeeder;
+use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -152,7 +152,8 @@ class LandingAndCustomerPhotoTest extends TestCase
     {
         $html = $this->get('/')->assertOk()->getContent();
 
-        $this->assertStringContainsString('id="spaModalOwnerRow"', $html);
+        // The spa modal revamp moved "Owned by …" under the photos (its own element).
+        $this->assertStringContainsString('id="spaModalOwner"', $html);
         $this->assertStringContainsString('Business verified', $html);
         // Cards carry the data only in data-spa (for the modal); there is no
         // visible "Owned by" line on the cards (Q53).
