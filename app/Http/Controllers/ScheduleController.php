@@ -11,9 +11,39 @@ use Illuminate\Http\Request;
 
 class ScheduleController extends Controller
 {
+    /**
+     * Staff without branch-wide appointment access only see their own bookings.
+     * Anyone who can edit appointments (managers, front desk, admins) sees the
+     * whole branch, as before. Least-privilege by default: if the permission is
+     * missing, the user is scoped.
+     */
+    private function isScopedToOwnBookings($user): bool
+    {
+        return ! $user->hasBranchPermission('edit appointments');
+    }
+
+    /**
+     * Applies the therapist scope to a Booking query. Done in SQL so hidden
+     * bookings never reach the Blade view (data-* attributes) or the JSON
+     * endpoint, and so overlap columns are computed from visible bookings only.
+     *
+     * NOTE: assumes bookings.therapist_id stores the therapist's users.id,
+     * which matches the shift roster code (pool of users). If your column
+     * stores staff.id instead, swap $user->id for the staff id here.
+     */
+    private function applyViewerScope($query, $user)
+    {
+        return $query->when(
+            $this->isScopedToOwnBookings($user),
+            fn ($q) => $q->where('therapist_id', $user->id)
+        );
+    }
+
     public function index(Request $request)
     {
-        $currentBranchId = session('current_branch_id') ?? auth()->user()->branch_id;
+        $user            = auth()->user();
+        $currentBranchId = session('current_branch_id') ?? $user->branch_id;
+        $scopedToOwn     = $this->isScopedToOwnBookings($user);
 
         // ── Week bounds ──────────────────────────────────────────────────────
         $weekParam   = $request->query('week');
@@ -111,13 +141,17 @@ class ScheduleController extends Controller
         }
 
         // ── Fetch bookings for the week ──────────────────────────────────────
-        $bookings = Booking::query()
-            ->with('latestRescheduleRequest')
-            ->where('branch_id', $currentBranchId)
-            ->whereBetween('appointment_date', [
-                $startOfWeek->toDateString(),
-                $endOfWeek->toDateString(),
-            ])
+        // Scoped in SQL: therapists only get their own bookings.
+        $bookings = $this->applyViewerScope(
+            Booking::query()
+                ->with('latestRescheduleRequest')
+                ->where('branch_id', $currentBranchId)
+                ->whereBetween('appointment_date', [
+                    $startOfWeek->toDateString(),
+                    $endOfWeek->toDateString(),
+                ]),
+            $user
+        )
             ->orderBy('appointment_date')
             ->orderBy('start_time')
             ->get();
@@ -125,9 +159,9 @@ class ScheduleController extends Controller
         // ── Pending reschedule requests, any week (sidebar & RBAC rework 4.1) ─
         // Listed above the calendar so every request the Schedule badge counts
         // is visible here. Same filter as RescheduleRequestController::index and
-        // NavBadges; only for people who can approve or reject them.
+        // NavBadges; only for people who can approve or reject them. Those users
+        // are never scoped to their own bookings, so no extra scope is needed.
         $pendingReschedules = collect();
-        $user = auth()->user();
 
         if ($user->hasBranchPermission('edit appointments')) {
             $pendingReschedules = Booking::query()
@@ -240,6 +274,7 @@ class ScheduleController extends Controller
         // ── Shifts roster (staff scheduling Phase 3, Q5 B) ───────────────────
         // Every treatment provider at this branch × the visible week, from the
         // work-schedule resolver: shift hours, rest day, day off, leave, closed.
+        // Shift hours only, no customer data, so it is not scoped.
         $shiftRoster = [];
         $pool = app(\App\Services\Bookings\TherapistAssigner::class)->pool((int) $user->spa_id, (int) $currentBranchId);
         if ($pool->isNotEmpty()) {
@@ -280,6 +315,7 @@ class ScheduleController extends Controller
             'timeLabels',
             'bookingsByDate',
             'pendingReschedules',
+            'scopedToOwn',
         ));
     }
 
@@ -328,7 +364,8 @@ class ScheduleController extends Controller
     // ── JSON endpoint (realtime / AJAX) ──────────────────────────────────────
     public function data(Request $request)
     {
-        $currentBranchId = session('current_branch_id') ?? auth()->user()->branch_id;
+        $user            = auth()->user();
+        $currentBranchId = session('current_branch_id') ?? $user->branch_id;
 
         $weekParam   = $request->query('week');
         $startOfWeek = $weekParam
@@ -337,12 +374,17 @@ class ScheduleController extends Controller
 
         $endOfWeek = $startOfWeek->copy()->addDays(6);
 
-        $bookings = Booking::query()
-            ->where('branch_id', $currentBranchId)
-            ->whereBetween('appointment_date', [
-                $startOfWeek->toDateString(),
-                $endOfWeek->toDateString(),
-            ])
+        // Same scope as index(), otherwise this endpoint leaks other
+        // therapists' customer names to anyone who calls it directly.
+        $bookings = $this->applyViewerScope(
+            Booking::query()
+                ->where('branch_id', $currentBranchId)
+                ->whereBetween('appointment_date', [
+                    $startOfWeek->toDateString(),
+                    $endOfWeek->toDateString(),
+                ]),
+            $user
+        )
             ->orderBy('appointment_date')
             ->orderBy('start_time')
             ->get([

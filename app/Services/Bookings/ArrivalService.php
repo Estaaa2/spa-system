@@ -88,6 +88,9 @@ class ArrivalService
             'confirmed_at'   => $booking->arrival_confirmed_at?->toIso8601String(),
             'confirmed_late' => $booking->arrivalConfirmedLate(),   // added in booking lifecycle Phase 2
             'method'         => $booking->arrival_method,
+            'confirmed_by'   => $booking->arrival_method === 'manual'
+                ? $booking->arrivalConfirmedBy?->first_name
+                : null,
             'can_enter_code' => ! $booking->isArrivalConfirmed()
                 && ! $locked
                 && in_array($booking->status, Booking::ACTIVE_STATUSES, true)

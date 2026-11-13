@@ -144,7 +144,7 @@ class BookingController extends Controller
         try {
             $user = $request->user();
 
-            $bookings = Booking::with('branch', 'spa', 'customer')
+            $bookings = Booking::with('branch', 'spa', 'customer', 'arrivalConfirmedBy')
                 ->where('therapist_id', $user->id)
                 ->orderByDesc('appointment_date')
                 ->get();
@@ -170,7 +170,7 @@ class BookingController extends Controller
             $start = $request->query('week_start', now()->startOfWeek()->toDateString());
             $end   = $request->query('week_end', now()->endOfWeek()->toDateString());
 
-            $bookings = Booking::with('branch', 'spa', 'customer')
+            $bookings = Booking::with('branch', 'spa', 'customer', 'arrivalConfirmedBy')
                 ->where('therapist_id', $user->id)
                 ->whereNotIn('status', ['cancelled', Booking::NO_SHOW])
                 ->whereBetween('appointment_date', [$start, $end])
