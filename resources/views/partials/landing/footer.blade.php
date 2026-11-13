@@ -85,6 +85,8 @@
                                     <a class="{{ $footerLink }}" href="{{ \App\Support\BusinessHome::url(auth()->user()) }}">Go to Dashboard</a>
                                 @endrole
                             @endguest
+                            {{-- Mobile app Phase 2: for every visitor. --}}
+                            <a class="{{ $footerLink }}" href="{{ route('mobile-app') }}">Get the App</a>
                         </div>
                     </div>
                 </div>

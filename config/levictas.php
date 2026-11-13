@@ -53,4 +53,20 @@ return [
         'address' => 'National College of Science and Technology, Dasmariñas, Cavite, Philippines',
     ],
 
+    /*
+    | The Android app offered on /get-the-app (mobile app Phase 2, D2).
+    |
+    | The APK is NOT in git. Upload it to storage/app/mobile/<file> on the
+    | server and set these in .env. A new version = upload the new file and
+    | change these lines; no code change. The file size is read from the file.
+    | If the file is missing, the page shows "not available right now".
+    */
+    'mobile_app' => [
+        'file'        => env('MOBILE_APP_FILE', 'levictas.apk'),
+        'version'     => env('MOBILE_APP_VERSION', ''),
+        'released'    => env('MOBILE_APP_RELEASED', ''),   // YYYY-MM-DD
+        'min_android' => env('MOBILE_APP_MIN_ANDROID', '7.0'),
+        'sha256'      => env('MOBILE_APP_SHA256', ''),
+    ],
+
 ];

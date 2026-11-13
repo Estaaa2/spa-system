@@ -141,6 +141,13 @@ Route::view('/about', 'pages.about')->name('about');
 Route::view('/faq', 'pages.faq')->name('faq');
 Route::view('/contact', 'pages.contact')->name('contact');
 
+// Android app (mobile app Phase 2): the public "Get the app" page and the APK
+// download, served from storage/app/mobile/ (not public/, not git).
+Route::get('/get-the-app', [\App\Http\Controllers\MobileAppController::class, 'show'])->name('mobile-app');
+Route::get('/app/download', [\App\Http\Controllers\MobileAppController::class, 'download'])
+    ->middleware('throttle:30,1')
+    ->name('mobile-app.download');
+
 /*
 |--------------------------------------------------------------------------
 | Landing Page Online Booking / PayMongo

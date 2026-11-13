@@ -32,6 +32,13 @@
                     Home
                 </a>
 
+                {{-- Mobile app Phase 2 (Q2 A): for every visitor, logged in or not. --}}
+                <a href="{{ route('mobile-app') }}"
+                    class="relative px-4 py-2 text-sm font-medium rounded-full transition
+               {{ request()->routeIs('mobile-app') ? 'text-[#6F5430] dark:text-[#C4A97D] bg-white/60 dark:bg-gray-800/60 ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-700 dark:text-gray-300 hover:text-[#8B7355] dark:hover:text-[#C4A97D] hover:bg-white/50 dark:hover:bg-gray-800/50' }}">
+                    Get the App
+                </a>
+
                 @guest
                     <a href="{{ route('login') }}"
                         class="relative px-4 py-2 text-sm font-medium rounded-full transition
@@ -142,6 +149,11 @@
                 class="block px-4 py-3 rounded-xl text-sm font-medium transition
            {{ request()->is('/') ? 'bg-white/70 dark:bg-gray-800/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800/60' }}">
                 Home
+            </a>
+            <a href="{{ route('mobile-app') }}"
+                class="block px-4 py-3 rounded-xl text-sm font-medium transition
+           {{ request()->routeIs('mobile-app') ? 'bg-white/70 dark:bg-gray-800/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800/60' }}">
+                <i class="mr-2 fa-solid fa-mobile-screen" aria-hidden="true"></i>Get the App
             </a>
             @guest
                 <a href="{{ route('login') }}"

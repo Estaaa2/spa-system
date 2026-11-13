@@ -154,6 +154,17 @@
 
     // Help & Guides (help guides Phase 1): business users only, never admin or customers (D8).
     $showHelpLink = \App\Support\Guides\GuideCatalog::isBusinessUser($user);
+
+    // Mobile app link (mobile app Phase 2, Q1 B / Q3 A). The app's login only
+    // accepts therapists and staff marked "Performs treatments" (plus customers),
+    // so they get "Get the mobile app". Owners can't use it, so theirs points
+    // them to their therapists. Everyone else: no link.
+    $appLinkLabel = null;
+    if ($user && $user->isTreatmentProvider()) {
+        $appLinkLabel = 'Get the mobile app';
+    } elseif ($user && $user->hasRole('owner')) {
+        $appLinkLabel = 'Get the app for your therapists';
+    }
 @endphp
 
 <style>
@@ -550,6 +561,13 @@
                        class="flex items-center w-full min-h-[44px] gap-2 px-3 py-2 mb-2 font-medium transition-colors rounded-lg {{ $helpActive ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700' }}">
                         <i class="fa-solid fa-circle-question w-4 shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
                         <span class="min-w-0">Help &amp; Guides</span>
+                    </a>
+                @endif
+                @if ($appLinkLabel)
+                    <a href="{{ route('mobile-app') }}" data-testid="sidebar-app-link"
+                       class="flex items-center w-full min-h-[44px] gap-2 px-3 py-2 mb-2 font-medium transition-colors rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">
+                        <i class="fa-solid fa-mobile-screen w-4 shrink-0 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                        <span class="min-w-0">{{ $appLinkLabel }}</span>
                     </a>
                 @endif
                 @auth
