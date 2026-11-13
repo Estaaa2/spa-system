@@ -118,7 +118,7 @@ main.pt-20 {
    footer) capped at the viewport, so long content scrolls inside it instead
    of running off-screen behind a locked body. Heights are raw CSS with an
    @supports guard rather than Tailwind's h-dvh (design language §8). */
-#bookingDetailsModal, #appointmentsModal, #scheduleModal, #profileModal {
+#bookingDetailsModal, #appointmentsModal, #scheduleModal, #profileModal, #spaModal {
     /* The sheet sits on the bottom edge; its last row adds the safe area instead. */
     padding-bottom: 0;
 }
@@ -152,8 +152,45 @@ main.pt-20 {
     to   { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .bd-panel, .ap-panel { animation: none; }
+    .bd-panel, .ap-panel, .spa-panel { animation: none; }
 }
+
+/* ============ Spa window: full-height sheet on phones, dialog from sm ============
+   Spa modal rework (Nov 2026). Same shell as .bd-panel, but on phones it takes a
+   fixed height (not a max) so the price + Reserve bar always sits on the bottom
+   edge, whatever the spa's content length. */
+.spa-panel {
+    height: calc(100vh - 1.5rem);
+    animation: bd-sheet-in .28s cubic-bezier(.2, .8, .2, 1);
+}
+@supports (height: 100dvh) {
+    .spa-panel { height: calc(100dvh - 1.5rem); }
+}
+.spa-footer {
+    padding-bottom: calc(.75rem + var(--safe-bottom));
+}
+@media (min-width: 640px) {
+    .spa-panel {
+        height: auto;
+        max-height: calc(100vh - 4rem);
+        animation-name: bd-dialog-in;
+        animation-duration: .2s;
+    }
+    @supports (height: 100dvh) {
+        .spa-panel { max-height: calc(100dvh - 4rem); }
+    }
+    .spa-footer { padding-bottom: .75rem; }
+}
+
+/* Booking state is one attribute on #spaModal (set by openSpaModal), so the
+   Reserve button and the "can't book online" note and Call button can't disagree.
+   !important: these must beat the Tailwind display utilities on the same
+   elements (inline-flex, flex). */
+#spaModal[data-can-book="false"] .spa-reserve { display: none !important; }
+#spaModal[data-can-book="true"]  .spa-no-book { display: none !important; }
+
+/* Fullscreen map: the top bar clears the notch inside the Median wrapper. */
+.spa-mapfull-top { padding-top: calc(.5rem + var(--safe-top)); }
 
 /* ============ My appointments list (UI rework Phase 2) ============
    Built at runtime in welcome.js, so it is plain CSS with a dark-scheme

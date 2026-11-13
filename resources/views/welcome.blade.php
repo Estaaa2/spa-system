@@ -1309,170 +1309,215 @@
             </div>
         </div>
 
-        <!-- ================= SPA MODAL ================= -->
-        <div id="spaModal" class="fixed inset-0 z-[100] hidden">
-            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close-spa-modal></div>
-            <div class="relative mx-auto w-[92%] max-w-5xl mt-8 mb-8">
-                <div
-                    class="overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-3xl flex flex-col max-h-[90vh]">
-                    <div
-                        class="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-black/5 dark:border-white/10">
-                        <div>
-                            <h3 id="spaModalName"
-                                class="text-2xl font-['Playfair_Display'] font-bold tracking-tight text-[#3C2F23] dark:text-white">
-                                Spa Name</h3>
-                            <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                <span
-                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F6EFE6] dark:bg-gray-700 text-[#6F5430] dark:text-[#C4A97D] text-xs font-semibold ring-1 ring-[#8B7355]/20 dark:ring-[#C4A97D]/20">
-                                    <i class="fa-solid fa-star text-[#D2A85B] text-[10px]"></i>
-                                    <span id="spaModalTag">Featured Spa</span>
-                                </span>
-                                <span class="text-gray-300 dark:text-gray-600">·</span>
-                                <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-xs"></i>
-                                <span id="spaModalAddressSummary"
-                                    class="font-medium text-[#6F5430] dark:text-[#C4A97D] underline underline-offset-2 decoration-dotted">Location</span>
-                                <button type="button" id="spaModalRating" onclick="openReviewsModalFromSpa()"
-                                    class="items-center hidden gap-1 hover:underline underline-offset-2">
-                                    <span class="text-gray-300 dark:text-gray-600">·</span>
-                                    <i class="fa-solid fa-star text-[#D2A85B] text-xs"></i>
-                                    <span id="spaModalRatingValue"
-                                        class="font-medium text-[#3C2F23] dark:text-white"></span>
-                                    <span id="spaModalRatingCount" class="text-gray-400"></span>
-                                </button>
-                            </div>
-                            {{-- D11: business-verified badge + owner's name (filled by openSpaModal). --}}
-                            <div id="spaModalOwnerRow" class="flex-wrap items-center hidden gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                <span id="spaModalBusinessVerified"
-                                    title="Levictas checked this spa's business documents."
-                                    class="hidden items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i> Business verified
-                                </span>
-                                <span id="spaModalOwner" class="hidden">
-                                    Owned by <span id="spaModalOwnerName" class="font-medium text-[#3C2F23] dark:text-gray-200"></span>
-                                </span>
-                            </div>
-                        </div>
-                        <button data-close-spa-modal
-                            class="flex items-center justify-center w-9 h-9 text-gray-500 dark:text-gray-400 transition rounded-xl hover:bg-[#F6EFE6] dark:hover:bg-gray-700 hover:text-[#3C2F23] dark:hover:text-white ring-1 ring-black/5 dark:ring-white/10">
-                            <i class="fa-solid fa-xmark"></i>
+        <!-- ================= SPA MODAL (sheet on phones, dialog from sm) =================
+             Spa modal rework (Nov 2026). Same shell as #bookingDetailsModal, with the
+             business-side tokens: rounded-2xl panel, shadow-xl, 44px controls,
+             emerald for status, text-base section headings. Customer colours stay.
+             The header holds only the name and Close; tag, verified badge, rating
+             and location sit under the photos. A footer bar keeps the price and
+             Reserve on screen at every size (from md the photos push a sidebar
+             button below the fold, so the bar replaced it).
+             Online-booking state is the data-can-book attribute (rules in
+             landing.css), so both Reserve buttons and both notes follow one value.
+             Filled by openSpaModal() in welcome.js. -->
+        <div id="spaModal" class="fixed inset-0 z-[100] hidden" role="dialog" aria-modal="true"
+            aria-labelledby="spaModalName" data-can-book="true">
+            <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-close-spa-modal></div>
+            <div class="absolute inset-x-0 bottom-0 pointer-events-none sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+                <div id="spaPanel"
+                    class="spa-panel pointer-events-auto flex flex-col w-full sm:max-w-5xl overflow-hidden bg-white dark:bg-gray-800 shadow-xl rounded-t-2xl sm:rounded-2xl ring-1 ring-black/10 dark:ring-white/10">
+
+                    <!-- Header: name + close only -->
+                    <div class="flex items-center gap-2 px-4 py-2 border-b border-gray-200 shrink-0 sm:px-6 dark:border-gray-700">
+                        <h2 id="spaModalName" tabindex="-1"
+                            class="flex-1 min-w-0 truncate text-xl sm:text-2xl font-semibold font-['Playfair_Display'] text-[#3C2F23] dark:text-white focus:outline-none">
+                            Spa</h2>
+                        <button type="button" data-close-spa-modal aria-label="Close"
+                            class="flex items-center justify-center -mr-2 w-11 h-11 shrink-0 transition rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                            <i class="text-lg fa-solid fa-xmark" aria-hidden="true"></i>
                         </button>
                     </div>
-                    <div class="overflow-y-auto">
-                        <div class="p-6">
+
+                    <!-- Scrolling body -->
+                    <div id="spaBody" class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                        <div class="px-4 pt-4 sm:px-6 sm:pt-5">
                             {{-- Photo grid is built entirely by welcome.js's renderSpaPhotoGrid(),
                              because its shape depends on how many photos the branch actually
                              uploaded (1-5). Styling lives in the .spa-photo-* plain-CSS rules
-                             in the <style> block below rather than Tailwind utilities, since
-                             Tailwind's content scan does not reach welcome.js. --}}
+                             in the <style> block below, since Tailwind's content scan does
+                             not reach welcome.js. --}}
                             <div id="spaModalPhotoGrid" class="spa-photo-grid" data-count="0"></div>
-                        </div>
-                        <div class="grid gap-8 px-6 pb-8 md:grid-cols-3">
-                            <div class="space-y-7 md:col-span-2">
-                                <div>
-                                    <h4
-                                        class="mb-2 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23] dark:text-white">
-                                        About this spa</h4>
-                                    <p id="spaModalDesc"
-                                        class="text-sm leading-relaxed text-gray-600 dark:text-gray-400"></p>
-                                </div>
-                                <div id="spaModalHiring"
-                                    class="hidden p-4 rounded-2xl bg-green-50 dark:bg-green-900/20 ring-1 ring-green-200 dark:ring-green-800">
-                                    <div class="flex items-center gap-2">
-                                        <i
-                                            class="text-sm text-green-600 dark:text-green-400 fa-solid fa-briefcase"></i>
-                                        <p class="text-sm font-semibold text-green-700 dark:text-green-300">We're
-                                            Hiring</p>
-                                    </div>
-                                    <p id="spaModalHiringNote"
-                                        class="mt-1 text-sm text-green-700/90 dark:text-green-300/80"></p>
-                                    {{-- Open job openings, each with Apply (staff scheduling & hiring Phase 5, Q4 A) --}}
-                                    <ul id="spaModalOpenings" class="mt-3 space-y-2"></ul>
-                                </div>
-                                <hr class="border-[#E8DDD0] dark:border-gray-700">
-                                <div>
-                                    <h4
-                                        class="mb-4 text-xl font-['Playfair_Display'] font-semibold text-[#3C2F23] dark:text-white">
-                                        What this place offers</h4>
-                                    <div id="spaModalAmenities">
-                                        <p class="text-sm italic text-gray-400 dark:text-gray-500">No amenities listed
-                                            yet.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="md:col-span-1">
-                                <div
-                                    class="sticky top-4 p-5 space-y-3 border border-[#E8DDD0] dark:border-gray-700 shadow-sm rounded-2xl bg-[#FDFAF6] dark:bg-gray-900/40">
-                                    <div
-                                        class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                                        <div
-                                            class="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10 flex-shrink-0 mt-0.5">
-                                            <i
-                                                class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
-                                        </div>
-                                        <div>
-                                            <p
-                                                class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                                                Address</p>
-                                            <p id="spaModalAddress"
-                                                class="mt-0.5 text-sm text-[#3C2F23] dark:text-gray-200 leading-snug">
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                                        <div
-                                            class="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10 flex-shrink-0 mt-0.5">
-                                            <i
-                                                class="fa-solid fa-phone text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
-                                        </div>
-                                        <div>
-                                            <p
-                                                class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                                                Contact</p>
-                                            <p id="spaModalPhone"
-                                                class="mt-0.5 text-sm text-[#3C2F23] dark:text-gray-200"></p>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="flex items-start gap-3 p-3 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                                        <div
-                                            class="flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/10 flex-shrink-0 mt-0.5">
-                                            <i class="fa-solid fa-tag text-[#8B7355] dark:text-[#C4A97D] text-sm"></i>
-                                        </div>
-                                        <div>
-                                            <p
-                                                class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                                                Price</p>
-                                            <p id="spaModalPrice"
-                                                class="mt-0.5 text-sm font-semibold text-[#6F5430] dark:text-[#C4A97D]">
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {{-- Leaflet/OSM tiles can't be themed via CSS; dimming overlay
-                                     keeps the map readable against the dark sidebar without
-                                     blocking interaction (pointer-events-none). --}}
-                                    <div class="relative">
-                                        <div id="spaModalMap"
-                                            class="w-full h-[170px] rounded-xl border border-[#E8DDD0] dark:border-gray-700 bg-[#F6EFE6] dark:bg-gray-700 overflow-hidden shadow-inner">
-                                        </div>
-                                        <div
-                                            class="absolute inset-0 hidden pointer-events-none dark:block rounded-xl bg-gray-900/30 mix-blend-multiply">
-                                        </div>
-                                    </div>
-                                    <button type="button" id="openBookingModalBtn"
-                                        class="flex items-center justify-center w-full gap-2 py-3 mt-1 text-sm font-semibold text-white transition rounded-xl booking-btn shadow-md hover:shadow-lg active:translate-y-0.5">
-                                        <i class="fa-solid fa-calendar-check"></i>
-                                        Reserve An Appointment
+
+                            <!-- Summary: tag, verified, rating, location, owner -->
+                            <div class="mt-4 space-y-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#F6EFE6] text-[#6F5430] ring-1 ring-[#8B7355]/20 dark:bg-[#C4A97D]/10 dark:text-[#C4A97D] dark:ring-[#C4A97D]/20">
+                                        <i class="fa-solid fa-star text-[#D2A85B] text-[10px]" aria-hidden="true"></i>
+                                        <span id="spaModalTag">Featured Spa</span>
+                                    </span>
+                                    {{-- D11: business-verified badge (filled by renderSpaOwner). --}}
+                                    <span id="spaModalBusinessVerified"
+                                        title="Levictas checked this spa's business documents."
+                                        class="hidden items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                        <i class="fa-solid fa-circle-check" aria-hidden="true"></i> Business verified
+                                    </span>
+                                    <button type="button" id="spaModalRating" onclick="openReviewsModalFromSpa()"
+                                        class="hidden items-center gap-1.5 min-h-[44px] -my-1 px-3 text-sm transition border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                        <i class="fa-solid fa-star text-[#D2A85B] text-xs" aria-hidden="true"></i>
+                                        <span id="spaModalRatingValue" class="font-semibold text-[#3C2F23] dark:text-white"></span>
+                                        <span id="spaModalRatingCount" class="text-gray-500 dark:text-gray-400"></span>
+                                        <i class="text-[10px] text-gray-400 fa-solid fa-chevron-right" aria-hidden="true"></i>
                                     </button>
+                                </div>
+                                <p class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                    <i class="fa-solid fa-location-dot mt-0.5 text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                    <span id="spaModalAddressSummary">Location</span>
+                                </p>
+                                <p id="spaModalOwner" class="hidden text-sm text-gray-500 dark:text-gray-400">
+                                    Owned by <span id="spaModalOwnerName" class="font-medium text-[#3C2F23] dark:text-gray-200"></span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-6 px-4 py-5 sm:px-6 md:grid-cols-3 md:gap-8 md:pb-6">
+                            <div class="space-y-6 md:col-span-2">
+                                <section aria-labelledby="spaAboutTitle">
+                                    <h3 id="spaAboutTitle" class="text-base font-semibold text-[#3C2F23] dark:text-white">About this spa</h3>
+                                    <p id="spaModalDesc" class="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300"></p>
+                                </section>
+
+                                {{-- Open job openings, each with Apply (staff scheduling & hiring Phase 5, Q4 A).
+                                 Emerald semantic-tinted card (design language §8). --}}
+                                <section id="spaModalHiring" aria-labelledby="spaHiringTitle"
+                                    class="hidden p-4 border border-emerald-200 rounded-2xl bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/10">
+                                    <h3 id="spaHiringTitle" class="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                                        <i class="fa-solid fa-briefcase" aria-hidden="true"></i> We're hiring
+                                    </h3>
+                                    <p id="spaModalHiringNote" class="mt-1 text-sm text-emerald-800 dark:text-emerald-300/90"></p>
+                                    <ul id="spaModalOpenings" class="mt-3 space-y-2"></ul>
+                                </section>
+
+                                <section aria-labelledby="spaAmenitiesTitle" class="pt-6 border-t border-gray-200 dark:border-gray-700">
+                                    <h3 id="spaAmenitiesTitle" class="text-base font-semibold text-[#3C2F23] dark:text-white">What this place offers</h3>
+                                    <div id="spaModalAmenities" class="mt-3">
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">No amenities listed yet.</p>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <!-- Details card: address, contact, price, map, booking note -->
+                            <aside class="md:col-span-1 md:self-start md:sticky md:top-5" aria-label="Spa details">
+                                <div class="p-4 space-y-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+                                    <div class="flex items-start gap-3">
+                                        <span class="flex items-center justify-center w-9 h-9 shrink-0 rounded-xl bg-[#F6EFE6] text-[#8B7355] dark:bg-[#C4A97D]/10 dark:text-[#C4A97D]">
+                                            <i class="text-sm fa-solid fa-location-dot" aria-hidden="true"></i>
+                                        </span>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Address</p>
+                                            <p id="spaModalAddress" class="mt-0.5 text-sm leading-snug text-[#3C2F23] dark:text-gray-100 break-words"></p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-3">
+                                        <span class="flex items-center justify-center w-9 h-9 shrink-0 rounded-xl bg-[#F6EFE6] text-[#8B7355] dark:bg-[#C4A97D]/10 dark:text-[#C4A97D]">
+                                            <i class="text-sm fa-solid fa-phone" aria-hidden="true"></i>
+                                        </span>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Contact</p>
+                                            <p id="spaModalPhone" class="mt-0.5 text-sm text-[#3C2F23] dark:text-gray-100 break-words"></p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-3">
+                                        <span class="flex items-center justify-center w-9 h-9 shrink-0 rounded-xl bg-[#F6EFE6] text-[#8B7355] dark:bg-[#C4A97D]/10 dark:text-[#C4A97D]">
+                                            <i class="text-sm fa-solid fa-tag" aria-hidden="true"></i>
+                                        </span>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Price</p>
+                                            <p id="spaModalPrice" class="mt-0.5 text-sm font-semibold text-[#6F5430] dark:text-[#C4A97D]"></p>
+                                        </div>
+                                    </div>
+
+                                    {{-- Map preview: no dragging or wheel zoom (it sits inside a scrolling
+                                     sheet, so it must not swallow scroll gestures). The whole preview is
+                                     one button that opens #spaMapFull. Leaflet/OSM tiles can't be themed,
+                                     so a dimming layer keeps them readable in dark mode.
+                                     z-[401]: above Leaflet's tile/marker panes (max 400), below its
+                                     controls (1000), so the OSM attribution stays clickable. --}}
+                                    <div id="spaModalMapWrap" class="hidden">
+                                        <div class="relative overflow-hidden border border-gray-200 rounded-xl dark:border-gray-700">
+                                            <div id="spaModalMap" class="w-full h-44 bg-gray-100 dark:bg-gray-700" aria-hidden="true"></div>
+                                            <div class="absolute inset-0 hidden pointer-events-none dark:block bg-gray-900/30 mix-blend-multiply"></div>
+                                            <button type="button" id="spaModalMapExpand" aria-label="View larger map"
+                                                class="absolute inset-0 z-[401] flex items-start justify-end p-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] rounded-xl">
+                                                <span class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-800 shadow-sm rounded-xl bg-white/95 ring-1 ring-black/10 dark:bg-gray-800/95 dark:text-gray-100 dark:ring-white/10">
+                                                    <i class="fa-solid fa-expand" aria-hidden="true"></i> Expand
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <a id="spaModalDirections" href="#" target="_blank" rel="noopener"
+                                            class="inline-flex items-center gap-2 min-h-[44px] -mb-2 text-sm font-medium text-[#6F5430] dark:text-[#C4A97D] hover:underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] rounded-xl">
+                                            <i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i>
+                                            Get directions
+                                            <span class="sr-only">(opens Google Maps in a new tab)</span>
+                                        </a>
+                                    </div>
+
                                     <p id="spaModalNoBookingNote"
-                                        class="hidden px-3 py-2 text-xs text-center text-gray-500 dark:text-gray-400 rounded-xl bg-[#F6EFE6]/60 dark:bg-gray-700/50">
-                                        Online reservation isn't available for this spa right now. Please contact them directly to book.
+                                        class="spa-no-book flex items-start gap-2 p-3 text-xs text-amber-800 border border-amber-200 rounded-xl bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10 dark:text-amber-300">
+                                        <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+                                        <span>Online reservation isn't available for this spa right now. Please contact them directly to book.</span>
                                     </p>
                                 </div>
-                            </div>
+                            </aside>
                         </div>
                     </div>
+
+                    <!-- Footer: price + Reserve stay on screen at every size -->
+                    <div class="spa-footer flex items-center gap-3 px-4 pt-3 bg-white border-t border-gray-200 shrink-0 sm:px-6 dark:bg-gray-800 dark:border-gray-700">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Price</p>
+                            <p id="spaModalFooterPrice" class="text-sm font-semibold truncate text-[#6F5430] dark:text-[#C4A97D]"></p>
+                        </div>
+                        <button type="button" id="openBookingModalBtn" data-open-booking-modal
+                            class="spa-reserve inline-flex items-center justify-center gap-2 min-h-[44px] px-5 py-2 text-sm font-semibold text-white transition shadow-sm shrink-0 rounded-xl booking-btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800">
+                            <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
+                            <span>Reserve<span class="hidden sm:inline"> an appointment</span></span>
+                        </button>
+                        <a id="spaModalCallBtn" href="#"
+                            class="spa-no-book hidden items-center justify-center gap-2 min-h-[44px] px-4 py-2 text-sm font-medium transition bg-white border border-gray-300 shrink-0 rounded-xl text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                            <i class="fa-solid fa-phone" aria-hidden="true"></i>
+                            Call spa
+                        </a>
+                    </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ================= FULLSCREEN MAP (opened from the spa modal's map preview) =================
+             Its own Leaflet map, built on open and removed on close, with dragging
+             and zoom on. A CSS overlay rather than the Fullscreen API, which iPhone
+             Safari doesn't support for non-video elements. z-[150]: above the
+             reviews modal (145), below the photo lightbox (155). -->
+        <div id="spaMapFull" class="fixed inset-0 z-[150] hidden" role="dialog" aria-modal="true"
+            aria-labelledby="spaMapFullTitle">
+            <div class="flex flex-col h-full bg-white dark:bg-gray-900">
+                <div class="spa-mapfull-top flex items-center gap-2 px-4 pb-2 border-b border-gray-200 shrink-0 sm:px-6 dark:border-gray-700">
+                    <div class="flex-1 min-w-0">
+                        <h2 id="spaMapFullTitle" tabindex="-1" class="text-base font-semibold truncate text-[#3C2F23] dark:text-white focus:outline-none">Map</h2>
+                        <p id="spaMapFullAddress" class="text-xs text-gray-500 truncate dark:text-gray-400"></p>
+                    </div>
+                    <a id="spaMapFullDirections" href="#" target="_blank" rel="noopener"
+                        aria-label="Get directions (opens Google Maps in a new tab)"
+                        class="inline-flex items-center justify-center gap-2 w-11 h-11 sm:w-auto sm:px-4 shrink-0 text-sm font-medium transition rounded-xl text-[#8B7355] border border-[#8B7355]/40 hover:bg-[#8B7355]/5 dark:text-[#C4A97D] dark:border-[#C4A97D]/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                        <i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i>
+                        <span class="hidden sm:inline">Directions</span>
+                    </a>
+                    <button type="button" id="spaMapFullClose" aria-label="Close map"
+                        class="flex items-center justify-center -mr-2 w-11 h-11 shrink-0 transition rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                        <i class="text-lg fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div id="spaMapFullCanvas" class="flex-1 min-h-0 bg-gray-100 dark:bg-gray-800"></div>
             </div>
         </div>
 
@@ -1759,15 +1804,17 @@
             /* Amenity chips (built in welcome.js's openSpaModal) - same rationale
            as svc-card/slot-btn above: JS template strings aren't scanned by
            Tailwind, so arbitrary-value dark: classes there would be silently
-           dropped. Plain CSS class instead. */
+           dropped. Plain CSS class instead. Sizes follow the business-side
+           scale (rounded-xl control, text-sm body). */
             .amenity-chip {
                 display: flex;
                 align-items: center;
                 gap: 10px;
-                padding: 10px 12px;
+                min-height: 52px;
+                padding: 8px 12px;
                 border-radius: 12px;
-                background: rgba(246, 239, 230, 0.7);
-                border: 1px solid rgba(139, 115, 85, 0.10);
+                background: #fff;
+                border: 1px solid #e5e7eb;
             }
 
             .amenity-chip-icon {
@@ -1775,19 +1822,45 @@
                 align-items: center;
                 justify-content: center;
                 flex-shrink: 0;
-                width: 28px;
-                height: 28px;
-                border-radius: 8px;
-                background: #fff;
-                border: 1px solid rgba(0, 0, 0, 0.05);
+                width: 32px;
+                height: 32px;
+                border-radius: 10px;
+                background: #F6EFE6;
                 color: #8B7355;
-                font-size: 11px;
+                font-size: 13px;
             }
 
             .amenity-chip-label {
-                font-size: 12px;
-                font-weight: 500;
+                min-width: 0;
+                font-size: 14px;
+                line-height: 1.3;
                 color: #3C2F23;
+                overflow-wrap: anywhere;
+            }
+
+            /* Job openings inside the spa modal's "We're hiring" card (built by
+           renderSpaModalOpenings in welcome.js). Plain CSS for the same reason. */
+            .spa-opening {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 12px;
+                border-radius: 12px;
+                background: #fff;
+                border: 1px solid #a7f3d0;
+            }
+
+            .spa-opening-title {
+                font-size: 14px;
+                font-weight: 600;
+                color: #3C2F23;
+            }
+
+            .spa-opening-meta {
+                font-size: 12px;
+                color: #4b5563;
             }
 
             /* Booking modal step indicator - welcome.js's showBookingStep()
@@ -2234,18 +2307,30 @@
                 }
 
                 .amenity-chip {
-                    background: rgba(55, 65, 81, 0.5);
-                    border-color: rgba(196, 169, 125, 0.15);
+                    background: #1f2937;
+                    border-color: #374151;
                 }
 
                 .amenity-chip-icon {
-                    background: #1f2937;
-                    border-color: rgba(255, 255, 255, 0.08);
+                    background: rgba(196, 169, 125, 0.1);
                     color: #C4A97D;
                 }
 
                 .amenity-chip-label {
                     color: #f3f4f6;
+                }
+
+                .spa-opening {
+                    background: rgba(17, 24, 39, 0.4);
+                    border-color: #065f46;
+                }
+
+                .spa-opening-title {
+                    color: #fff;
+                }
+
+                .spa-opening-meta {
+                    color: #d1d5db;
                 }
 
                 .svc-card-thumb {

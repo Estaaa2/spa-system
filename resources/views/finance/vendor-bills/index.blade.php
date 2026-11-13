@@ -26,7 +26,7 @@
 
     $modalClose = 'inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355]';
 
-    $modalFooter = 'flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:justify-end sm:px-6 dark:border-gray-700';
+    $modalFooter = 'flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 bg-gray-50 sm:flex-row sm:justify-end sm:px-6 dark:bg-gray-900 dark:border-gray-700';
 
     $statusMeta = [
         'draft' => [
@@ -140,6 +140,7 @@
                     @click="openCreate()"
                     class="{{ $btn['primary'] }}"
                     @disabled($billablePurchaseOrders->isEmpty())
+                    @if($billablePurchaseOrders->isEmpty()) title="An issued or received purchase order is needed first" @endif
                 >
                     <i class="fa-solid fa-file-invoice" aria-hidden="true"></i>
                     Create Vendor Bill
@@ -148,53 +149,45 @@
         @endif
     </x-page-header>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    @php
+        // Counts come from the current page of bills (10 per page), not every bill.
+        $pageBills       = $vendorBills->getCollection();
+        $pendingCount    = $pageBills->where('status', 'pending_match')->count();
+        $discrepantCount = $pageBills->where('status', 'discrepancy')->count();
+        $countScope      = $vendorBills->hasPages() ? 'On this page' : null;
+    @endphp
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
         <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Vendor Bills
-            </p>
-
-            <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
-                <p class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">
-                    {{ $vendorBills->total() }}
-                </p>
-
-                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">
-                    Recorded
-                </span>
+            <div class="flex items-center justify-between gap-2">
+                <p class="min-w-0 text-xs font-semibold tracking-wide text-gray-500 uppercase truncate dark:text-gray-400">Vendor Bills</p>
+                <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl bg-[#8B7355]/10 dark:bg-[#C4A97D]/10">
+                    <i class="text-sm fa-solid fa-file-invoice text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                </div>
             </div>
+            <p class="mt-3 text-3xl font-bold text-gray-900 tabular-nums dark:text-white">{{ $vendorBills->total() }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Recorded for this branch</p>
         </div>
 
-        <div class="p-4 border shadow-sm sm:p-5 bg-amber-50 border-amber-200 rounded-2xl dark:bg-amber-900/10 dark:border-amber-800">
-            <p class="text-xs font-semibold tracking-wide uppercase text-amber-700 dark:text-amber-300">
-                Pending Match
-            </p>
-
-            <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
-                <p class="text-2xl font-semibold sm:text-3xl text-amber-900 dark:text-amber-200">
-                    {{ $vendorBills->getCollection()->where('status', 'pending_match')->count() }}
-                </p>
-
-                <span class="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
-                    Needs matching
-                </span>
+        <div class="p-4 border shadow-sm sm:p-5 rounded-2xl {{ $pendingCount > 0 ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700' }}">
+            <div class="flex items-center justify-between gap-2">
+                <p class="min-w-0 text-xs font-semibold tracking-wide uppercase truncate {{ $pendingCount > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400' }}">Pending Match</p>
+                <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl {{ $pendingCount > 0 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="text-sm fa-solid fa-scale-balanced {{ $pendingCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400' }}" aria-hidden="true"></i>
+                </div>
             </div>
+            <p class="mt-3 text-3xl font-bold tabular-nums {{ $pendingCount > 0 ? 'text-amber-900 dark:text-amber-200' : 'text-gray-900 dark:text-white' }}">{{ $pendingCount }}</p>
+            <p class="mt-1 text-xs {{ $pendingCount > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400' }}">{{ $countScope ?? 'Needs matching' }}</p>
         </div>
 
-        <div class="p-4 bg-white border border-gray-200 shadow-sm sm:p-5 rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                Discrepancies
-            </p>
-
-            <div class="flex flex-col mt-3 sm:flex-row sm:items-end sm:justify-between">
-                <p class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">
-                    {{ $vendorBills->getCollection()->where('status', 'discrepancy')->count() }}
-                </p>
-
-                <span class="text-xs text-gray-500 sm:text-sm dark:text-gray-400">
-                    Needs review
-                </span>
+        <div class="col-span-2 sm:col-span-1 p-4 border shadow-sm sm:p-5 rounded-2xl {{ $discrepantCount > 0 ? 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800' : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700' }}">
+            <div class="flex items-center justify-between gap-2">
+                <p class="min-w-0 text-xs font-semibold tracking-wide uppercase truncate {{ $discrepantCount > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400' }}">Discrepancies</p>
+                <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-xl {{ $discrepantCount > 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="text-sm fa-solid fa-triangle-exclamation {{ $discrepantCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400' }}" aria-hidden="true"></i>
+                </div>
             </div>
+            <p class="mt-3 text-3xl font-bold tabular-nums {{ $discrepantCount > 0 ? 'text-red-900 dark:text-red-200' : 'text-gray-900 dark:text-white' }}">{{ $discrepantCount }}</p>
+            <p class="mt-1 text-xs {{ $discrepantCount > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400' }}">{{ $countScope ?? 'Needs review' }}</p>
         </div>
     </div>
 
@@ -219,18 +212,18 @@
     @endif
 
     <div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">
-        <div class="flex flex-col gap-2 px-4 py-4 border-b border-gray-200 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-gray-700">
+        <div class="flex flex-wrap items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
             <div>
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">
                     Supplier Invoices
                 </h2>
 
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Vendor bills recorded for the currently selected branch.
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    Vendor bills recorded for the currently selected branch
                 </p>
             </div>
 
-            <span class="inline-flex items-center self-start px-3 py-1 text-xs font-semibold text-gray-700 bg-gray-100 rounded-full sm:self-auto dark:bg-gray-700 dark:text-gray-300">
+            <span class="inline-flex items-center px-3 py-1 text-xs font-semibold text-gray-700 bg-gray-100 rounded-full dark:bg-gray-700 dark:text-gray-300">
                 {{ $vendorBills->total() }} {{ Str::plural('record', $vendorBills->total()) }}
             </span>
         </div>
@@ -241,51 +234,52 @@
                     <tr role="row">
                         <th
                             role="columnheader"
-                            class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400"
+                            scope="col" class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase sm:px-6 dark:text-gray-400"
                         >
                             Invoice
                         </th>
 
                         <th
                             role="columnheader"
-                            class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400"
+                            scope="col" class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase sm:px-6 dark:text-gray-400"
                         >
                             Supplier
                         </th>
 
                         <th
                             role="columnheader"
-                            class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400"
+                            scope="col" class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase sm:px-6 dark:text-gray-400"
                         >
                             Purchase Order
                         </th>
 
                         <th
                             role="columnheader"
-                            class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400"
+                            scope="col" class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase sm:px-6 dark:text-gray-400"
                         >
                             Invoice Date
                         </th>
 
                         <th
                             role="columnheader"
-                            class="px-6 py-3 text-xs font-medium text-right text-gray-500 uppercase dark:text-gray-400"
+                            scope="col" class="px-4 py-3 text-xs font-medium text-right text-gray-500 uppercase sm:px-6 dark:text-gray-400"
                         >
                             Amount
                         </th>
 
                         <th
                             role="columnheader"
-                            class="px-6 py-3 text-xs font-medium text-left text-gray-500 uppercase dark:text-gray-400"
+                            scope="col" class="px-4 py-3 text-xs font-medium text-left text-gray-500 uppercase sm:px-6 dark:text-gray-400"
                         >
                             Status
                         </th>
                         @if($showVendorBillActions)
                             <th
                                 role="columnheader"
-                                class="px-6 py-3 text-xs font-medium text-center text-gray-500 uppercase dark:text-gray-400"
+                                scope="col"
+                                class="px-4 py-3 text-xs font-medium text-right text-gray-500 uppercase sm:px-6 dark:text-gray-400"
                             >
-                                Actions
+                                <span class="sr-only">Actions</span>
                             </th>
                         @endif
                     </tr>
@@ -301,7 +295,7 @@
                         @endphp
 
                         <tr role="row" class="hover:bg-gray-50 dark:hover:bg-gray-900/40">
-                            <td role="cell" data-label="Invoice" class="px-6 py-4">
+                            <td role="cell" data-label="Invoice" class="px-4 py-4 sm:px-6">
                                 <div>
                                     <p class="text-sm font-semibold text-gray-900 dark:text-white">
                                         {{ $vendorBill->invoice_number }}
@@ -318,7 +312,7 @@
                             <td
                                 role="cell"
                                 data-label="Supplier"
-                                class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300"
+                                class="px-4 py-4 sm:px-6 text-sm text-gray-700 dark:text-gray-300"
                             >
                                 <span>
                                     {{ $vendorBill->supplier?->name ?? '—' }}
@@ -328,7 +322,7 @@
                             <td
                                 role="cell"
                                 data-label="Purchase Order"
-                                class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300"
+                                class="px-4 py-4 sm:px-6 text-sm text-gray-700 dark:text-gray-300"
                             >
                                 <span>
                                     PO #{{ str_pad($vendorBill->purchase_order_id, 5, '0', STR_PAD_LEFT) }}
@@ -338,7 +332,7 @@
                             <td
                                 role="cell"
                                 data-label="Invoice Date"
-                                class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                                class="px-4 py-4 sm:px-6 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
                             >
                                 <span>
                                     {{ $vendorBill->invoice_date?->format('M d, Y') }}
@@ -348,14 +342,14 @@
                             <td
                                 role="cell"
                                 data-label="Amount"
-                                class="px-6 py-4 text-sm font-semibold text-right text-gray-900 dark:text-white whitespace-nowrap"
+                                class="px-4 py-4 sm:px-6 text-sm font-semibold text-right text-gray-900 dark:text-white whitespace-nowrap"
                             >
                                 <span>
                                     ₱{{ number_format($vendorBill->total_amount, 2) }}
                                 </span>
                             </td>
 
-                            <td role="cell" data-label="Status" class="px-6 py-4">
+                            <td role="cell" data-label="Status" class="px-4 py-4 sm:px-6">
                                 <span class="inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full {{ $meta['class'] }}">
                                     {{ $meta['label'] }}
                                 </span>
@@ -363,10 +357,9 @@
                             @if($showVendorBillActions)
                             <td
                                 role="cell"
-                                data-label="Actions"
-                                class="px-6 py-4 rt-actions"
+                                class="px-4 py-4 sm:px-6 rt-actions"
                             >
-                                <div class="flex flex-wrap items-center justify-end gap-2">
+                                <div class="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:justify-end">
                                     @if(in_array($vendorBill->status, [
                                         \App\Models\VendorBill::STATUS_PENDING_MATCH,
                                         \App\Models\VendorBill::STATUS_MATCHED,
@@ -375,6 +368,7 @@
                                         <form
                                             method="POST"
                                             action="{{ route('vendor-bills.match', $vendorBill) }}"
+                                            class="flex flex-col w-full gap-2 md:flex-row md:w-auto"
                                         >
                                             @csrf
 
@@ -388,7 +382,7 @@
                                                 <button
                                                     type="button"
                                                     @click="openEditBill({{ $vendorBill->id }})"
-                                                    class="{{ $btn['secondary'] }}"
+                                                    class="w-full md:w-auto {{ $btn['secondary'] }}"
                                                 >
                                                     <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                                     {{ $vendorBill->status === \App\Models\VendorBill::STATUS_DISCREPANCY
@@ -399,7 +393,7 @@
 
                                             <button
                                                 type="submit"
-                                                class="{{ $btn['primary'] }}"
+                                                class="w-full md:w-auto {{ $btn['primary'] }}"
                                             >
                                                 <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>
 
@@ -410,11 +404,11 @@
                                         </form>
                                     @endif
 
-                                    @if($vendorBill->match_details)
+                                    @if($vendorBill->match_details && $canMatchVendorBills)
                                         <button
                                             type="button"
                                             @click="openMatch({{ $vendorBill->id }})"
-                                            class="{{ $btn['secondary'] }}"
+                                            class="w-full md:w-auto {{ $btn['secondary'] }}"
                                         >
                                             <i class="fa-solid fa-eye" aria-hidden="true"></i>
                                             View Match
@@ -1333,7 +1327,7 @@ document.addEventListener('alpine:init', () => {
         matchOpen: false,
         editBillPayloads,
         editBillOpen: false,
-        selectedEditBill: null,
+        selectedEditBill: { items: [] },
         selectedMatch: null,
         selectedPoId: @js((string) old('purchase_order_id', '')),
         selectedPo: null,
@@ -1372,7 +1366,7 @@ document.addEventListener('alpine:init', () => {
 
         closeEditBill() {
             this.editBillOpen = false;
-            this.selectedEditBill = null;
+            this.selectedEditBill = { items: [] };
         },
 
         editLineTotal(item) {
@@ -1489,44 +1483,21 @@ document.addEventListener('alpine:init', () => {
     .rt,
     .rt tbody,
     .rt tr,
-    .rt td {
-        display: block;
-        width: 100%;
-    }
+    .rt td { display: block; width: 100%; }
 
-    .rt thead {
-        display: none;
-    }
+    .rt thead { display: none; }
 
-    .rt tbody {
-        display: grid;
-        gap: 0.75rem;
-        padding: 0.75rem;
-        background: #f9fafb;
-    }
-
-    .rt tr {
-        padding: 0.875rem 1rem;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.875rem;
-        background: #ffffff;
-    }
+    .rt tr { padding: 0.75rem 1rem; }
 
     .rt td {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 0.5rem 0 !important;
-        text-align: right !important;
-        border: 0 !important;
+        padding: 0.375rem 0 !important;
+        text-align: left !important;
     }
 
     .rt td[data-label]::before {
         content: attr(data-label);
-        flex-shrink: 0;
-        max-width: 42%;
-        text-align: left;
+        display: block;
+        margin-bottom: 0.125rem;
         font-size: 0.6875rem;
         font-weight: 600;
         letter-spacing: 0.05em;
@@ -1534,73 +1505,16 @@ document.addEventListener('alpine:init', () => {
         color: #6b7280;
     }
 
-    .rt td > * {
-        min-width: 0;
-        max-width: 58%;
-    }
-
-    .rt td.rt-actions {
-        display: block;
-        padding-top: 0.875rem !important;
-        margin-top: 0.375rem;
-        border-top: 1px solid #e5e7eb !important;
-    }
-
-    .rt td.rt-actions::before {
-        display: none;
-    }
-
-    .rt td.rt-actions > div {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-        max-width: none;
-    }
-
-    .rt td.rt-actions form,
-    .rt td.rt-actions button {
-        width: 100%;
-    }
+    .rt td.rt-actions { padding-top: 0.75rem !important; }
 
     .rt td.rt-empty {
-        display: block;
-        padding: 2rem 1rem !important;
+        padding: 2rem 0 !important;
         text-align: center !important;
-    }
-
-    .rt td.rt-empty::before {
-        display: none;
-    }
-
-    .rt td.rt-empty > * {
-        max-width: none;
-    }
-}
-
-@media (min-width: 768px) and (max-width: 1023px) {
-    .rt th,
-    .rt td {
-        padding-left: 1rem;
-        padding-right: 1rem;
     }
 }
 
 @media (max-width: 767px) and (prefers-color-scheme: dark) {
-    .rt tbody {
-        background: #111827;
-    }
-
-    .rt tr {
-        background: #1f2937;
-        border-color: #374151;
-    }
-
-    .rt td[data-label]::before {
-        color: #9ca3af;
-    }
-    .rt td.rt-actions {
-        border-top-color: #374151 !important;
-    }
+    .rt td[data-label]::before { color: #9ca3af; }
 }
 </style>
 @endsection
