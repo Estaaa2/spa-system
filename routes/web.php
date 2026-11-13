@@ -795,6 +795,14 @@ Route::middleware([
     ])->group(function () {
         Route::get('/decision-support', [DecisionSupportController::class, 'index'])
             ->name('decision-support.index');
+        // DSS revamp: refresh, accept / dismiss (each checks spa + branch, owner for spa-level).
+        Route::post('/decision-support/refresh', [DecisionSupportController::class, 'refresh'])
+            ->middleware('throttle:6,1')
+            ->name('decision-support.refresh');
+        Route::post('/decision-support/{recommendation}/accept', [DecisionSupportController::class, 'accept'])
+            ->name('decision-support.accept');
+        Route::post('/decision-support/{recommendation}/dismiss', [DecisionSupportController::class, 'dismiss'])
+            ->name('decision-support.dismiss');
     });
 
     Route::middleware([

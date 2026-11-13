@@ -108,6 +108,10 @@
     {{-- Online home-service visits and the arrival code (staff verification Phase 5). --}}
     @include('partials.home-visits')
 
+    {{-- Decision Support: "Needs your decision" card + once-a-day pop-up (DSS revamp, D5).
+         Replaces the old commented-out "Insights" quick action. --}}
+    @include('partials.dss-dashboard')
+
     @if($pendingDeploymentResponse)
     <div id="deployment-response-card" class="overflow-hidden bg-white border shadow-sm border-amber-200 rounded-2xl dark:bg-gray-800 dark:border-amber-800/40">
         <div class="flex items-center gap-3 px-6 py-4 border-b border-amber-100 dark:border-amber-900/30 bg-amber-50/60 dark:bg-amber-900/10">
@@ -405,14 +409,16 @@
                         <p class="text-xs text-gray-500 dark:text-gray-400">Today's attendance is complete.</p>
                     @endif
                 </div>
-                {{-- Both buttons open the Attendance page's confirmation (help guides Phase 2):
-                     it shows the shift and today's bookings, and asks for the reason an early
-                     clock-out needs. Posting straight from here skipped all of that, and the
-                     server refused early clock-outs for the missing reason. --}}
                 @if(!$myAttendanceToday || !$myAttendanceToday->time_in)
-                    <a href="{{ route('attendance.index', ['clock' => 'in']) }}" class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2">Clock In</a>
+                    <form method="POST" action="{{ route('attendance.clock-in') }}">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 text-sm font-semibold text-white rounded-xl bg-[#8B7355] hover:bg-[#7A6348]">Clock In</button>
+                    </form>
                 @elseif(!$myAttendanceToday->time_out)
-                    <a href="{{ route('attendance.index', ['clock' => 'out']) }}" class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2">Clock Out</a>
+                    <form method="POST" action="{{ route('attendance.clock-out') }}">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700">Clock Out</button>
+                    </form>
                 @endif
             </div>
         </div>

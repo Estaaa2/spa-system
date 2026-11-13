@@ -127,14 +127,11 @@ class CustomerProfileWindowTest extends TestCase
         }
         // The seeded upcoming bookings are reserved, so they don't count either.
 
-        // The page groups by MySQL's HOUR() and DAYOFWEEK(); give SQLite the same functions for this test.
-        $pdo = \DB::connection()->getPdo();
-        $pdo->sqliteCreateFunction('HOUR', fn ($t) => (int) substr((string) $t, 0, 2), 1);
-        $pdo->sqliteCreateFunction('DAYOFWEEK', fn ($d) => (int) date('w', strtotime((string) $d)) + 1, 1);   // MySQL: Sunday = 1
-
-        $response = $this->actingAs($owner)->get(route('decision-support.index', ['from' => '2026-10-01', 'to' => '2026-10-30']));
+        // DSS revamp: Decision Support no longer repeats revenue (D7); Reports shows it
+        // with the same rule (completed bookings, amount paid).
+        $response = $this->actingAs($owner)->get(route('reports.index', ['from' => '2026-10-01', 'to' => '2026-10-30']));
         $response->assertOk();
-        $this->assertEquals(1000, $response->viewData('kpis')['revenue']);
+        $this->assertEquals(1000, $response->viewData('grossRevenue'));
     }
 
     // ── Name: once every 30 days, 24 hours to fix a typo ─────────────────────

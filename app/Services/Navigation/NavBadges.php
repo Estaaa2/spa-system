@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Navigation;
 
 use App\Models\Booking;
+use App\Models\DssRecommendation;
 use App\Models\IdentityVerification;
 use App\Models\LeaveRequest;
 use App\Models\PayrollRun;
@@ -218,6 +219,22 @@ final class NavBadges
             $n = PurchaseRequest::where('spa_id', $spaId)->where('branch_id', $branchId)
                 ->where('status', PurchaseRequest::STATUS_PENDING)->count();
             self::put($out, 'purchase-requests', $n, $n.' purchase '.($n === 1 ? 'request' : 'requests').' to review');
+        }
+
+        // Decision Support: open recommendations for this branch (+ spa-level ones for the
+        // owner). Same gate as the page: permission + plan feature (DSS revamp, F7).
+        // Stored by dss:generate, so this is one COUNT (Q5 B).
+        if ($branchId && $spa?->hasFeature('insights') && $can('view decision support')) {
+            $d = DssRecommendation::query()
+                ->visibleTo($user, $branchId)
+                ->open()
+                ->selectRaw("COUNT(*) as total, SUM(CASE WHEN priority = 'high' THEN 1 ELSE 0 END) as high")
+                ->first();
+            $total = (int) ($d->total ?? 0);
+            $high = (int) ($d->high ?? 0);
+            self::put($out, 'decision-support', $total,
+                $total.' '.($total === 1 ? 'decision' : 'decisions').' waiting'.($high ? " ($high high priority)" : ''),
+                $high > 0);
         }
 
         return $out;

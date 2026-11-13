@@ -632,6 +632,25 @@
 
         if (e.target.closest('[data-promo-delete-close]')) { closeModal('promoDeleteModal'); }
     });
+
+    // DSS revamp (D6): Decision Support's "Create promo" links here with
+    // ?dss_prefill=1&treatment=<id> (or package=<id>)&name=<text>, which opens a new
+    // promo with that item ticked. Nothing is saved until the user submits.
+    (function () {
+        const q = new URLSearchParams(window.location.search);
+        if (!q.get('dss_prefill') || !form) return;
+        openPromoModal(null);
+        if (q.get('name')) document.getElementById('promoName').value = q.get('name').slice(0, 255);
+        checkAll('.promo-treatment-checkbox', q.get('treatment') ? [q.get('treatment')] : []);
+        checkAll('.promo-package-checkbox',   q.get('package')   ? [q.get('package')]   : []);
+        const pad = n => String(n).padStart(2, '0');
+        const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        const start = new Date(), end = new Date(); end.setDate(end.getDate() + 13);
+        if (startInput && !startInput.value) startInput.value = ymd(start);
+        if (endInput && !endInput.value) endInput.value = ymd(end);
+        syncEndDateFloor();
+        syncDiscountLimit();
+    })();
 })();
 </script>
 

@@ -532,6 +532,16 @@
             ];
         @endphp
         openPostingModal(@json($old));
+    @else
+        // DSS revamp (D6): Decision Support's "Create job opening" links here with
+        // ?dss_prefill=1&role=therapist&title=<text>. Opens a new opening, prefilled; nothing is saved yet.
+        (function () {
+            const q = new URLSearchParams(window.location.search);
+            if (!q.get('dss_prefill') || !form) return;
+            const roles = @json(array_keys(\App\Models\JobPosting::ROLES));
+            const role = roles.includes(q.get('role')) ? q.get('role') : 'therapist';
+            openPostingModal({ title: (q.get('title') || '').slice(0, 100), role: role, openings: 1 });
+        })();
     @endif
 })();
 </script>

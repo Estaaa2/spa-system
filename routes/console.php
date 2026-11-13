@@ -16,3 +16,6 @@ Schedule::command('bookings:sync-statuses')->everyFifteenMinutes();
 Schedule::command('documents:send-expiry-reminders')->daily();
 // Deletes leftover ID/selfie files and unused profile photos (identity verification, D9).
 Schedule::command('identity:purge')->dailyAt('03:10');
+// Decision Support: this morning's staffing / hiring / promo / expansion recommendations
+// (DSS revamp, Q5 B). After deployments:process (00:05) so the day's staff changes count.
+Schedule::command('dss:generate')->dailyAt('00:30');

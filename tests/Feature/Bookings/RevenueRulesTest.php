@@ -133,20 +133,8 @@ class RevenueRulesTest extends TestCase
                 ->assertDontSee('Gross Revenue (Total Billed)');
         }
 
-        // Decision Support groups by MySQL's HOUR() / DAYOFWEEK(); give SQLite the
-        // same functions (as CustomerProfileWindowTest does) and check its revenue
-        // KPI equals the shared rule.
-        $pdo = \DB::connection()->getPdo();
-        $pdo->sqliteCreateFunction('HOUR', fn ($t) => (int) substr((string) $t, 0, 2), 1);
-        $pdo->sqliteCreateFunction('DAYOFWEEK', fn ($d) => (int) date('w', strtotime((string) $d)) + 1, 1);
-
-        $this->make('completed', 1000, 600);   // older row, partially paid: counts 600
-        $dss = $this->get(route('decision-support.index', ['from' => '2026-10-01', 'to' => '2026-10-31']));
-        $dss->assertOk();
-        $this->assertEquals(
-            BookingRevenue::serviceRevenue($this->spaId, $this->branchId, '2026-10-01', '2026-10-31'),
-            (float) $dss->viewData('kpis')['revenue']
-        );
+        // DSS revamp: Decision Support no longer shows revenue (D7). Its R6 rule reads
+        // BookingRevenue::serviceRevenue() directly (RecommendationEngineTest).
     }
 
     public function test_paid_toward_today_counts_every_status_including_pending_deposits(): void

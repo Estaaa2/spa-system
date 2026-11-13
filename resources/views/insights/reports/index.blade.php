@@ -47,7 +47,7 @@
 
     <x-page-header
         title="Reports"
-        subtitle="A factual summary of branch activity for the selected period."
+        subtitle="What happened in the selected period. For what to do next, see Decision Support."
     />
 
     <x-date-range-filter :from="$filters['from']" :to="$filters['to']" />

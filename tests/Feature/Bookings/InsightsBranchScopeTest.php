@@ -67,10 +67,7 @@ class InsightsBranchScopeTest extends TestCase
             ])->saveQuietly();
         }
 
-        // Decision Support groups by MySQL functions; give SQLite the same ones.
-        $pdo = DB::connection()->getPdo();
-        $pdo->sqliteCreateFunction('HOUR', fn ($t) => (int) substr((string) $t, 0, 2), 1);
-        $pdo->sqliteCreateFunction('DAYOFWEEK', fn ($d) => (int) date('w', strtotime((string) $d)) + 1, 1);
+        // No SQLite stubs: Decision Support groups hours in PHP since the DSS revamp.
     }
 
     protected function tearDown(): void
@@ -86,7 +83,7 @@ class InsightsBranchScopeTest extends TestCase
 
         return [
             'reports' => (float) $this->get(route('reports.index', $period))->assertOk()->viewData('grossRevenue'),
-            'dss'     => (float) $this->get(route('decision-support.index', $period))->assertOk()->viewData('kpis')['revenue'],
+            'dss'     => (int) $this->get(route('decision-support.index'))->assertOk()->viewData('branchId'),
         ];
     }
 
@@ -99,7 +96,7 @@ class InsightsBranchScopeTest extends TestCase
         $f = $this->figures(999999);   // not a branch of this spa
 
         $this->assertEquals($expected, $f['reports']);
-        $this->assertEquals($expected, $f['dss']);
+        $this->assertSame($this->branchA, $f['dss']);
     }
 
     public function test_a_head_with_no_branch_picked_sees_their_home_branch_not_the_whole_spa(): void
@@ -120,7 +117,7 @@ class InsightsBranchScopeTest extends TestCase
         $period = ['from' => '2026-10-01', 'to' => '2026-10-30'];
 
         $this->assertEquals($expected, (float) $this->get(route('reports.index', $period))->assertOk()->viewData('grossRevenue'));
-        $this->assertEquals($expected, (float) $this->get(route('decision-support.index', $period))->assertOk()->viewData('kpis')['revenue']);
+        $this->assertSame((int) $head->branch_id, (int) $this->get(route('decision-support.index'))->assertOk()->viewData('branchId'));
     }
 
     public function test_switching_to_another_branch_scopes_both_pages_to_it(): void
@@ -130,6 +127,6 @@ class InsightsBranchScopeTest extends TestCase
         $f = $this->figures($this->branchB);
 
         $this->assertEquals($expected, $f['reports']);
-        $this->assertEquals($expected, $f['dss']);
+        $this->assertSame($this->branchB, $f['dss']);
     }
 }

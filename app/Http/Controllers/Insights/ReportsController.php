@@ -22,8 +22,13 @@ class ReportsController extends Controller
         // it first (booking lifecycle follow-up, Q1-A).
         $branchId = $user->currentBranchId();
 
-        $from = $request->input('from', now()->startOfMonth()->format('Y-m-d'));
-        $to   = $request->input('to',   now()->format('Y-m-d'));
+        // A malformed ?from / ?to used to throw a 500 (reports revamp §6, F10). Anything
+        // that is not a real Y-m-d date falls back to the default; a reversed range is swapped.
+        $from = self::validDate($request->input('from')) ?? now()->startOfMonth()->format('Y-m-d');
+        $to   = self::validDate($request->input('to'))   ?? now()->format('Y-m-d');
+        if ($from > $to) {
+            [$from, $to] = [$to, $from];
+        }
 
         $base = fn() => Booking::query()
             ->where('spa_id', $spaId)
@@ -199,5 +204,15 @@ class ReportsController extends Controller
             }
         }
         return [$treatRev, $pkgRev];
+    }
+
+    private static function validDate(mixed $value): ?string
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+        $d = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $d && $d->format('Y-m-d') === $value ? $value : null;
     }
 }

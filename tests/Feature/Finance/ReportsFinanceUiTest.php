@@ -85,7 +85,7 @@ class ReportsFinanceUiTest extends TestCase
         $html = $this->pageHtml($route);
 
         $this->assertStringContainsString('rounded-2xl', $html);
-        if ($route !== 'decision-support.index') { // charts only, no table
+        if ($route !== 'decision-support.index') { // lists and cards, no table
             $this->assertStringContainsString('class="min-w-full divide-y divide-gray-200 rt', $html, "$route table must stack on phones (.rt)");
             $this->assertStringContainsString('.rt td[data-label]::before', $html);
         }
@@ -100,9 +100,9 @@ class ReportsFinanceUiTest extends TestCase
     /** @return array<string, array{string}> */
     public static function datedPages(): array
     {
+        // Decision Support looks ahead (next 7 days) and has no date filter (DSS revamp, D7).
         return [
             'reports'          => ['reports.index'],
-            'decision support' => ['decision-support.index'],
             'revenue'          => ['revenue.index'],
             'billing'          => ['billing.index'],
         ];
@@ -123,9 +123,9 @@ class ReportsFinanceUiTest extends TestCase
     /** @return array<string, array{string}> */
     public static function chartPages(): array
     {
+        // Decision Support dropped the charts it shared with Reports (DSS revamp, D7).
         return [
             'reports'          => ['reports.index'],
-            'decision support' => ['decision-support.index'],
             'revenue'          => ['revenue.index'],
         ];
     }
@@ -141,14 +141,15 @@ class ReportsFinanceUiTest extends TestCase
         $this->assertStringNotContainsString('<canvas id="revenueChart" height=', $html);
     }
 
-    public function test_decision_support_lists_urgent_insights_first(): void
+    public function test_decision_support_says_when_there_is_not_enough_data(): void
     {
-        $html = $this->pageHtml('decision-support.index', ['from' => '2030-01-01', 'to' => '2030-01-07']);
+        $html = $this->pageHtml('decision-support.index');
 
-        // No bookings → the "No Booking Data" info insight, and the Bookings KPI card.
-        $this->assertStringContainsString('No Booking Data', $html);
-        $this->assertStringContainsString('fa-circle-info', $html);
-        $this->assertStringContainsString('a day on average', $html);
+        // New spa data → no forecast and no recommendations, never a weak guess.
+        $this->assertStringContainsString('Looks ahead and recommends what to do next', $html);
+        $this->assertStringContainsString('Next 7 days: demand vs therapists', $html);
+        $this->assertStringContainsString('Decision history', $html);
+        $this->assertStringNotContainsString('Automated SMS/email reminders', $html);   // F3
     }
 
     public function test_billing_buttons_follow_the_route_permissions(): void
