@@ -5,15 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Booking;
 use App\Models\Package;
 use App\Models\Treatment;
+use App\Services\Bookings\CustomerCancellation;
 use Illuminate\Support\Facades\Auth;
 
 class CustomerAppointmentController extends Controller
 {
+    public function __construct(private CustomerCancellation $cancellation)
+    {
+    }
+
     public function appointments()
     {
         $user = Auth::user();
 
-        $bookings = Booking::with(['spa', 'branch.profile', 'therapist', 'latestRescheduleRequest', 'rating'])
+        $bookings = Booking::with(['spa', 'branch.profile', 'therapist', 'latestRescheduleRequest', 'rating', 'reservation', 'refund'])
             ->where('customer_user_id', $user->id)
             ->orderBy('appointment_date', 'desc')
             ->get()
@@ -26,7 +31,7 @@ class CustomerAppointmentController extends Controller
     {
         $user = Auth::user();
 
-        $bookings = Booking::with(['spa', 'branch.profile', 'therapist', 'rating'])
+        $bookings = Booking::with(['spa', 'branch.profile', 'therapist', 'rating', 'reservation', 'refund'])
             ->where('customer_user_id', $user->id)
             ->whereIn('status', ['reserved', 'pending', 'ongoing'])
             ->where('appointment_date', '>=', now()->toDateString())
@@ -97,7 +102,38 @@ class CustomerAppointmentController extends Controller
             'can_reschedule'     => $b->canRequestReschedule(),
             'has_rating'         => $hasRating,
             'rating_value'       => $ratingValue,
+            // Customer cancellation (Nov 2026): what cancelling now would mean,
+            // and what happened after a cancel. Same rule the endpoint enforces.
+            'cancel'             => $this->cancellation->quote($b),
+            'cancelled'          => $this->cancelledInfo($b),
         ] + $this->therapistCard($b);
+    }
+
+    /** Who ended it, and where the money stands; null unless cancelled or a no-show. */
+    private function cancelledInfo(Booking $b): ?array
+    {
+        if (! in_array($b->status, ['cancelled', Booking::NO_SHOW], true)) {
+            return null;
+        }
+
+        $noShow = $b->status === Booking::NO_SHOW;
+
+        // The 20% stays with the spa after a late customer cancel or a no-show.
+        $kept = $b->booking_source === 'online'
+            && ($noShow || ($b->cancelled_by === 'customer' && ! $b->free_cancellation))
+            ? $this->cancellation->money($b)['downpayment']
+            : null;
+
+        return [
+            // customer | staff | no_show | null (older cancelled rows)
+            'by'            => $noShow ? 'no_show' : $b->cancelled_by,
+            'on'            => $b->cancelled_at?->format('F j, Y'),
+            'free'          => (bool) $b->free_cancellation,
+            'kept'          => $kept,
+            'refund_amount' => $b->refund ? (float) $b->refund->amount : null,
+            'refund_status' => $b->refund?->status,       // pending | sent
+            'refund_sent_on' => $b->refund?->processed_at?->format('F j, Y'),
+        ];
     }
 
     /**

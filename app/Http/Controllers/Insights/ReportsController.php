@@ -14,6 +14,16 @@ class ReportsController extends Controller
 {
     public function index(Request $request)
     {
+        return view('insights.reports.index', $this->reportData($request));
+    }
+
+    /**
+     * Everything the Reports page shows, for the selected branch and period.
+     * Shared with the owner app (Api\Owner\OwnerAppController::reports), so
+     * both show the same numbers.
+     */
+    public function reportData(Request $request): array
+    {
         $user     = $request->user();
         $spaId    = $user->spa_id;
         // Same scope as Revenue, Billing and Vendor Bills: the selected branch,
@@ -143,7 +153,7 @@ class ReportsController extends Controller
             ->get()
             ->map(fn($r) => ['label' => (string) $r->d, 'value' => round((float) $r->total, 2)]);
 
-        return view('insights.reports.index', [
+        return [
             'filters' => ['from' => $from, 'to' => $to],
 
             // Booking summary
@@ -171,7 +181,7 @@ class ReportsController extends Controller
             // Charts
             'bookingsPerDay'  => $bookingsPerDay,
             'revenuePerDay'   => $revenuePerDay,
-        ]);
+        ];
     }
 
     private function parseCounts($bookings): array

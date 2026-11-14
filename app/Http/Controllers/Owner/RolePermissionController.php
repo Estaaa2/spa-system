@@ -300,6 +300,7 @@ class RolePermissionController extends Controller
             'edit branch hours'                 => 'Edit Operating Hours',
             'edit branch profile'               => 'Edit Public Profile',
             'edit staff schedules'              => 'Edit Work Schedules',
+            'reply to customer messages'        => 'Reply to Customer Messages',
             'view payroll'                      => 'View Payroll',
             'manage payroll setup'              => 'Manage Payroll Setup',
             'prepare payroll runs'              => 'Prepare Pay Runs',
@@ -324,6 +325,7 @@ class RolePermissionController extends Controller
             'view dashboard my today'           => 'Shows the therapist\'s own personal schedule widget with only their assigned appointments.',
             'edit branches'                     => '(Deprecated) Superseded by the granular Edit General Information, Edit Operating Hours, and Edit Public Profile permissions. No longer used for access control.',
             'edit branch general'               => 'Allows this role to edit the branch general information, such as the branch name.',
+            'reply to customer messages'        => 'Shows the floating chat button on staff pages: read and answer customers\' messages to this spa. The inbox is shared by every branch of the spa, and customers see the spa\'s name on replies, not the staff member\'s.',
             'edit staff schedules'              => 'Set each staff member\'s weekly work days, rest days and shift hours, and add one-off changes (a day off or an extra shift). Only the owner can change the HR Head\'s and Finance Head\'s schedules.',
             'edit branch hours'                 => 'Allows this role to edit only the branch operating hours (opening and closing times and closed days), separately from the branch name and public profile.',
             'edit branch profile'               => 'Allows this role to edit the branch public profile listing — photos, description, amenities, contact details, and whether the branch is listed publicly.',
@@ -366,6 +368,12 @@ class RolePermissionController extends Controller
                 'title'       => 'Dashboard',
                 'description' => 'Controls access to the business dashboard and its individual widgets — KPI cards, revenue data, appointment timeline, therapist status panel, alerts, booking shortcut, and the therapist personal schedule view.',
                 'icon'        => 'fa-solid fa-gauge-high',
+                'suite'       => null,
+            ],
+            'messages' => [
+                'title'       => 'Customer Messages',
+                'description' => 'The chat between customers and the spa. Receptionists answer by default.',
+                'icon'        => 'fa-solid fa-comments',
                 'suite'       => null,
             ],
             'appointments' => [
@@ -472,6 +480,7 @@ class RolePermissionController extends Controller
             // permissions would otherwise fall into other groups.
             Str::contains($name, ['payroll', 'statutory'])                               => 'payroll',
 
+            Str::contains($name, ['customer messages'])                                  => 'messages',
             Str::contains($name, ['appointment', 'booking'])                             => 'appointments',
             // Staff work schedules belong with Staff Accounts, not the booking Schedule page.
             Str::contains($name, ['staff schedule'])                                     => 'staff',

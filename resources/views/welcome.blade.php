@@ -3,7 +3,7 @@
 
 <head>
     @include('partials.landing.head', [
-        'entries' => ['resources/css/app.css', 'resources/css/landing.css', 'resources/js/app.js', 'resources/js/welcome.js'],
+        'entries' => ['resources/css/app.css', 'resources/css/landing.css', 'resources/js/app.js', 'resources/js/welcome.js', 'resources/js/chat-widget.js'],
     ])
 </head>
 
@@ -622,6 +622,24 @@
                                 <p id="detailTherapistPlain" class="mt-0.5 text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
                             </div>
 
+                            <!-- Customer cancellation (Nov 2026): what cancelling now would cost.
+                                 Always visible while a cancel is possible, so phones see it too
+                                 (no hover tooltips). Filled by renderDetailCancel() in welcome.js. -->
+                            <p id="detailCancelNote" class="hidden items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                <i id="detailCancelNoteIcon" class="mt-0.5 fa-solid fa-circle-info text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                <span id="detailCancelNoteText"></span>
+                            </p>
+
+                            <!-- Cancelled: who cancelled and where the refund stands -->
+                            <div id="detailCancelled" class="hidden p-4 space-y-1.5 rounded-2xl bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-900/40 dark:ring-gray-700">
+                                <p id="detailCancelledTitle" class="text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
+                                <p id="detailCancelledRefund" class="hidden items-start gap-2 text-sm">
+                                    <i id="detailCancelledRefundIcon" class="mt-0.5 fa-solid" aria-hidden="true"></i>
+                                    <span id="detailCancelledRefundText"></span>
+                                </p>
+                                <p id="detailCancelledKept" class="hidden text-sm text-gray-600 dark:text-gray-300"></p>
+                            </div>
+
                             <!-- Started or ended: say how to change it instead of offering a button -->
                             <p id="detailRescheduleClosed" class="hidden text-sm text-gray-600 dark:text-gray-300">
                                 Need to change this appointment? Please call the branch<span id="detailRescheduleClosedPhone"></span>.
@@ -671,15 +689,80 @@
                                 <span id="rescheduleErrorText"></span>
                             </div>
                         </div>
+
+                        <!-- ===== View 3: cancel confirmation (customer cancellation, Nov 2026) =====
+                             Shows the money before anything happens. Backdrop clicks don't close
+                             this view (same as the reschedule form). -->
+                        <div id="bdCancelView" class="hidden px-4 py-5 space-y-5 sm:px-6">
+                            <div class="p-3 rounded-2xl bg-[#F6EFE6]/70 dark:bg-gray-900/40">
+                                <p class="text-xs font-medium text-gray-600 dark:text-gray-400">Booking</p>
+                                <p id="cancelBookingSummary" class="mt-0.5 text-sm font-semibold text-[#3C2F23] dark:text-white"></p>
+                            </div>
+
+                            <p id="cancelExplain" class="text-sm text-gray-600 dark:text-gray-300"></p>
+
+                            <dl class="p-4 space-y-2 text-sm border border-[#E8DDD0] dark:border-gray-700 rounded-2xl bg-[#FDFAF6] dark:bg-gray-900/40">
+                                <div class="flex justify-between gap-3">
+                                    <dt class="text-gray-600 dark:text-gray-400">You paid</dt>
+                                    <dd id="cancelPaid" class="font-medium text-[#3C2F23] dark:text-white"></dd>
+                                </div>
+                                <div id="cancelKeptRow" class="flex justify-between gap-3">
+                                    <dt class="text-gray-600 dark:text-gray-400">Reservation fee kept</dt>
+                                    <dd id="cancelKept" class="font-medium text-[#3C2F23] dark:text-white"></dd>
+                                </div>
+                                <div class="flex justify-between gap-3 pt-2 border-t border-black/5 dark:border-white/10">
+                                    <dt class="font-semibold text-[#3C2F23] dark:text-white">You'll get back</dt>
+                                    <dd id="cancelRefund" class="font-semibold text-[#6F5430] dark:text-[#C4A97D]"></dd>
+                                </div>
+                            </dl>
+
+                            <p id="cancelRefundHow" class="text-xs text-gray-600 dark:text-gray-400">
+                                Levictas sends refunds back to you, usually to the e-wallet you paid with. You can follow it on this booking in My Appointments.
+                            </p>
+
+                            <div>
+                                <label for="cancelReason" class="block text-sm font-medium text-[#3C2F23] dark:text-gray-100">
+                                    Reason <span class="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
+                                </label>
+                                <textarea id="cancelReason" rows="3" maxlength="500" placeholder="I booked the wrong day."
+                                    class="w-full mt-1.5 text-sm resize-none rounded-xl border-black/15 text-[#3C2F23] placeholder:text-gray-400 dark:border-white/15 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-500 focus:border-[#8B7355] focus:ring-2 focus:ring-[#8B7355]/30 dark:focus:border-[#C4A97D] dark:focus:ring-[#C4A97D]/30"></textarea>
+                            </div>
+
+                            <div id="cancelError" role="alert"
+                                class="hidden p-3 text-sm text-red-700 dark:text-red-300 rounded-2xl bg-red-50 dark:bg-red-900/20 ring-1 ring-red-200 dark:ring-red-800">
+                                <i class="mr-1 fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                                <span id="cancelErrorText"></span>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Footer: one action per view -->
+                    <!-- Footer: the details view has Request reschedule and Cancel booking side by
+                         side; each form view has its own actions. Cancelling is a status change, not
+                         a delete, so it is outlined amber with fa-ban (design language §7). -->
                     <div id="bdFooter" class="bd-footer px-4 pt-3 border-t shrink-0 sm:px-6 border-black/5 dark:border-white/10">
+                        <div id="bdDetailActions" class="flex gap-2">
                         <button type="button" id="openRescheduleBtn" onclick="openRescheduleModal()"
-                            class="inline-flex items-center justify-center w-full gap-2 min-h-[48px] px-4 text-sm font-semibold text-white transition shadow-md rounded-xl booking-btn hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] dark:focus-visible:ring-offset-gray-800">
+                            class="inline-flex items-center justify-center flex-[2] w-full gap-2 min-h-[48px] px-4 text-sm font-semibold text-white transition shadow-md rounded-xl booking-btn hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] dark:focus-visible:ring-offset-gray-800">
                             <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
                             Request reschedule
                         </button>
+                        <button type="button" id="openCancelBtn" onclick="openCancelView()"
+                            class="hidden items-center justify-center flex-1 w-full gap-2 min-h-[48px] px-4 text-sm font-semibold transition bg-white border rounded-xl text-amber-800 border-amber-300 hover:bg-amber-50 dark:bg-gray-800 dark:text-amber-300 dark:border-amber-700 dark:hover:bg-amber-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] dark:focus-visible:ring-offset-gray-800">
+                            <i class="fa-solid fa-ban" aria-hidden="true"></i>
+                            Cancel booking
+                        </button>
+                        </div>
+                        <div id="bdCancelActions" class="hidden gap-2">
+                            <button type="button" onclick="closeCancelView()"
+                                class="inline-flex items-center justify-center flex-1 min-h-[48px] px-4 text-sm font-semibold transition bg-white border rounded-xl text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                Keep booking
+                            </button>
+                            <button type="button" id="cancelSubmitBtn" onclick="submitCancelBooking()"
+                                class="inline-flex items-center justify-center flex-1 gap-2 min-h-[48px] px-4 text-sm font-semibold text-white transition shadow-md rounded-xl bg-amber-700 hover:bg-amber-800 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-amber-700 dark:focus-visible:ring-offset-gray-800">
+                                <i class="fa-solid fa-ban" aria-hidden="true"></i>
+                                <span>Cancel booking</span>
+                            </button>
+                        </div>
                         <button type="button" id="rescheduleSubmitBtn" onclick="submitRescheduleRequest()"
                             class="hidden items-center justify-center w-full gap-2 min-h-[48px] px-4 text-sm font-semibold text-white transition shadow-md rounded-xl booking-btn hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D] dark:focus-visible:ring-offset-gray-800">
                             <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
@@ -1478,6 +1561,25 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400">Price</p>
                             <p id="spaModalFooterPrice" class="text-sm font-semibold truncate text-[#6F5430] dark:text-[#C4A97D]"></p>
                         </div>
+                        {{-- Customer chat (Nov 2026): opens this spa's conversation in the chat
+                             window (chat-widget.js). The red number is this spa's unread replies. --}}
+                        @auth
+                            @role('customer')
+                                <button type="button" data-open-spa-chat aria-label="Message this spa"
+                                    class="relative inline-flex items-center justify-center gap-2 w-11 h-11 sm:w-auto sm:px-4 shrink-0 text-sm font-medium transition rounded-xl text-[#8B7355] border border-[#8B7355]/40 hover:bg-[#8B7355]/5 dark:text-[#C4A97D] dark:border-[#C4A97D]/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                    <i class="fa-solid fa-comment-dots" aria-hidden="true"></i>
+                                    <span class="hidden sm:inline">Message</span>
+                                    <span data-spa-chat-badge
+                                        class="hidden absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 text-[11px] font-bold leading-5 text-center text-white bg-red-600 rounded-full ring-2 ring-white dark:ring-gray-800"></span>
+                                </button>
+                            @endrole
+                        @else
+                            <a href="{{ route('login') }}" aria-label="Log in to message this spa"
+                                class="inline-flex items-center justify-center gap-2 w-11 h-11 sm:w-auto sm:px-4 shrink-0 text-sm font-medium transition rounded-xl text-[#8B7355] border border-[#8B7355]/40 hover:bg-[#8B7355]/5 dark:text-[#C4A97D] dark:border-[#C4A97D]/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-[#C4A97D]">
+                                <i class="fa-solid fa-comment-dots" aria-hidden="true"></i>
+                                <span class="hidden sm:inline">Message</span>
+                            </a>
+                        @endauth
                         <button type="button" id="openBookingModalBtn" data-open-booking-modal
                             class="spa-reserve inline-flex items-center justify-center gap-2 min-h-[44px] px-5 py-2 text-sm font-semibold text-white transition shadow-sm shrink-0 rounded-xl booking-btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B7355] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800">
                             <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
@@ -2784,13 +2886,29 @@
                                         </div>
                                     </div>
 
+                                    {{-- Customer cancellation (Nov 2026): said before paying. Filled by
+                                         buildBookingRecap() from the chosen date and time; data-free-again-on
+                                         says whether this customer's free cancellation is still used up. --}}
+                                    @php
+                                        $freeAgainOn = auth()->user()?->hasRole('customer')
+                                            ? app(\App\Services\Bookings\CustomerCancellation::class)->freeUsedUntil(auth()->id())?->toIso8601String()
+                                            : null;
+                                    @endphp
+                                    <p id="recapCancelNote" data-free-again-on="{{ $freeAgainOn }}"
+                                        class="flex items-start gap-2 p-3 mt-4 text-xs text-gray-700 rounded-xl bg-[#F6EFE6]/70 dark:bg-gray-900/40 dark:text-gray-300">
+                                        <i class="mt-0.5 fa-solid fa-circle-info text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                        <span id="recapCancelNoteText"></span>
+                                    </p>
+
                                     <!-- Terms & Agreements -->
                                     <div
                                         class="p-4 mt-4 border border-[#E8DDD0] dark:border-gray-700 rounded-xl bg-[#FDFAF6] dark:bg-gray-900/40 space-y-3">
+                                        {{-- Locked until the customer opens the terms and taps "I Understand"
+                                             (acceptTermsModal in welcome.js); unlocked again per booking. --}}
                                         <label class="flex items-center gap-3 pt-1 cursor-pointer group">
                                             <input type="checkbox" id="bookingTermsCheckbox" name="terms_agreed"
-                                                value="1"
-                                                class="w-4 h-4 rounded accent-[#8B7355] cursor-pointer flex-shrink-0">
+                                                value="1" disabled aria-describedby="bookingTermsHint"
+                                                class="w-4 h-4 rounded accent-[#8B7355] cursor-pointer flex-shrink-0 disabled:cursor-not-allowed disabled:opacity-50">
                                             <span
                                                 class="text-xs font-medium text-gray-700 dark:text-gray-300 group-hover:text-[#6F5430] dark:group-hover:text-[#C4A97D] transition">
                                                 I have read and agree to the
@@ -2800,6 +2918,10 @@
                                                 </button>.
                                             </span>
                                         </label>
+                                        <p id="bookingTermsHint" class="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                            <i class="mt-0.5 fa-solid fa-circle-info text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                                            <span>Open the terms and conditions and tap "I Understand" before you can agree.</span>
+                                        </p>
                                     </div>
                                 </div>
 
@@ -3105,7 +3227,8 @@
                         @include('legal.partials.terms-summary', ['audiences' => ['bookings']])
                     </div>
                     <div class="px-6 pt-2 pb-6">
-                        <button type="button" onclick="closeTermsModal()"
+                        {{-- Unlocks the booking form's terms checkbox (closing with × doesn't). --}}
+                        <button type="button" onclick="acceptTermsModal()"
                             class="w-full py-3 rounded-xl text-sm font-semibold text-white booking-btn shadow-md hover:shadow-lg transition active:translate-y-0.5">
                             I Understand
                         </button>
@@ -3483,6 +3606,13 @@
     </main>
 
     @include('partials.landing.footer')
+
+    {{-- Customer chat (Nov 2026): floating button + chat window. --}}
+    @auth
+        @role('customer')
+            @include('partials.chat-widget', ['mode' => 'customer'])
+        @endrole
+    @endauth
 
     {{-- These stay inline because they use Blade/Laravel session syntax --}}
     @if (session('booking_error'))

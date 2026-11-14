@@ -17,8 +17,9 @@ use Illuminate\Database\Eloquent\Builder;
  *                                partially paid rows can't inflate it.
  *   Kept deposits    (Q2-A/Q3-A) amount_paid on cancelled / no-show bookings,
  *                                shown next to revenue, never added into it.
- *                                "As recorded": refunds made outside the system
- *                                aren't tracked.
+ *                                Refunds queued by a customer cancellation
+ *                                (booking_refunds) are taken off; refunds made
+ *                                outside the system still aren't tracked.
  *   Owed on open     (Q4-A)      remaining balance on bookings past their end
  *                                time that nobody closed (Needs Checkout).
  */
@@ -46,13 +47,20 @@ final class BookingRevenue
         return (float) self::serviceBookings($spaId, $branchId, $from, $to)->sum('amount_paid');
     }
 
-    /** @return array{amount: float, count: int} money kept on cancelled / no-show bookings */
+    /**
+     * @return array{amount: float, count: int} money kept on cancelled / no-show
+     * bookings: what was paid minus any refund owed back through Levictas
+     * (customer cancellation, Nov 2026). A fully refunded booking keeps nothing
+     * and isn't counted.
+     */
     public static function keptDeposits(int $spaId, ?int $branchId = null, ?string $from = null, ?string $to = null): array
     {
+        $kept = 'bookings.amount_paid - COALESCE((SELECT SUM(booking_refunds.amount) FROM booking_refunds WHERE booking_refunds.booking_id = bookings.id), 0)';
+
         $row = self::scope($spaId, $branchId, $from, $to)
             ->whereIn('status', self::KEPT_STATUSES)
             ->where('amount_paid', '>', 0)
-            ->selectRaw('COALESCE(SUM(amount_paid), 0) as amount, COUNT(*) as bookings')
+            ->selectRaw("COALESCE(SUM(CASE WHEN {$kept} > 0 THEN {$kept} ELSE 0 END), 0) as amount, COALESCE(SUM(CASE WHEN {$kept} > 0 THEN 1 ELSE 0 END), 0) as bookings")
             ->first();
 
         return ['amount' => (float) ($row->amount ?? 0), 'count' => (int) ($row->bookings ?? 0)];

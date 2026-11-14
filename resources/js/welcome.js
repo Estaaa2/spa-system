@@ -198,6 +198,8 @@ function renderSpaMapPreview(spaData) {
 
 function openSpaModal(spaData) {
     selectedSpa = spaData;
+    // chat-widget.js: which spa the Message button talks to.
+    document.dispatchEvent(new CustomEvent('levictas:spa-opened', { detail: spaData }));
     if (spaModal.classList.contains('hidden')) spaReturnFocus = document.activeElement;
 
     document.getElementById('spaModalName').textContent    = spaData.name    ?? 'Spa';
@@ -1211,6 +1213,23 @@ function closeTermsModal() {
     document.getElementById('termsModal').classList.add('hidden');
 }
 
+// "I Understand": the only way to unlock the booking's terms checkbox, so the
+// customer has to open the terms first. It doesn't tick the box for them.
+function acceptTermsModal() {
+    closeTermsModal();
+    setTermsUnlocked(true);
+    document.getElementById('bookingTermsCheckbox')?.focus();
+}
+
+function setTermsUnlocked(unlocked) {
+    const box = document.getElementById('bookingTermsCheckbox');
+    if (box) {
+        box.disabled = !unlocked;
+        if (!unlocked) box.checked = false;
+    }
+    document.getElementById('bookingTermsHint')?.classList.toggle('hidden', unlocked);
+}
+
 // ── Step navigation ─────────────────────────────────────────────────────────
 function showBookingStep(step) {
     currentBookingStep = step;
@@ -1889,6 +1908,41 @@ function buildBookingRecap() {
         document.getElementById('recapTotalPrice').textContent = price ? formatPeso(price) : '—';
     recapPrice = price;
     updatePaymentRecap();
+    updateRecapCancelNote(dateVal, timeVal);
+}
+
+// Customer cancellation (Nov 2026), said before paying. Mirrors
+// CustomerCancellation on the server: free until 24 hours after payment or
+// 3 hours before the start, whichever is first, once per 30 days. Payment
+// happens after this step, so the real window can end a few minutes later.
+function updateRecapCancelNote(dateVal, timeVal) {
+    const note = document.getElementById('recapCancelNote');
+    const text = document.getElementById('recapCancelNoteText');
+    if (!note || !text) return;
+
+    const start = (dateVal && timeVal) ? new Date(`${dateVal}T${timeVal.slice(0, 5)}:00`) : null;
+    note.classList.toggle('hidden', !start);
+    if (!start) return;
+
+    const now       = Date.now();
+    const freeUntil = Math.min(now + 24 * 3600e3, start.getTime() - 3 * 3600e3);
+    const againOn   = note.dataset.freeAgainOn ? new Date(note.dataset.freeAgainOn) : null;
+
+    if (freeUntil <= now) {
+        text.textContent = "This appointment is less than 3 hours away, so it can't be cancelled for free. If you cancel, the 20% reservation fee is kept.";
+    } else if (againOn && againOn.getTime() > now) {
+        text.textContent = `You've used your free cancellation. It's available again on ${formatCancelDate(againOn)}. If you cancel this booking, the 20% reservation fee is kept.`;
+    } else {
+        text.textContent = `Free cancellation until about ${formatCancelDateTime(new Date(freeUntil))}. After that, cancelling keeps the 20% reservation fee.`;
+    }
+}
+
+function formatCancelDate(d) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatCancelDateTime(d) {
+    return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
 }
 
 // Price shown in the recap, kept so the amounts can be redrawn when the
@@ -1959,8 +2013,8 @@ function clearBookingSelections() {
     }
     if (addressWrapper) addressWrapper.classList.add('hidden');
     if (bookingCustomerPhone) bookingCustomerPhone.value = bookingCustomerPhone.dataset.defaultPhone || '';
-    const termsCheckbox = document.getElementById('bookingTermsCheckbox');
-    if (termsCheckbox) termsCheckbox.checked = false;
+    // Every new booking reads the terms again.
+    setTermsUnlocked(false);
 
     const timeError = document.getElementById('bookingTimeError');
     const treatmentError = document.getElementById('bookingTreatmentError');
@@ -2416,7 +2470,12 @@ bookingForm?.addEventListener('submit', async function (e) {
         return;
     }
 
-    if (!document.getElementById('bookingTermsCheckbox')?.checked) {
+    const termsBox = document.getElementById('bookingTermsCheckbox');
+    if (termsBox?.disabled) {
+        showSpaToast('Please open and read the terms and conditions first.', 'error');
+        return;
+    }
+    if (!termsBox?.checked) {
         showSpaToast('Please agree to the terms and conditions.', 'error');
         return;
     }
@@ -3181,8 +3240,12 @@ function renderDetailReschedule(booking) {
     const waiting     = rescheduleWaiting(booking);
     const showButton  = canAsk && !waiting;
 
+    const showCancel  = bookingCanCancel(booking);
+
     bdShow(btn, showButton, 'inline-flex');
-    bdShow(document.getElementById('bdFooter'), showButton);
+    bdShow(document.getElementById('openCancelBtn'), showCancel, 'inline-flex');
+    bdShow(document.getElementById('bdFooter'), showButton || showCancel);
+    renderDetailCancel(booking);
 
     // Started (or past its start) but not finished: tell them how to change it.
     bdShow(closed, active && !canAsk && !waiting);
@@ -3257,34 +3320,41 @@ function renderDetailTherapist(booking) {
     bdShow(call, !!booking.branch_phone, 'inline-flex');
 }
 
-// Switches the panel between the details view and the reschedule form.
+// Switches the panel between its three views: details, the reschedule form
+// and the cancel confirmation (customer cancellation, Nov 2026).
 function bdShowView(view, moveFocus = true) {
-    const form = view === 'reschedule';
+    const form    = view === 'reschedule';
+    const cancel  = view === 'cancel';
+    const details = !form && !cancel;
 
-    bdShow(document.getElementById('bdDetailsView'), !form);
+    bdShow(document.getElementById('bdDetailsView'), details);
     bdShow(document.getElementById('bdRescheduleView'), form);
-    bdShow(document.getElementById('bdBackBtn'), form, 'flex');
-    bdShow(document.getElementById('detailStatus'), !form);
-    document.getElementById('bdTitle').textContent = form ? 'Request reschedule' : 'Booking details';
+    bdShow(document.getElementById('bdCancelView'), cancel);
+    bdShow(document.getElementById('bdBackBtn'), !details, 'flex');
+    bdShow(document.getElementById('detailStatus'), details);
+    document.getElementById('bdTitle').textContent =
+        form ? 'Request reschedule' : cancel ? 'Cancel booking' : 'Booking details';
 
-    bdShow(document.getElementById('openRescheduleBtn'), !form && bookingCanReschedule(selectedBooking || {})
-        && !rescheduleWaiting(selectedBooking || {}), 'inline-flex');
+    bdShow(document.getElementById('bdDetailActions'), details, 'flex');
+    bdShow(document.getElementById('bdCancelActions'), cancel, 'flex');
     bdShow(document.getElementById('rescheduleSubmitBtn'), form, 'inline-flex');
-    if (form) bdShow(document.getElementById('bdFooter'), true);
+    if (!details) bdShow(document.getElementById('bdFooter'), true);
     else if (selectedBooking) renderDetailReschedule(selectedBooking);
 
     document.getElementById('bdBody').scrollTop = 0;
     if (moveFocus) {
+        const visible = (id) => document.getElementById(id)?.offsetParent ? document.getElementById(id) : null;
         requestAnimationFrame(() => (form
             ? document.getElementById('rescheduleDate')
-            : document.getElementById('openRescheduleBtn')?.offsetParent
-                ? document.getElementById('openRescheduleBtn')
-                : document.getElementById('bdTitle'))?.focus());
+            : cancel
+                ? document.getElementById('bdTitle')
+                : visible('openRescheduleBtn') || visible('openCancelBtn') || document.getElementById('bdTitle'))?.focus());
     }
 }
 
 function bdIsFormView() {
-    return !document.getElementById('bdRescheduleView').classList.contains('hidden');
+    return !document.getElementById('bdRescheduleView').classList.contains('hidden')
+        || !document.getElementById('bdCancelView').classList.contains('hidden');
 }
 
 // Backdrop: closes the details view, but never discards a half-typed form.
@@ -3542,6 +3612,174 @@ async function submitRescheduleRequest() {
     } finally {
         submitBtn.disabled  = false;
         submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane" aria-hidden="true"></i> <span>Send request</span>';
+    }
+}
+
+// =====================================================
+// CANCEL BOOKING (customer cancellation, Nov 2026)
+// A third view inside the booking details panel. The rule and the amounts
+// come from the server (booking.cancel, CustomerCancellation); this file only
+// shows them. The server checks everything again on submit.
+// =====================================================
+let _bdCancelBookingId = null;   // keeps a typed reason if the customer goes back and forth
+
+function bookingCanCancel(b) {
+    const start = bookingStartDate(b || {});
+    return !!(b && b.cancel && b.cancel.can_cancel) && b.status === 'reserved'
+        && !!start && start.getTime() > Date.now();
+}
+
+// Why it isn't free, as a sentence (null when it is free).
+function cancelNotFreeReason(q) {
+    switch (q.reason) {
+        case 'window_closed': return 'Your free cancellation window has ended.';
+        case 'free_used':     return "You've already used your free cancellation in the last 30 days.";
+        case 'no_window':     return 'This booking was made less than 3 hours before the appointment.';
+        default:              return null;
+    }
+}
+
+function renderDetailCancel(booking) {
+    const note     = document.getElementById('detailCancelNote');
+    const noteIcon = document.getElementById('detailCancelNoteIcon');
+    const noteText = document.getElementById('detailCancelNoteText');
+    const q        = booking.cancel || {};
+
+    // While a cancel is possible: always say what it would cost.
+    if (bookingCanCancel(booking)) {
+        const fee = formatPeso(q.kept || 0);
+        if (q.free) {
+            noteIcon.className   = 'mt-0.5 fa-solid fa-circle-check text-emerald-700 dark:text-emerald-300';
+            noteText.textContent = `Free cancellation until ${formatCancelDateTime(new Date(q.free_until))}. You'd get back everything you paid.`;
+        } else {
+            noteIcon.className = 'mt-0.5 fa-solid fa-circle-info text-[#8B7355] dark:text-[#C4A97D]';
+            const lead = {
+                free_used:     `You've used your free cancellation. It's available again on ${q.free_again_on ? formatCancelDate(new Date(q.free_again_on)) : 'a later date'}.`,
+                window_closed: `Free cancellation ended ${q.free_until ? formatCancelDateTime(new Date(q.free_until)) : 'earlier'}.`,
+                no_window:     "This booking can't be cancelled for free; it was made less than 3 hours before the appointment.",
+            }[q.reason] || '';
+            const cost = q.refund > 0
+                ? `Cancelling now keeps the ${fee} reservation fee and refunds ${formatPeso(q.refund)}.`
+                : `Cancelling now keeps the ${fee} reservation fee.`;
+            noteText.textContent = `${lead} ${cost}`;
+        }
+    }
+    bdShow(note, bookingCanCancel(booking), 'flex');
+
+    // After a cancel: who did it, and where the money stands.
+    const box = document.getElementById('detailCancelled');
+    const c   = booking.cancelled || null;
+    bdShow(box, !!c);
+    if (!c) return;
+
+    document.getElementById('detailCancelledTitle').textContent =
+        c.by === 'customer' ? `You cancelled this booking${c.on ? ` on ${c.on}` : ''}.`
+        : c.by === 'staff'  ? 'The spa cancelled this booking.'
+        : c.by === 'no_show' ? "You didn't arrive for this appointment, so it was marked as a no-show."
+        : 'This booking was cancelled.';
+
+    const refundRow  = document.getElementById('detailCancelledRefund');
+    const refundIcon = document.getElementById('detailCancelledRefundIcon');
+    const refundText = document.getElementById('detailCancelledRefundText');
+    if (c.refund_amount) {
+        const sent = c.refund_status === 'sent';
+        refundRow.className  = `flex items-start gap-2 text-sm ${sent ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'}`;
+        refundIcon.className = `mt-0.5 fa-solid ${sent ? 'fa-circle-check' : 'fa-clock'}`;
+        refundText.textContent = sent
+            ? `Refund of ${formatPeso(c.refund_amount)} sent${c.refund_sent_on ? ` on ${c.refund_sent_on}` : ''}.`
+            : `Refund of ${formatPeso(c.refund_amount)} is being processed. Levictas will send it back to you.`;
+    } else {
+        refundRow.className = 'hidden';
+    }
+
+    const kept = document.getElementById('detailCancelledKept');
+    kept.textContent = c.kept > 0 ? `The ${formatPeso(c.kept)} reservation fee was kept.` : '';
+    bdShow(kept, c.kept > 0);
+}
+
+function openCancelView() {
+    if (!selectedBooking || !bookingCanCancel(selectedBooking)) return;
+    const b = selectedBooking;
+    const q = b.cancel;
+
+    document.getElementById('cancelBookingSummary').textContent =
+        `${b.treatment} · ${b.date} at ${formatTime(b.start_time)}`;
+
+    const why = cancelNotFreeReason(q);
+    document.getElementById('cancelExplain').textContent = q.free
+        ? "You're within your free cancellation window, so you'll get back everything you paid. Free cancellation can be used once every 30 days."
+        : q.refund > 0
+            ? `${why} The reservation fee is kept and the rest of what you paid is refunded.`
+            : `${why} The reservation fee you paid is kept, so nothing is refunded.`;
+
+    document.getElementById('cancelPaid').textContent   = formatPeso(q.paid);
+    document.getElementById('cancelKept').textContent   = formatPeso(q.kept);
+    document.getElementById('cancelRefund').textContent = formatPeso(q.refund);
+    bdShow(document.getElementById('cancelKeptRow'), q.kept > 0, 'flex');
+    bdShow(document.getElementById('cancelRefundHow'), q.refund > 0);
+
+    if (_bdCancelBookingId !== b.id) {
+        _bdCancelBookingId = b.id;
+        document.getElementById('cancelReason').value = '';
+    }
+    document.getElementById('cancelError').classList.add('hidden');
+    document.getElementById('cancelSubmitBtn').disabled = false;
+
+    bdShowView('cancel');
+}
+
+function closeCancelView() {
+    bdShowView('details');
+}
+
+async function submitCancelBooking() {
+    if (!selectedBooking) return;
+
+    const btn       = document.getElementById('cancelSubmitBtn');
+    const errorEl   = document.getElementById('cancelError');
+    const errorText = document.getElementById('cancelErrorText');
+    const reason    = document.getElementById('cancelReason').value.trim();
+
+    errorEl.classList.add('hidden');
+    btn.disabled  = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> <span>Cancelling…</span>';
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const response  = await fetch(`/appointments/${selectedBooking.id}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken ?? '',
+            },
+            body: JSON.stringify({ reason: reason || null }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            errorText.textContent = data.message ?? 'Something went wrong. Please try again.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        // The booking form's note should know the free cancellation is used.
+        const note = document.getElementById('recapCancelNote');
+        if (note) note.dataset.freeAgainOn = data.free_again_on || '';
+
+        _bdCancelBookingId = null;
+        closeBookingDetailsModal();
+        showSpaToast(data.message || 'Booking cancelled.', 'success');
+
+        loadAppointments();
+        loadSchedule();
+    } catch (err) {
+        errorText.textContent = 'Network error. Please try again.';
+        errorEl.classList.remove('hidden');
+    } finally {
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fa-solid fa-ban" aria-hidden="true"></i> <span>Cancel booking</span>';
     }
 }
 
@@ -4349,12 +4587,16 @@ window.pfSetNearbyFrom          = pfSetNearbyFrom;
 window.showSpaToast             = showSpaToast;
 window.openTermsModal           = openTermsModal;
 window.closeTermsModal          = closeTermsModal;
+window.acceptTermsModal         = acceptTermsModal;
 window.openBookingDetailsModal  = openBookingDetailsModal;
 window.closeBookingDetailsModal = closeBookingDetailsModal;
 window.openRescheduleModal      = openRescheduleModal;
 window.closeRescheduleModal     = closeRescheduleModal;
 window.bdBackdropClick          = bdBackdropClick;
 window.submitRescheduleRequest  = submitRescheduleRequest;
+window.openCancelView           = openCancelView;
+window.closeCancelView          = closeCancelView;
+window.submitCancelBooking      = submitCancelBooking;
 window.openRatingModal          = openRatingModal;
 window.closeRatingModal         = closeRatingModal;
 window.openReviewsModal         = openReviewsModal;

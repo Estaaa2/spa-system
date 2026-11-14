@@ -33,6 +33,10 @@ class Booking extends Model
         'appointment_date',
         'start_time',
         'end_time',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
+        'free_cancellation',
     ];
 
     protected $casts = [
@@ -43,6 +47,8 @@ class Booking extends Model
         'arrival_attempts' => 'integer',
         'arrival_locked_at' => 'datetime',
         'arrival_confirmed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'free_cancellation' => 'boolean',
     ];
 
     /**
@@ -385,6 +391,18 @@ class Booking extends Model
     public function latestReassignmentRequest()
     {
         return $this->hasOne(ReassignmentRequest::class)->latestOfMany();
+    }
+
+    /** The online payment this booking came from (null for walk-ins and old rows). */
+    public function reservation(): HasOne
+    {
+        return $this->hasOne(OnlineReservationPayment::class, 'booking_id');
+    }
+
+    /** Money owed back after a cancellation (customer cancellation, Nov 2026). */
+    public function refund(): HasOne
+    {
+        return $this->hasOne(BookingRefund::class);
     }
 
     public function rating(): HasOne

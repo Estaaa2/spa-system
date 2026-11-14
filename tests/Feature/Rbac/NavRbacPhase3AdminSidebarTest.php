@@ -61,7 +61,7 @@ class NavRbacPhase3AdminSidebarTest extends TestCase
         $this->assertSame('platform', $nav['activeGroup']);
 
         $review = $nav['zones'][0]['items'][0];
-        $this->assertSame(['registered-spas', 'id-reviews', 'subscriptions'], array_column($review['links'], 'key'));
+        $this->assertSame(['registered-spas', 'id-reviews', 'subscriptions', 'refunds'], array_column($review['links'], 'key'));   // Refunds: customer cancellation, Nov 2026
         $this->assertSame(2, $review['badgeTotal']);
     }
 

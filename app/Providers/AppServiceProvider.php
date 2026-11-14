@@ -70,8 +70,8 @@ class AppServiceProvider extends ServiceProvider
             $model::saved($bumpBadges);
             $model::deleted($bumpBadges);
         }
-        // Admin badges (version 0): spa verification and staff identity reviews.
-        foreach ([\App\Models\Spa::class, \App\Models\IdentityVerification::class] as $model) {
+        // Admin badges (version 0): spa verification, staff identity reviews, refunds to send.
+        foreach ([\App\Models\Spa::class, \App\Models\IdentityVerification::class, \App\Models\BookingRefund::class] as $model) {
             $model::saved(fn () => \App\Services\Navigation\NavBadges::bump(0));
             $model::deleted(fn () => \App\Services\Navigation\NavBadges::bump(0));
         }

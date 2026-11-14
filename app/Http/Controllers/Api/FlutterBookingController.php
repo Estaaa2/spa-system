@@ -165,7 +165,13 @@ class FlutterBookingController extends Controller
             ->unique()
             ->values();
 
-        return response()->json(['dates' => $dates]);
+        return response()->json([
+            'dates' => $dates,
+            // Customer cancellation (Nov 2026): when a used-up free cancellation
+            // is available again, for the note before payment (null = available).
+            'free_again_on' => app(\App\Services\Bookings\CustomerCancellation::class)
+                ->freeUsedUntil((int) $request->user()->id)?->toIso8601String(),
+        ]);
     }
 
     public function cancelReservation(Request $request)

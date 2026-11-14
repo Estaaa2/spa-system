@@ -66,6 +66,10 @@ final class NavBadges
                 $n = IdentityVerification::pending()->count();
                 self::put($out, 'id-reviews', $n, $n.' waiting for review');
             }
+            if ($user->can('manage refunds')) {
+                $n = \App\Models\BookingRefund::pending()->count();
+                self::put($out, 'refunds', $n, $n.' '.($n === 1 ? 'refund' : 'refunds').' to send');
+            }
 
             return $out;
         });

@@ -13,7 +13,8 @@ use Illuminate\Http\Request;
  * layouts/partials/sidebar-items. Answer Phase 2 Q4 → A:
  *
  *   Dashboard
- *   Review:   Registered Spas (pending verifications), ID Reviews (pending), Subscriptions
+ *   Review:   Registered Spas (pending verifications), ID Reviews (pending), Subscriptions,
+ *             Refunds (pending, customer cancellation Nov 2026)
  *   Platform: Registered Users, Roles & Permissions
  *
  * Admin permissions are global Spatie permissions (routes use `permission:`),
@@ -44,6 +45,9 @@ final class AdminSidebar
                     : null,
                 $user->can('view registered spas')
                     ? $link('subscriptions', 'Subscriptions', 'admin.subscriptions.index', ['admin.subscriptions.*'], 'fa-receipt')
+                    : null,
+                $user->can('manage refunds')
+                    ? $link('refunds', 'Refunds', 'admin.refunds.index', ['admin.refunds.*'], 'fa-money-bill-transfer')
                     : null,
             ])],
             'platform' => ['label' => 'Platform', 'icon' => 'fa-sliders', 'links' => array_filter([

@@ -12,9 +12,9 @@ namespace App\Support\Legal;
  */
 class RefundPolicy extends LegalDocument
 {
-    public const VERSION = '2026-11-07';
+    public const VERSION = '2026-11-14';
 
-    public const UPDATED = 'November 7, 2026';
+    public const UPDATED = 'November 14, 2026';
 
     private const BOOKINGS = 'Spa bookings';
     private const SUBSCRIPTIONS = 'Partner spa subscriptions';
@@ -53,7 +53,8 @@ class RefundPolicy extends LegalDocument
                 'group' => self::BOOKINGS,
                 'title' => 'How to ask for a refund',
                 'blocks' => [
-                    'Email {email} with your name, the spa and branch, the booking date, and the payment reference from your PayMongo receipt.',
+                    // The FAQ shows block 0 alone, so it covers both cases.
+                    'If you cancel in the app, your refund is set up for you and you can follow it on the booking in My Appointments. For any other refund, email {email} with your name, the spa and branch, the booking date, and the payment reference from your PayMongo receipt.',
                     'Levictas checks the booking with the spa, then sends approved refunds through PayMongo, back to the payment method you used where PayMongo allows it.',
                     'Some payment methods can\'t be refunded through PayMongo, such as QR Ph payments made with Maya. For these, we return the money another way that we agree on with you, such as a bank or e-wallet transfer.',
                     'How long a refund takes to reach you depends on your payment method and bank.',

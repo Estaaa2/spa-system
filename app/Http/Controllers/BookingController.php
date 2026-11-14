@@ -591,9 +591,11 @@ class BookingController extends Controller
             return redirect()->back()->with('error', 'This appointment is already ' . strtolower(Booking::statusLabel($booking->status)) . '.');
         }
 
-        $booking->update(['status' => 'cancelled']);
+        // Queues the customer's full refund and emails them (customer cancellation #15, #16).
+        $refund = app(\App\Services\Bookings\StaffBookingEnd::class)->end($booking, 'cancelled');
 
-        return redirect()->back()->with('success', 'Appointment cancelled successfully!');
+        return redirect()->back()->with('success', 'Appointment cancelled successfully!'
+            . ($refund ? ' Levictas will refund the customer ₱' . number_format((float) $refund->amount, 2) . '.' : ''));
     }
 
     public function history()
@@ -660,12 +662,17 @@ class BookingController extends Controller
 
         // Cancelled and no-show end the booking without the service: payments
         // stay exactly as they are (decision 2A — same handling as a cancellation).
+        // Online bookings: the spa cancelling refunds everything paid online; a
+        // no-show refunds a full payment's 80% (Terms; customer cancellation #16).
         if (in_array($validated['status'], ['cancelled', Booking::NO_SHOW], true)) {
-            $booking->update(['status' => $validated['status']]);
+            $refund = app(\App\Services\Bookings\StaffBookingEnd::class)->end($booking, $validated['status']);
+            $refundNote = $refund
+                ? ' Levictas will refund the customer ₱' . number_format((float) $refund->amount, 2) . '.'
+                : '';
 
-            return back()->with('success', $validated['status'] === Booking::NO_SHOW
+            return back()->with('success', ($validated['status'] === Booking::NO_SHOW
                 ? 'Marked as a no-show.'
-                : 'Appointment cancelled.');
+                : 'Appointment cancelled.') . $refundNote);
         }
 
         // Start: collecting money now is optional (Q4-A); checkout collects the rest.

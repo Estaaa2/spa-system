@@ -236,7 +236,8 @@ class AuthController extends Controller
         // Restrict roles per platform
         $allowedRoles = [
             'web'    => ['owner', 'admin', 'manager', 'customer', 'receptionist', 'therapist'],
-            'mobile' => ['customer', 'therapist'],
+            // Owners view their spa in the app (owner mobile, Nov 2026); view only.
+            'mobile' => ['customer', 'therapist', 'owner'],
         ];
 
         $userRole = $user->getRoleNames()->first();
@@ -569,9 +570,13 @@ class AuthController extends Controller
             'email'                   => $user->email,
             'phone'                   => $user->phone,
             'role'                    => $role,
-            // Which side of the mobile app to show: "therapist" for the therapist
-            // role and for staff marked "Performs treatments" (Q51), otherwise the role.
-            'app_role'                => $user->isTreatmentProvider() ? 'therapist' : $role,
+            // Which side of the mobile app to show: "owner" for owners (always, even
+            // if marked "Performs treatments"; owner mobile, Nov 2026), "therapist"
+            // for the therapist role and for staff marked "Performs treatments"
+            // (Q51), otherwise the role.
+            'app_role'                => $user->hasRole('owner')
+                ? 'owner'
+                : ($user->isTreatmentProvider() ? 'therapist' : $role),
             'spa_id'                  => $user->spa_id,
             'branch_id'               => $user->branch_id,
             'is_owner'                => $user->is_owner,

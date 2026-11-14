@@ -209,6 +209,10 @@ class RolePermissionSeeder extends Seeder
             'edit admin profile',
             'manage system settings',
             'verify staff identity',   // approve/reject staff ID + selfie (platform admin only)
+            'manage refunds',          // send customer refunds and mark them sent (platform admin only)
+
+            // ── Customer chat ─────────────────────────────────────────────────
+            'reply to customer messages', // the spa's shared chat inbox (receptionist by default)
 
             // ── HR (Workforce Suite) ──────────────────────────────────────────
             'view hiring',
@@ -287,6 +291,7 @@ class RolePermissionSeeder extends Seeder
             'edit admin profile',
             'manage system settings',
             'verify staff identity',
+            'manage refunds',
         ]);
 
         // ── Owner ─────────────────────────────────────────────────────────────
@@ -306,6 +311,7 @@ class RolePermissionSeeder extends Seeder
             'view appointments',
             'edit appointments',
             'delete appointments',
+            'reply to customer messages',
 
             'view schedule',
 
@@ -416,6 +422,7 @@ class RolePermissionSeeder extends Seeder
             'book appointments',
             'view appointments',
             'edit appointments',
+            'reply to customer messages',
 
             'view schedule',
 
@@ -507,6 +514,7 @@ class RolePermissionSeeder extends Seeder
             'book appointments',
             'view appointments',
             'edit appointments',
+            'reply to customer messages',
 
             'view schedule',
             'view branches',

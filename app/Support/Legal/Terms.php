@@ -21,9 +21,9 @@ namespace App\Support\Legal;
  */
 class Terms extends LegalDocument
 {
-    public const VERSION = '2026-11-07';
+    public const VERSION = '2026-11-14';
 
-    public const UPDATED = 'November 7, 2026';
+    public const UPDATED = 'November 14, 2026';
 
     public static function title(): string
     {
@@ -90,10 +90,12 @@ class Terms extends LegalDocument
                 'title' => 'Cancelling a booking',
                 'audience' => ['customers', 'bookings'],
                 'blocks' => [
-                    'A paid booking can\'t be cancelled in the app. To cancel, contact the branch at least 24 hours before your appointment. The branch\'s phone number is on its spa page.',
-                    'The 20% downpayment is non-refundable, whatever the reason or timing of the cancellation. If you paid in full, the remaining 80% is refunded.',
+                    // Customer cancellation (Nov 2026): App\Services\Bookings\CustomerCancellation.
+                    // The FAQ pulls blocks 0-2 by position, so keep this order.
+                    'You can cancel an online booking yourself any time before the appointment starts: open My Appointments, choose the booking and tap Cancel booking. Once it has started, call the branch. The branch\'s phone number is on its spa page.',
+                    'Free cancellation: if you cancel within 24 hours of paying and at least 3 hours before your appointment, you get back everything you paid, including the 20% downpayment. You can cancel for free once every 30 days. A booking made less than 3 hours before the appointment has no free cancellation.',
                     // Spa-side cancellation → full refund (Phase 2 end, Q1-A).
-                    'If the spa cancels your booking or can\'t provide the service, you get back everything you paid online, including the downpayment.',
+                    'Otherwise, the 20% downpayment is kept, and if you paid in full, the remaining 80% is refunded. If the spa cancels your booking or can\'t provide the service, you get back everything you paid online, including the downpayment.',
                     'The {refund} explains how to ask for a refund.',
                 ],
             ],

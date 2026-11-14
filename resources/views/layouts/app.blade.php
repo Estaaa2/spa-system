@@ -28,7 +28,7 @@
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 
     <!-- Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/welcome.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/welcome.js', 'resources/js/chat-widget.js'])
 </head>
 
 <body class="font-sans antialiased">
@@ -236,6 +236,12 @@
             @endif
         });
     </script>
+    {{-- Customer chat inbox: floating button for staff who answer customers (Nov 2026). --}}
+    @auth
+        @if (app(\App\Services\Chat\ChatService::class)->staffCanReply(auth()->user()))
+            @include('partials.chat-widget', ['mode' => 'spa'])
+        @endif
+    @endauth
 </body>
 
 </html>

@@ -210,6 +210,32 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/reschedule-requests/{booking}/status', [RescheduleRequestController::class, 'status'])
         ->name('reschedule.status');
+
+    // Customer chat with a spa (Nov 2026), polled by resources/js/customer-chat.js.
+    Route::middleware('role:customer')->prefix('chat')->name('chat.')->group(function () {
+        Route::get('/conversations', [\App\Http\Controllers\Chat\CustomerChatController::class, 'conversations'])
+            ->name('conversations');
+        Route::get('/spas/{spa}/messages', [\App\Http\Controllers\Chat\CustomerChatController::class, 'thread'])
+            ->whereNumber('spa')->name('thread');
+        Route::post('/spas/{spa}/messages', [\App\Http\Controllers\Chat\CustomerChatController::class, 'send'])
+            ->whereNumber('spa')->middleware('throttle:30,1')->name('send');
+    });
+
+    // Spa side of the chat: the shared inbox on staff pages (customer chat, Nov 2026).
+    // Who may use it is checked in SpaChatController ("reply to customer messages").
+    Route::prefix('spa-chat')->name('spa-chat.')->group(function () {
+        Route::get('/unread', [\App\Http\Controllers\Chat\SpaChatController::class, 'unread'])->name('unread');
+        Route::get('/conversations', [\App\Http\Controllers\Chat\SpaChatController::class, 'conversations'])->name('conversations');
+        Route::get('/conversations/{conversation}', [\App\Http\Controllers\Chat\SpaChatController::class, 'thread'])
+            ->whereNumber('conversation')->name('thread');
+        Route::post('/conversations/{conversation}', [\App\Http\Controllers\Chat\SpaChatController::class, 'send'])
+            ->whereNumber('conversation')->middleware('throttle:60,1')->name('send');
+    });
+
+    // Customer cancels their own online booking (customer cancellation, Nov 2026).
+    Route::post('/appointments/{booking}/cancel', [\App\Http\Controllers\CustomerCancellationController::class, 'store'])
+        ->middleware(['role:customer', 'throttle:10,1'])
+        ->name('customer.appointments.cancel');
     Route::post('/ratings', [App\Http\Controllers\RatingController::class, 'store'])->name('ratings.store');
 });
 
@@ -1231,6 +1257,15 @@ Route::middleware(['auth', 'role:admin'])
             Route::get('/identity-verifications/{verification}/files/{file}', [IdentityVerificationFileController::class, 'show'])
                 ->whereIn('file', ['id', 'selfie', 'photo'])
                 ->name('identity-verifications.files.show');
+        });
+
+        // Customer refunds after a cancellation (customer cancellation, Nov 2026).
+        Route::middleware('permission:manage refunds')->group(function () {
+            Route::get('/refunds', [\App\Http\Controllers\Admin\RefundController::class, 'index'])
+                ->name('refunds.index');
+            Route::post('/refunds/{refund}/sent', [\App\Http\Controllers\Admin\RefundController::class, 'markSent'])
+                ->whereNumber('refund')
+                ->name('refunds.sent');
         });
 
         Route::middleware('permission:edit registered users')->group(function () {

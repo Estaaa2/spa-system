@@ -34,6 +34,15 @@ class DecisionSupportController extends Controller
 
     public function index(Request $request)
     {
+        return view('insights.decision-support.index', $this->pageData($request));
+    }
+
+    /**
+     * Everything the Decision Support page shows for the selected branch.
+     * Shared with the owner app (Api\Owner\OwnerAppController::decisionSupport).
+     */
+    public function pageData(Request $request): array
+    {
         $user = $request->user();
         $spa = $user->spa;
         $spaId = (int) $user->spa_id;
@@ -56,7 +65,7 @@ class DecisionSupportController extends Controller
             ->orderByDesc('decided_at')->orderByDesc('id')
             ->limit(25)->get();
 
-        return view('insights.decision-support.index', [
+        return [
             'branchId'        => $branchId,
             'forecast'        => $forecast,
             'recommendations' => $open,
@@ -68,7 +77,7 @@ class DecisionSupportController extends Controller
                 'busy' => RecommendationEngine::BUSY_USE, 'light' => RecommendationEngine::LIGHT_USE,
                 'weeks' => DemandForecaster::LOOKBACK_WEEKS, 'min_weeks' => DemandForecaster::MIN_WEEKS,
             ],
-        ]);
+        ];
     }
 
     public function refresh(Request $request): RedirectResponse

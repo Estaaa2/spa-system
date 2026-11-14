@@ -124,6 +124,10 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
         Route::get('/my-schedule',     [CustomerAppointmentController::class, 'schedule']);
                 // Reschedule through the web's own controller (same rules as the web).
         Route::post('/reschedule-requests', [\App\Http\Controllers\RescheduleRequestController::class, 'store']);
+        // Cancel through the web's own controller and rule (customer cancellation, Nov 2026).
+        Route::post('/appointments/{booking}/cancel', [\App\Http\Controllers\CustomerCancellationController::class, 'store'])
+            ->whereNumber('booking')
+            ->middleware('throttle:10,1,api-cancel');
 
         // Online booking through the web's own controller, so web and mobile
         // share every rule (price, promo, 30 days, slots, therapists, leave).
@@ -156,3 +160,41 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class, 'role:customer'])-
     // Rating through the web's own controller: spa + therapist + photos.
     Route::post('/ratings', [\App\Http\Controllers\RatingController::class, 'store']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Owner side of the app (owner mobile, Nov 2026) — view only
+|--------------------------------------------------------------------------
+| X-Branch-Id picks the branch (OwnerMobileBranch); then the same permission
+| and plan checks as the web pages. Dashboard, today/upcoming appointments
+| and the schedule are the web's own JSON endpoints.
+*/
+Route::middleware(['auth:sanctum', EnsureMobileAccess::class, 'role:owner', \App\Http\Middleware\OwnerMobileBranch::class])
+    ->prefix('owner')
+    ->group(function () {
+        $owner = \App\Http\Controllers\Api\Owner\OwnerAppController::class;
+
+        Route::get('/branches', [$owner, 'branches']);
+        Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'liveData']);
+
+        Route::middleware('branch.permission:view appointments')->group(function () use ($owner) {
+            Route::get('/appointments', [\App\Http\Controllers\BookingController::class, 'liveData']);
+            Route::get('/appointments/history', [$owner, 'history']);
+        });
+
+        Route::get('/schedule', [$owner, 'schedule'])
+            ->middleware('branch.permission:view schedule');
+
+        Route::get('/services', [$owner, 'services'])
+            ->middleware('branch.permission:view services');
+
+        Route::get('/inventory/products', [$owner, 'products'])
+            ->middleware(['branch.permission:view inventory', 'plan:inventory_basic']);
+        Route::get('/inventory/logs', [$owner, 'logs'])
+            ->middleware(['branch.permission:view inventory logs', 'plan:inventory_basic']);
+
+        Route::get('/reports', [$owner, 'reports'])
+            ->middleware(['branch.permission:view reports', 'plan:insights']);
+        Route::get('/decision-support', [$owner, 'decisionSupport'])
+            ->middleware(['branch.permission:view decision support', 'plan:insights']);
+    });
