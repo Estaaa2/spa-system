@@ -16,6 +16,7 @@ use App\Services\Payroll\PayrollPermissions as P;
 use App\Services\Payroll\PayrollSetupService;
 use App\Services\Payroll\StatutoryCalculator;
 use App\Services\Payroll\Support\Decimal;
+use App\Services\Payroll\Support\InputLimits;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -209,7 +210,7 @@ class StaffPayProfileController extends Controller
             }
 
             return $this->toStaff($staff, 'profiles')->with('success', $msg)->with('warning', $this->profileWarnings($staff, $res['profile']));
-        }, [], $this->restDayCheck($request));
+        }, $this->profileMessages(), $this->restDayCheck($request));
     }
 
     public function updateProfile(Request $request, Staff $staff, StaffPayProfile $profile)
@@ -224,7 +225,7 @@ class StaffPayProfileController extends Controller
 
             return $this->toStaff($staff, 'profiles')->with('success', 'Pay profile updated.')
                 ->with('warning', $this->profileWarnings($staff, $profile->refresh()));
-        }, [], $this->restDayCheck($request));
+        }, $this->profileMessages(), $this->restDayCheck($request));
     }
 
     public function destroyProfile(Request $request, Staff $staff, StaffPayProfile $profile)
@@ -244,8 +245,9 @@ class StaffPayProfileController extends Controller
 
     /**
      * Blank field = keep the stored number (the form never receives the old value);
-     * `clear[]` removes a number. Characters only are validated — see statutoryIdWarnings()
-     * for the non-blocking format hints.
+     * `clear[]` removes a number. The digit count must match the agency format
+     * (InputLimits::ID_DIGITS) — enforced since Nov 2026, it used to be a hint only.
+     * A number shared with another staff member is still a non-blocking warning.
      */
     public function updateStatutoryIds(Request $request, Staff $staff)
     {
@@ -253,11 +255,20 @@ class StaffPayProfileController extends Controller
         $spa = $this->currentSpa();
         $this->assertOwned($staff, $spa);
 
-        $rule = ['nullable', 'string', 'max:20', 'regex:/^[0-9][0-9 \-]*$/'];
-        $rules = array_fill_keys(array_keys(self::ID_FIELDS), $rule) + [
+        $rules = [
             'clear'   => ['sometimes', 'array'],
             'clear.*' => [Rule::in(array_keys(self::ID_FIELDS))],
         ];
+        foreach (InputLimits::ID_DIGITS as $attr => $lengths) {
+            $rules[$attr] = ['nullable', 'string', 'max:20', 'regex:/^[0-9][0-9 \-]*$/',
+                function ($a, $value, $fail) use ($attr, $lengths) {
+                    $n = strlen(preg_replace('/\D/', '', (string) $value) ?? '');
+                    if ($n > 0 && ! in_array($n, $lengths, true)) {
+                        $fail(sprintf('%s must have %s digits (you entered %d).',
+                            self::ID_FIELDS[$attr], implode(', ', array_slice($lengths, 0, -1)).(count($lengths) > 1 ? ' or ' : '').end($lengths), $n));
+                    }
+                }];
+        }
 
         return $this->handleForm($request, 'ids', $rules, function (array $data) use ($staff, $spa) {
             $clear = $data['clear'] ?? [];
@@ -326,10 +337,10 @@ class StaffPayProfileController extends Controller
             'kind'              => ['required', Rule::in([StaffRecurringItem::KIND_EARNING, StaffRecurringItem::KIND_DEDUCTION])],
             'component_code'    => ['required', Rule::in(PayrollSetupService::RECURRING_CODES[$kind] ?? [])],
             'label'             => ['required', 'string', 'max:100'],
-            'amount'            => ['required', 'regex:/^\d{1,10}(\.\d{1,2})?$/', 'not_regex:/^0+(\.0+)?$/'],
+            'amount'            => ['required', 'regex:/^\d{1,10}(\.\d{1,2})?$/', 'not_regex:/^0+(\.0+)?$/', 'numeric', 'max:'.InputLimits::RECURRING_MAX],
             'frequency'         => ['required', Rule::in([StaffRecurringItem::FREQ_PER_CUTOFF, StaffRecurringItem::FREQ_PER_DAY_WORKED, StaffRecurringItem::FREQ_SECOND_CUTOFF_ONLY])],
-            'start_date'        => ['required', 'date_format:Y-m-d'],
-            'end_date'          => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'start_date'        => ['required', 'date_format:Y-m-d', ...InputLimits::dateBounds()],
+            'end_date'          => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date', ...InputLimits::dateBounds()],
             // Labor Code Art. 113 — written authorization for deductions (locked model table 2).
             'authorization_ref' => [Rule::requiredIf($kind === StaffRecurringItem::KIND_DEDUCTION), 'nullable', 'string', 'max:255'],
         ], function (array $data) use ($staff) {
@@ -339,9 +350,10 @@ class StaffPayProfileController extends Controller
         }, [
             'amount.regex'                  => 'Enter an amount in pesos, e.g. 500 or 500.00.',
             'amount.not_regex'              => 'The amount must be more than zero.',
+            'amount.max'                    => 'The amount cannot exceed '.InputLimits::peso(InputLimits::RECURRING_MAX).'.',
             'authorization_ref.required'    => 'Deductions need the employee’s written authorization reference (Labor Code Art. 113).',
             'component_code.in'             => 'Choose a component that matches the item type.',
-        ]);
+        ] + InputLimits::dateMessages(['start_date', 'end_date']));
     }
 
     public function stopRecurring(Request $request, Staff $staff, StaffRecurringItem $item)
@@ -351,12 +363,12 @@ class StaffPayProfileController extends Controller
         abort_unless((int) $item->staff_id === (int) $staff->id, 404);
 
         return $this->handleForm($request, 'recurringStop', [
-            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$item->start_date->toDateString()],
+            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$item->start_date->toDateString(), ...InputLimits::dateBounds()],
         ], function (array $data) use ($staff, $item) {
             $this->setup->stopRecurring($item, $data['end_date']);
 
             return $this->toStaff($staff, 'recurring')->with('success', "“{$item->label}” stops after {$data['end_date']}.");
-        }, ['end_date.after_or_equal' => 'The stop date cannot be before the item\'s start date.']);
+        }, ['end_date.after_or_equal' => 'The stop date cannot be before the item\'s start date.'] + InputLimits::dateMessages(['end_date']));
     }
 
     public function destroyRecurring(Request $request, Staff $staff, StaffRecurringItem $item)
@@ -392,17 +404,31 @@ class StaffPayProfileController extends Controller
     private function profileRules(Request $request, bool $isEdit = false): array
     {
         return [
-            'effective_from'     => ['required', 'date_format:Y-m-d'],
-            'effective_to'       => ['nullable', 'date_format:Y-m-d', 'after_or_equal:effective_from'],
+            'effective_from'     => ['required', 'date_format:Y-m-d', ...InputLimits::dateBounds()],
+            'effective_to'       => ['nullable', 'date_format:Y-m-d', 'after_or_equal:effective_from', ...InputLimits::dateBounds()],
             'pay_basis'          => ['required', Rule::in([StaffPayProfile::BASIS_DAILY, StaffPayProfile::BASIS_MONTHLY])],
             // DECIMAL(12,2); 0 allowed (commission + minimum-wage top-up — locked model table 1).
-            'base_rate'          => ['required', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
+            // Capped per basis (InputLimits) so computed lines fit the payslip columns.
+            'base_rate'          => ['required', 'regex:/^\d{1,10}(\.\d{1,2})?$/', function ($a, $value, $fail) use ($request) {
+                $monthly = $request->input('pay_basis') === StaffPayProfile::BASIS_MONTHLY;
+                $max = $monthly ? InputLimits::BASE_RATE_MONTHLY_MAX : InputLimits::BASE_RATE_DAILY_MAX;
+                if (is_string($value) && is_numeric($value) && (float) $value > $max) {
+                    $fail(($monthly ? 'A monthly' : 'A daily').' rate cannot exceed '.InputLimits::peso($max).'.');
+                }
+            }],
             'commission_enabled' => ['sometimes', 'boolean'],
             // From the work schedule (Phase 4) an empty list is checked by restDayCheck(),
             // whose message points at the schedule.
             'rest_days'          => [$request->boolean('_rest_from_schedule') ? 'present' : 'required', 'array'],
             'rest_days.*'        => ['string', 'distinct', Rule::in(StaffPayProfile::DAY_NAMES)],
         ];
+    }
+
+    /** @return array<string, string> */
+    private function profileMessages(): array
+    {
+        return ['base_rate.regex' => 'Enter the rate in pesos, e.g. 600 or 600.00.']
+            + InputLimits::dateMessages(['effective_from', 'effective_to']);
     }
 
     /**
@@ -490,7 +516,7 @@ class StaffPayProfileController extends Controller
      */
     private function statutoryIdWarnings(Staff $staff, Spa $spa): array
     {
-        $expected = ['tin' => [9, 12, 14], 'sss_no' => [10], 'philhealth_no' => [12], 'pagibig_no' => [12]];
+        $expected = InputLimits::ID_DIGITS;
         $mine = [];
         $w = [];
 

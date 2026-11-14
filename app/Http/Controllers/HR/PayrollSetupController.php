@@ -15,6 +15,7 @@ use App\Services\Payroll\PayrollPermissions as P;
 use App\Services\Payroll\PayrollRunService;
 use App\Services\Payroll\PayrollSetupService;
 use App\Services\Payroll\StatutoryCalculator;
+use App\Services\Payroll\Support\InputLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -137,9 +138,9 @@ class PayrollSetupController extends Controller
         $this->abortUnlessBranchInScope($branch->id);
 
         return $this->handleForm($request, 'wage', [
-            'min_daily_wage'          => ['required', 'regex:/^\d{1,8}(\.\d{1,2})?$/', 'not_regex:/^0+(\.0+)?$/'],
+            'min_daily_wage'          => ['required', 'regex:/^\d{1,8}(\.\d{1,2})?$/', 'not_regex:/^0+(\.0+)?$/', 'numeric', 'max:'.InputLimits::MIN_WAGE_MAX],
             'wage_order_ref'          => ['required', 'string', 'max:255'],
-            'min_wage_effective_from' => ['required', 'date_format:Y-m-d'],
+            'min_wage_effective_from' => ['required', 'date_format:Y-m-d', ...InputLimits::dateBounds()],
         ], function (array $data) use ($branch) {
             $this->setup->updateBranchWage($branch, $data);
 
@@ -156,7 +157,8 @@ class PayrollSetupController extends Controller
         }, [
             'min_daily_wage.regex'     => 'Enter the daily amount in pesos, e.g. 600 or 600.00.',
             'min_daily_wage.not_regex' => 'The minimum daily wage must be more than zero.',
-        ]);
+            'min_daily_wage.max'       => 'The minimum daily wage cannot exceed '.InputLimits::peso(InputLimits::MIN_WAGE_MAX).'.',
+        ] + InputLimits::dateMessages(['min_wage_effective_from']));
     }
 
     // =====================================================================
@@ -175,7 +177,7 @@ class PayrollSetupController extends Controller
 
             return redirect()->route('payroll.setup.index', ['tab' => 'commission'])
                 ->with('success', "Commission rule #{$rule->id} added.");
-        });
+        }, $this->valueMessages());
     }
 
     public function updateRule(Request $request, CommissionRule $rule)
@@ -192,7 +194,7 @@ class PayrollSetupController extends Controller
 
             return redirect()->route('payroll.setup.index', ['tab' => 'commission'])
                 ->with('success', "Commission rule #{$rule->id} updated.");
-        });
+        }, $this->valueMessages());
     }
 
     public function supersedeRule(Request $request, CommissionRule $rule)
@@ -205,8 +207,8 @@ class PayrollSetupController extends Controller
         return $this->handleForm($request, 'ruleChange', [
             'method'         => ['required', Rule::in([CommissionRule::METHOD_PERCENT, CommissionRule::METHOD_FLAT])],
             'value'          => $this->valueRules($request),
-            'effective_from' => ['required', 'date_format:Y-m-d'],
-            'effective_to'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:effective_from'],
+            'effective_from' => ['required', 'date_format:Y-m-d', ...InputLimits::dateBounds()],
+            'effective_to'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:effective_from', ...InputLimits::dateBounds()],
         ], function (array $data) use ($rule) {
             $new = $this->setup->supersedeRule($rule, $data['method'], $data['value'], $data['effective_from'], $data['effective_to'] ?? null, Auth::user());
 
@@ -223,13 +225,13 @@ class PayrollSetupController extends Controller
         $this->authorizeRuleBranch($rule->branch_id);
 
         return $this->handleForm($request, 'ruleEnd', [
-            'effective_to' => ['required', 'date_format:Y-m-d'],
+            'effective_to' => ['required', 'date_format:Y-m-d', ...InputLimits::dateBounds()],
         ], function (array $data) use ($rule) {
             $this->setup->endRule($rule, $data['effective_to']);
 
             return redirect()->route('payroll.setup.index', ['tab' => 'commission'])
                 ->with('success', "Rule #{$rule->id} now ends {$data['effective_to']}.");
-        });
+        }, InputLimits::dateMessages(['effective_to']));
     }
 
     public function destroyRule(Request $request, CommissionRule $rule)
@@ -344,22 +346,27 @@ class PayrollSetupController extends Controller
             ],
             'method'         => ['required', Rule::in([CommissionRule::METHOD_PERCENT, CommissionRule::METHOD_FLAT])],
             'value'          => $this->valueRules($request),
-            'effective_from' => ['required', 'date_format:Y-m-d'],
-            'effective_to'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:effective_from'],
+            'effective_from' => ['required', 'date_format:Y-m-d', ...InputLimits::dateBounds()],
+            'effective_to'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:effective_from', ...InputLimits::dateBounds()],
         ];
     }
 
-    /** value DECIMAL(10,4): percent 0–100 (model), flat up to ₱999,999.9999. */
+    /** value DECIMAL(10,4): percent 0–100 (model), flat up to InputLimits::COMMISSION_FLAT_MAX. */
     private function valueRules(Request $request): array
     {
         return $request->input('method') === CommissionRule::METHOD_PERCENT
             ? ['required', 'regex:/^\d{1,3}(\.\d{1,4})?$/', 'numeric', 'max:100']
-            : ['required', 'regex:/^\d{1,6}(\.\d{1,4})?$/'];
+            : ['required', 'regex:/^\d{1,6}(\.\d{1,4})?$/', 'numeric', 'max:'.InputLimits::COMMISSION_FLAT_MAX];
     }
 
     private function valueMessages(): array
     {
-        return ['value.regex' => 'Enter a number with up to 4 decimal places.', 'value.max' => 'A percentage cannot exceed 100.'];
+        return [
+            'value.regex' => 'Enter a number with up to 4 decimal places.',
+            'value.max'   => request()->input('method') === CommissionRule::METHOD_PERCENT
+                ? 'A percentage cannot exceed 100.'
+                : 'A flat commission cannot exceed '.InputLimits::peso(InputLimits::COMMISSION_FLAT_MAX).' per booking.',
+        ] + InputLimits::dateMessages(['effective_from', 'effective_to']);
     }
 
     /** @return int|null|false branch id of the target, null if it has none, false if not found */

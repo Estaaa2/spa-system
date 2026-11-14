@@ -585,7 +585,7 @@
                     </div>
                     <div>
                         <label for="adj_amount" class="{{ $labelClass }}">Amount (₱) <x-required-mark /></label>
-                        <input type="text" inputmode="decimal" id="adj_amount" name="amount" required maxlength="20" class="{{ $inputClass }}"
+                        <input type="text" inputmode="decimal" id="adj_amount" name="amount" required maxlength="13" data-guard="money" data-max="{{ \App\Services\Payroll\Support\InputLimits::ADJUSTMENT_MAX }}" class="{{ $inputClass }}"
                                placeholder="e.g. 1500.00" value="{{ $adjOld ? old('amount') : '' }}" aria-describedby="adj_amount_help">
                         <p id="adj_amount_help" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Always a positive number — choose “Deduction” to take money off.</p>
                         @if($ab->has('amount'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $ab->first('amount') }}</p>@endif
@@ -758,6 +758,7 @@
 @endif
 }());
 </script>
+@include('hr.payroll.partials.input-guards')
 
 <style>
 [x-cloak] { display: none !important; }

@@ -330,6 +330,22 @@ class PayrollRunPagesTest extends TestCase
             ->assertSessionHas('_old_input._record', (string) $slip->id);
     }
 
+    public function test_oversized_adjustment_is_a_validation_error_not_a_server_error(): void
+    {
+        // payslip_lines.rate is DECIMAL(12,4): ₱9,999,999,999 used to pass and then fail the INSERT.
+        $this->workSeptemberCutoffOne();
+        $run = $this->generateC1();
+        $slip = $this->slip($run);
+
+        $this->actingAs($this->hr)->from(route('payroll.runs.show', $run))
+            ->post(route('payroll.payslips.lines.store', $slip), ['component_code' => 'ADJ_EARNING', 'label' => 'Typo', 'amount' => '9999999999'])
+            ->assertRedirect(route('payroll.runs.show', $run))
+            ->assertSessionHasErrors('amount', null, 'adjustment');
+        $this->actingAs($this->hr)
+            ->post(route('payroll.payslips.lines.store', $slip), ['component_code' => 'ADJ_EARNING', 'label' => 'Bonus', 'amount' => '1000000'])
+            ->assertSessionHasNoErrors();
+    }
+
     public function test_adjustments_are_refused_once_approved(): void
     {
         $this->workSeptemberCutoffOne();

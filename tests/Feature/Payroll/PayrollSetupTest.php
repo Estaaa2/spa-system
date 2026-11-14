@@ -402,15 +402,55 @@ class PayrollSetupTest extends TestCase
             ->assertSessionHasErrors('tin', null, 'ids');
     }
 
-    public function test_statutory_id_format_and_duplicate_hints_do_not_block(): void
+    public function test_statutory_id_digit_count_is_enforced_and_duplicates_still_only_warn(): void
     {
         $u2 = PayrollUserFactory::new()->create(['spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id, 'first_name' => 'Twin', 'last_name' => 'Entry']);
         StaffFactory::new()->create(['user_id' => $u2->id, 'spa_id' => $this->spa->id, 'branch_id' => $this->branchA->id, 'sss_no' => '3412345678']);
 
+        // Wrong digit counts are rejected (Nov 2026 hardening) and nothing is saved.
         $this->actingAs($this->hr)->put(route('payroll.staff.ids.update', $this->staff), ['sss_no' => '34-1234567-8', 'pagibig_no' => '123'])
-            ->assertSessionHasNoErrors()
-            ->assertSessionHas('warning', fn ($w) => str_contains($w, 'Pag-IBIG has 3 digits') && str_contains($w, 'Twin Entry'));
-        $this->assertSame('123', $this->staff->fresh()->pagibig_no);
+            ->assertSessionHasErrors('pagibig_no', null, 'ids');
+        $this->assertNull($this->staff->fresh()->sss_no);
+        foreach (['tin' => '1234567890', 'sss_no' => '621512512512512', 'philhealth_no' => '51241251212612521512', 'pagibig_no' => '5124124125125125'] as $f => $v) {
+            $this->actingAs($this->hr)->put(route('payroll.staff.ids.update', $this->staff), [$f => $v])
+                ->assertSessionHasErrors($f, null, 'ids');
+        }
+        $this->actingAs($this->hr)->put(route('payroll.staff.ids.update', $this->staff), ['tin' => '52151242131241`31`31'])
+            ->assertSessionHasErrors('tin', null, 'ids');
+
+        // TIN takes 9, 12 or 14 digits; a duplicate is still a warning, not an error.
+        $this->actingAs($this->hr)->put(route('payroll.staff.ids.update', $this->staff), [
+            'tin' => '123-456-789', 'sss_no' => '34-1234567-8', 'philhealth_no' => '12-345678901-2', 'pagibig_no' => '1234 5678 9012',
+        ])->assertSessionHasNoErrors()
+            ->assertSessionHas('warning', fn ($w) => str_contains($w, 'Twin Entry'));
+        $this->assertSame('1234 5678 9012', $this->staff->fresh()->pagibig_no);
+        $this->actingAs($this->hr)->put(route('payroll.staff.ids.update', $this->staff), ['tin' => '123-456-789-00000'])->assertSessionHasNoErrors();
+        $this->actingAs($this->hr)->put(route('payroll.staff.ids.update', $this->staff), ['tin' => '123-456-789-000'])->assertSessionHasNoErrors();
+    }
+
+    public function test_money_and_date_limits_reject_values_that_would_overflow_payslips(): void
+    {
+        $profile = fn (array $o) => $this->actingAs($this->hr)->post(route('payroll.staff.profiles.store', $this->staff), array_merge([
+            'effective_from' => '2026-10-01', 'pay_basis' => 'daily', 'base_rate' => '600', 'rest_days' => ['Sunday'],
+        ], $o));
+        $profile(['base_rate' => '9999999999'])->assertSessionHasErrors('base_rate', null, 'profileCreate');
+        $profile(['base_rate' => '50000.01'])->assertSessionHasErrors('base_rate', null, 'profileCreate');
+        $profile(['pay_basis' => 'monthly', 'base_rate' => '1000000.01'])->assertSessionHasErrors('base_rate', null, 'profileCreate');
+        $profile(['effective_from' => '0202-10-01'])->assertSessionHasErrors('effective_from', null, 'profileCreate');
+        $profile(['pay_basis' => 'monthly', 'base_rate' => '1000000'])->assertSessionHasNoErrors();
+
+        $this->actingAs($this->hr)->post(route('payroll.staff.recurring.store', $this->staff), [
+            'kind' => 'earning', 'component_code' => 'ALLOWANCE', 'label' => 'Rice', 'amount' => '100000.01',
+            'frequency' => 'per_cutoff', 'start_date' => '2026-10-01',
+        ])->assertSessionHasErrors('amount', null, 'recurringCreate');
+
+        $this->actingAs($this->hr)->put(route('payroll.setup.wages.update', $this->branchA), [
+            'min_daily_wage' => '50000', 'wage_order_ref' => 'X', 'min_wage_effective_from' => '2026-01-01',
+        ])->assertSessionHasErrors('min_daily_wage', null, 'wage');
+
+        $this->actingAs($this->hr)->post(route('payroll.setup.rules.store'), [
+            'branch_id' => $this->branchA->id, 'target_type' => 'default', 'method' => 'flat', 'value' => '999999', 'effective_from' => '2026-01-01',
+        ])->assertSessionHasErrors('value', null, 'ruleCreate');
     }
 
     public function test_service_rule_is_pinned_to_the_branch_that_sells_it(): void

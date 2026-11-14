@@ -61,8 +61,9 @@
     // SSS 10 digits (SSS form R-3 instructions); PhilHealth PIN 12 digits, 2-9-1 grouping
     // (PhilHealth Claim Form guidelines); Pag-IBIG MID 12 digits (Member's Data Form
     // PFF039); TIN 9 digits (BIR RMO 23-91) plus a 3- or 5-digit branch code (BIR
-    // eBIRForms 7.9.6.0, RMC 36-2026 as reported by PwC PH). Hints only — saving is
-    // never blocked, matching statutoryIdWarnings().
+    // eBIRForms 7.9.6.0, RMC 36-2026 as reported by PwC PH). Enforced since Nov 2026
+    // (InputLimits::ID_DIGITS, server + the input guard below).
+    $idDigits = \App\Services\Payroll\Support\InputLimits::ID_DIGITS;
     $idHints = [
         'tin'           => '9 digits, plus a 3- or 5-digit branch code if your record shows one.',
         'sss_no'        => '10 digits.',
@@ -152,7 +153,7 @@
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
                     <div>
                         <label for="pc_from" class="{{ $labelClass }}">Effective from <x-required-mark /></label>
-                        <input type="date" id="pc_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $oldModal ? $today : old('effective_from', $today) }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="pc_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $oldModal ? $today : old('effective_from', $today) }}">
                         @if($eb->has('effective_from'))<p class="{{ $errText }}">{{ $eb->first('effective_from') }}</p>@endif
                     </div>
                     <div>
@@ -164,7 +165,7 @@
                     </div>
                     <div>
                         <label for="pc_rate" class="{{ $labelClass }}"><span data-rate-label>Daily rate (₱)</span> <x-required-mark /></label>
-                        <input type="text" inputmode="decimal" id="pc_rate" name="base_rate" required class="{{ $inputClass }}" value="{{ $oldModal ? '' : old('base_rate') }}" placeholder="e.g. 600 (0 allowed)" aria-describedby="pc_rate_hint">
+                        <input type="text" inputmode="decimal" id="pc_rate" name="base_rate" required maxlength="13" data-guard="money" data-max="{{ \App\Services\Payroll\Support\InputLimits::BASE_RATE_DAILY_MAX }}" data-max-monthly="{{ \App\Services\Payroll\Support\InputLimits::BASE_RATE_MONTHLY_MAX }}" class="{{ $inputClass }}" value="{{ $oldModal ? '' : old('base_rate') }}" placeholder="e.g. 600 (0 allowed)" aria-describedby="pc_rate_hint">
                         @if($eb->has('base_rate'))<p class="{{ $errText }}">{{ $eb->first('base_rate') }}</p>@endif
                     </div>
                     <div class="flex items-end">
@@ -402,7 +403,7 @@
                     </div>
                     <div>
                         <label for="ri_amount" class="{{ $labelClass }}">Amount (₱) <x-required-mark /></label>
-                        <input type="text" inputmode="decimal" id="ri_amount" name="amount" required class="{{ $inputClass }}" value="{{ $o('amount') }}">
+                        <input type="text" inputmode="decimal" id="ri_amount" name="amount" required maxlength="13" data-guard="money" data-max="{{ \App\Services\Payroll\Support\InputLimits::RECURRING_MAX }}" class="{{ $inputClass }}" value="{{ $o('amount') }}">
                         @if($eb->has('amount'))<p class="{{ $errText }}">{{ $eb->first('amount') }}</p>@endif
                     </div>
                     <div>
@@ -413,12 +414,12 @@
                     </div>
                     <div>
                         <label for="ri_start" class="{{ $labelClass }}">Start date <x-required-mark /></label>
-                        <input type="date" id="ri_start" name="start_date" required class="{{ $inputClass }}" value="{{ $o('start_date', $today) }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="ri_start" name="start_date" required class="{{ $inputClass }}" value="{{ $o('start_date', $today) }}">
                         @if($eb->has('start_date'))<p class="{{ $errText }}">{{ $eb->first('start_date') }}</p>@endif
                     </div>
                     <div>
                         <label for="ri_end" class="{{ $labelClass }}">End date <span class="font-normal text-gray-500">(optional)</span></label>
-                        <input type="date" id="ri_end" name="end_date" class="{{ $inputClass }}" value="{{ $o('end_date') }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="ri_end" name="end_date" class="{{ $inputClass }}" value="{{ $o('end_date') }}">
                         @if($eb->has('end_date'))<p class="{{ $errText }}">{{ $eb->first('end_date') }}</p>@endif
                     </div>
                     <div id="ri_auth_wrap" class="md:col-span-4">
@@ -543,11 +544,11 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label for="pe_from" class="{{ $labelClass }}">Effective from <x-required-mark /></label>
-                            <input type="date" id="pe_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
+                            <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="pe_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
                         </div>
                         <div>
                             <label for="pe_to" class="{{ $labelClass }}">Effective to <span class="font-normal text-gray-500">(optional)</span></label>
-                            <input type="date" id="pe_to" name="effective_to" class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
+                            <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="pe_to" name="effective_to" class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
                         </div>
                         <div>
                             <label for="pe_basis" class="{{ $labelClass }}">Pay basis</label>
@@ -558,7 +559,7 @@
                         </div>
                         <div>
                             <label for="pe_rate" class="{{ $labelClass }}"><span data-rate-label>Daily rate (₱)</span> <x-required-mark /></label>
-                            <input type="text" inputmode="decimal" id="pe_rate" name="base_rate" required class="{{ $inputClass }}" value="{{ $isOld ? old('base_rate') : '' }}">
+                            <input type="text" inputmode="decimal" id="pe_rate" name="base_rate" required maxlength="13" data-guard="money" data-max="{{ \App\Services\Payroll\Support\InputLimits::BASE_RATE_DAILY_MAX }}" data-max-monthly="{{ \App\Services\Payroll\Support\InputLimits::BASE_RATE_MONTHLY_MAX }}" class="{{ $inputClass }}" value="{{ $isOld ? old('base_rate') : '' }}">
                         </div>
                     </div>
                     <label class="inline-flex items-center gap-3 min-h-[44px] text-sm text-gray-700 cursor-pointer dark:text-gray-300">
@@ -642,6 +643,7 @@
                         <div>
                             <label for="id_{{ $attr }}" class="{{ $labelClass }}">{{ $i['label'] }} number</label>
                             <input type="text" id="id_{{ $attr }}" name="{{ $attr }}" maxlength="20" inputmode="numeric" spellcheck="false" autocomplete="off"
+                                   data-guard="digits" data-digits="{{ implode(',', $idDigits[$attr] ?? [20]) }}"
                                    @if(isset($idHints[$attr])) aria-describedby="id_{{ $attr }}_hint" @endif
                                    class="{{ $inputClass }} font-mono"
                                    placeholder="{{ $i['state'] === 'set' ? 'On file: ' . $i['masked'] . ' — blank keeps it' : 'Not on file' }}">
@@ -685,7 +687,7 @@
                     </div>
                     <div>
                         <label for="stop_date" class="{{ $labelClass }}">Last day it applies <x-required-mark /></label>
-                        <input type="date" id="stop_date" name="end_date" required class="{{ $inputClass }}" value="{{ $isOld ? old('end_date') : '' }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="stop_date" name="end_date" required class="{{ $inputClass }}" value="{{ $isOld ? old('end_date') : '' }}">
                         <p id="stop_lock" class="hidden mt-1 text-xs text-amber-700 dark:text-amber-300"></p>
                         @if($eb->any())<p class="{{ $errText }}">{{ $eb->first() }}</p>@endif
                     </div>
@@ -990,6 +992,7 @@
 @endif
 }());
 </script>
+@include('hr.payroll.partials.input-guards')
 
 <style>
 @media (max-width: 767px) {

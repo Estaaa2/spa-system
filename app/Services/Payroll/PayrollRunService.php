@@ -15,6 +15,7 @@ use App\Models\Staff;
 use App\Models\StaffRecurringItem;
 use App\Models\User;
 use App\Services\Payroll\Support\Decimal;
+use App\Services\Payroll\Support\InputLimits;
 use App\Services\Payroll\ValueObjects\EarningLine;
 use App\Services\Payroll\ValueObjects\PayPeriod;
 use App\Services\Payroll\ValueObjects\PayProfileSnapshot;
@@ -412,8 +413,11 @@ final class PayrollRunService
         }
         try {
             $amount = Decimal::round2(Decimal::of($amount, 'amount'));
-            if (! Decimal::isPositive($amount) || Decimal::cmp($amount, '9999999999.99') > 0) {
+            if (! Decimal::isPositive($amount)) {
                 $errors['amount'] = 'Amount must be more than zero (use ADJ_DEDUCTION to take money off).';
+            } elseif (Decimal::cmp($amount, (string) InputLimits::ADJUSTMENT_MAX) > 0) {
+                // payslip_lines.rate is DECIMAL(12,4): larger amounts failed the INSERT (HTTP 500).
+                $errors['amount'] = 'An adjustment cannot exceed '.InputLimits::peso(InputLimits::ADJUSTMENT_MAX).'.';
             }
         } catch (InvalidArgumentException) {
             $errors['amount'] = 'Amount must be a plain number, e.g. 1500.00.';

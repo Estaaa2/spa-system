@@ -482,7 +482,7 @@
                         </div>
                         <div>
                             <label for="preview_date" class="{{ $labelClass }}">Appointment date</label>
-                            <input type="date" id="preview_date" value="{{ $today }}" class="{{ $inputClass }}">
+                            <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="preview_date" value="{{ $today }}" class="{{ $inputClass }}">
                         </div>
                     </div>
                     <div class="flex sm:justify-end">
@@ -547,17 +547,17 @@
                         </div>
                         <div>
                             <label for="rc_value" class="{{ $labelClass }}"><span data-value-label>Value</span> <x-required-mark /></label>
-                            <input type="text" inputmode="decimal" id="rc_value" name="value" required value="{{ $oldModal ? '' : old('value') }}" class="{{ $inputClass }}" placeholder="e.g. 10">
+                            <input type="text" inputmode="decimal" id="rc_value" name="value" required maxlength="11" data-guard="money" data-decimals="4" data-max="{{ \App\Services\Payroll\Support\InputLimits::COMMISSION_FLAT_MAX }}" data-max-percent="100" value="{{ $oldModal ? '' : old('value') }}" class="{{ $inputClass }}" placeholder="e.g. 10">
                             @if($eb->has('value'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('value') }}</p>@endif
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label for="rc_from" class="{{ $labelClass }}">From <x-required-mark /></label>
-                                <input type="date" id="rc_from" name="effective_from" required value="{{ $oldModal ? $today : old('effective_from', $today) }}" class="{{ $inputClass }}">
+                                <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="rc_from" name="effective_from" required value="{{ $oldModal ? $today : old('effective_from', $today) }}" class="{{ $inputClass }}">
                             </div>
                             <div>
                                 <label for="rc_to" class="{{ $labelClass }}">To <span class="font-normal text-gray-500">(optional)</span></label>
-                                <input type="date" id="rc_to" name="effective_to" value="{{ $oldModal ? '' : old('effective_to') }}" class="{{ $inputClass }}">
+                                <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="rc_to" name="effective_to" value="{{ $oldModal ? '' : old('effective_to') }}" class="{{ $inputClass }}">
                             </div>
                         </div>
                     </div>
@@ -708,7 +708,7 @@
                 <div class="px-4 py-6 space-y-4 sm:px-6">
                     <div>
                         <label for="wage_amount" class="{{ $labelClass }}">Minimum daily wage (₱) <x-required-mark /></label>
-                        <input type="text" inputmode="decimal" id="wage_amount" name="min_daily_wage" required class="{{ $inputClass }}"
+                        <input type="text" inputmode="decimal" id="wage_amount" name="min_daily_wage" required maxlength="10" data-guard="money" data-max="{{ \App\Services\Payroll\Support\InputLimits::MIN_WAGE_MAX }}" class="{{ $inputClass }}"
                                value="{{ $oldModal === 'wageModal' ? old('min_daily_wage') : '' }}">
                         @if($eb->has('min_daily_wage'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('min_daily_wage') }}</p>@endif
                     </div>
@@ -720,7 +720,7 @@
                     </div>
                     <div>
                         <label for="wage_from" class="{{ $labelClass }}">Effective from <x-required-mark /></label>
-                        <input type="date" id="wage_from" name="min_wage_effective_from" required class="{{ $inputClass }}"
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="wage_from" name="min_wage_effective_from" required class="{{ $inputClass }}"
                                value="{{ $oldModal === 'wageModal' ? old('min_wage_effective_from') : '' }}">
                         @if($eb->has('min_wage_effective_from'))<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first('min_wage_effective_from') }}</p>@endif
                     </div>
@@ -790,15 +790,15 @@
                     </div>
                     <div>
                         <label for="re_value" class="{{ $labelClass }}"><span data-value-label>Value</span> <x-required-mark /></label>
-                        <input type="text" inputmode="decimal" id="re_value" name="value" required class="{{ $inputClass }}" value="{{ $isOld ? old('value') : '' }}">
+                        <input type="text" inputmode="decimal" id="re_value" name="value" required maxlength="11" data-guard="money" data-decimals="4" data-max="{{ \App\Services\Payroll\Support\InputLimits::COMMISSION_FLAT_MAX }}" data-max-percent="100" class="{{ $inputClass }}" value="{{ $isOld ? old('value') : '' }}">
                     </div>
                     <div>
                         <label for="re_from" class="{{ $labelClass }}">From <x-required-mark /></label>
-                        <input type="date" id="re_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="re_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
                     </div>
                     <div>
                         <label for="re_to" class="{{ $labelClass }}">To <span class="font-normal text-gray-500">(optional)</span></label>
-                        <input type="date" id="re_to" name="effective_to" class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="re_to" name="effective_to" class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
                     </div>
                     @if($eb->any())
                         <ul class="space-y-1 text-xs text-red-600 md:col-span-2 dark:text-red-400">
@@ -848,15 +848,15 @@
                     </div>
                     <div>
                         <label for="rch_value" class="{{ $labelClass }}"><span data-value-label>Value</span> <x-required-mark /></label>
-                        <input type="text" inputmode="decimal" id="rch_value" name="value" required class="{{ $inputClass }}" value="{{ $isOld ? old('value') : '' }}">
+                        <input type="text" inputmode="decimal" id="rch_value" name="value" required maxlength="11" data-guard="money" data-decimals="4" data-max="{{ \App\Services\Payroll\Support\InputLimits::COMMISSION_FLAT_MAX }}" data-max-percent="100" class="{{ $inputClass }}" value="{{ $isOld ? old('value') : '' }}">
                     </div>
                     <div>
                         <label for="rch_from" class="{{ $labelClass }}">New rate starts <x-required-mark /></label>
-                        <input type="date" id="rch_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="rch_from" name="effective_from" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_from') : '' }}">
                     </div>
                     <div>
                         <label for="rch_to" class="{{ $labelClass }}">New rate ends <span class="font-normal text-gray-500">(optional)</span></label>
-                        <input type="date" id="rch_to" name="effective_to" class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="rch_to" name="effective_to" class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
                     </div>
                     <p id="rch_lock" class="hidden text-xs sm:col-span-2 text-amber-700 dark:text-amber-300"></p>
                     @if($eb->any())
@@ -894,7 +894,7 @@
                     </div>
                     <div>
                         <label for="rend_to" class="{{ $labelClass }}">Last day this rule applies <x-required-mark /></label>
-                        <input type="date" id="rend_to" name="effective_to" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
+                        <input type="date" min="{{ \App\Services\Payroll\Support\InputLimits::DATE_MIN }}" max="{{ \App\Services\Payroll\Support\InputLimits::DATE_MAX }}" id="rend_to" name="effective_to" required class="{{ $inputClass }}" value="{{ $isOld ? old('effective_to') : '' }}">
                         <p id="rend_lock" class="hidden mt-1 text-xs text-amber-700 dark:text-amber-300"></p>
                         @if($eb->any())<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $eb->first() }}</p>@endif
                     </div>
@@ -1338,6 +1338,7 @@ function payrollSetupPage() {
 @endif
 }());
 </script>
+@include('hr.payroll.partials.input-guards')
 
 <style>
 [x-cloak] { display: none !important; }
