@@ -33,6 +33,15 @@ class ProcessScheduledDeployments extends Command
                     return;
                 }
 
+                // HR Head / Finance Head work across every branch and cannot be
+                // deployed. A request filed before the person was promoted is
+                // closed here instead of moving their home branch.
+                if ($staff->user?->isHead()) {
+                    $deployment->update(['status' => 'cancelled']);
+                    $this->warn("  ⚠ Deployment #{$deployment->id}: {$staff->user->name} is now an HR Head / Finance Head, cancelled.");
+                    return;
+                }
+
                 // Move staff to new branch in both tables
                 $staff->update(['branch_id' => $deployment->to_branch_id]);
 

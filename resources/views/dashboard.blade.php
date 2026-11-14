@@ -186,7 +186,8 @@
     </div>
 @endif
 
-@if(!$pendingDeploymentResponse && $myStaff)
+{{-- HR Head / Finance Head work across every branch, so no transfer widget. --}}
+@if(!$pendingDeploymentResponse && $myStaff && ! auth()->user()?->isHead())
     @if($myOpenDeployment)
         {{-- They already have an open request in flight --}}
         <div class="flex items-center justify-between gap-4 px-6 py-4 bg-white border border-gray-200 shadow-sm rounded-2xl dark:bg-gray-800 dark:border-gray-700">

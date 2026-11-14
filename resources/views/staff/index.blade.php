@@ -424,6 +424,8 @@
                     @php
                         $role = $memberRoles[$member->id] ?? null;
                         $colorClass = $roleColors[$role] ?? $roleColorFallback;
+                        // Nobody changes the role of, or removes, their own account.
+                        $isSelf = (int) $member->user_id === (int) $user?->id;
 
                         // Every read of ->user is null-safe: a soft-deleted or orphaned
                         // account would otherwise render a blank name and hand an empty
@@ -517,7 +519,7 @@
                                     <i class="text-xs fa-solid fa-calendar-days" aria-hidden="true"></i>
                                     <span>Schedule</span>
                                 </button>
-                                @if($canEditStaff && ($isOwner || ! in_array($role, $headRoles, true)))
+                                @if($canEditStaff && ($isOwner || ! in_array($role, $headRoles, true)) && ! $isSelf)
                                 <button
                                     type="button"
                                     onclick='editStaff({{ $member->id }}, {{ $hasManpower ? 'true' : 'false' }}, @json($role), @json($displayName), {{ $member->performs_treatments ? 'true' : 'false' }})'
@@ -527,7 +529,7 @@
                                     <span>Edit</span>
                                 </button>
                                 @endif
-                                @if($canDeleteStaff && ($isOwner || ! in_array($role, $headRoles, true)))
+                                @if($canDeleteStaff && ($isOwner || ! in_array($role, $headRoles, true)) && ! $isSelf)
                                 <button
                                     type="button"
                                     onclick='openDeleteModal({{ $member->id }}, @json($shortName))'

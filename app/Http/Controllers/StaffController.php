@@ -6,6 +6,7 @@ use App\Support\TableFilters;
 
 use App\Models\User;
 use App\Models\Staff;
+use App\Models\StaffBranchDeployment;
 use App\Models\Branch;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -198,6 +199,10 @@ class StaffController extends Controller
 
         $this->assertManageable($staff);
 
+        if ($this->isOwnAccount($staff)) {
+            return back()->with('error', 'You cannot change your own role. Ask the owner or another staff manager.');
+        }
+
         $spa = Auth::user()->spa;
 
         if (
@@ -217,6 +222,14 @@ class StaffController extends Controller
         try {
             if ($staff->user) {
                 $staff->user->syncRoles([$validated['roles']]);
+            }
+
+            // Promoted to HR Head / Finance Head: they now cover every branch, so
+            // any deployment still waiting to start is closed.
+            if (in_array($validated['roles'], PayrollPermissions::HEAD_ROLES, true)) {
+                StaffBranchDeployment::where('staff_id', $staff->id)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->update(['status' => 'cancelled']);
             }
 
             // Q37. Therapists are always in the pool, so the flag stays off for them.
@@ -241,6 +254,10 @@ class StaffController extends Controller
 
         if ($this->isHeadAccount($staff) && ! Auth::user()->hasRole('owner')) {
             return back()->with('error', 'Only the owner can remove an HR Head or Finance Head account.');
+        }
+
+        if ($this->isOwnAccount($staff)) {
+            return back()->with('error', 'You cannot remove your own account.');
         }
 
         try {
@@ -288,7 +305,12 @@ class StaffController extends Controller
         }
     }
 
-    private function isHeadAccount(Staff $staff): bool
+    private function isOwnAccount(Staff $staff): bool
+    {
+        return (int) $staff->user_id === (int) Auth::id();
+    }
+
+        private function isHeadAccount(Staff $staff): bool
     {
         return (bool) $staff->user?->hasAnyRole(PayrollPermissions::HEAD_ROLES);
     }

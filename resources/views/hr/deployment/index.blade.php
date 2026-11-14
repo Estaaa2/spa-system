@@ -1,5 +1,3 @@
-{{-- File path: resources/views/hr/deployment/index.blade.php --}}
-
 @extends('layouts.app')
 
 @section('title', 'Staff Deployment')
@@ -73,7 +71,7 @@
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
 
     <x-page-header
-        title="Branch Deployment"
+        title="Staff Deployment"
         subtitle="Manage and track staff branch deployment requests."
     />
 
@@ -591,6 +589,25 @@ function renderDetail(data, panel) {
                     <div><span class="font-medium">Until:</span> ${esc(active.end_date_fmt)}</div>
                 </div>
                 ${permanentNote}
+            </div>`;
+
+    } else if (data.is_head) {
+        // ── HR HEAD / FINANCE HEAD: spa-wide, never deployed ──────────────────
+        actionCard = `
+            <div class="p-4 border border-gray-200 sm:p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                    <i class="mr-1 text-gray-500 fa-solid fa-globe dark:text-gray-400" aria-hidden="true"></i>Works across all branches
+                </p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${esc(roleCap)} accounts already cover every branch, so they cannot be deployed.</p>
+            </div>`;
+
+    } else if (data.is_self && canCreate) {
+        // ── YOUR OWN ROW: transfers go through Request Transfer ───────────────
+        const branchName = data.branch ? esc(data.branch.name) : 'no branch';
+        actionCard = `
+            <div class="p-4 border border-gray-200 sm:p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 dark:border-gray-700">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">This is your account</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">You are at <strong class="text-gray-700 dark:text-gray-200">${branchName}</strong>. To move yourself, use Request Transfer on your dashboard.</p>
             </div>`;
 
     } else if (canCreate) {

@@ -94,9 +94,13 @@ class BranchDeploymentController extends Controller
         $allBranches = Branch::where('spa_id', $user->spa_id)->get();
 
         // Pre-build staff deployment data keyed by staff ID for JS rendering
-        $staffDeploymentData = $staff->keyBy('id')->map(function (Staff $member) {
+        $staffDeploymentData = $staff->keyBy('id')->map(function (Staff $member) use ($user) {
             return [
                 'id'    => $member->id,
+                // HR Head / Finance Head are spa-wide and cannot be deployed;
+                // your own row points you to Request Transfer instead.
+                'is_head' => (bool) $member->user?->isHead(),
+                'is_self' => (int) $member->user_id === (int) $user->id,
                 'name'  => $member->user?->name ?? 'Unknown',
                 'email' => $member->user?->email ?? '',
                 'role'  => $member->user?->getRoleNames()->first() ?? '',
@@ -184,6 +188,12 @@ class BranchDeploymentController extends Controller
         // would only move their home branch (users.branch_id).
         if ($staff->user?->isHead()) {
             return back()->with('error', 'HR Head and Finance Head accounts work across all branches and cannot be deployed.');
+        }
+
+        // Your own transfer goes through "Request transfer" (reason required,
+        // consent given by you), not through a request you file and accept yourself.
+        if ((int) $staff->user_id === (int) $user->id) {
+            return back()->with('error', 'You cannot file a deployment for yourself here. Use Request Transfer on your dashboard instead.');
         }
 
         // Block if an open request already exists
@@ -367,6 +377,12 @@ class BranchDeploymentController extends Controller
 
         if ($deployment->status !== 'pending') {
             return back()->with('error', 'Only pending requests can be approved.');
+        }
+
+        // A request filed before the person became HR Head / Finance Head.
+        $deployment->loadMissing('staff.user');
+        if ($deployment->staff?->user?->isHead()) {
+            return back()->with('error', 'HR Head and Finance Head accounts work across all branches and cannot be deployed. Cancel or reject this request instead.');
         }
 
         // ✅ ADD: Defensive re-check at approval time. The target branch's
