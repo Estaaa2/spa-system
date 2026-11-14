@@ -7,6 +7,7 @@ use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\Spa;
 use App\Models\User;
+use App\Services\Landing\PublicBranches;
 use App\Services\Payroll\PayrollPermissions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -15,10 +16,11 @@ use Illuminate\Support\Facades\DB;
  * Customer ↔ spa chat (Nov 2026). The rules live here; the two controllers
  * (customer and spa side) only shape requests and JSON.
  *
- *   One conversation per customer per spa. A customer writes from a branch's
- *   page; the message remembers that branch, but the thread is spa-wide.
- *   Spa side: staff of that spa with "reply to customer messages" (checked on
- *   their current branch, like every branch permission). One shared inbox.
+ *   One conversation per customer per branch (since Nov 15, 2026): messaging
+ *   Imus and Bacoor gives two threads. Spa side: staff of that spa with "reply
+ *   to customer messages" (checked on their current branch, like every branch
+ *   permission). One shared inbox for all branches, each thread labelled with
+ *   its branch; it does not follow the branch switcher.
  *   Customers see the spa's name on replies; staff see who on their team wrote.
  */
 class ChatService
@@ -41,26 +43,35 @@ class ChatService
         return $this->staffCanReply($user) && (int) $user->spa_id === (int) $conversation->spa_id;
     }
 
-    /** The spa a customer may message: verified, with the branch listed and belonging to it. */
-    public function canMessage(Spa $spa, ?Branch $branch): bool
+    /**
+     * A customer may message a branch only while the public can see it
+     * (decision Q7a, Nov 15): the same rule as the landing page. Old threads
+     * with a branch that is no longer public stay readable, but can't take
+     * new messages.
+     */
+    public function canMessage(?Spa $spa, ?Branch $branch): bool
     {
-        return $spa->verification_status === 'verified'
-            && $branch !== null
-            && (int) $branch->spa_id === (int) $spa->id
-            && (bool) $branch->profile?->is_listed;
+        return app(PublicBranches::class)->isPublic($spa, $branch);
     }
 
-    public function conversationFor(User $customer, Spa $spa): ?ChatConversation
+    public function conversationFor(User $customer, Branch $branch): ?ChatConversation
     {
-        return ChatConversation::where('spa_id', $spa->id)->where('customer_user_id', $customer->id)->first();
+        return ChatConversation::where('branch_id', $branch->id)->where('customer_user_id', $customer->id)->first();
+    }
+
+    /** "Imus" → "Imus Branch". Kept here for the chat; the rule is PublicBranches::label(). */
+    public static function branchLabel(?string $name): ?string
+    {
+        return PublicBranches::label($name);
     }
 
     public function send(ChatConversation|array $target, User $sender, string $side, string $body, ?int $branchId = null): ChatMessage
     {
         return DB::transaction(function () use ($target, $sender, $side, $body, $branchId) {
+            // A new thread is keyed by branch; callers may pass only spa + customer.
             $conversation = $target instanceof ChatConversation
                 ? $target
-                : ChatConversation::firstOrCreate($target);
+                : ChatConversation::firstOrCreate($target + ['branch_id' => $branchId]);
 
             $message = $conversation->messages()->create([
                 'sender_side'    => $side,

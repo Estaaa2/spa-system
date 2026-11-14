@@ -8,6 +8,7 @@ use App\Models\BranchProfile;
 use App\Models\ChatConversation;
 use App\Models\Spa;
 use App\Models\User;
+use App\Services\Chat\ChatService;
 use Database\Factories\BranchFactory;
 use Database\Factories\PayrollUserFactory;
 use Database\Factories\SpaFactory;
@@ -20,8 +21,9 @@ use Tests\Fixtures\PayrollTestAccountsSeeder;
 use Tests\TestCase;
 
 /**
- * Customer ↔ spa chat (Nov 2026): one spa-wide thread per customer, a shared
- * inbox for staff with "reply to customer messages" (receptionist default).
+ * Customer ↔ spa chat (Nov 2026): one thread per customer per branch (since
+ * Nov 15), one spa-wide inbox for staff with "reply to customer messages"
+ * (receptionist default), each thread labelled with its branch.
  */
 class CustomerChatTest extends TestCase
 {
@@ -53,8 +55,8 @@ class CustomerChatTest extends TestCase
 
     private function say(string $body, ?Branch $branch = null)
     {
-        return $this->actingAs($this->customer)->postJson(route('chat.send', $this->spa), [
-            'body' => $body, 'branch_id' => ($branch ?? $this->branchA)->id,
+        return $this->actingAs($this->customer)->postJson(route('chat.send', $branch ?? $this->branchA), [
+            'body' => $body,
         ]);
     }
 
@@ -68,6 +70,7 @@ class CustomerChatTest extends TestCase
         $this->assertCount(1, $inbox);
         $this->assertSame('Cara Customer (test)', $inbox[0]['customer']);
         $this->assertSame($this->branchA->name, $inbox[0]['branch']);
+        $this->assertSame($this->branchA->id, $inbox[0]['branch_id']);
 
         $id = $inbox[0]['id'];
         $this->actingAs($this->reception)->getJson(route('spa-chat.thread', $id))
@@ -82,31 +85,63 @@ class CustomerChatTest extends TestCase
         $this->actingAs($this->customer)->getJson(route('chat.conversations'))
             ->assertJsonPath('unread', 1)
             ->assertJsonPath('conversations.0.spa_name', $this->spa->name)
-            ->assertJsonPath('conversations.0.branch_id', $this->branchA->id);
+            ->assertJsonPath('conversations.0.branch_id', $this->branchA->id)
+            ->assertJsonPath('conversations.0.branch_name', $this->branchA->name);
 
-        $thread = $this->actingAs($this->customer)->getJson(route('chat.thread', $this->spa))->json('messages');
+        $thread = $this->actingAs($this->customer)->getJson(route('chat.thread', $this->branchA))->json('messages');
         $this->assertSame($this->spa->name, $thread[1]['from']);
         $this->assertFalse($thread[1]['mine']);
         $this->actingAs($this->customer)->getJson(route('chat.conversations'))->assertJsonPath('unread', 0);
 
         // Polling with ?after= returns only new messages.
-        $this->actingAs($this->customer)->getJson(route('chat.thread', [$this->spa, 'after' => $thread[1]['id']]))
+        $this->actingAs($this->customer)->getJson(route('chat.thread', [$this->branchA, 'after' => $thread[1]['id']]))
             ->assertJsonCount(0, 'messages');
     }
 
-    public function test_every_branch_of_the_spa_shares_one_thread_and_one_inbox(): void
+    public function test_each_branch_has_its_own_thread_in_one_spa_wide_inbox(): void
     {
         $branchB = Branch::where('spa_id', $this->spa->id)->where('id', '!=', $this->branchA->id)->firstOrFail();
         BranchProfile::updateOrCreate(['branch_id' => $branchB->id], ['is_listed' => true]);
 
-        $this->say('Hello from branch A');
+        $this->say('Hello from branch A')->assertCreated();
         $this->say('And from branch B', $branchB)->assertCreated();
+        $this->say('Branch A again')->assertCreated();
 
-        $this->assertSame(1, ChatConversation::where('spa_id', $this->spa->id)->count());
+        // Two threads, one per branch.
+        $this->assertSame(2, ChatConversation::where('spa_id', $this->spa->id)->count());
+        $a = ChatConversation::where('branch_id', $this->branchA->id)->firstOrFail();
+        $this->assertSame(2, $a->messages()->count());
 
-        // A manager at branch B sees the same thread (spa-wide inbox).
+        // The customer's list: one row per branch; each thread only has its own messages.
+        $rows = $this->actingAs($this->customer)->getJson(route('chat.conversations'))->json('conversations');
+        $this->assertEqualsCanonicalizing([$this->branchA->id, $branchB->id], array_column($rows, 'branch_id'));
+        $this->actingAs($this->customer)->getJson(route('chat.thread', $branchB))
+            ->assertJsonCount(1, 'messages')
+            ->assertJsonPath('messages.0.body', 'And from branch B')
+            ->assertJsonPath('branch_id', $branchB->id);
+
+        // A manager at branch B sees both branches' threads (spa-wide inbox, Q1a),
+        // each with its branch, plus the chips' branch list and the branch being viewed.
         $managerB = User::where('email', 'manager.b@levictas.test')->firstOrFail();
-        $this->actingAs($managerB)->getJson(route('spa-chat.unread'))->assertJsonPath('unread', 2);
+        $this->actingAs($managerB)->getJson(route('spa-chat.unread'))->assertJsonPath('unread', 3);
+        $inbox = $this->actingAs($managerB)->getJson(route('spa-chat.conversations'))->assertOk();
+        $this->assertEqualsCanonicalizing([$this->branchA->id, $branchB->id], array_column($inbox->json('conversations'), 'branch_id'));
+        $this->assertSame($branchB->id, $inbox->json('current_branch_id'));
+        $this->assertContains($this->branchA->id, array_column($inbox->json('branches'), 'id'));
+
+        // Opening branch A's thread from branch B: the thread says which branch it is with.
+        $this->actingAs($managerB)->getJson(route('spa-chat.thread', $a->id))
+            ->assertJsonPath('branch_id', $this->branchA->id)
+            ->assertJsonPath('current_branch_id', $branchB->id);
+    }
+
+    public function test_branch_labels_do_not_double_the_word_branch(): void
+    {
+        $this->assertSame('Imus Branch', ChatService::branchLabel('Imus'));
+        $this->assertSame('Imus Branch', ChatService::branchLabel('Imus Branch'));
+        $this->assertSame('Main branch', ChatService::branchLabel('Main branch'));
+        $this->assertSame('Test Branch A', ChatService::branchLabel('Test Branch A'));
+        $this->assertNull(ChatService::branchLabel('  '));
     }
 
     public function test_who_may_use_each_side(): void
@@ -135,6 +170,11 @@ class CustomerChatTest extends TestCase
         // Branch of another spa.
         $otherBranch = BranchFactory::new()->create(['spa_id' => SpaFactory::new()->create()->id]);
         $this->say('Hi', $otherBranch)->assertStatus(422);
+
+        // Removed (soft-deleted) branch.
+        $this->branchA->delete();
+        $this->say('Hi')->assertStatus(422);
+        $this->branchA->restore();
 
         // Unlisted branch.
         $this->branchA->profile->forceFill(['is_listed' => false])->save();

@@ -889,6 +889,7 @@
                                             'branch_id' => $branch->id,
                                             'branch_name' => $branch->name,
                                             'branch_location' => $branch->location ?? '',
+                                            'branch_tag' => \App\Services\Landing\PublicBranches::cardTag($branch->name, $spa->branches->count()),
                                             'desc' => $profile->description ?? '',
                                             'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
                                             'photos' => $photos,
@@ -921,6 +922,7 @@
                                             <div
                                                 class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent">
                                             </div>
+                                            @include('partials.spa-card-branch-tag', ['tag' => $spaPayload['branch_tag'] ?? null])
                                             <div
                                                 class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#6F5430]/90 text-white text-[11px] font-semibold backdrop-blur-sm">
                                                 <i class="fa-solid fa-star text-[#F5C842] text-[10px]"></i>
@@ -1105,6 +1107,7 @@
                                                         'branch_id' => $branch->id,
                                                         'branch_name' => $branch->name,
                                                         'branch_location' => $branch->location ?? '',
+                                                        'branch_tag' => \App\Services\Landing\PublicBranches::cardTag($branch->name, $spa->branches->count()),
                                                         'desc' => $profile->description ?? '',
                                                         'price_note' => $lowestPrice
                                                             ? number_format($lowestPrice, 2)
@@ -1140,6 +1143,7 @@
                                                         <div
                                                             class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-transparent">
                                                         </div>
+                                                        @include('partials.spa-card-branch-tag', ['tag' => $spaPayload['branch_tag'] ?? null])
                                                         <div
                                                             class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5 dark:ring-white/10">
                                                             <i
@@ -1314,6 +1318,7 @@
                                 <div
                                     class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent">
                                 </div>
+                                @include('partials.spa-card-branch-tag', ['tag' => $item['branch_tag'] ?? null])
                                 <div
                                     class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full {{ $item['is_featured'] ? 'bg-[#6F5430]/90 text-white' : 'bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] ring-1 ring-black/5 dark:ring-white/10' }} text-[11px] font-semibold backdrop-blur-sm">
                                     <i

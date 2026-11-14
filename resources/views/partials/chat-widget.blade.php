@@ -5,11 +5,14 @@
     builds is styled by the .lc-* rules below, because Tailwind doesn't scan
     JS files.
 
-    $mode  'customer'  on the landing page: the spas you messaged. The button
-                       stays hidden until you have a conversation; a spa's own
-                       Message button (spa window) opens its thread directly.
+    $mode  'customer'  on the landing page: the branches you messaged, one
+                       thread per branch (Nov 15). The button stays hidden
+                       until you have a conversation; a branch's own Message
+                       button (spa window) opens its thread directly.
            'spa'       on staff pages: the spa's shared inbox ("reply to
-                       customer messages"). The button is always there.
+                       customer messages"), every branch's threads, each
+                       labelled with its branch. It does not follow the branch
+                       switcher. The button is always there.
 --}}
 @php
     $isSpa = $mode === 'spa';
@@ -22,8 +25,9 @@
         ]
         : [
             'list'   => route('chat.conversations'),
-            'thread' => url('/chat/spas/__ID__/messages'),
-            'send'   => url('/chat/spas/__ID__/messages'),
+            'thread' => url('/chat/branches/__ID__/messages'),
+            'send'   => url('/chat/branches/__ID__/messages'),
+            'card'   => url('/web-api/branches/__ID__/card'),
         ];
     $listTitle = $isSpa ? 'Customer messages' : 'Messages';
 @endphp
@@ -61,6 +65,11 @@
 
         {{-- View 1: conversations --}}
         <div id="lcListView" class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+            @if ($isSpa)
+                {{-- Branch filter (Q2a): built in chat-widget.js, only when the spa has 2+ branches. --}}
+                <div id="lcChips" role="group" aria-label="Filter by branch"
+                    class="hidden sticky top-0 z-10 gap-1.5 px-3 py-2.5 overflow-x-auto bg-white border-b dark:bg-gray-800 border-black/5 dark:border-white/10"></div>
+            @endif
             <ul id="lcList" class="divide-y divide-black/5 dark:divide-white/10" aria-label="{{ $listTitle }}"></ul>
             <div id="lcListEmpty" class="hidden px-6 py-16 text-center">
                 <i class="text-3xl fa-regular fa-comments text-[#C4A97D]" aria-hidden="true"></i>
@@ -73,6 +82,34 @@
 
         {{-- View 2: one conversation --}}
         <div id="lcThreadView" class="hidden flex-1 min-h-0 flex-col">
+            @unless ($isSpa)
+                {{-- The branch this chat is with + "View branch" (chat Option B, Nov 15). Filled in chat-widget.js. --}}
+                <div id="lcCtx" class="hidden items-center gap-3 px-3 py-2.5 border-b shrink-0 bg-[#F6EFE6] dark:bg-gray-700/60 border-black/5 dark:border-white/10">
+                    <img id="lcCtxPhoto" alt="" class="hidden object-cover w-11 h-11 rounded-lg shrink-0 bg-black/5">
+                    <div class="flex-1 min-w-0">
+                        <p class="flex items-center gap-1 text-sm font-bold text-[#6F5430] dark:text-[#E8D3AE]">
+                            <i class="fa-solid fa-location-dot text-xs text-[#8B7355] dark:text-[#C4A97D]" aria-hidden="true"></i>
+                            <span id="lcCtxBranch" class="truncate"></span>
+                        </p>
+                        <p id="lcCtxAddress" class="text-xs text-gray-600 truncate dark:text-gray-400"></p>
+                    </div>
+                    <button type="button" id="lcCtxView"
+                        class="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-semibold text-white rounded-xl shrink-0 bg-[#8B7355] hover:bg-[#7A6348] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#8B7355] dark:focus-visible:ring-offset-gray-800">
+                        View branch <i class="text-[10px] fa-solid fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </div>
+                {{-- Decision Q7a: a branch the public can't see keeps its history but takes no new messages. --}}
+                <p id="lcCtxNote" role="status" tabindex="-1"
+                    class="hidden px-3 py-2.5 text-xs leading-snug border-b shrink-0 bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-400/10 dark:border-amber-400/30 dark:text-amber-200"></p>
+            @endunless
+            @if ($isSpa)
+                {{-- Thread from another branch than the one being viewed (Q3a). --}}
+                <div id="lcNotice" role="note"
+                    class="hidden items-start gap-2 px-3 py-2.5 text-xs leading-snug border-b shrink-0 bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-400/10 dark:border-amber-400/30 dark:text-amber-200">
+                    <i class="mt-0.5 fa-solid fa-circle-info" aria-hidden="true"></i>
+                    <p id="lcNoticeText"></p>
+                </div>
+            @endif
             <div id="lcMessages" class="flex-1 min-h-0 px-3 py-4 space-y-2 overflow-y-auto overscroll-contain bg-[#FAF7F2] dark:bg-gray-900/40"
                 role="log" aria-live="polite" aria-label="Conversation"></div>
 
@@ -98,6 +135,8 @@
     #lcPanel { padding-bottom: env(safe-area-inset-bottom, 0px); }
     #lcThreadView:not(.hidden) { display: flex; }
     #lcBack:not(.hidden) { display: flex; }
+    #lcNotice:not(.hidden), #lcCtx:not(.hidden) { display: flex; }
+    .lc-avatar-photo { object-fit: cover; }
 
     /* Rows and bubbles are built in chat-widget.js. */
     .lc-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 16px; text-align: left; transition: background-color .15s ease; }
@@ -111,6 +150,12 @@
     .lc-row-sub { font-size: 12px; color: #8B7355; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .lc-row-preview { font-size: 13px; color: #4b5563; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .lc-row.is-unread .lc-row-preview { font-weight: 600; color: #1f2937; }
+    .lc-row-here { margin-left: 6px; padding: 1px 6px; border-radius: 9999px; background: #F3F4F6; color: #6b7280; font-size: 10.5px; font-weight: 600; vertical-align: 1px; }
+    .lc-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 12px; border-radius: 9999px; background: #F6EFE6; color: #6F5430; font-size: 12px; font-weight: 500; white-space: nowrap; transition: background-color .15s ease; }
+    .lc-chip:hover { background: #EADFCE; }
+    .lc-chip[aria-pressed="true"] { background: #8B7355; color: #fff; font-weight: 600; }
+    .lc-chip:focus-visible { outline: 2px solid #8B7355; outline-offset: 2px; }
+    .lc-chip-count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9999px; background: #dc2626; color: #fff; font-size: 10.5px; font-weight: 700; line-height: 18px; text-align: center; }
     .lc-count { flex-shrink: 0; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 9999px; background: #dc2626; color: #fff; font-size: 12px; font-weight: 700; line-height: 22px; text-align: center; }
 
     .lc-day { margin: 12px 0 4px; text-align: center; font-size: 11px; font-weight: 600; color: #6b7280; }
@@ -129,6 +174,10 @@
         .lc-row-name { color: #f3f4f6; }
         .lc-row-time, .lc-day, .lc-meta, .lc-note { color: #9ca3af; }
         .lc-row-sub { color: #C4A97D; }
+        .lc-row-here { background: #374151; color: #9ca3af; }
+        .lc-chip { background: #374151; color: #d1d5db; }
+        .lc-chip:hover { background: #4b5563; }
+        .lc-chip[aria-pressed="true"] { background: #8B7355; color: #fff; }
         .lc-row-preview { color: #d1d5db; }
         .lc-row.is-unread .lc-row-preview { color: #fff; }
         .lc-msg:not(.is-mine) .lc-bubble { background: #1f2937; color: #f3f4f6; border-color: #374151; }

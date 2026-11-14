@@ -211,14 +211,15 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/reschedule-requests/{booking}/status', [RescheduleRequestController::class, 'status'])
         ->name('reschedule.status');
 
-    // Customer chat with a spa (Nov 2026), polled by resources/js/customer-chat.js.
+    // Customer chat with a spa branch (Nov 2026), polled by resources/js/chat-widget.js.
     Route::middleware('role:customer')->prefix('chat')->name('chat.')->group(function () {
         Route::get('/conversations', [\App\Http\Controllers\Chat\CustomerChatController::class, 'conversations'])
             ->name('conversations');
-        Route::get('/spas/{spa}/messages', [\App\Http\Controllers\Chat\CustomerChatController::class, 'thread'])
-            ->whereNumber('spa')->name('thread');
-        Route::post('/spas/{spa}/messages', [\App\Http\Controllers\Chat\CustomerChatController::class, 'send'])
-            ->whereNumber('spa')->middleware('throttle:30,1')->name('send');
+        // One thread per branch (Nov 15). withTrashed: an old thread with a removed branch still opens.
+        Route::get('/branches/{branch}/messages', [\App\Http\Controllers\Chat\CustomerChatController::class, 'thread'])
+            ->whereNumber('branch')->withTrashed()->name('thread');
+        Route::post('/branches/{branch}/messages', [\App\Http\Controllers\Chat\CustomerChatController::class, 'send'])
+            ->whereNumber('branch')->withTrashed()->middleware('throttle:30,1')->name('send');
     });
 
     // Spa side of the chat: the shared inbox on staff pages (customer chat, Nov 2026).
@@ -1482,6 +1483,9 @@ Route::middleware(['auth'])->group(function () {
 
 Route::get('/web-api/spas/nearby', [LandingController::class, 'nearbySpasList']);
 Route::get('/web-api/spas/search', [LandingController::class, 'searchSpas']);
+// The chat's "View branch" button (Nov 15): one branch's spa-window data, or public: false.
+Route::get('/web-api/branches/{branch}/card', [LandingController::class, 'branchCard'])
+    ->whereNumber('branch')->withTrashed()->middleware('throttle:60,1')->name('landing.branch-card');
 Route::get('/web-api/spas/{spaId}/{branchId}/reviews', [LandingController::class, 'spaReviews']);
 
 require __DIR__.'/auth.php';

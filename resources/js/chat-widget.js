@@ -3,11 +3,17 @@
 // App\Services\Chat\ChatService.
 //
 // One file for both sides, read from data-mode on #lcRoot:
-//   customer  landing page. Threads are keyed by spa id. The floating button
-//             shows once you have a conversation; the spa window's Message
-//             button ([data-open-spa-chat]) opens that spa's thread directly.
+//   customer  landing page. One thread per branch (Nov 15), keyed by branch
+//             id. The floating button shows once you have a conversation; the
+//             spa window's Message button ([data-open-spa-chat]) opens that
+//             branch's thread directly. A thread shows its branch in a bar
+//             with "View branch" (opens the spa window); a branch the public
+//             can't see keeps its history but takes no new messages (Q7a).
 //   spa       staff pages. Threads are keyed by conversation id; the floating
 //             button is always there, with the shared inbox's unread count.
+//             The inbox holds every branch and ignores the branch switcher;
+//             rows show their branch, chips filter by branch, and a thread from
+//             another branch than the one being viewed says so.
 //
 // New messages come by polling (no WebSockets on the server): every few
 // seconds while a thread is open, less often for the badge, never while the
@@ -49,12 +55,15 @@ if (root) {
         lastId: 0,
         lastDay: null,
         rows: [],
-        unreadBySpa: {},       // customer: spa id → unread
+        unreadByBranch: {},    // customer: branch id → unread
+        branches: [],          // spa: [{ id, name, label }] for the chips
+        currentBranchId: null, // spa: the branch being viewed (switcher)
+        filter: null,          // spa: branch id the list is filtered to, null = all
         sending: false,
         threadTimer: null,
         listTimer: null,
         returnFocus: null,
-        spaContext: null,      // customer: the spa window's spa
+        spaContext: null,      // customer: the spa window's branch
     };
 
     const csrf = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
@@ -86,7 +95,7 @@ if (root) {
     }
 
     function updateSpaButtonBadge() {
-        const count = state.spaContext ? (state.unreadBySpa[state.spaContext.id] || 0) : 0;
+        const count = state.spaContext ? (state.unreadByBranch[state.spaContext.branchId] || 0) : 0;
         document.querySelectorAll('[data-spa-chat-badge]').forEach((b) => setBadge(b, count));
     }
 
@@ -94,18 +103,25 @@ if (root) {
 
     function normalise(c) {
         return isSpa
-            ? { key: c.id, title: c.customer, initial: c.initial, sub: c.branch ? `From ${c.branch}` : '',
-                preview: c.preview, fromMe: c.from_me, time: c.time, unread: c.unread }
-            : { key: c.spa_id, title: c.spa_name, initial: (c.spa_name || 'S').charAt(0).toUpperCase(), sub: '',
-                preview: c.preview, fromMe: c.from_me, time: c.time, unread: c.unread, branchId: c.branch_id };
+            ? { key: c.id, title: c.customer, initial: c.initial, sub: c.branch_label || '',
+                preview: c.preview, fromMe: c.from_me, time: c.time, unread: c.unread, branchId: c.branch_id }
+            : { key: c.branch_id, title: c.spa_name, initial: (c.spa_name || 'S').charAt(0).toUpperCase(),
+                sub: c.branch_label || '', preview: c.preview, fromMe: c.from_me, time: c.time,
+                unread: c.unread, branchId: c.branch_id, photo: c.branch_photo || null };
     }
 
     async function loadList() {
         try {
             const data = await getJson(endpoints.list);
             state.rows = (data.conversations || []).map(normalise);
-            state.unreadBySpa = {};
-            if (!isSpa) state.rows.forEach((r) => { state.unreadBySpa[r.key] = r.unread; });
+            state.unreadByBranch = {};
+            if (!isSpa) state.rows.forEach((r) => { state.unreadByBranch[r.key] = r.unread; });
+            if (isSpa) {
+                state.branches = data.branches || [];
+                state.currentBranchId = data.current_branch_id ?? null;
+                // A filter for a branch that no longer exists falls back to all.
+                if (state.filter && !state.branches.some((b) => b.id === state.filter)) state.filter = null;
+            }
             updateBadges(data.unread || 0);
             if (state.open && state.view === 'list') renderList();
         } catch (e) {
@@ -120,21 +136,83 @@ if (root) {
         } catch (e) { /* next tick */ }
     }
 
+    // Branch filter chips (staff, 2+ branches). Counts are unread per branch.
+    function renderChips() {
+        const chips = el('lcChips');
+        if (!chips) return;
+        const show = state.branches.length > 1 && state.rows.length > 0;
+        chips.classList.toggle('hidden', !show);
+        chips.classList.toggle('flex', show);
+        if (!show) return;
+
+        const unread = {};
+        let total = 0;
+        state.rows.forEach((r) => {
+            unread[r.branchId] = (unread[r.branchId] || 0) + (r.unread || 0);
+            total += r.unread || 0;
+        });
+
+        const chip = (id, text, count) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'lc-chip';
+            b.setAttribute('aria-pressed', String(state.filter === id));
+            b.textContent = text;
+            if (count) {
+                const c = document.createElement('span');
+                c.className = 'lc-chip-count';
+                c.textContent = count > 99 ? '99+' : String(count);
+                c.setAttribute('aria-label', `${count} unread`);
+                b.append(c);
+            }
+            b.addEventListener('click', () => {
+                state.filter = id;
+                renderList();
+            });
+            return b;
+        };
+
+        chips.replaceChildren(
+            chip(null, 'All', total),
+            ...state.branches.map((b) => chip(b.id, b.name, unread[b.id] || 0)),
+        );
+    }
+
     function renderList() {
         list.replaceChildren();
-        listEmpty.classList.toggle('hidden', state.rows.length > 0);
+        renderChips();
+        const rows = isSpa && state.filter ? state.rows.filter((r) => r.branchId === state.filter) : state.rows;
+        listEmpty.classList.toggle('hidden', rows.length > 0);
+        if (isSpa && state.filter && !rows.length && state.rows.length) {
+            // Filtered to a branch with no chats: say so instead of "No messages yet".
+            listEmpty.classList.add('hidden');
+            const li = document.createElement('li');
+            li.className = 'lc-note';
+            li.textContent = 'No chats with this branch yet.';
+            list.append(li);
+        }
 
-        state.rows.forEach((r) => {
+        rows.forEach((r) => {
             const li  = document.createElement('li');
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = `lc-row${r.unread ? ' is-unread' : ''}`;
-            btn.addEventListener('click', () => openThread({ key: r.key, title: r.title, subtitle: r.sub, branchId: r.branchId }));
+            btn.addEventListener('click', () => openThread({ key: r.key, title: r.title, subtitle: isSpa ? r.sub : '', branchId: r.branchId }));
+            if (isSpa) btn.setAttribute('aria-label', `${r.title}, ${r.sub || 'branch unknown'}${r.unread ? `, ${r.unread} unread` : ''}`);
 
-            const avatar = document.createElement('span');
+            let avatar = document.createElement('span');
             avatar.className = 'lc-avatar';
             avatar.setAttribute('aria-hidden', 'true');
             avatar.textContent = r.initial;
+            if (r.photo) {
+                // Customer: the branch's photo, falling back to the initial.
+                const img = document.createElement('img');
+                img.className = 'lc-avatar lc-avatar-photo';
+                img.alt = '';
+                img.src = r.photo;
+                img.addEventListener('error', () => img.replaceWith(avatar));
+                avatar = img;
+            }
 
             const main = document.createElement('span');
             main.className = 'lc-row-main';
@@ -153,6 +231,12 @@ if (root) {
                 sub.className = 'lc-row-sub';
                 sub.style.display = 'block';
                 sub.textContent = r.sub;
+                if (isSpa && r.branchId && r.branchId === state.currentBranchId && state.branches.length > 1) {
+                    const here = document.createElement('span');
+                    here.className = 'lc-row-here';
+                    here.textContent = 'current branch';
+                    sub.append(here);
+                }
                 main.append(sub);
             }
             const preview = document.createElement('span');
@@ -193,11 +277,10 @@ if (root) {
         bubble.textContent = m.body;
         const meta = document.createElement('div');
         meta.className = 'lc-meta';
-        // Customers see the spa's name on replies. Staff see which teammate
-        // replied, and which branch's page the customer wrote from.
+        // Customers see the spa's name on replies; staff see which teammate
+        // replied. The branch is the thread's own (header), not per message.
         const parts = [];
         if (isSpa ? m.mine : !m.mine) parts.push(m.from);
-        if (m.branch) parts.push(`from ${m.branch}`);
         parts.push(m.time);
         meta.textContent = parts.filter(Boolean).join(' · ');
         wrap.append(bubble, meta);
@@ -221,6 +304,7 @@ if (root) {
             if (!state.thread || state.thread.key !== key) return;   // switched meanwhile
 
             if (initial) {
+                if (isSpa) showBranchNotice(data); else showBranchBar(data);
                 messagesEl.replaceChildren();
                 state.lastDay = null;
                 if (!data.messages.length) {
@@ -256,7 +340,76 @@ if (root) {
         }
     }
 
+    // Staff opened a thread with another branch than the one being viewed (Q3a).
+    function showBranchNotice(data) {
+        const notice = el('lcNotice');
+        if (!notice) return;
+        const other = data.branch_id && data.current_branch_id && data.branch_id !== data.current_branch_id;
+        notice.classList.toggle('hidden', !other);
+        if (!other) return;
+        const viewing = state.branches.find((b) => b.id === data.current_branch_id);
+        el('lcNoticeText').textContent = `This chat is with ${data.branch_label || 'another branch'}. `
+            + `You're viewing ${viewing ? viewing.label : 'another branch'}; your reply still goes to this customer's chat with ${data.branch_label || 'that branch'}.`;
+    }
+
+    // Customer: the branch bar and, for a branch the public can't see, the
+    // read-only state (Q7a). The server refuses those messages either way.
+    function showBranchBar(data) {
+        const bar = el('lcCtx');
+        if (!bar || !state.thread) return;
+        state.thread.public = data.branch_public !== false;
+        el('lcCtxBranch').textContent = data.branch_label || data.branch_name || 'Branch';
+        el('lcCtxAddress').textContent = data.branch_address || '';
+        const photo = el('lcCtxPhoto');
+        photo.classList.toggle('hidden', !data.branch_photo);
+        if (data.branch_photo) photo.src = data.branch_photo;
+        bar.classList.remove('hidden');
+        setReadOnly(!state.thread.public);
+    }
+
+    const UNAVAILABLE = "This branch isn't available to the public right now, so it can't take new messages. Your chat history stays here.";
+
+    function setReadOnly(readOnly, text = UNAVAILABLE) {
+        const note = el('lcCtxNote');
+        if (note) {
+            note.textContent = readOnly ? text : '';
+            note.classList.toggle('hidden', !readOnly);
+        }
+        input.disabled = readOnly;
+        sendBtn.disabled = readOnly;
+        input.placeholder = readOnly ? 'Messaging is unavailable for this branch' : 'Type a message…';
+    }
+
+    async function viewBranch() {
+        if (!state.thread || isSpa) return;
+        const btn = el('lcCtxView');
+        if (state.thread.public === false) {
+            const note = el('lcCtxNote');
+            note?.classList.remove('hidden');
+            note?.focus();
+            return;
+        }
+        btn.disabled = true;
+        try {
+            const data = await getJson(url('card', state.thread.key));
+            if (!data.public) {
+                if (state.thread) state.thread.public = false;
+                setReadOnly(true, data.message ? `${data.message} It can't take new messages; your chat history stays here.` : UNAVAILABLE);
+                return;
+            }
+            closePanel();
+            document.dispatchEvent(new CustomEvent('levictas:open-spa', { detail: data.spa }));
+        } catch (e) {
+            showError("Couldn't open the branch. Check your connection and try again.");
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
     function openThread(thread) {
+        el('lcNotice')?.classList.add('hidden');
+        el('lcCtx')?.classList.add('hidden');
+        if (!isSpa) setReadOnly(false);
         state.thread = thread;
         state.lastId = 0;
         state.view = 'thread';
@@ -273,7 +426,7 @@ if (root) {
 
     async function send(e) {
         e.preventDefault();
-        if (state.sending || !state.thread) return;
+        if (state.sending || !state.thread || input.disabled) return;
 
         const body = input.value.trim();
         if (!body) return;
@@ -281,7 +434,7 @@ if (root) {
             showError(`Keep it under ${maxLength} characters.`);
             return;
         }
-        if (!isSpa && !state.thread.branchId) {
+        if (!isSpa && !state.thread.key) {
             showError('Open the spa again from its card to send a message.');
             return;
         }
@@ -303,7 +456,7 @@ if (root) {
         scrollToEnd();
 
         try {
-            const payload = isSpa ? { body } : { body, branch_id: state.thread.branchId };
+            const payload = { body };
             const res = await fetch(url('send', state.thread.key), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
@@ -315,6 +468,12 @@ if (root) {
                 pending.remove();
                 input.value = body;
                 autoGrow();
+                // The branch stopped being public since the thread opened (Q7a).
+                if (!isSpa && res.status === 422 && /accepting messages/i.test(data.message || '')) {
+                    if (state.thread) state.thread.public = false;
+                    setReadOnly(true);
+                    return;
+                }
                 showError(data.message || (res.status === 429
                     ? 'You\'re sending too fast. Wait a moment, then try again.'
                     : 'Your message wasn\'t sent. Please try again.'));
@@ -335,8 +494,8 @@ if (root) {
             showError('Network error. Your message wasn\'t sent.');
         } finally {
             state.sending = false;
-            sendBtn.disabled = false;
-            input.focus();
+            sendBtn.disabled = input.disabled;
+            if (!input.disabled) input.focus();
         }
     }
 
@@ -438,6 +597,7 @@ if (root) {
     launcher.addEventListener('click', () => (state.open ? closePanel() : openPanel(true)));
     el('lcClose').addEventListener('click', closePanel);
     backBtn.addEventListener('click', backToList);
+    el('lcCtxView')?.addEventListener('click', viewBranch);
     form.addEventListener('submit', send);
     input.addEventListener('input', autoGrow);
     input.addEventListener('keydown', (e) => {
@@ -460,7 +620,7 @@ if (root) {
         // welcome.js openSpaModal() says which spa window is open.
         document.addEventListener('levictas:spa-opened', (e) => {
             const s = e.detail || {};
-            state.spaContext = { id: s.id, branchId: s.branch_id, name: s.name };
+            state.spaContext = { id: s.id, branchId: s.branch_id, name: s.name, branchName: s.branch_name };
             updateSpaButtonBadge();
         });
 
@@ -468,10 +628,11 @@ if (root) {
         document.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-open-spa-chat]');
             if (!btn || !state.spaContext) return;
+            if (!state.spaContext.branchId) return;
             openThread({
-                key: state.spaContext.id,
+                key: state.spaContext.branchId,
                 title: state.spaContext.name || 'Spa',
-                subtitle: '',
+                subtitle: '',   // the branch bar under the header names the branch
                 branchId: state.spaContext.branchId,
             });
         });

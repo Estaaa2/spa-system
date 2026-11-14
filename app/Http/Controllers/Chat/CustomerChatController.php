@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Chat;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\BranchProfile;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\Spa;
@@ -13,12 +14,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 /**
- * Customer side of the chat (customer chat, Nov 2026), polled by
- * resources/js/customer-chat.js.
+ * Customer side of the chat (customer chat, Nov 2026; per branch since Nov 15),
+ * polled by resources/js/chat-widget.js.
  *
- * GET  /chat/conversations             the spas you messaged + unread counts
- * GET  /chat/spas/{spa}/messages       the thread (?after=id for new ones); marks read
- * POST /chat/spas/{spa}/messages       send {body, branch_id}
+ * GET  /chat/conversations                  the branches you messaged + unread counts
+ * GET  /chat/branches/{branch}/messages     the thread (?after=id for new ones); marks read
+ * POST /chat/branches/{branch}/messages     send {body}
  */
 class CustomerChatController extends Controller
 {
@@ -30,31 +31,24 @@ class CustomerChatController extends Controller
     {
         $rows = ChatConversation::query()
             ->where('customer_user_id', $request->user()->id)
+            ->whereNotNull('branch_id')
             ->whereNotNull('last_message_at')
             ->withUnreadFor(ChatMessage::SIDE_CUSTOMER)
-            ->with(['spa:id,name', 'latestMessage'])
+            ->with(['spa:id,name', 'branch:id,spa_id,name', 'branch.profile', 'latestMessage'])
             ->orderByDesc('last_message_at')
             ->get();
 
-        // The branch page each thread was last written from, so reopening it
-        // from the floating button sends from the same branch.
-        $lastBranch = ChatMessage::query()
-            ->whereIn('chat_conversation_id', $rows->pluck('id'))
-            ->where('sender_side', ChatMessage::SIDE_CUSTOMER)
-            ->whereNotNull('branch_id')
-            ->selectRaw('chat_conversation_id, MAX(id) as id')
-            ->groupBy('chat_conversation_id')
-            ->pluck('id', 'chat_conversation_id');
-        $branchOf = ChatMessage::whereIn('id', $lastBranch->values())->pluck('branch_id', 'chat_conversation_id');
-
         $list = $rows->map(fn (ChatConversation $c) => [
-            'spa_id'    => $c->spa_id,
-            'spa_name'  => $c->spa?->name ?? 'Spa',
-            'branch_id' => $branchOf[$c->id] ?? null,
-            'preview'   => Str::limit((string) $c->latestMessage?->body, 80),
-            'from_me'   => $c->latestMessage?->sender_side === ChatMessage::SIDE_CUSTOMER,
-            'time'      => $this->when($c->last_message_at),
-            'unread'    => (int) $c->unread_count,
+            'spa_id'       => $c->spa_id,
+            'spa_name'     => $c->spa?->name ?? 'Spa',
+            'branch_id'    => $c->branch_id,
+            'branch_name'  => $c->branch?->name,
+            'branch_label' => ChatService::branchLabel($c->branch?->name),
+            'branch_photo' => $c->branch?->profile ? BranchProfile::thumbnailFor($c->branch->profile) : null,
+            'preview'      => Str::limit((string) $c->latestMessage?->body, 80),
+            'from_me'      => $c->latestMessage?->sender_side === ChatMessage::SIDE_CUSTOMER,
+            'time'         => $this->when($c->last_message_at),
+            'unread'       => (int) $c->unread_count,
         ]);
 
         return response()->json([
@@ -63,9 +57,12 @@ class CustomerChatController extends Controller
         ]);
     }
 
-    public function thread(Request $request, Spa $spa): JsonResponse
+    public function thread(Request $request, Branch $branch): JsonResponse
     {
-        $conversation = $this->chat->conversationFor($request->user(), $spa);
+        $branch->loadMissing('profile');
+        $spa = Spa::with('subscriptions')->find($branch->spa_id);
+        $profile = $branch->profile;
+        $conversation = $this->chat->conversationFor($request->user(), $branch);
         $after = max((int) $request->query('after', 0), 0);
         $messages = $conversation ? $this->chat->messages($conversation, $after) : collect();
 
@@ -74,16 +71,24 @@ class CustomerChatController extends Controller
         }
 
         return response()->json([
-            'spa_name' => $spa->name,
-            'messages' => $messages->map(fn ($m) => $this->chat->present($m, ChatMessage::SIDE_CUSTOMER, $spa->name))->values(),
+            'spa_id'       => $spa?->id,
+            'spa_name'     => $spa?->name ?? 'Spa',
+            'branch_id'    => $branch->id,
+            'branch_name'  => $branch->name,
+            'branch_label' => ChatService::branchLabel($branch->name),
+            // The branch bar (chat Option B) and decision Q7a: a branch the public
+            // can't see keeps its history but takes no new messages.
+            'branch_photo'   => $profile ? BranchProfile::thumbnailFor($profile) : null,
+            'branch_address' => $this->addressSummary($profile?->address ?? $branch->location),
+            'branch_public'  => $this->chat->canMessage($spa, $branch),
+            'messages'     => $messages->map(fn ($m) => $this->chat->present($m, ChatMessage::SIDE_CUSTOMER, $spa?->name))->values(),
         ]);
     }
 
-    public function send(Request $request, Spa $spa): JsonResponse
+    public function send(Request $request, Branch $branch): JsonResponse
     {
         $data = $request->validate([
-            'body'      => ['required', 'string', 'max:'.ChatMessage::MAX_LENGTH],
-            'branch_id' => ['required', 'integer'],
+            'body' => ['required', 'string', 'max:'.ChatMessage::MAX_LENGTH],
         ], [
             'body.required' => 'Type a message first.',
             'body.max'      => 'Keep it under '.ChatMessage::MAX_LENGTH.' characters.',
@@ -94,13 +99,14 @@ class CustomerChatController extends Controller
             return response()->json(['message' => 'Type a message first.'], 422);
         }
 
-        $branch = Branch::with('profile')->find($data['branch_id']);
-        if (! $this->chat->canMessage($spa, $branch)) {
-            return response()->json(['message' => 'This spa can\'t receive messages right now.'], 422);
+        $branch->loadMissing('profile');
+        $spa = Spa::with('subscriptions')->find($branch->spa_id);
+        if (! $spa || ! $this->chat->canMessage($spa, $branch)) {
+            return response()->json(['message' => 'This branch isn\'t accepting messages right now.'], 422);
         }
 
         $message = $this->chat->send(
-            ['spa_id' => $spa->id, 'customer_user_id' => $request->user()->id],
+            ['spa_id' => $spa->id, 'branch_id' => $branch->id, 'customer_user_id' => $request->user()->id],
             $request->user(),
             ChatMessage::SIDE_CUSTOMER,
             $body,
@@ -110,6 +116,15 @@ class CustomerChatController extends Controller
         return response()->json([
             'message' => $this->chat->present($message->load(['sender', 'branch']), ChatMessage::SIDE_CUSTOMER, $spa->name),
         ], 201);
+    }
+
+    /** "Blk 1, Aguinaldo Hwy, Imus, Cavite, 4103, Philippines" → "Imus, Cavite", like the spa cards. */
+    private function addressSummary(?string $address): ?string
+    {
+        $cleaned = preg_replace('/,?\s*(Philippines|Calabarzon|\d{4})\s*/i', '', (string) $address);
+        $parts = array_values(array_filter(array_map('trim', explode(',', (string) $cleaned))));
+
+        return $parts ? implode(', ', array_slice($parts, -2)) : null;
     }
 
     private function when($at): ?string

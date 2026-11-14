@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Chat;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Services\Chat\ChatService;
@@ -12,8 +13,13 @@ use Illuminate\Support\Str;
 
 /**
  * Spa side of the chat: the shared inbox behind the floating button on staff
- * pages (customer chat, Nov 2026), polled by resources/js/staff-chat.js.
- * Staff of the spa with "reply to customer messages" only.
+ * pages (customer chat, Nov 2026), polled by resources/js/chat-widget.js, and
+ * the owner app's /api/owner/chat/*. Staff of the spa with "reply to customer
+ * messages" only.
+ *
+ * Since Nov 15 each thread belongs to one branch. The inbox stays spa-wide and
+ * does not follow the branch switcher (decision Q1a): every thread carries its
+ * branch, and current_branch_id lets the window mark the branch being viewed.
  *
  * GET  /spa-chat/unread                              badge count
  * GET  /spa-chat/conversations                       inbox, newest first
@@ -46,7 +52,7 @@ class SpaChatController extends Controller
             ->where('spa_id', $request->user()->spa_id)
             ->whereNotNull('last_message_at')
             ->withUnreadFor(ChatMessage::SIDE_SPA)
-            ->with(['customer:id,first_name,middle_name,last_name,suffix', 'latestMessage.branch'])
+            ->with(['customer:id,first_name,middle_name,last_name,suffix', 'branch:id,name', 'latestMessage'])
             ->orderByDesc('last_message_at')
             ->limit(100)
             ->get();
@@ -55,7 +61,9 @@ class SpaChatController extends Controller
             'id'       => $c->id,
             'customer' => $c->customer?->name ?? 'Customer',
             'initial'  => Str::upper(Str::substr($c->customer?->name ?? 'C', 0, 1)),
-            'branch'   => $c->latestMessage?->branch?->name,
+            'branch'       => $c->branch?->name,
+            'branch_id'    => $c->branch_id,
+            'branch_label' => ChatService::branchLabel($c->branch?->name),
             'preview'  => Str::limit((string) $c->latestMessage?->body, 80),
             'from_me'  => $c->latestMessage?->sender_side === ChatMessage::SIDE_SPA,
             'time'     => $c->last_message_at?->isToday()
@@ -65,8 +73,15 @@ class SpaChatController extends Controller
         ]);
 
         return response()->json([
-            'conversations' => $list,
-            'unread'        => $list->sum('unread'),
+            'conversations'     => $list,
+            'unread'            => $list->sum('unread'),
+            'current_branch_id' => $request->user()->currentBranchId(),
+            // The filter chips: every branch of the spa, main branch first.
+            'branches'          => Branch::where('spa_id', $request->user()->spa_id)
+                ->orderByDesc('is_main')->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Branch $b) => ['id' => $b->id, 'name' => $b->name, 'label' => ChatService::branchLabel($b->name)])
+                ->values(),
         ]);
     }
 
@@ -81,8 +96,14 @@ class SpaChatController extends Controller
             $this->chat->markRead($conversation, ChatMessage::SIDE_SPA);
         }
 
+        $conversation->loadMissing('branch:id,name');
+
         return response()->json([
-            'customer' => $conversation->customer?->name ?? 'Customer',
+            'customer'          => $conversation->customer?->name ?? 'Customer',
+            'branch'            => $conversation->branch?->name,
+            'branch_id'         => $conversation->branch_id,
+            'branch_label'      => ChatService::branchLabel($conversation->branch?->name),
+            'current_branch_id' => $request->user()->currentBranchId(),
             'messages' => $messages->map(fn ($m) => $this->chat->present($m, ChatMessage::SIDE_SPA))->values(),
         ]);
     }

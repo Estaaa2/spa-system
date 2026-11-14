@@ -9,14 +9,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * One customer's chat with one spa (customer chat, Nov 2026). Spa-wide, not
- * per branch: every branch's page leads here. Read state is the last message
- * id each side has seen.
+ * One customer's chat with one branch of a spa (customer chat, Nov 2026; per
+ * branch since Nov 15). The spa side still reads every branch's threads in one
+ * shared inbox. Read state is the last message id each side has seen.
  */
 class ChatConversation extends Model
 {
     protected $fillable = [
         'spa_id',
+        'branch_id',
         'customer_user_id',
         'last_message_at',
         'customer_read_id',
@@ -32,6 +33,12 @@ class ChatConversation extends Model
     public function spa(): BelongsTo
     {
         return $this->belongsTo(Spa::class);
+    }
+
+    /** The branch this thread is with (soft-deleted ones too). Null only if it was force-deleted. */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class)->withTrashed();
     }
 
     public function customer(): BelongsTo

@@ -196,6 +196,12 @@ function renderSpaMapPreview(spaData) {
     }, 300);
 }
 
+// chat-widget.js "View branch" (Nov 15): open the spa window from data the
+// chat fetched, for a branch whose card may not be on the page.
+document.addEventListener('levictas:open-spa', (e) => {
+    if (e.detail) openSpaModal(e.detail);
+});
+
 function openSpaModal(spaData) {
     selectedSpa = spaData;
     // chat-widget.js: which spa the Message button talks to.
@@ -1007,6 +1013,18 @@ function spaHiringBadge(spa) {
         </span>`;
 }
 
+// Branch tag on a card's photo (card Option A, Nov 15). Same markup as
+// resources/views/partials/spa-card-branch-tag.blade.php; branch_tag is null
+// for spas with one public branch.
+function spaBranchTag(spa) {
+    if (!spa.branch_tag) return '';
+    return `
+                <div class="absolute bottom-3 left-3 flex items-center gap-1.5 max-w-[calc(100%-1.5rem)] px-3 py-1.5 rounded-full bg-white/95 text-[#3C2F23] text-[13px] font-bold leading-none shadow-md ring-1 ring-black/5">
+                    <i class="fa-solid fa-location-dot text-[11px] text-[#8B7355]" aria-hidden="true"></i>
+                    <span class="truncate">${escapeHtml(spa.branch_tag)}</span>
+                </div>`;
+}
+
 function buildUnifiedCard(spa) {
     const thumb = spaCardThumb(spa);
     const addr  = spaAddressSummary(spa.address);
@@ -1023,6 +1041,7 @@ function buildUnifiedCard(spa) {
             <div class="relative overflow-hidden">
                 <img src="${thumb}" class="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.04]" alt="${escapeHtml(spa.name)}">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+                ${spaBranchTag(spa)}
                 <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full ${badgeClass} text-[11px] font-semibold backdrop-blur-sm">
                     <i class="fa-solid ${badgeIcon} text-[10px]"></i>
                     ${badgeText}
@@ -3861,6 +3880,7 @@ async function fetchNearbySpas(lat = null, lng = null, locationSource = 'saved')
                             alt="${escapeHtml(spa.name)}">
 
                         <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-transparent"></div>
+                        ${spaBranchTag(spa)}
 
                         <div class="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-900/70 text-[#6F5430] dark:text-[#C4A97D] text-[11px] font-semibold backdrop-blur-sm ring-1 ring-black/5 dark:ring-white/10">
                             <i class="fa-solid fa-location-dot text-[#8B7355] dark:text-[#C4A97D] text-[10px]"></i>

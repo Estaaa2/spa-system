@@ -2,25 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\BranchProfile;
 use App\Models\Package;
 use App\Models\Promo;
 use App\Models\Rating;
 use App\Models\Spa;
 use App\Models\Treatment;
+use App\Services\Landing\PublicBranches;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LandingController extends Controller
 {
+    public function __construct(private PublicBranches $public)
+    {
+    }
+
     /**
      * A spa is publicly listable when it is verified, has active access,
      * and its plan includes normal public listing (Basic, Premium, Business).
      */
     private function isPubliclyListable(Spa $spa): bool
     {
-        return $spa->verification_status === 'verified'
-            && $spa->hasAccess()
-            && $spa->hasFeature('branch_public_listing');
+        // The rule lives in PublicBranches (Nov 15), shared with the chat.
+        return $this->public->spaIsListable($spa);
     }
 
     /**
@@ -39,18 +45,9 @@ class LandingController extends Controller
      */
     private function branchIsOperational(Spa $spa, $branch): bool
     {
-        $branch->setRelation('spa', $spa);
-
-        // Approved and allowed to operate, AND it has a therapist and
-        // at least one service, so a customer can actually book it.
-        $operational = $branch->isOperational()
-            && $branch->isReadyForBookings();
-
-        // Unset again so the spa is not nested inside each branch
-        // when these models are passed to a view or turned into JSON.
-        $branch->unsetRelation('spa');
-
-        return $operational;
+        // Approved and allowed to operate, AND it has a therapist and at least
+        // one service, so a customer can actually book it. See PublicBranches.
+        return $this->public->branchIsOperational($spa, $branch);
     }
 
     /** Drops every branch of the spa that the public must not see. */
@@ -336,6 +333,8 @@ class LandingController extends Controller
             'branch_id' => $branch->id,
             'branch_name' => $branch->name,
             'branch_location' => $branch->location ?? '',
+            // The photo's branch tag (card Option A): only for spas with 2+ public branches.
+            'branch_tag' => PublicBranches::cardTag($branch->name, $this->public->count($spa)),
             'desc' => $profile->description ?? '',
             'price_note' => $lowestPrice ? number_format($lowestPrice, 2) : null,
             'photos' => BranchProfile::photoPayload($profile),
@@ -494,6 +493,32 @@ class LandingController extends Controller
         );
 
         return response()->json($result);
+    }
+
+    /**
+     * The spa window's data for one branch, for the chat's "View branch"
+     * button (Nov 15): the branch's card may not be on the page (a search
+     * filtered it out). A branch the public can't see answers public: false,
+     * with no details, so the button can say it isn't available.
+     */
+    public function branchCard(Branch $branch): JsonResponse
+    {
+        $branch->loadMissing('profile');
+        $spa = Spa::with(['subscriptions', Spa::OWNER_PUBLIC_COLUMNS])->find($branch->spa_id);
+
+        if (! $this->public->isPublic($spa, $branch)) {
+            return response()->json([
+                'public'  => false,
+                'message' => 'This branch isn\'t available to the public right now.',
+            ]);
+        }
+
+        $featured = $this->isFeatured($spa);
+
+        return response()->json([
+            'public' => true,
+            'spa'    => $this->spaCardPayload($spa, $branch, $featured, $featured ? 'Featured Spa' : 'Spa'),
+        ]);
     }
 
     public function spaReviews(Request $request, $spaId, $branchId)
