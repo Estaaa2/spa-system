@@ -197,4 +197,15 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class, 'role:owner', \App
             ->middleware(['branch.permission:view reports', 'plan:insights']);
         Route::get('/decision-support', [$owner, 'decisionSupport'])
             ->middleware(['branch.permission:view decision support', 'plan:insights']);
+
+        // Customer chat: the web's shared spa inbox (SpaChatController), which
+        // checks "reply to customer messages" itself. Owners may reply from the app.
+        Route::prefix('chat')->group(function () {
+            $chat = \App\Http\Controllers\Chat\SpaChatController::class;
+
+            Route::get('/unread', [$chat, 'unread']);
+            Route::get('/conversations', [$chat, 'conversations']);
+            Route::get('/conversations/{conversation}', [$chat, 'thread']);
+            Route::post('/conversations/{conversation}', [$chat, 'send'])->middleware('throttle:30,1');
+        });
     });

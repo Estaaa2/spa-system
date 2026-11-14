@@ -61,6 +61,7 @@ class OwnerAppController extends Controller
                 'logs'         => $user->hasBranchPermission('view inventory logs') && (bool) $spa?->hasFeature('inventory_basic'),
                 'reports'      => $user->hasBranchPermission('view reports') && (bool) $spa?->hasFeature('insights'),
                 'decision_support' => $user->hasBranchPermission('view decision support') && (bool) $spa?->hasFeature('insights'),
+                'chat'         => app(\App\Services\Chat\ChatService::class)->staffCanReply($user),
             ],
             'branches'          => $request->attributes->get('owner_branches')->map(fn (Branch $b) => [
                 'id'       => $b->id,
