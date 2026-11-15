@@ -9,6 +9,9 @@
 //             branch's thread directly. A thread shows its branch in a bar
 //             with "View branch" (opens the spa window); a branch the public
 //             can't see keeps its history but takes no new messages (Q7a).
+//             A brand-new chat shows a greeting (display only, never saved)
+//             and suggested questions above the box (Option A, Nov 15);
+//             tapping one sends it as the customer's message.
 //   spa       staff pages. Threads are keyed by conversation id; the floating
 //             button is always there, with the shared inbox's unread count.
 //             The inbox holds every branch and ignores the branch switcher;
@@ -26,6 +29,7 @@ if (root) {
     const isSpa     = mode === 'spa';
     const endpoints = JSON.parse(root.dataset.endpoints || '{}');
     const maxLength = parseInt(root.dataset.max || '1000', 10);
+    const quickQuestions = isSpa ? [] : JSON.parse(root.dataset.quick || '[]');
 
     const POLL_THREAD_MS = 4000;
     const POLL_LIST_MS   = isSpa ? 15000 : 20000;
@@ -307,19 +311,23 @@ if (root) {
                 if (isSpa) showBranchNotice(data); else showBranchBar(data);
                 messagesEl.replaceChildren();
                 state.lastDay = null;
-                if (!data.messages.length) {
+                if (!data.messages.length && isSpa) {
                     const note = document.createElement('p');
                     note.className = 'lc-note';
                     note.id = 'lcEmptyNote';
-                    note.textContent = isSpa
-                        ? 'No messages yet.'
-                        : `Ask ${state.thread.title} about services, prices or available times. They usually reply during opening hours.`;
+                    note.textContent = 'No messages yet.';
                     messagesEl.append(note);
+                } else if (!data.messages.length) {
+                    showGreeting(data);
+                    showQuick(state.thread.public !== false);
                 }
             }
 
             const stick = initial || nearEnd();
-            if (data.messages.length) el('lcEmptyNote')?.remove();
+            if (data.messages.length) {
+                el('lcEmptyNote')?.remove();
+                showQuick(false);
+            }
             data.messages.forEach((m) => {
                 if (m.id <= state.lastId) return;
                 appendMessage(m);
@@ -338,6 +346,44 @@ if (root) {
                 messagesEl.append(note);
             }
         }
+    }
+
+    // Customer, brand-new chat: the spa's greeting. Display only, never saved,
+    // so it is gone the next time the thread opens with real messages.
+    function showGreeting(data) {
+        const branch = data.branch_label || data.branch_name;
+        const who = branch ? `${state.thread.title} (${branch})` : state.thread.title;
+        const now = new Date();
+        const wrap = appendMessage({
+            mine: false,
+            from: state.thread.title,
+            body: `Hi! Thanks for messaging ${who}. How can we help you today?`,
+            time: '',
+            date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        });
+        wrap.classList.add('is-greeting');
+    }
+
+    // Suggested first messages above the box (customer, brand-new chat only).
+    function showQuick(show) {
+        const box = el('lcQuick');
+        if (!box) return;
+        show = show && quickQuestions.length > 0;
+        box.classList.toggle('hidden', !show);
+        if (!show || box.dataset.built) return;
+        box.dataset.built = '1';
+        el('lcQuickList').replaceChildren(...quickQuestions.map((q) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'lc-quick-chip';
+            b.textContent = q;
+            b.addEventListener('click', () => {
+                if (state.sending || input.disabled) return;
+                input.value = q;
+                form.requestSubmit();
+            });
+            return b;
+        }));
     }
 
     // Staff opened a thread with another branch than the one being viewed (Q3a).
@@ -377,6 +423,7 @@ if (root) {
         }
         input.disabled = readOnly;
         sendBtn.disabled = readOnly;
+        if (readOnly) showQuick(false);
         input.placeholder = readOnly ? 'Messaging is unavailable for this branch' : 'Type a message…';
     }
 
@@ -409,6 +456,7 @@ if (root) {
     function openThread(thread) {
         el('lcNotice')?.classList.add('hidden');
         el('lcCtx')?.classList.add('hidden');
+        showQuick(false);
         if (!isSpa) setReadOnly(false);
         state.thread = thread;
         state.lastId = 0;
@@ -443,6 +491,8 @@ if (root) {
         state.sending = true;
         sendBtn.disabled = true;
         el('lcEmptyNote')?.remove();
+        const wasNew = !isSpa && state.lastId === 0;
+        showQuick(false);
 
         // Show it straight away; replace it with the server's copy.
         const now = new Date();
@@ -468,6 +518,7 @@ if (root) {
                 pending.remove();
                 input.value = body;
                 autoGrow();
+                if (wasNew) showQuick(true);
                 // The branch stopped being public since the thread opened (Q7a).
                 if (!isSpa && res.status === 422 && /accepting messages/i.test(data.message || '')) {
                     if (state.thread) state.thread.public = false;
@@ -491,6 +542,7 @@ if (root) {
             pending.remove();
             input.value = body;
             autoGrow();
+            if (wasNew) showQuick(true);
             showError('Network error. Your message wasn\'t sent.');
         } finally {
             state.sending = false;

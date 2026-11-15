@@ -15,7 +15,8 @@ use Illuminate\Support\Str;
 
 /**
  * Customer side of the chat (customer chat, Nov 2026; per branch since Nov 15),
- * polled by resources/js/chat-widget.js.
+ * polled by resources/js/chat-widget.js and by the customer app through
+ * /api/chat/* (customer mobile chat, Nov 15).
  *
  * GET  /chat/conversations                  the branches you messaged + unread counts
  * GET  /chat/branches/{branch}/messages     the thread (?after=id for new ones); marks read
@@ -29,6 +30,7 @@ class CustomerChatController extends Controller
 
     public function conversations(Request $request): JsonResponse
     {
+        $forApp = $request->is('api/*');
         $rows = ChatConversation::query()
             ->where('customer_user_id', $request->user()->id)
             ->whereNotNull('branch_id')
@@ -44,7 +46,8 @@ class CustomerChatController extends Controller
             'branch_id'    => $c->branch_id,
             'branch_name'  => $c->branch?->name,
             'branch_label' => ChatService::branchLabel($c->branch?->name),
-            'branch_photo' => $c->branch?->profile ? BranchProfile::thumbnailFor($c->branch->profile) : null,
+            // The app gets the PNG placeholder: Flutter can't draw the SVG one.
+            'branch_photo' => $c->branch?->profile ? BranchProfile::thumbnailFor($c->branch->profile, $forApp) : null,
             'preview'      => Str::limit((string) $c->latestMessage?->body, 80),
             'from_me'      => $c->latestMessage?->sender_side === ChatMessage::SIDE_CUSTOMER,
             'time'         => $this->when($c->last_message_at),
@@ -78,9 +81,12 @@ class CustomerChatController extends Controller
             'branch_label' => ChatService::branchLabel($branch->name),
             // The branch bar (chat Option B) and decision Q7a: a branch the public
             // can't see keeps its history but takes no new messages.
-            'branch_photo'   => $profile ? BranchProfile::thumbnailFor($profile) : null,
+            'branch_photo'   => $profile ? BranchProfile::thumbnailFor($profile, $request->is('api/*')) : null,
             'branch_address' => $this->addressSummary($profile?->address ?? $branch->location),
             'branch_public'  => $this->chat->canMessage($spa, $branch),
+            // Suggested first messages for a brand-new chat (Option A). The web
+            // widget gets them from the page; the app reads them here.
+            'quick_questions' => ChatService::QUICK_QUESTIONS,
             'messages'     => $messages->map(fn ($m) => $this->chat->present($m, ChatMessage::SIDE_CUSTOMER, $spa?->name))->values(),
         ]);
     }

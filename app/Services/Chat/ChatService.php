@@ -30,6 +30,20 @@ class ChatService
     /** Messages sent per poll; older ones load on open. */
     public const PAGE = 50;
 
+    /**
+     * Suggested first messages (Nov 15, 2026): shown to a customer on a brand
+     * new chat with a branch, under a greeting that is never saved. Tapping one
+     * sends it as the customer's own message. Fixed for every spa (decision:
+     * Levictas defaults, not per branch); at most 4, 80 characters each, like
+     * Messenger's ice breakers.
+     */
+    public const QUICK_QUESTIONS = [
+        'What are your opening hours?',
+        'How much is a full body massage?',
+        'Do you have a free slot today?',
+        'Do you offer home service?',
+    ];
+
     public function staffCanReply(?User $user): bool
     {
         return $user !== null

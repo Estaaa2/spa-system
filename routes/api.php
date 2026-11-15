@@ -138,6 +138,19 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
         Route::post('/bookings/online/cancel',         [FlutterBookingController::class, 'cancelReservation']);
         Route::get('/bookings/online/my-dates',        [FlutterBookingController::class, 'myBookedDates']);
 
+        // Customer chat (customer mobile chat, Nov 15): the web's own
+        // CustomerChatController, one thread per branch. withTrashed: an old
+        // thread with a removed branch still opens (read only).
+        Route::prefix('chat')->group(function () {
+            $chat = \App\Http\Controllers\Chat\CustomerChatController::class;
+
+            Route::get('/conversations', [$chat, 'conversations']);
+            Route::get('/branches/{branch}/messages', [$chat, 'thread'])
+                ->whereNumber('branch')->withTrashed();
+            Route::post('/branches/{branch}/messages', [$chat, 'send'])
+                ->whereNumber('branch')->withTrashed()->middleware('throttle:30,1,api-chat');
+        });
+
     });
 
     // Therapist endpoints: therapist role or "Performs treatments" (Q1b/Q48),

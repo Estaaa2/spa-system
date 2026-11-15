@@ -34,7 +34,8 @@
 
 <div id="lcRoot" data-chat-widget data-mode="{{ $mode }}"
     data-endpoints='@json($endpoints)'
-    data-max="{{ \App\Models\ChatMessage::MAX_LENGTH }}">
+    data-max="{{ \App\Models\ChatMessage::MAX_LENGTH }}"
+    @unless ($isSpa) data-quick='@json(\App\Services\Chat\ChatService::QUICK_QUESTIONS)' @endunless>
 
     {{-- Floating button --}}
     <button type="button" id="lcLauncher" aria-haspopup="dialog" aria-controls="lcPanel"
@@ -113,6 +114,13 @@
             <div id="lcMessages" class="flex-1 min-h-0 px-3 py-4 space-y-2 overflow-y-auto overscroll-contain bg-[#FAF7F2] dark:bg-gray-900/40"
                 role="log" aria-live="polite" aria-label="Conversation"></div>
 
+            @unless ($isSpa)
+                {{-- Suggested first messages (Option A, Nov 15): a brand-new chat only. Chips built in chat-widget.js. --}}
+                <div id="lcQuick" class="hidden px-3 pt-2.5 pb-1 border-t shrink-0 border-black/5 dark:border-white/10">
+                    <p class="mb-2 text-[11px] font-semibold tracking-wide text-gray-600 uppercase dark:text-gray-400">Tap a question or type your own</p>
+                    <div id="lcQuickList" role="group" aria-label="Suggested questions" class="flex flex-wrap gap-1.5"></div>
+                </div>
+            @endunless
             <form id="lcForm" class="flex items-end gap-2 p-3 border-t shrink-0 border-black/5 dark:border-white/10" novalidate>
                 <label for="lcInput" class="sr-only">Message</label>
                 <textarea id="lcInput" rows="1" maxlength="{{ \App\Models\ChatMessage::MAX_LENGTH }}"
@@ -166,6 +174,10 @@
     .lc-msg:not(.is-mine) .lc-bubble { background: #fff; color: #3C2F23; border: 1px solid #eadfce; border-bottom-left-radius: 4px; }
     .lc-meta { margin-top: 2px; padding: 0 4px; font-size: 11px; color: #6b7280; }
     .lc-msg.is-pending .lc-bubble { opacity: .6; }
+    .lc-quick-chip { min-height: 36px; padding: 6px 12px; border: 1px solid rgba(139, 115, 85, .45); border-radius: 9999px; background: #fff; color: #6F5430; font-size: 13px; font-weight: 500; text-align: left; transition: background-color .15s ease; }
+    .lc-quick-chip:hover { background: #F6EFE6; }
+    .lc-quick-chip:focus-visible { outline: 2px solid #8B7355; outline-offset: 2px; }
+    .lc-quick-chip:disabled { opacity: .5; cursor: not-allowed; }
     .lc-note { padding: 32px 16px; text-align: center; font-size: 13px; color: #6b7280; }
 
     @media (prefers-color-scheme: dark) {
@@ -181,5 +193,7 @@
         .lc-row-preview { color: #d1d5db; }
         .lc-row.is-unread .lc-row-preview { color: #fff; }
         .lc-msg:not(.is-mine) .lc-bubble { background: #1f2937; color: #f3f4f6; border-color: #374151; }
+        .lc-quick-chip { background: #1f2937; color: #E8D3AE; border-color: rgba(196, 169, 125, .4); }
+        .lc-quick-chip:hover { background: #374151; }
     }
 </style>

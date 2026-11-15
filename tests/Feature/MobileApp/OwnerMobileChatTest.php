@@ -84,6 +84,28 @@ class OwnerMobileChatTest extends TestCase
         $this->postJson("/api/owner/chat/conversations/{$id}", ['body' => '   '])->assertStatus(422);
     }
 
+    public function test_the_inbox_carries_branches_for_the_chips_and_the_picked_branch(): void
+    {
+        $id = $this->customerSays('Hello')->id;
+        $branches = Branch::where('spa_id', $this->spa->id)->orderByDesc('is_main')->orderBy('name')->get();
+        $other = $branches->firstWhere('is_main', false) ?? $branches->first();
+        Sanctum::actingAs($this->owner);
+
+        // The branch picker's X-Branch-Id becomes current_branch_id, so the
+        // app can say "this chat is with another branch".
+        $inbox = $this->withHeader('X-Branch-Id', (string) $other->id)
+            ->getJson('/api/owner/chat/conversations')->assertOk();
+        $inbox->assertJsonPath('current_branch_id', $other->id)
+            ->assertJsonCount($branches->count(), 'branches')
+            ->assertJsonPath('conversations.0.branch_id', $branches->first()->id);
+        $this->assertNotEmpty($inbox->json('conversations.0.branch_label'));
+
+        $this->withHeader('X-Branch-Id', (string) $other->id)
+            ->getJson("/api/owner/chat/conversations/{$id}")
+            ->assertJsonPath('branch_id', $branches->first()->id)
+            ->assertJsonPath('current_branch_id', $other->id);
+    }
+
     public function test_another_spas_thread_is_not_found(): void
     {
         $other = SpaFactory::new()->create();
