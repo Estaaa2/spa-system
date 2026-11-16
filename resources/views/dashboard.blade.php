@@ -998,6 +998,15 @@
              'activeSub'=>'Needs a replacement therapist','idleSub'=>'None pending'],
         ];
 
+        // Clock-in guard (Nov 16): only for roles with edit attendance (the
+        // controller leaves $lateClockInReviews null for everyone else).
+        if (($lateClockInReviews ?? null) !== null) {
+            $alertDefs[] = ['key'=>'clockin-review','field'=>'late_clock_in_reviews','tone'=>'amber','icon'=>'fa-user-clock',
+             'href'=>route('attendance.index'),'count'=>$lateClockInReviews,
+             'singular'=>'Clock-in to Review','plural'=>'Clock-ins to Review',
+             'activeSub'=>($lateClockInThreshold ?? 30).'+ min after shift start: late or forgot?','idleSub'=>'No late clock-ins today'];
+        }
+
         $anyAlertActive = collect($alertDefs)->contains(fn ($a) => $a['count'] > 0);
 
         $quickActions = array_values(array_filter([

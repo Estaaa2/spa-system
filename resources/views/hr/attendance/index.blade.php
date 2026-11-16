@@ -15,6 +15,7 @@
         'neutral' => $btnBase . ' border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 '
                    . 'dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600',
         'warn'    => $btnBase . ' bg-amber-600 text-white hover:bg-amber-700',
+        'review'  => $btnBase . ' bg-amber-700 text-white hover:bg-amber-800',
         'remove'  => $btnBase . ' bg-red-700 text-white hover:bg-red-800',
     ];
     $inputClass = 'w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl bg-white text-gray-900 '
@@ -275,6 +276,9 @@
                                 @php
                                     $record = $staff->attendance->first();
                                     $roleName = $staff->user?->getRoleNames()->first();
+                                    // Clock-in guard (Nov 16): self clock-in 30+ min after shift start.
+                                    $reviewMins = \App\Services\Attendance\LateClockInReview::minutesLate($record, $scheduledByStaff[$staff->id] ?? null);
+                                    $wasCorrected = $record && $record->source === 'manual' && str_starts_with((string) $record->remarks, 'System clock-in');
                                     $recordRow = [
                                         'staff_id'   => $staff->id,
                                         'name'       => $staff->user->name ?? '',
@@ -284,6 +288,12 @@
                                         'time_in'    => $record?->time_in ? \Carbon\Carbon::parse($record->time_in)->format('H:i') : '',
                                         'time_out'   => $record?->time_out ? \Carbon\Carbon::parse($record->time_out)->format('H:i') : '',
                                         'remarks'    => $record->remarks ?? '',
+                                        'source'     => $record->source ?? null,
+                                        'review'     => $reviewMins ? [
+                                            'duration'    => \App\Services\Attendance\ClockInRules::duration($reviewMins),
+                                            'time_in'     => \Carbon\Carbon::parse($record->time_in)->format('g:i A'),
+                                            'shift_start' => \Carbon\Carbon::parse($scheduledByStaff[$staff->id]->start)->format('g:i A'),
+                                        ] : null,
                                     ];
                                 @endphp
                                 <tr role="row">
@@ -310,6 +320,11 @@
                                             @if($isAutoFlag($record))
                                                 <p class="mt-1 text-xs text-amber-700 dark:text-amber-300"><i class="mr-1 fa-solid fa-triangle-exclamation" aria-hidden="true"></i>{{ $record->remarks }}</p>
                                             @endif
+                                            @if($reviewMins)
+                                                <p class="mt-1 text-xs text-amber-700 dark:text-amber-300"><i class="mr-1 fa-solid fa-user-clock" aria-hidden="true"></i>Clocked in {{ $recordRow['review']['duration'] }} after shift start: late or forgot?</p>
+                                            @elseif($wasCorrected)
+                                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Reviewed: time corrected (system clock-in kept in remarks)</p>
+                                            @endif
                                         @else
                                             <span class="text-xs italic text-gray-500 dark:text-gray-400">{{ $sched && ! $sched->isWorking() ? 'Not scheduled' : 'No record' }}</span>
                                         @endif
@@ -328,9 +343,13 @@
                                     </td>
                                     @if($canEditRoster)
                                         <td role="cell" data-label="Actions" class="px-6 py-4 rt-actions">
-                                            <button type="button" class="{{ $btn['edit'] }}" onclick="openRecordModal(this)"
+                                            <button type="button" class="{{ $reviewMins ? $btn['review'] : $btn['edit'] }}" onclick="openRecordModal(this)"
                                                 data-record='@json($recordRow)'>
-                                                <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span>{{ $record ? 'Edit' : 'Record' }}</span>
+                                                @if($reviewMins)
+                                                    <i class="text-xs fa-solid fa-user-clock" aria-hidden="true"></i><span>Review</span>
+                                                @else
+                                                    <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i><span>{{ $record ? 'Edit' : 'Record' }}</span>
+                                                @endif
                                             </button>
                                         </td>
                                     @endif
@@ -515,6 +534,11 @@
                     </button>
                 </div>
                 <div class="px-4 py-6 space-y-4 sm:px-6">
+                    {{-- Clock-in guard (Nov 16): late self clock-in to review. Filled by openRecordModal(). --}}
+                    <div id="record_review" role="status" class="hidden p-3 text-sm rounded-xl text-amber-800 bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:ring-amber-800">
+                        <p class="font-semibold"><i class="mr-1 fa-solid fa-user-clock" aria-hidden="true"></i><span id="record_review_title"></span></p>
+                        <p class="mt-1">If they arrived earlier and forgot to clock in, change Time in and say why in Remarks. If they really came late, save it as it is.</p>
+                    </div>
                     <div>
                         <label for="record_status" class="{{ $labelClass }}">Status</label>
                         <select name="status" id="record_status" class="{{ $inputClass }}" onchange="syncRecordTimes()">
@@ -527,6 +551,7 @@
                         <div>
                             <label for="record_time_in" class="{{ $labelClass }}">Time in</label>
                             <input type="time" name="time_in" id="record_time_in" class="{{ $inputClass }}">
+                            <p id="record_system_in" class="hidden mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
                         </div>
                         <div>
                             <label for="record_time_out" class="{{ $labelClass }}">Time out</label>
@@ -550,8 +575,12 @@
                         </div>
                     </div>
                     <div>
-                        <label for="record_remarks" class="{{ $labelClass }}">Remarks <span class="font-normal text-gray-500">(optional)</span></label>
-                        <input type="text" name="remarks" id="record_remarks" maxlength="500" class="{{ $inputClass }}">
+                        <label for="record_remarks" class="{{ $labelClass }}">Remarks
+                            <span id="record_remarks_optional" class="font-normal text-gray-500">(optional)</span>
+                            <span id="record_remarks_required" class="hidden"><span class="text-red-600 dark:text-red-400" aria-hidden="true">*</span> <span class="font-normal text-gray-500">(required when a clock time changes)</span></span>
+                        </label>
+                        <input type="text" name="remarks" id="record_remarks" maxlength="400" class="{{ $inputClass }}">
+                        <p id="record_remarks_note" class="hidden mt-1 text-xs text-gray-500 dark:text-gray-400"></p>
                     </div>
                 </div>
                 <div class="flex flex-col-reverse gap-2 px-4 py-4 border-t border-gray-200 sm:flex-row sm:justify-end sm:px-6 dark:border-gray-700">
@@ -958,8 +987,47 @@ function attendancePage(initial) {
         }
     }
     ['record_time_in', 'record_time_out'].forEach(id => el(id)?.addEventListener('change', () => window.refreshRecordPreview()));
+
+    // Clock-in guard (Nov 16): changing a self clock-in's time needs a remark;
+    // the server keeps the system time in front of it. Client hint only.
+    let recordOriginal = null;
+    const to12h = hm => {
+        if (!hm) return '';
+        const [h, m] = hm.split(':').map(Number);
+        return ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM');
+    };
+    function syncRemarksRule() {
+        const remarks = el('record_remarks');
+        if (!remarks) return;
+        const o = recordOriginal;
+        const noTimes = ['absent', 'on_leave'].includes(el('record_status').value);
+        const inChanged = !!(o && o.time_in && (noTimes || el('record_time_in').value !== o.time_in));
+        const outChanged = !!(o && o.time_out && (noTimes || el('record_time_out').value !== o.time_out));
+        const required = inChanged || outChanged;
+        remarks.required = required;
+        show('record_remarks_optional', !required);
+        show('record_remarks_required', required);
+        const notes = [];
+        if (inChanged) notes.push('System clock-in ' + to12h(o.time_in));
+        if (outChanged) notes.push('system clock-out ' + to12h(o.time_out));
+        el('record_remarks_note').textContent = required
+            ? 'Saved as: "' + notes.join(', ').replace(/^s/, 'S') + ' | ' + (remarks.value.trim() || '…') + '"' : '';
+        show('record_remarks_note', required);
+    }
+    ['record_time_in', 'record_time_out', 'record_status'].forEach(id => el(id)?.addEventListener('change', syncRemarksRule));
+    el('record_remarks')?.addEventListener('input', syncRemarksRule);
+
     window.openRecordModal = function (btn) {
         const d = JSON.parse(btn.getAttribute('data-record') || '{}');
+        recordOriginal = d.source === 'self' ? { time_in: d.time_in || '', time_out: d.time_out || '' } : null;
+        el('recordTitle').textContent = d.review ? 'Review Clock-in' : 'Record Attendance';
+        el('record_review_title').textContent = d.review
+            ? (d.name || 'This person') + ' clocked in at ' + d.review.time_in + ', ' + d.review.duration
+              + ' after the ' + d.review.shift_start + ' shift start.'
+            : '';
+        show('record_review', !!d.review);
+        el('record_system_in').textContent = recordOriginal && recordOriginal.time_in ? 'System clock-in: ' + to12h(recordOriginal.time_in) : '';
+        show('record_system_in', !!(recordOriginal && recordOriginal.time_in));
         el('record_staff_name').textContent = d.name || '';
         el('record_date_label').textContent = d.date_label || d.date || '';
         el('record_date').value = d.date || '';
@@ -972,6 +1040,7 @@ function attendancePage(initial) {
         el('record_submitLabel').textContent = 'Save';
         show('record_preview', false);
         window.syncRecordTimes();
+        syncRemarksRule();
         openModal('recordAttendanceModal', '#record_status');
     };
 

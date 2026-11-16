@@ -475,6 +475,20 @@ document.addEventListener('DOMContentLoaded', function () {
         node.classList.add('hidden');
     }
 
+    // Clock-in guard (Nov 16): label and hint for a therapist not clocked in yet.
+    const NOT_CLOCKED_IN_SUFFIX = ' \u2014 not clocked in';
+
+    function syncClockInHint() {
+        if (blockers.noTherapist) return; // keep the "no therapist free" message
+        const opt = therapistSelect.options[therapistSelect.selectedIndex];
+        if (therapistSelect.value && opt?.dataset.clockedIn === '0') {
+            showInlineMessage(therapistHint,
+                `${opt.dataset.firstName} hasn't clocked in yet. You can book them, but the session can't start until they clock in.`);
+        } else {
+            clearInlineMessage(therapistHint);
+        }
+    }
+
     function showClosedDayBanner(text) {
         closedDayText.textContent = text;
         closedDayError.classList.remove('hidden');
@@ -820,10 +834,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             clearInlineMessage(therapistHint);
 
+            // Clock-in guard (Nov 16): today's list labels anyone not clocked in
+            // yet. They stay selectable; the session just can't start until they clock in.
             data.therapists.forEach(t => {
                 const opt = document.createElement('option');
                 opt.value = t.id;
-                opt.textContent = t.name;
+                opt.textContent = t.clocked_in === false ? `${t.name}${NOT_CLOCKED_IN_SUFFIX}` : t.name;
+                opt.dataset.clockedIn = t.clocked_in === false ? '0' : '1';
+                opt.dataset.firstName = t.first_name || t.name;
                 therapistSelect.appendChild(opt);
             });
 
@@ -835,6 +853,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             blockers.noTherapist = false;
+            syncClockInHint();
             syncSubmitState();
             updateSummary();
 
@@ -875,7 +894,7 @@ document.addEventListener('DOMContentLoaded', function () {
             ? treatmentSelect.options[treatmentSelect.selectedIndex].text : '—';
 
         els.summaryTherapist.textContent = therapistSelect.value
-            ? therapistSelect.options[therapistSelect.selectedIndex]?.text ?? '—' : '—';
+            ? (therapistSelect.options[therapistSelect.selectedIndex]?.text ?? '—').replace(NOT_CLOCKED_IN_SUFFIX, '') : '—';
 
         const dateText = dateInput.value
             ? new Date(dateInput.value + 'T00:00:00')
@@ -915,7 +934,7 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshAvailableTherapists();
     });
 
-    therapistSelect.addEventListener('change', updateSummary);
+    therapistSelect.addEventListener('change', () => { syncClockInHint(); updateSummary(); });
     serviceType.addEventListener('change', () => { toggleAddress(); updateSummary(); filterTreatmentOptions(); });
     nameInput.addEventListener('input', updateSummary);
 

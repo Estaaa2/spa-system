@@ -9,6 +9,7 @@ use App\Models\Treatment;
 use App\Models\Package;
 use App\Models\User;
 use App\Models\StaffBranchDeployment;
+use App\Services\Attendance\LateClockInReview;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -115,6 +116,11 @@ class DashboardController extends Controller
         // ── Alert metrics ─────────────────────────────────────────────────
         $lateAppointments = $noShows = $overbookedTherapists = $pendingLeaveRequests = $pendingReassignments = null;
         $needsCheckout = null;
+
+        // Clock-in guard (Nov 16): self clock-ins made 30+ min after shift start,
+        // for roles that can correct attendance. Null = the alert isn't shown.
+        $lateClockInReviews = $this->lateClockInReviews($user, $spaId, $currentBranchId);
+        $lateClockInThreshold = LateClockInReview::threshold();
 
         if ($user->hasBranchPermission('view dashboard alerts')) {
             $lateAppointments = $todayBase()
@@ -275,6 +281,7 @@ class DashboardController extends Controller
             'collectedToday', 'onlineToday', 'walkInToday', 'topServiceLabel',
             'lateAppointments', 'noShows', 'overbookedTherapists',
             'pendingLeaveRequests', 'pendingReassignments',
+            'lateClockInReviews', 'lateClockInThreshold',
             'todayAppointments', 'nextAppointment',
             'therapists',
             'myTodayAppointments', 'myStats', 'myNextAppointment',
@@ -395,6 +402,10 @@ class DashboardController extends Controller
                     ->open()
                     ->count(),
             ];
+
+            if (($reviews = $this->lateClockInReviews($user, $spaId, $currentBranchId)) !== null) {
+                $payload['alerts']['late_clock_in_reviews'] = $reviews;
+            }
         }
 
         // ── Timeline ──────────────────────────────────────────────────────
@@ -565,5 +576,20 @@ class DashboardController extends Controller
             return $p ? $p->name . ' (Package)' : 'Unknown Package';
         }
         return $selection ?: '—';
+    }
+
+    /**
+     * Clock-in guard (Nov 16): today's self clock-ins at this branch made 30+ min
+     * after shift start. Null when the user can't see alerts or edit attendance.
+     */
+    private function lateClockInReviews($user, $spaId, $branchId): ?int
+    {
+        if (! $spaId || ! $branchId
+            || ! $user->hasBranchPermission('view dashboard alerts')
+            || ! $user->hasBranchPermission('edit attendance')) {
+            return null;
+        }
+
+        return app(LateClockInReview::class)->countToday((int) $spaId, (int) $branchId);
     }
 }

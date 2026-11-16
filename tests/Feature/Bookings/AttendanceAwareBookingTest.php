@@ -244,9 +244,13 @@ class AttendanceAwareBookingTest extends TestCase
 
         $this->actingAs($this->manager)->post(route('attendance.record', $this->staffOf($this->tess)), [
             'date' => self::TODAY, 'status' => 'present', 'time_in' => '09:00', 'time_out' => '',
+            // Clock-in guard (Nov 16): changing a self clock time needs a reason.
+            'remarks' => 'Clocked out by mistake',
         ])->assertSessionHas('success');
 
         $this->assertSame(2, $this->slot('18:00')['free']);
+        $this->assertSame('System clock-out 5:03 PM | Clocked out by mistake',
+            StaffAttendance::where('staff_id', $this->staffOf($this->tess)->id)->whereDate('date', self::TODAY)->value('remarks'));
     }
 
     public function test_mobile_slots_match_web(): void

@@ -193,6 +193,14 @@ class BookingCheckoutTest extends TestCase
         $this->booking->forceFill(['status' => 'pending'])->saveQuietly();
         $paidBefore = (float) $this->booking->amount_paid;
 
+        // Clock-in guard (Nov 16): Start needs the therapist's time in for the day.
+        $staff = \App\Models\Staff::where('user_id', $this->booking->therapist_id)->firstOrFail();
+        \Illuminate\Support\Facades\DB::table('staff_attendance')->insert([
+            'staff_id' => $staff->id, 'spa_id' => $staff->spa_id, 'branch_id' => $staff->branch_id,
+            'date' => $this->booking->appointment_date->toDateString(), 'status' => 'present', 'source' => 'self',
+            'time_in' => '09:00:00', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
         $this->actingAs($this->manager)->from(route('appointments.index'))
             ->put(route('appointments.updateStatus', $this->booking), ['status' => 'ongoing'])
             ->assertSessionHasNoErrors()

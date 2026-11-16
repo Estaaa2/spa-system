@@ -315,6 +315,29 @@ class AttendanceController extends Controller
             }
         }
 
+        // Clock-in guard (Nov 16): changing the time of a self clock-in / clock-out
+        // needs a reason, and the system time is kept in front of it so a
+        // correction "from memory" stays traceable.
+        $existing = StaffAttendance::where('staff_id', $staff->id)
+            ->whereDate('date', $validated['date'])
+            ->first();
+        if ($existing && $existing->source === 'self') {
+            $hm = fn ($t) => $t ? Carbon::parse($t)->format('H:i') : null;
+            $notes = [];
+            if ($existing->time_in && $hm($existing->time_in) !== ($validated['time_in'] ?? null)) {
+                $notes[] = 'System clock-in ' . Carbon::parse($existing->time_in)->format('g:i A');
+            }
+            if ($existing->time_out && $hm($existing->time_out) !== ($validated['time_out'] ?? null)) {
+                $notes[] = 'system clock-out ' . Carbon::parse($existing->time_out)->format('g:i A');
+            }
+            if ($notes) {
+                if (blank($validated['remarks'] ?? null)) {
+                    return back()->withInput()->with('error', 'Add a remark saying why the clock time was changed.');
+                }
+                $validated['remarks'] = mb_substr(ucfirst(implode(', ', $notes)) . ' | ' . trim($validated['remarks']), 0, 500);
+            }
+        }
+
         StaffAttendance::updateOrCreate(
             ['staff_id' => $staff->id, 'date' => $validated['date']],
             [

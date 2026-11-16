@@ -119,13 +119,34 @@ class BookingController extends Controller
             $forBooking?->id
         );
 
-        $recommended = $this->assigner->leastBusy($available, $spaId, $branchId, $validated['appointment_date'], $forBooking?->id);
+        // Clock-in guard (Nov 16): for today, clocked-in therapists come first and
+        // the pre-selected one is the least busy of them; anyone not clocked in
+        // stays in the list (labelled) because they may still arrive.
+        $isToday = Carbon::parse($validated['appointment_date'])->isToday();
+        $clockedIn = $isToday
+            ? $this->attendance()->clockedInNow($available->pluck('id'), $spaId, $validated['appointment_date'])
+            : [];
+
+        if ($isToday) {
+            $available = $available->sortBy(fn ($t) => isset($clockedIn[$t->id]) ? 0 : 1)->values();
+        }
+
+        $clockedInPool = $available->filter(fn ($t) => isset($clockedIn[$t->id]));
+        $recommended = $this->assigner->leastBusy(
+            $clockedInPool->isNotEmpty() ? $clockedInPool : $available,
+            $spaId,
+            $branchId,
+            $validated['appointment_date'],
+            $forBooking?->id
+        );
 
         return response()->json([
             'therapists' => $available->map(fn ($t) => [
                 'id' => $t->id,
                 'name' => $t->first_name . ' ' . $t->last_name,
+                'first_name' => $t->first_name,
                 'verified' => $t->isIdentityVerified(),
+                'clocked_in' => $isToday ? isset($clockedIn[$t->id]) : null,
             ])->values(),
             'recommended_id' => $recommended?->id,
             'verified_only' => $requireVerified,

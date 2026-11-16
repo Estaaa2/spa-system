@@ -856,7 +856,7 @@
                                 <div>
                                     <label for="add_reorder_level"
                                         class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Threshold Level <x-required-mark />
+                                        Reorder Level <x-required-mark />
                                     </label>
 
                                     <input type="number"

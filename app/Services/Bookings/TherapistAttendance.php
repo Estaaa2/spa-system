@@ -18,6 +18,8 @@ use Carbon\Carbon;
  *   D3    Start is refused for a therapist who is gone (today only); Checkout
  *         needs a confirmation when the clock-out came before the booking's
  *         start (Q4 B), or the person was marked absent / on leave by a manager.
+ *   Nov 16 (clock-in guard): Start also needs a time in today. Booking does
+ *         not: a therapist who hasn't clocked in yet stays bookable.
  */
 class TherapistAttendance
 {
@@ -56,6 +58,47 @@ class TherapistAttendance
         }
 
         return $out;
+    }
+
+    /** Did this person clock in on $date (a time in, whatever happened after)? */
+    public function hasTimeIn(int $userId, int $spaId, string $date): bool
+    {
+        return StaffAttendance::query()
+            ->join('staff', 'staff.id', '=', 'staff_attendance.staff_id')
+            ->where('staff.user_id', $userId)
+            ->where('staff.spa_id', $spaId)
+            ->whereDate('staff_attendance.date', $date)
+            ->whereNull('staff_attendance.deleted_at')
+            ->whereNotNull('staff_attendance.time_in')
+            ->exists();
+    }
+
+    /**
+     * Users clocked in right now on $date: a time in, no time out, not absent /
+     * on leave. Keyed by user id.
+     *
+     * @param  iterable<int>  $userIds
+     * @return array<int, true>
+     */
+    public function clockedInNow(iterable $userIds, int $spaId, string $date): array
+    {
+        $ids = collect($userIds)->map(fn ($id) => (int) $id)->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return StaffAttendance::query()
+            ->join('staff', 'staff.id', '=', 'staff_attendance.staff_id')
+            ->whereIn('staff.user_id', $ids)
+            ->where('staff.spa_id', $spaId)
+            ->whereDate('staff_attendance.date', $date)
+            ->whereNull('staff_attendance.deleted_at')
+            ->whereNotNull('staff_attendance.time_in')
+            ->whereNull('staff_attendance.time_out')
+            ->whereNotIn('staff_attendance.status', self::GONE_STATUSES)
+            ->pluck('staff.user_id')
+            ->mapWithKeys(fn ($id) => [(int) $id => true])
+            ->all();
     }
 
     /** One user's "gone" record on $date, or null. */
@@ -124,11 +167,19 @@ class TherapistAttendance
         }
 
         $record = $record === false ? $this->recordFor($booking) : $record;
-        if (! $record || ! self::blocksRangeEnding($record, (string) $booking->end_time)) {
-            return null;
+        if ($record && self::blocksRangeEnding($record, (string) $booking->end_time)) {
+            return self::message($booking->therapist, $record).' Edit the appointment and choose another therapist before starting it.';
         }
 
-        return self::message($booking->therapist, $record).' Edit the appointment and choose another therapist before starting it.';
+        // Nov 16: a session needs the therapist's time in for today.
+        if (! $this->hasTimeIn((int) $booking->therapist_id, (int) $booking->spa_id, $booking->appointment_date->toDateString())) {
+            $name = trim((string) $booking->therapist?->first_name) ?: 'The therapist';
+
+            return "{$name} hasn't clocked in yet today. They need to clock in before this session can start. "
+                .'If they forgot, they can clock in now; a manager can correct the time in Attendance.';
+        }
+
+        return null;
     }
 
     /**
