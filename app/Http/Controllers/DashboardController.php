@@ -320,6 +320,10 @@ class DashboardController extends Controller
                 'is_permanent'    => (bool) $pending->is_permanent,
                 'start_date_fmt'  => \Carbon\Carbon::parse($pending->start_date)->format('M d, Y'),
                 'end_date_fmt'    => $pending->end_date ? \Carbon\Carbon::parse($pending->end_date)->format('M d, Y') : null,
+                // Additive (therapist mobile dashboard): the web card's
+                // "Approved deployment" / "Deployment request" title and the note.
+                'status'          => $pending->status,
+                'notes'           => $pending->notes,
             ] : null;
         }
 

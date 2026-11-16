@@ -110,6 +110,14 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
         ->middleware('branch.permission:create leave requests');
     Route::get('/leave-requests/mine', [\App\Http\Controllers\LeaveRequestController::class, 'mine']);
     Route::get('/leave-requests/{leaveRequest}/affected-bookings', [\App\Http\Controllers\LeaveRequestController::class, 'affectedBookings']);
+    // Branch transfer (the web dashboard's card) through the web's own
+    // BranchDeploymentController; it checks the request is the user's own.
+    Route::post('/branch-deployments/self-request', [\App\Http\Controllers\HR\BranchDeploymentController::class, 'storeSelf'])
+        ->middleware('throttle:10,1,api-transfer');
+    Route::delete('/branch-deployments/{deployment}/self-cancel', [\App\Http\Controllers\HR\BranchDeploymentController::class, 'selfCancel'])
+        ->whereNumber('deployment');
+    Route::post('/branch-deployments/{deployment}/staff-respond', [\App\Http\Controllers\HR\BranchDeploymentController::class, 'staffRespond'])
+        ->whereNumber('deployment');
     Route::post('/appointments/{booking}/reassignment-requests', [\App\Http\Controllers\ReassignmentRequestController::class, 'store'])
         ->middleware('can:request-appointment-reassignment');
             // My Payslips: the web's HR\MyPayslipController logic, as JSON.
@@ -158,6 +166,8 @@ Route::middleware(['auth:sanctum', EnsureMobileAccess::class])->group(function (
     Route::middleware(['can:act-as-treatment-provider'])->group(function () {
         Route::get('/assigned-bookings',  [BookingController::class, 'assignedBookings']);
         Route::get('/therapist/schedule', [BookingController::class, 'therapistSchedule']);
+        // The web dashboard's personal parts (therapist mobile dashboard, Nov 2026).
+        Route::get('/therapist/dashboard', [\App\Http\Controllers\Api\TherapistDashboardController::class, 'show']);
         // Arrival code for online home service (same rules as the web).
         Route::post('/appointments/{booking}/arrival', [\App\Http\Controllers\Api\ArrivalController::class, 'store'])
             ->whereNumber('booking')

@@ -140,7 +140,7 @@
                     @click="openCreate()"
                     class="{{ $btn['primary'] }}"
                     @disabled($billablePurchaseOrders->isEmpty())
-                    @if($billablePurchaseOrders->isEmpty()) title="An issued or received purchase order is needed first" @endif
+                    @if($billablePurchaseOrders->isEmpty()) title="No purchase order is waiting for a vendor bill" @endif
                 >
                     <i class="fa-solid fa-file-invoice" aria-hidden="true"></i>
                     Create Vendor Bill
@@ -204,7 +204,7 @@
                     </p>
 
                     <p class="mt-1 text-sm text-amber-800 dark:text-amber-300">
-                        An issued or received purchase order is required before recording a supplier invoice.
+                        Every issued or received purchase order already has a vendor bill. Correct an existing bill instead, or wait for a new purchase order.
                     </p>
                 </div>
             </div>
@@ -312,7 +312,7 @@
                             <td
                                 role="cell"
                                 data-label="Supplier"
-                                class="px-4 py-4 sm:px-6 text-sm text-gray-700 dark:text-gray-300"
+                                class="px-4 py-4 text-sm text-gray-700 sm:px-6 dark:text-gray-300"
                             >
                                 <span>
                                     {{ $vendorBill->supplier?->name ?? '—' }}
@@ -322,7 +322,7 @@
                             <td
                                 role="cell"
                                 data-label="Purchase Order"
-                                class="px-4 py-4 sm:px-6 text-sm text-gray-700 dark:text-gray-300"
+                                class="px-4 py-4 text-sm text-gray-700 sm:px-6 dark:text-gray-300"
                             >
                                 <span>
                                     PO #{{ str_pad($vendorBill->purchase_order_id, 5, '0', STR_PAD_LEFT) }}
@@ -332,7 +332,7 @@
                             <td
                                 role="cell"
                                 data-label="Invoice Date"
-                                class="px-4 py-4 sm:px-6 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                                class="px-4 py-4 text-sm text-gray-700 sm:px-6 dark:text-gray-300 whitespace-nowrap"
                             >
                                 <span>
                                     {{ $vendorBill->invoice_date?->format('M d, Y') }}
@@ -342,7 +342,7 @@
                             <td
                                 role="cell"
                                 data-label="Amount"
-                                class="px-4 py-4 sm:px-6 text-sm font-semibold text-right text-gray-900 dark:text-white whitespace-nowrap"
+                                class="px-4 py-4 text-sm font-semibold text-right text-gray-900 sm:px-6 dark:text-white whitespace-nowrap"
                             >
                                 <span>
                                     ₱{{ number_format($vendorBill->total_amount, 2) }}

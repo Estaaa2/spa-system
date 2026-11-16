@@ -19,6 +19,26 @@
     $inputClass = 'w-full min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded-xl focus:border-[#8B7355] focus:ring-1 focus:ring-[#8B7355]/30 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white';
 
     $receivablePayloads = $receivablePurchaseOrders->mapWithKeys(function ($purchaseOrder) {
+        $items = $purchaseOrder->items->map(function ($item) {
+            $accepted = (float) $item->goodsReceiptItems->sum('accepted_quantity');
+            $ordered = (float) $item->quantity;
+            $outstanding = max(round($ordered - $accepted, 3), 0);
+
+            return [
+                'id' => $item->id,
+                'product_id' => $item->product_id,
+                'product_name' => $item->product?->name ?? 'Unknown Product',
+                'ordered' => $ordered,
+                'accepted' => $accepted,
+                'outstanding' => $outstanding,
+                'unit' => $item->unit ?: 'unit',
+            ];
+        });
+
+        // Fully accepted lines are done. Lines short because of rejections stay
+        // receivable because their accepted quantity is still below ordered.
+        $openItems = $items->filter(fn ($item) => $item['outstanding'] > 0)->values();
+
         return [
             $purchaseOrder->id => [
                 'id' => $purchaseOrder->id,
@@ -26,21 +46,8 @@
                 'status' => $purchaseOrder->status,
                 'expected_delivery_date' => $purchaseOrder->expected_delivery_date?->format('Y-m-d'),
                 'store_url' => route('inventory.goods-receipts.store', $purchaseOrder),
-                'items' => $purchaseOrder->items->map(function ($item) {
-                    $accepted = (float) $item->goodsReceiptItems->sum('accepted_quantity');
-                    $ordered = (float) $item->quantity;
-                    $outstanding = max(round($ordered - $accepted, 3), 0);
-
-                    return [
-                        'id' => $item->id,
-                        'product_id' => $item->product_id,
-                        'product_name' => $item->product?->name ?? 'Unknown Product',
-                        'ordered' => $ordered,
-                        'accepted' => $accepted,
-                        'outstanding' => $outstanding,
-                        'unit' => $item->unit ?: 'unit',
-                    ];
-                })->values(),
+                'items' => $openItems,
+                'completed_count' => $items->count() - $openItems->count(),
             ],
         ];
     });
@@ -492,6 +499,16 @@
                                 </div>
                             </div>
                         </template>
+
+                        <p
+                            x-show="selectedOrder.completed_count > 0"
+                            class="text-sm text-gray-500 dark:text-gray-400"
+                        >
+                            <i class="mr-1 text-emerald-600 fa-solid fa-circle-check dark:text-emerald-400" aria-hidden="true"></i>
+                            <span x-text="selectedOrder.completed_count"></span>
+                            <span x-text="selectedOrder.completed_count === 1 ? 'product is' : 'products are'"></span>
+                            already fully received and hidden from this receipt.
+                        </p>
                     </div>
                 </template>
 

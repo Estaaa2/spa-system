@@ -80,6 +80,11 @@ class PurchaseRequestController extends Controller
                 'decimal:0,3',
                 'max:' . config('limits.quantity'),
             ],
+        ], [
+            'items.*.product_id.distinct' => 'This product is already listed in this request.',
+        ], [
+            'items.*.product_id' => 'product',
+            'items.*.quantity' => 'quantity',
         ]);
 
         try {

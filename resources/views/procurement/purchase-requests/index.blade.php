@@ -68,11 +68,15 @@
             'product_id' => '',
             'quantity' => 1,
         ],
-    ]))->values()->map(function ($item, $index) {
+    ]))->values()->map(function ($item, $index) use ($errors) {
+        $bag = $errors->createPurchaseRequest;
+
         return [
             'key' => 'old-' . $index,
             'product_id' => $item['product_id'] ?? '',
             'quantity' => $item['quantity'] ?? 1,
+            'product_error' => $bag->first("items.{$index}.product_id"),
+            'quantity_error' => $bag->first("items.{$index}.quantity"),
         ];
     })->values()->all();
 
@@ -440,51 +444,23 @@
                 </div>
 
                 <div class="p-5 space-y-5 sm:p-6">
-                    <x-required-note />
+                    <div class="p-4 border border-blue-200 bg-blue-50 rounded-xl dark:border-blue-800 dark:bg-blue-900/10">
+                        <div class="flex items-start gap-3">
+                            <i
+                                class="mt-0.5 text-blue-600 fa-solid fa-circle-info dark:text-blue-400"
+                                aria-hidden="true"
+                            ></i>
 
-                    <div>
-                        <div class="p-4 mb-4 border border-blue-200 bg-blue-50 rounded-xl dark:border-blue-800 dark:bg-blue-900/10">
-                            <div class="flex items-start gap-3">
-                                <i
-                                    class="mt-0.5 text-blue-600 fa-solid fa-circle-info dark:text-blue-400"
-                                    aria-hidden="true"
-                                ></i>
+                            <div>
+                                <p class="text-sm font-medium text-blue-800 dark:text-blue-300">
+                                    Purchase request only
+                                </p>
 
-                                <div>
-                                    <p class="text-sm font-medium text-blue-800 dark:text-blue-300">
-                                        Purchase request only
-                                    </p>
-
-                                    <p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
-                                        Submitting this request does not add inventory or place an order with a supplier.
-                                    </p>
-                                </div>
+                                <p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                                    Submitting this request does not add inventory or place an order with a supplier.
+                                </p>
                             </div>
                         </div>
-                        <label
-                            for="purchase-request-reason"
-                            class="text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Reason
-                        </label>
-
-                        <textarea
-                            id="purchase-request-reason"
-                            name="reason"
-                            rows="3"
-                            maxlength="1000"
-                            class="{{ $inputBase }}"
-                            placeholder="Why does this branch need these products?"
-                        >{{ old('reason') }}</textarea>
-
-                        @error('reason', 'createPurchaseRequest')
-                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">
-                                {{ $message }}
-                            </p>
-                        @enderror
-
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Optional, but recommended so reviewers understand the request.
-                        </p>
                     </div>
 
                     <div>
@@ -532,6 +508,9 @@
                                                 :id="'purchase-product-' + item.key"
                                                 :name="'items[' + index + '][product_id]'"
                                                 x-model="item.product_id"
+                                                @change="item.product_error = ''"
+                                                :aria-invalid="item.product_error ? 'true' : 'false'"
+                                                :aria-describedby="item.product_error ? 'purchase-product-error-' + item.key : null"
                                                 required
                                                 class="{{ $inputBase }}"
                                             >
@@ -563,6 +542,9 @@
                                                 type="number"
                                                 :name="'items[' + index + '][quantity]'"
                                                 x-model="item.quantity"
+                                                @input="item.quantity_error = ''"
+                                                :aria-invalid="item.quantity_error ? 'true' : 'false'"
+                                                :aria-describedby="item.quantity_error ? 'purchase-quantity-error-' + item.key : null"
                                                 min="0.001"
                                                 max="{{ config('limits.quantity') }}"
                                                 step="0.001"
@@ -585,15 +567,57 @@
                                                 aria-hidden="true"
                                             ></i>
                                         </button>
-                                        @error('items', 'createPurchaseRequest')
-                                            <p class="mt-1 text-sm text-red-600 sm:col-span-3 dark:text-red-400">
-                                                {{ $message }}
-                                            </p>
-                                        @enderror
+
+                                        <p
+                                            x-show="item.product_error"
+                                            x-text="item.product_error"
+                                            :id="'purchase-product-error-' + item.key"
+                                            class="text-sm text-red-600 sm:col-span-3 dark:text-red-400"
+                                        ></p>
+
+                                        <p
+                                            x-show="item.quantity_error"
+                                            x-text="item.quantity_error"
+                                            :id="'purchase-quantity-error-' + item.key"
+                                            class="text-sm text-red-600 sm:col-span-3 dark:text-red-400"
+                                        ></p>
                                     </div>
                                 </div>
                             </template>
                         </div>
+
+                        @error('items', 'createPurchaseRequest')
+                            <p class="mt-2 text-sm text-red-600 dark:text-red-400">
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label
+                            for="purchase-request-reason"
+                            class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                            Reason
+                        </label>
+
+                        <textarea
+                            id="purchase-request-reason"
+                            name="reason"
+                            rows="3"
+                            maxlength="1000"
+                            class="{{ $inputBase }}"
+                            placeholder="Why does this branch need these products?"
+                        >{{ old('reason') }}</textarea>
+
+                        @error('reason', 'createPurchaseRequest')
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">
+                                {{ $message }}
+                            </p>
+                        @enderror
+
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Optional, but recommended so reviewers understand the request.
+                        </p>
                     </div>
                 </div>
 
@@ -1093,7 +1117,9 @@
                 this.items.push({
                     key: 'new-' + Date.now() + '-' + Math.random(),
                     product_id: '',
-                    quantity: 1
+                    quantity: 1,
+                    product_error: '',
+                    quantity_error: ''
                 });
             },
 

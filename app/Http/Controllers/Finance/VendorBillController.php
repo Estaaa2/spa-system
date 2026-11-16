@@ -42,6 +42,11 @@ class VendorBillController extends Controller
                 PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
                 PurchaseOrder::STATUS_RECEIVED,
             ])
+            // One active bill per PO: the 3-way match compares a bill against the
+            // PO's total accepted quantity, so a second bill would double-bill it.
+            ->whereDoesntHave('vendorBills', function ($query) {
+                $query->where('status', '!=', VendorBill::STATUS_CANCELLED);
+            })
             ->with([
                 'supplier',
                 'items.product',
@@ -117,6 +122,20 @@ class VendorBillController extends Controller
                     throw ValidationException::withMessages([
                         'purchase_order_id' =>
                             'Only issued or received purchase orders can be billed.',
+                    ]);
+                }
+
+                $existingBill = VendorBill::query()
+                    ->where('purchase_order_id', $purchaseOrder->id)
+                    ->where('status', '!=', VendorBill::STATUS_CANCELLED)
+                    ->first();
+
+                if ($existingBill) {
+                    throw ValidationException::withMessages([
+                        'purchase_order_id' =>
+                            'This purchase order already has vendor bill ' .
+                            $existingBill->invoice_number .
+                            '. Correct that bill instead of creating a new one.',
                     ]);
                 }
 

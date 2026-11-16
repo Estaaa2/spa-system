@@ -280,11 +280,16 @@ class BranchDeploymentController extends Controller
         }
 
         if ($user->isHead()) {
-            return back()->with('error', 'HR Head and Finance Head accounts work across all branches and cannot be deployed.');
+            return $this->selfServiceError($request, 'HR Head and Finance Head accounts work across all branches and cannot be deployed.');
+        }
+
+        // Only a branch of your own spa (the validation rule above accepts any branch id).
+        if (! Branch::where('id', (int) $validated['to_branch_id'])->where('spa_id', $staff->spa_id)->exists()) {
+            return $this->selfServiceError($request, 'That branch is not part of your spa.');
         }
 
         if ((int) $validated['to_branch_id'] === $staff->branch_id) {
-            return back()->with('error', 'You are already assigned to that branch.');
+            return $this->selfServiceError($request, 'You are already assigned to that branch.');
         }
 
         $hasBlockingRequest = StaffBranchDeployment::where('staff_id', $staff->id)
@@ -292,13 +297,13 @@ class BranchDeploymentController extends Controller
             ->exists();
 
         if ($hasBlockingRequest) {
-            return back()->with('error', 'You already have a pending, approved, or active deployment request. Wait for it to be resolved before requesting again.');
+            return $this->selfServiceError($request, 'You already have a pending, approved, or active deployment request. Wait for it to be resolved before requesting again.');
         }
 
         // Same guard as store() — can't self-request a transfer into
         // a branch that has no operating days configured at all.
         if (!$this->branchHasOpenDays((int) $validated['to_branch_id'])) {
-            return back()->with('error', 'That branch has no operating days configured and cannot receive staff deployments.');
+            return $this->selfServiceError($request, 'That branch has no operating days configured and cannot receive staff deployments.');
         }
 
         // ✅ ADD: Reject the specific start/end dates if the target branch
@@ -306,15 +311,11 @@ class BranchDeploymentController extends Controller
         $targetBranch = Branch::with('operatingHours')->findOrFail($validated['to_branch_id']);
 
         if ($targetBranch->isClosedOn($validated['start_date'])) {
-            return back()
-                ->withInput()
-                ->with('error', 'The target branch is closed on the selected start date. Please choose a different date.');
+            return $this->selfServiceError($request, 'The target branch is closed on the selected start date. Please choose a different date.');
         }
 
         if (!empty($validated['end_date']) && $targetBranch->isClosedOn($validated['end_date'])) {
-            return back()
-                ->withInput()
-                ->with('error', 'The target branch is closed on the selected end date. Please choose a different date.');
+            return $this->selfServiceError($request, 'The target branch is closed on the selected end date. Please choose a different date.');
         }
 
         $isPermanent = (bool) ($validated['is_permanent'] ?? false);
@@ -340,11 +341,10 @@ class BranchDeploymentController extends Controller
         // staff-initiated request is awaiting their review — mirrors how
         // DeploymentAwaitingResponse notifies the staff side for HR-initiated ones.
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Your transfer request has been submitted and is awaiting approval.');
+        return $this->selfServiceDone($request, 'Your transfer request has been submitted and is awaiting approval.', 201);
     }
 
-    public function selfCancel(StaffBranchDeployment $deployment)
+    public function selfCancel(Request $request, StaffBranchDeployment $deployment)
     {
         $user = Auth::user();
 
@@ -355,13 +355,12 @@ class BranchDeploymentController extends Controller
         }
 
         if ($deployment->status !== 'pending') {
-            return back()->with('error', 'Only pending requests can be cancelled.');
+            return $this->selfServiceError($request, 'Only pending requests can be cancelled.');
         }
 
         $deployment->update(['status' => 'cancelled']);
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Your transfer request has been cancelled.');
+        return $this->selfServiceDone($request, 'Your transfer request has been cancelled.');
     }
 
     /**
@@ -498,11 +497,11 @@ class BranchDeploymentController extends Controller
         }
 
         if (!in_array($deployment->status, ['pending', 'approved'])) {
-            return back()->with('error', 'This deployment request is no longer open for a response.');
+            return $this->selfServiceError($request, 'This deployment request is no longer open for a response.');
         }
 
         if ($deployment->staff_response !== 'pending') {
-            return back()->with('error', 'You have already responded to this deployment request.');
+            return $this->selfServiceError($request, 'You have already responded to this deployment request.');
         }
 
         $validated = $request->validate([
@@ -522,8 +521,7 @@ class BranchDeploymentController extends Controller
                 'status'               => 'cancelled',
             ]);
 
-            return redirect()->route('dashboard')
-                ->with('success', 'You have declined the deployment request. HR/Owner has been notified for reassignment.');
+            return $this->selfServiceDone($request, 'You have declined the deployment request. HR/Owner has been notified for reassignment.');
         }
 
         // Accepted
@@ -533,8 +531,7 @@ class BranchDeploymentController extends Controller
             'staff_decline_reason'=> null,
         ]);
 
-        return redirect()->route('dashboard')
-            ->with('success', 'You have accepted the deployment request.');
+        return $this->selfServiceDone($request, 'You have accepted the deployment request.');
     }
 
     /**
@@ -550,5 +547,27 @@ class BranchDeploymentController extends Controller
         return OperatingHours::where('branch_id', $branchId)
             ->where('is_closed', false)
             ->exists();
+    }
+
+    // ── Staff self-service answers (therapist mobile dashboard, Nov 2026) ────
+    // The app calls storeSelf / selfCancel / staffRespond through /api with
+    // Accept: application/json; the web keeps its redirects and flash messages.
+
+    private function selfServiceDone(Request $request, string $message, int $status = 200)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], $status);
+        }
+
+        return redirect()->route('dashboard')->with('success', $message);
+    }
+
+    private function selfServiceError(Request $request, string $message)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], 422);
+        }
+
+        return back()->withInput()->with('error', $message);
     }
 }

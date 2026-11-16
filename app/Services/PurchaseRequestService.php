@@ -71,14 +71,19 @@ class PurchaseRequestService
             ]);
         }
 
-        $inactiveProduct = $products->first(function ($product) {
-            return isset($product->is_active) && !$product->is_active;
-        });
+        $inactiveMessages = [];
 
-        if ($inactiveProduct) {
-            throw ValidationException::withMessages([
-                'items' => "{$inactiveProduct->name} is inactive and cannot be requested.",
-            ]);
+        foreach ($normalizedItems as $index => $item) {
+            $product = $products->get($item['product_id']);
+
+            if (isset($product->is_active) && !$product->is_active) {
+                $inactiveMessages["items.{$index}.product_id"] =
+                    "{$product->name} is inactive and cannot be requested.";
+            }
+        }
+
+        if ($inactiveMessages) {
+            throw ValidationException::withMessages($inactiveMessages);
         }
 
         return DB::transaction(function () use (
@@ -101,7 +106,7 @@ class PurchaseRequestService
                 ]);
             }
 
-            $openRequest = PurchaseRequest::query()
+            $openRequests = PurchaseRequest::query()
                 ->where('spa_id', $requester->spa_id)
                 ->where('branch_id', $branchId)
                 ->whereIn('status', [
@@ -113,28 +118,44 @@ class PurchaseRequestService
                 })
                 ->with([
                     'items' => function ($query) use ($productIds) {
-                        $query
-                            ->whereIn('product_id', $productIds)
-                            ->with('product');
+                        $query->whereIn('product_id', $productIds);
                     },
                 ])
                 ->orderBy('id')
-                ->first();
+                ->get();
 
-            if ($openRequest) {
-                $item = $openRequest->items->first();
+            // Oldest open request per product.
+            $openRequestByProduct = [];
 
-                $productName = $item?->product?->name ?? 'Selected product';
+            foreach ($openRequests as $openRequest) {
+                foreach ($openRequest->items as $openItem) {
+                    $openRequestByProduct[$openItem->product_id] ??= $openRequest;
+                }
+            }
 
-                throw ValidationException::withMessages([
-                    'items' =>
+            if ($openRequestByProduct) {
+                $messages = [];
+
+                foreach ($normalizedItems as $index => $item) {
+                    $openRequest = $openRequestByProduct[$item['product_id']] ?? null;
+
+                    if (!$openRequest) {
+                        continue;
+                    }
+
+                    $productName = $products->get($item['product_id'])?->name
+                        ?? 'Selected product';
+
+                    $messages["items.{$index}.product_id"] =
                         "{$productName} already has an open purchase request " .
                         "(PR #" .
                         str_pad($openRequest->id, 5, '0', STR_PAD_LEFT) .
                         " - " .
                         ucfirst($openRequest->status) .
-                        ").",
-                ]);
+                        ").";
+                }
+
+                throw ValidationException::withMessages($messages);
             }
 
             $purchaseRequest = PurchaseRequest::create([
