@@ -25,14 +25,15 @@
     $tabActive   = $tabBase . ' text-white shadow-sm bg-gradient-to-r from-[#7A6348] to-[#6F5430]';
     $tabInactive = $tabBase . ' text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700';
 
-    $canEdit   = auth()->user()->can('edit registered users');
-    $canDelete = auth()->user()->can('delete registered users');
-    $showActions = $showDeleted ? $canDelete : ($canEdit || $canDelete);
+    // Role changes were removed from this page: an account's role is set by
+    // the flow that created it (customer sign-up, spa registration, staff hire).
+    $canDelete   = auth()->user()->can('delete registered users');
+    $showActions = $canDelete;
 @endphp
 <div class="p-4 mx-auto space-y-6 sm:p-6 max-w-7xl">
     <x-page-header
         title="Registered Users"
-        subtitle="Review accounts, change roles, and remove or restore users."
+        subtitle="Review accounts and remove or restore users."
     />
 
     <nav aria-label="User lists"
@@ -107,13 +108,6 @@
                                                 </button>
                                             </form>
                                         @else
-                                            @if ($canEdit)
-                                                <button type="button" class="{{ $btn['edit'] }}"
-                                                        onclick='openRoleModal({{ $user->id }}, @json($displayName), @json($currentRole))'>
-                                                    <i class="text-xs fa-solid fa-pen" aria-hidden="true"></i>
-                                                    <span>Change Role</span>
-                                                </button>
-                                            @endif
                                             @if ($canDelete)
                                                 <button type="button" class="{{ $btn['remove'] }}"
                                                         onclick='openDeleteModal({{ $user->id }}, @json($displayName))'>
@@ -148,49 +142,6 @@
     </div>
 </div>
 
-@if ($canEdit && ! $showDeleted)
-<div id="roleModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
-    <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
-        <div role="dialog" aria-modal="true" aria-labelledby="roleModalTitle"
-             class="w-full max-w-md bg-white shadow-xl rounded-2xl dark:bg-gray-800">
-            <form id="roleForm" method="POST">
-                @csrf
-                @method('PUT')
-                <div class="flex items-start justify-between gap-3 px-4 py-4 border-b border-gray-200 sm:px-6 dark:border-gray-700">
-                    <div>
-                        <h2 id="roleModalTitle" class="text-lg font-semibold text-gray-900 dark:text-white">Change User Role</h2>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Updating the role for <span id="roleUserName" class="font-medium text-gray-900 dark:text-white"></span>.
-                        </p>
-                    </div>
-                    <button type="button" onclick="closeModal('roleModal')" aria-label="Close dialog"
-                            class="inline-flex items-center justify-center text-gray-500 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200">
-                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="px-4 py-6 sm:px-6">
-                    <label for="roleSelect" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Role</label>
-                    <select name="role" id="roleSelect" required class="{{ $inputClass }}">
-                        {{-- Shown when the user's current role is not assignable here, so Save cannot silently pick the first option. --}}
-                        <option value="" disabled>Select a role</option>
-                        @foreach($roles as $role)
-                            @continue(in_array($role->name, ['admin', 'customer'], true))
-                            <option value="{{ $role->name }}">{{ \App\Services\Payroll\PayrollPermissions::roleLabel($role->name) }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="px-4 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl sm:px-6 dark:bg-gray-900 dark:border-gray-700">
-                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <button type="button" onclick="closeModal('roleModal')" class="w-full {{ $btn['neutral'] }} sm:w-auto">Cancel</button>
-                        <button type="submit" class="w-full {{ $btn['primary'] }} sm:w-auto">Save Changes</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@endif
-
 @if ($canDelete && ! $showDeleted)
 <div id="deleteModal" class="fixed inset-0 z-50 hidden overflow-y-auto overscroll-contain bg-black/50">
     <div class="flex items-start justify-center min-h-full p-4 sm:items-center">
@@ -214,14 +165,13 @@
 </div>
 @endif
 
-@if ($showActions && ! $showDeleted)
+@if ($canDelete && ! $showDeleted)
 <script>
 (function () {
     'use strict';
 
-    const ROUTE_ROLE    = @json(route('admin.users.updateRole', '__ID__'));
     const ROUTE_DESTROY = @json(route('admin.users.destroy', '__ID__'));
-    const MODAL_IDS = ['roleModal', 'deleteModal'];
+    const MODAL_IDS = ['deleteModal'];
     const FOCUSABLE = 'a[href], button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
     let lastFocused = null;   // element to restore focus to on close
@@ -262,23 +212,13 @@
         }
     });
 
-    // Backdrop click closes the delete confirmation only, so a stray tap
-    // cannot discard a role the admin has just chosen.
+    // Backdrop click closes the delete confirmation.
     const deleteModal = document.getElementById('deleteModal');
     if (deleteModal) {
         deleteModal.addEventListener('click', e => { if (e.target === deleteModal) closeModal('deleteModal'); });
     }
 
     window.closeModal = closeModal;
-
-    window.openRoleModal = function (id, name, role) {
-        const select = document.getElementById('roleSelect');
-        document.getElementById('roleUserName').textContent = name;
-        document.getElementById('roleForm').action = ROUTE_ROLE.replace('__ID__', id);
-        select.value = role ?? '';
-        if (select.selectedIndex < 0) select.value = '';
-        openModal('roleModal', 'select');
-    };
 
     window.openDeleteModal = function (id, name) {
         document.getElementById('deleteUserName').textContent = name;

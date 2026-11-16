@@ -1269,10 +1269,6 @@ Route::middleware(['auth', 'role:admin'])
                 ->name('refunds.sent');
         });
 
-        Route::middleware('permission:edit registered users')->group(function () {
-            Route::put('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.updateRole');
-        });
-
         Route::middleware('permission:delete registered users')->group(function () {
             Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
             Route::post('/users/{id}/restore', [UserManagementController::class, 'restore'])->name('users.restore');
@@ -1489,4 +1485,3 @@ Route::get('/web-api/branches/{branch}/card', [LandingController::class, 'branch
 Route::get('/web-api/spas/{spaId}/{branchId}/reviews', [LandingController::class, 'spaReviews']);
 
 require __DIR__.'/auth.php';
-

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 
 class UserManagementController extends Controller
@@ -38,20 +37,7 @@ class UserManagementController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $roles = Role::orderBy('name')->get();
-
-        return view('admin.users.index', compact('users', 'roles', 'q', 'showDeleted'));
-    }
-
-    public function updateRole(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'role' => ['required', 'string', 'exists:roles,name'],
-        ]);
-
-        $user->syncRoles([$validated['role']]);
-
-        return back()->with('success', "Role updated for {$user->email}.");
+        return view('admin.users.index', compact('users', 'q', 'showDeleted'));
     }
 
     public function destroy(User $user)
